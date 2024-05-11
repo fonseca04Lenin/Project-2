@@ -1,4 +1,4 @@
-import tkinter as tk
+import tkinter as tk  # Importing tkinter for GUI
 from tkinter import messagebox
 import matplotlib
 import matplotlib.dates
@@ -13,11 +13,14 @@ class StockGUI: # UI for app
         self.root = root
         self.root.title("Stock Watchlist App")
 
+        # API key for IEX Cloud(This is mine)
         self.iex_cloud_api_key = 'pk_b60d5e6f35c94e04a5ee80b9c51d9a2e'
         self.iex_cloud_api = IEXCloudAPI(self.iex_cloud_api_key)
 
+        # Initialize watchlist
         self.watchlist = WatchList()
 
+        # Create UI components
         self.label = tk.Label(root, text="Enter Stock Symbol:")
         self.label.pack()
 
@@ -54,7 +57,7 @@ class StockGUI: # UI for app
         # Initialize a variable to store the last search symbol
         self.last_searched_symbol = None
 
-        # Update market status either closed or open
+        # Updates market status either closed or open
         self.update_market_status()
 
     def search_stock(self):
@@ -196,5 +199,3 @@ class StockGUI: # UI for app
         market_open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
         market_close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
         return market_open_time <= now <= market_close_time and now.weekday() < 5
-
-
