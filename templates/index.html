@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Watchlist Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="logo">
+                    <i class="fas fa-chart-line"></i>
+                    Stock Watchlist Pro
+                </h1>
+                <div class="market-status" id="marketStatus">
+                    <span class="status-text">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Search Section -->
+            <section class="search-section">
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="searchInput" placeholder="Enter stock symbol (e.g., AAPL, GOOGL, TSLA)" class="search-input">
+                        <button id="searchBtn" class="search-btn">
+                            <span class="btn-text">Search</span>
+                            <i class="fas fa-spinner fa-spin btn-loading" style="display: none;"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard -->
+            <div class="dashboard">
+                <!-- Stock Results -->
+                <section class="stock-results" id="stockResults" style="display: none;">
+                    <div class="stock-card" id="stockCard">
+                        <!-- Stock data will be populated here -->
+                    </div>
+                </section>
+
+                <!-- Content Grid -->
+                <div class="content-grid">
+                    <!-- Watchlist Section -->
+                    <section class="watchlist-section">
+                        <div class="section-header">
+                            <h2>
+                                <i class="fas fa-star"></i>
+                                My Watchlist
+                            </h2>
+                            <button id="clearWatchlistBtn" class="clear-btn" title="Clear All">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="watchlist-container" id="watchlistContainer">
+                            <div class="empty-state" id="emptyWatchlist">
+                                <i class="fas fa-star-o"></i>
+                                <p>Your watchlist is empty</p>
+                                <small>Search for stocks and add them to your watchlist</small>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Chart Section -->
+                    <section class="chart-section" id="chartSection" style="display: none;">
+                        <div class="section-header">
+                            <h2>
+                                <i class="fas fa-chart-area"></i>
+                                Price Chart
+                            </h2>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="stockChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html> 
