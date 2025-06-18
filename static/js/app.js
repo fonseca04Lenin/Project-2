@@ -1,4 +1,3 @@
-
 let currentStock = null;
 let watchlistData = [];
 let chart = null;
@@ -14,17 +13,23 @@ const clearWatchlistBtn = document.getElementById('clearWatchlistBtn');
 const chartSection = document.getElementById('chartSection');
 const marketStatus = document.getElementById('marketStatus');
 const toastContainer = document.getElementById('toastContainer');
+const newsContainer = document.getElementById('newsContainer');
+const refreshNewsBtn = document.getElementById('refreshNewsBtn');
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
     loadWatchlist();
     updateMarketStatus();
+    loadMarketNews();
     
-    //pdate market status every minute
+    // Update market status every minute
     setInterval(updateMarketStatus, 60000);
     
-    //Update watchlist every 30 seconds
+    // Update watchlist every 30 seconds
     setInterval(loadWatchlist, 30000);
+    
+    // Update news every 5 minutes
+    setInterval(loadMarketNews, 300000);
 });
 
 searchBtn.addEventListener('click', searchStock);
@@ -35,6 +40,7 @@ searchInput.addEventListener('keypress', function(e) {
 });
 
 clearWatchlistBtn.addEventListener('click', clearWatchlist);
+refreshNewsBtn.addEventListener('click', loadMarketNews);
 
 // Search functionality
 async function searchStock() {
@@ -324,6 +330,79 @@ async function updateMarketStatus() {
         marketStatus.className = `market-status ${data.isOpen ? 'open' : 'closed'}`;
     } catch (error) {
         console.error('Error updating market status:', error);
+    }
+}
+
+// News functionality
+async function loadMarketNews() {
+    try {
+        const response = await fetch('/api/news/market');
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayNews(data);
+        } else {
+            displayNewsError();
+        }
+    } catch (error) {
+        console.error('Error loading news:', error);
+        displayNewsError();
+    }
+}
+
+function displayNews(newsItems) {
+    if (newsItems.length === 0) {
+        newsContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-newspaper"></i>
+                <p>No news available</p>
+                <small>Try refreshing later</small>
+            </div>
+        `;
+        return;
+    }
+
+    const newsHTML = newsItems.map(news => `
+        <div class="news-item">
+            <div class="news-item-header">
+                <div class="news-item-title">
+                    <a href="${news.link}" target="_blank" rel="noopener noreferrer">
+                        ${news.title}
+                    </a>
+                </div>
+            </div>
+            <div class="news-item-meta">
+                <span class="news-item-source">${news.source}</span>
+                <span class="news-item-date">${formatDate(news.published_at)}</span>
+            </div>
+            ${news.summary ? `<div class="news-item-summary">${news.summary}</div>` : ''}
+        </div>
+    `).join('');
+
+    newsContainer.innerHTML = newsHTML;
+}
+
+function displayNewsError() {
+    newsContainer.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>Failed to load news</p>
+            <small>Please try again later</small>
+        </div>
+    `;
+}
+
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        return dateString;
     }
 }
 
