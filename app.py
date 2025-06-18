@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, session
 from flask_socketio import SocketIO, emit
 import json
 from datetime import datetime, timedelta
-from stock import Stock, YahooFinanceAPI
+from stock import Stock, YahooFinanceAPI, NewsAPI
 from watchlist import WatchList
 import uuid
 import os
@@ -13,6 +13,9 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # initialize Yahoo Finance API
 yahoo_finance_api = YahooFinanceAPI()
+
+# initialize News API
+news_api = NewsAPI()
 
 #initialize watchlist
 watchlist = WatchList()
@@ -130,6 +133,23 @@ def market_status():
         'isOpen': is_open,
         'status': 'Market is Open' if is_open else 'Market is Closed'
     })
+
+@app.route('/api/news/market')
+def get_market_news():
+    try:
+        news = news_api.get_market_news(limit=10)
+        return jsonify(news)
+    except Exception as e:
+        return jsonify({'error': 'Could not fetch market news'}), 500
+
+@app.route('/api/news/company/<symbol>')
+def get_company_news(symbol):
+    try:
+        symbol = symbol.upper()
+        news = news_api.get_company_news(symbol, limit=5)
+        return jsonify(news)
+    except Exception as e:
+        return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
