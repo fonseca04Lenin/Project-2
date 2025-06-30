@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timedelta
 from stock import Stock, YahooFinanceAPI, NewsAPI
 from watchlist import WatchList
+from alerts import AlertManager
 import uuid
 import os
 
@@ -19,6 +20,9 @@ news_api = NewsAPI()
 
 #initialize watchlist
 watchlist = WatchList()
+
+#initialize alert manager
+alert_manager = AlertManager()
 
 @app.route('/')
 def index():
@@ -49,13 +53,21 @@ def search_stock():
         price_change = stock.price - last_month_price if last_month_price > 0 else 0
         price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
         
+        # Check for triggered alerts
+        triggered_alerts = alert_manager.check_price_alerts(symbol, stock.price)
+        alerts_data = [{
+            'target_price': alert.target_price,
+            'alert_type': alert.alert_type
+        } for alert in triggered_alerts]
+        
         return jsonify({
             'symbol': stock.symbol,
             'name': stock.name,
             'price': stock.price,
             'lastMonthPrice': last_month_price,
             'priceChange': price_change,
-            'priceChangePercent': price_change_percent
+            'priceChangePercent': price_change_percent,
+            'triggeredAlerts': alerts_data
         })
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -150,6 +162,67 @@ def get_company_news(symbol):
         return jsonify(news)
     except Exception as e:
         return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
+
+@app.route('/api/alerts', methods=['GET'])
+def get_alerts():
+    symbol = request.args.get('symbol')
+    alerts = alert_manager.get_alerts(symbol)
+    
+    if symbol:
+        return jsonify([{
+            'symbol': alert.symbol,
+            'target_price': alert.target_price,
+            'alert_type': alert.alert_type,
+            'created_at': alert.created_at.isoformat(),
+            'triggered': alert.triggered
+        } for alert in alerts])
+    
+    # If no symbol provided, return all alerts
+    all_alerts = []
+    for symbol_alerts in alerts.values():
+        for alert in symbol_alerts:
+            all_alerts.append({
+                'symbol': alert.symbol,
+                'target_price': alert.target_price,
+                'alert_type': alert.alert_type,
+                'created_at': alert.created_at.isoformat(),
+                'triggered': alert.triggered
+            })
+    return jsonify(all_alerts)
+
+@app.route('/api/alerts', methods=['POST'])
+def create_alert():
+    data = request.get_json()
+    symbol = data.get('symbol', '').upper()
+    target_price = data.get('target_price')
+    alert_type = data.get('alert_type', 'above')
+    
+    if not symbol or target_price is None:
+        return jsonify({'error': 'Symbol and target price are required'}), 400
+    
+    try:
+        target_price = float(target_price)
+    except ValueError:
+        return jsonify({'error': 'Invalid target price'}), 400
+    
+    if alert_type not in ['above', 'below']:
+        return jsonify({'error': 'Alert type must be either "above" or "below"'}), 400
+    
+    alert = alert_manager.add_alert(symbol, target_price, alert_type)
+    return jsonify({
+        'symbol': alert.symbol,
+        'target_price': alert.target_price,
+        'alert_type': alert.alert_type,
+        'created_at': alert.created_at.isoformat(),
+        'triggered': alert.triggered
+    })
+
+@app.route('/api/alerts/<symbol>/<int:alert_index>', methods=['DELETE'])
+def delete_alert(symbol, alert_index):
+    symbol = symbol.upper()
+    if alert_manager.remove_alert(symbol, alert_index):
+        return jsonify({'message': f'Alert removed successfully'})
+    return jsonify({'error': 'Alert not found'}), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

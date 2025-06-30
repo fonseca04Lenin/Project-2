@@ -600,4 +600,93 @@ body {
     .stock-card, .watchlist-section, .chart-section {
         padding: 1rem;
     }
+}
+
+/* Alerts Container Styles */
+.alerts-container {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.alerts-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.alerts-form input,
+.alerts-form select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.alerts-form input[type="number"] {
+    width: 120px;
+}
+
+.alerts-form select {
+    min-width: 120px;
+}
+
+.alerts-form button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.alerts-form button:hover {
+    background: #45a049;
+}
+
+#alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.alert-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #4CAF50;
+}
+
+.alert-item.triggered {
+    border-left-color: #f44336;
+    background: #fff3f3;
+}
+
+.alert-item .alert-info {
+    flex-grow: 1;
+}
+
+.alert-item .alert-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.alert-delete {
+    color: #f44336;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    font-size: 14px;
+}
+
+.alert-delete:hover {
+    background: #ffebee;
+    border-radius: 4px;
 } 
