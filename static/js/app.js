@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadWatchlist();
     updateMarketStatus();
     loadMarketNews();
+    loadAlerts();
     
     // Update market status every minute
     setInterval(updateMarketStatus, 60000);
@@ -57,9 +58,9 @@ async function searchStock() {
         const response = await fetch('/api/search', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ symbol: symbol })
+            body: JSON.stringify({ symbol })
         });
 
         const data = await response.json();
@@ -68,6 +69,15 @@ async function searchStock() {
             currentStock = data;
             displayStockResult(data);
             stockResults.style.display = 'block';
+            
+            // Check for triggered alerts
+            if (data.triggeredAlerts && data.triggeredAlerts.length > 0) {
+                data.triggeredAlerts.forEach(alert => {
+                    const message = `Alert triggered for ${symbol}: Price ${alert.alert_type} $${alert.target_price}`;
+                    showNotification(message, 'warning');
+                });
+                loadAlerts(); // Refresh alerts list
+            }
         } else {
             showToast(data.error || 'Stock not found', 'error');
             stockResults.style.display = 'none';
@@ -452,6 +462,136 @@ function getToastIcon(type) {
         case 'success': return 'check-circle';
         case 'error': return 'exclamation-circle';
         case 'info': return 'info-circle';
+        default: return 'info-circle';
+    }
+}
+
+// Alert Management Functions
+async function loadAlerts() {
+    try {
+        const response = await fetch('/api/alerts');
+        const alerts = await response.json();
+        displayAlerts(alerts);
+    } catch (error) {
+        console.error('Error loading alerts:', error);
+        showNotification('Error loading alerts', 'error');
+    }
+}
+
+function displayAlerts(alerts) {
+    const alertsList = document.getElementById('alerts-list');
+    alertsList.innerHTML = '';
+
+    alerts.forEach((alert, index) => {
+        const alertElement = document.createElement('div');
+        alertElement.className = `alert-item ${alert.triggered ? 'triggered' : ''}`;
+        
+        alertElement.innerHTML = `
+            <div class="alert-info">
+                <strong>${alert.symbol}</strong> - 
+                ${alert.alert_type === 'above' ? 'Above' : 'Below'} $${alert.target_price.toFixed(2)}
+                ${alert.triggered ? '(Triggered)' : ''}
+            </div>
+            <div class="alert-actions">
+                <button class="alert-delete" onclick="deleteAlert('${alert.symbol}', ${index})">
+                    Delete
+                </button>
+            </div>
+        `;
+        
+        alertsList.appendChild(alertElement);
+    });
+}
+
+async function createAlert() {
+    const symbol = document.getElementById('alert-symbol').value.toUpperCase();
+    const price = parseFloat(document.getElementById('alert-price').value);
+    const type = document.getElementById('alert-type').value;
+
+    if (!symbol || !price) {
+        showNotification('Please enter both symbol and price', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/alerts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                symbol,
+                target_price: price,
+                alert_type: type
+            })
+        });
+
+        if (response.ok) {
+            showNotification('Alert created successfully', 'success');
+            document.getElementById('alert-symbol').value = '';
+            document.getElementById('alert-price').value = '';
+            loadAlerts();
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Error creating alert', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating alert:', error);
+        showNotification('Error creating alert', 'error');
+    }
+}
+
+async function deleteAlert(symbol, index) {
+    try {
+        const response = await fetch(`/api/alerts/${symbol}/${index}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showNotification('Alert deleted successfully', 'success');
+            loadAlerts();
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Error deleting alert', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting alert:', error);
+        showNotification('Error deleting alert', 'error');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-${getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+    const notificationContainer = document.getElementById('notificationContainer');
+    notificationContainer.appendChild(notification);
+
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.animation = 'slideInRight 0.3s ease reverse';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notificationContainer.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 4000);
+}
+
+function getNotificationIcon(type) {
+    switch (type) {
+        case 'success': return 'check-circle';
+        case 'error': return 'exclamation-circle';
+        case 'info': return 'info-circle';
+        case 'warning': return 'exclamation-triangle';
         default: return 'info-circle';
     }
 } 

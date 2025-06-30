@@ -103,6 +103,21 @@
                             <canvas id="stockChart"></canvas>
                         </div>
                     </section>
+
+                    <!-- Add Alerts Section -->
+                    <div class="alerts-container">
+                        <h2>Price Alerts</h2>
+                        <div class="alerts-form">
+                            <input type="text" id="alert-symbol" placeholder="Stock Symbol">
+                            <input type="number" id="alert-price" placeholder="Target Price" step="0.01">
+                            <select id="alert-type">
+                                <option value="above">Price Above</option>
+                                <option value="below">Price Below</option>
+                            </select>
+                            <button onclick="createAlert()">Set Alert</button>
+                        </div>
+                        <div id="alerts-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
