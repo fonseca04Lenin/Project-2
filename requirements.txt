@@ -1,6 +1,8 @@
-requests>=2.32.0
-matplotlib>=3.9.0
-flask>=2.3.0
-flask-socketio>=5.3.0
+Flask>=2.2.0
+gunicorn>=20.1.0
 yfinance>=0.2.36
-gunicorn>=21.2.0 
+Flask-SocketIO>=5.1.1
+Flask-SQLAlchemy>=3.0.2
+Flask-Login>=0.6.2
+Flask-Bcrypt>=1.0.1
+python-dotenv>=0.19.0 

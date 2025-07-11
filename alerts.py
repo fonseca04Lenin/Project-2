@@ -1,5 +1,6 @@
 from datetime import datetime
 import pickle
+import os
 
 class PriceAlert:
     def __init__(self, symbol, target_price, alert_type='above'):
@@ -19,9 +20,16 @@ class PriceAlert:
         return False
 
 class AlertManager:
-    def __init__(self):
+    def __init__(self, session_id):
+        self.session_id = session_id
         self.alerts = {}  # symbol -> list of alerts
         self.load_alerts()
+
+    def get_alerts_file(self):
+        # Store alerts in a sessions directory
+        if not os.path.exists('sessions'):
+            os.makedirs('sessions')
+        return f'sessions/alerts_{self.session_id}.pkl'
 
     def add_alert(self, symbol, target_price, alert_type='above'):
         if symbol not in self.alerts:
@@ -56,14 +64,14 @@ class AlertManager:
 
     def save_alerts(self):
         try:
-            with open('alerts.pkl', 'wb') as f:
+            with open(self.get_alerts_file(), 'wb') as f:
                 pickle.dump(self.alerts, f)
         except Exception as e:
             print(f"Error saving alerts: {e}")
 
     def load_alerts(self):
         try:
-            with open('alerts.pkl', 'rb') as f:
+            with open(self.get_alerts_file(), 'rb') as f:
                 self.alerts = pickle.load(f)
         except:
             self.alerts = {} 
