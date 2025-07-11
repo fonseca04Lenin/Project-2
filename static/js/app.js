@@ -18,6 +18,7 @@ const refreshNewsBtn = document.getElementById('refreshNewsBtn');
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
+    checkAuthStatus();
     loadWatchlist();
     updateMarketStatus();
     loadMarketNews();
@@ -593,5 +594,109 @@ function getNotificationIcon(type) {
         case 'info': return 'info-circle';
         case 'warning': return 'exclamation-triangle';
         default: return 'info-circle';
+    }
+}
+
+// Auth Functions
+async function checkAuthStatus() {
+    try {
+        const response = await fetch('/api/auth/user');
+        if (response.ok) {
+            const data = await response.json();
+            showMainContent(data.user);
+        } else {
+            showAuthForms();
+        }
+    } catch (error) {
+        console.error('Error checking auth status:', error);
+        showAuthForms();
+    }
+}
+
+function showMainContent(user) {
+    document.getElementById('auth-container').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    document.getElementById('username-display').textContent = `Welcome, ${user.username}!`;
+    loadWatchlist();
+    loadAlerts();
+    updateMarketStatus();
+    loadMarketNews();
+}
+
+function showAuthForms() {
+    document.getElementById('auth-container').style.display = 'block';
+    document.getElementById('main-content').style.display = 'none';
+}
+
+function toggleAuthForm(form) {
+    document.getElementById('login-form').style.display = form === 'login' ? 'block' : 'none';
+    document.getElementById('register-form').style.display = form === 'register' ? 'block' : 'none';
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            showNotification('Login successful', 'success');
+            showMainContent(data.user);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error during login:', error);
+        showNotification('Error during login', 'error');
+    }
+}
+
+async function handleRegister(event) {
+    event.preventDefault();
+    const username = document.getElementById('register-username').value;
+    const email = document.getElementById('register-email').value;
+    const password = document.getElementById('register-password').value;
+
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, email, password })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            showNotification('Registration successful', 'success');
+            showMainContent(data.user);
+        } else {
+            showNotification(data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error during registration:', error);
+        showNotification('Error during registration', 'error');
+    }
+}
+
+async function handleLogout() {
+    try {
+        const response = await fetch('/api/auth/logout');
+        if (response.ok) {
+            showNotification('Logout successful', 'success');
+            showAuthForms();
+        }
+    } catch (error) {
+        console.error('Error during logout:', error);
+        showNotification('Error during logout', 'error');
     }
 } 

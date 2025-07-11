@@ -1,28 +1,34 @@
 from flask import Flask, render_template, request, jsonify, session
 from flask_socketio import SocketIO, emit
+from flask_login import login_required, current_user
 import json
 from datetime import datetime, timedelta
 from stock import Stock, YahooFinanceAPI, NewsAPI
-from watchlist import WatchList
-from alerts import AlertManager
-import uuid
+from models import db, User, WatchlistStock, Alert
+from auth import auth, login_manager, bcrypt
 import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///stockwatchlist.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize extensions
 socketio = SocketIO(app, cors_allowed_origins="*")
+db.init_app(app)
+login_manager.init_app(app)
+bcrypt.init_app(app)
 
-# initialize Yahoo Finance API
+# Register blueprints
+app.register_blueprint(auth)
+
+# Initialize APIs
 yahoo_finance_api = YahooFinanceAPI()
-
-# initialize News API
 news_api = NewsAPI()
 
-#initialize watchlist
-watchlist = WatchList()
-
-#initialize alert manager
-alert_manager = AlertManager()
+# Create database tables
+with app.app_context():
+    db.create_all()
 
 @app.route('/')
 def index():
@@ -53,12 +59,21 @@ def search_stock():
         price_change = stock.price - last_month_price if last_month_price > 0 else 0
         price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
         
-        # Check for triggered alerts
-        triggered_alerts = alert_manager.check_price_alerts(symbol, stock.price)
-        alerts_data = [{
-            'target_price': alert.target_price,
-            'alert_type': alert.alert_type
-        } for alert in triggered_alerts]
+        # Check for triggered alerts (only if user is logged in)
+        alerts_data = []
+        if current_user.is_authenticated:
+            alerts = Alert.query.filter_by(user_id=current_user.id, symbol=symbol).all()
+            for alert in alerts:
+                if not alert.triggered:
+                    if (alert.alert_type == 'above' and stock.price >= alert.target_price) or \
+                       (alert.alert_type == 'below' and stock.price <= alert.target_price):
+                        alert.triggered = True
+                        alerts_data.append({
+                            'target_price': alert.target_price,
+                            'alert_type': alert.alert_type
+                        })
+            if alerts_data:
+                db.session.commit()
         
         return jsonify({
             'symbol': stock.symbol,
@@ -73,11 +88,16 @@ def search_stock():
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
 @app.route('/api/watchlist', methods=['GET'])
-def get_watchlist():
+@login_required
+def get_watchlist_route():
     stocks_data = []
-    for stock in watchlist.get_watchlist():
-        stock.retrieve_data()  # update with latest data
+    watchlist_stocks = WatchlistStock.query.filter_by(user_id=current_user.id).all()
+    
+    for watchlist_stock in watchlist_stocks:
+        stock = Stock(watchlist_stock.symbol, yahoo_finance_api)
+        stock.retrieve_data()
         stocks_data.append({
+            'id': watchlist_stock.id,
             'symbol': stock.symbol,
             'name': stock.name,
             'price': stock.price
@@ -85,6 +105,7 @@ def get_watchlist():
     return jsonify(stocks_data)
 
 @app.route('/api/watchlist', methods=['POST'])
+@login_required
 def add_to_watchlist():
     data = request.get_json()
     symbol = data.get('symbol', '').upper()
@@ -92,30 +113,33 @@ def add_to_watchlist():
     if not symbol:
         return jsonify({'error': 'Please provide a stock symbol'}), 400
     
-    # check if already exists
-    if any(s.symbol == symbol for s in watchlist.get_watchlist()):
+    # Check if already exists
+    if WatchlistStock.query.filter_by(user_id=current_user.id, symbol=symbol).first():
         return jsonify({'error': 'Stock already in watchlist'}), 400
     
     stock = Stock(symbol, yahoo_finance_api)
     stock.retrieve_data()
     
     if stock.name and 'not found' not in stock.name.lower():
-        watchlist.add_to_watchlist(stock)
+        watchlist_stock = WatchlistStock(symbol=symbol, user_id=current_user.id)
+        db.session.add(watchlist_stock)
+        db.session.commit()
         return jsonify({'message': f'{stock.name} added to watchlist'})
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
 @app.route('/api/watchlist/<symbol>', methods=['DELETE'])
+@login_required
 def remove_from_watchlist(symbol):
     symbol = symbol.upper()
-    stocks = watchlist.get_watchlist()
+    watchlist_stock = WatchlistStock.query.filter_by(user_id=current_user.id, symbol=symbol).first()
     
-    for stock in stocks:
-        if stock.symbol == symbol:
-            watchlist.remove_from_watchlist(stock)
-            return jsonify({'message': f'{stock.name} removed from watchlist'})
+    if watchlist_stock:
+        db.session.delete(watchlist_stock)
+        db.session.commit()
+        return jsonify({'message': f'Stock removed from watchlist'})
     
-    return jsonify({'error': 'Stock not found in watchldist'}), 404
+    return jsonify({'error': 'Stock not found in watchlist'}), 404
 
 @app.route('/api/chart/<symbol>')
 def get_chart_data(symbol):
@@ -164,33 +188,19 @@ def get_company_news(symbol):
         return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
 
 @app.route('/api/alerts', methods=['GET'])
+@login_required
 def get_alerts():
     symbol = request.args.get('symbol')
-    alerts = alert_manager.get_alerts(symbol)
+    query = Alert.query.filter_by(user_id=current_user.id)
     
     if symbol:
-        return jsonify([{
-            'symbol': alert.symbol,
-            'target_price': alert.target_price,
-            'alert_type': alert.alert_type,
-            'created_at': alert.created_at.isoformat(),
-            'triggered': alert.triggered
-        } for alert in alerts])
+        query = query.filter_by(symbol=symbol.upper())
     
-    # If no symbol provided, return all alerts
-    all_alerts = []
-    for symbol_alerts in alerts.values():
-        for alert in symbol_alerts:
-            all_alerts.append({
-                'symbol': alert.symbol,
-                'target_price': alert.target_price,
-                'alert_type': alert.alert_type,
-                'created_at': alert.created_at.isoformat(),
-                'triggered': alert.triggered
-            })
-    return jsonify(all_alerts)
+    alerts = query.all()
+    return jsonify([alert.to_dict() for alert in alerts])
 
 @app.route('/api/alerts', methods=['POST'])
+@login_required
 def create_alert():
     data = request.get_json()
     symbol = data.get('symbol', '').upper()
@@ -208,24 +218,30 @@ def create_alert():
     if alert_type not in ['above', 'below']:
         return jsonify({'error': 'Alert type must be either "above" or "below"'}), 400
     
-    alert = alert_manager.add_alert(symbol, target_price, alert_type)
-    return jsonify({
-        'symbol': alert.symbol,
-        'target_price': alert.target_price,
-        'alert_type': alert.alert_type,
-        'created_at': alert.created_at.isoformat(),
-        'triggered': alert.triggered
-    })
+    alert = Alert(
+        symbol=symbol,
+        target_price=target_price,
+        alert_type=alert_type,
+        user_id=current_user.id
+    )
+    db.session.add(alert)
+    db.session.commit()
+    
+    return jsonify(alert.to_dict())
 
-@app.route('/api/alerts/<symbol>/<int:alert_index>', methods=['DELETE'])
-def delete_alert(symbol, alert_index):
-    symbol = symbol.upper()
-    if alert_manager.remove_alert(symbol, alert_index):
-        return jsonify({'message': f'Alert removed successfully'})
+@app.route('/api/alerts/<int:alert_id>', methods=['DELETE'])
+@login_required
+def delete_alert(alert_id):
+    alert = Alert.query.filter_by(id=alert_id, user_id=current_user.id).first()
+    
+    if alert:
+        db.session.delete(alert)
+        db.session.commit()
+        return jsonify({'message': 'Alert removed successfully'})
     return jsonify({'error': 'Alert not found'}), 404
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5001))
     print("\n🚀 Starting Stock Watchlist App...")
     print("📊 Using Yahoo Finance API for reliable stock data")
     print(f"🌐 Open your browser and go to: http://localhost:{port}\n")
