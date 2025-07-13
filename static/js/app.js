@@ -1039,29 +1039,37 @@ function showMainContent(user) {
     console.log('🎯 showMainContent called with user:', user);
     
     // Check if elements exist
+    const centerWrapper = document.querySelector('.center-wrapper');
     const authContainer = document.getElementById('auth-container');
     const mainContent = document.getElementById('main-content');
     const usernameDisplay = document.getElementById('username-display');
+    const usernameWelcome = document.getElementById('username-welcome');
     
-    if (!authContainer || !mainContent || !usernameDisplay) {
+    if (!centerWrapper || !authContainer || !mainContent || !usernameDisplay || !usernameWelcome) {
         console.error('❌ Required elements not found:', {
+            centerWrapper: !!centerWrapper,
             authContainer: !!authContainer,
             mainContent: !!mainContent,
-            usernameDisplay: !!usernameDisplay
+            usernameDisplay: !!usernameDisplay,
+            usernameWelcome: !!usernameWelcome
         });
         return;
     }
     
-    // Hide auth container
+    // Hide auth container and center wrapper
+    centerWrapper.style.display = 'none';
     authContainer.style.display = 'none';
-    console.log('✅ Auth container hidden');
+    console.log('✅ Auth container and center wrapper hidden');
     
     // Show main content
     mainContent.style.display = 'block';
     console.log('✅ Main content shown');
     
-    // Update username display
+    // Update username display (footer)
     usernameDisplay.textContent = `Welcome, ${user.username}!`;
+    // Update username welcome at the top
+    usernameWelcome.textContent = `Welcome, ${user.username}!`;
+    usernameWelcome.style.display = 'block';
     console.log('✅ Username updated:', user.username);
     
     // Load fresh data
@@ -1076,20 +1084,23 @@ function showAuthForms() {
     console.log('🎯 showAuthForms called');
     
     // Check if elements exist
+    const centerWrapper = document.querySelector('.center-wrapper');
     const authContainer = document.getElementById('auth-container');
     const mainContent = document.getElementById('main-content');
     
-    if (!authContainer || !mainContent) {
+    if (!centerWrapper || !authContainer || !mainContent) {
         console.error('❌ Required elements not found:', {
+            centerWrapper: !!centerWrapper,
             authContainer: !!authContainer,
             mainContent: !!mainContent
         });
         return;
     }
     
-    // Show auth container
-    authContainer.style.display = 'block';
-    console.log('✅ Auth container shown');
+    // Show auth container and center wrapper
+    centerWrapper.style.display = 'flex';
+    authContainer.style.display = 'flex';
+    console.log('✅ Auth container and center wrapper shown');
     
     // Hide main content
     mainContent.style.display = 'none';
@@ -1471,6 +1482,10 @@ displayWatchlist = function(stocks) {
 
 // Define the modal functions
 function openStockDetailsModal(symbol) {
+    // Hide search bar
+    const searchSection = document.querySelector('.search-section');
+    if (searchSection) searchSection.style.display = 'none';
+
     // Show modal
     document.getElementById('stockDetailsModal').style.display = 'flex';
     // Fetch and display details
@@ -1478,6 +1493,10 @@ function openStockDetailsModal(symbol) {
 }
 
 function closeStockDetailsModal() {
+    // Show search bar again
+    const searchSection = document.querySelector('.search-section');
+    if (searchSection) searchSection.style.display = 'block';
+
     document.getElementById('stockDetailsModal').style.display = 'none';
     // Optionally clear modal content
 }

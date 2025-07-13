@@ -23,12 +23,54 @@
     --hover-bg: rgba(255, 255, 255, 0.1);
 }
 
+html, body {
+    height: 100%;
+    min-height: 100vh;
+}
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.6;
+}
+#app {
+    min-height: 100vh;
+    width: 100vw;
+    display: block;
+}
+.center-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.auth-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    min-width: 350px;
+    z-index: 2;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    background: var(--card-bg);
+    border-radius: 1.5rem;
+    padding: 2.5rem 2.5rem 2rem 2.5rem;
+    position: relative;
+    margin: 0;
+}
+.welcome-message-top {
+    text-align: center;
+    font-size: 1.3rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 2.5rem;
+    margin-top: 2.5rem;
+    letter-spacing: 0.01em;
+    opacity: 0.95;
+    text-shadow: 0 2px 12px rgba(74, 222, 128, 0.10);
 }
 
 .container {
@@ -968,15 +1010,6 @@ body {
 }
 
 /* Auth Styles */
-.auth-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
-    padding: 2rem;
-}
-
 .auth-form {
     background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
     backdrop-filter: blur(20px);
@@ -1927,4 +1960,27 @@ body {
 .search-container, .search-box {
   position: relative !important;
   z-index: 10000 !important;
+} 
+
+@media (max-width: 600px) {
+    .auth-container {
+        min-width: 90vw;
+        padding: 1.5rem 0.5rem 1.5rem 0.5rem;
+    }
+    .welcome-message-top {
+        font-size: 1.05rem;
+        margin-bottom: 1.2rem;
+        margin-top: 1.2rem;
+    }
+} 
+
+.username-welcome {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin-top: 1.2rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.01em;
+    opacity: 0.85;
 } 
