@@ -1,0 +1,23 @@
+{
+  "name": "stock-watchlist-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Stock Watchlist Pro - A modern stock tracking application",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build step needed'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "stocks",
+    "watchlist",
+    "finance",
+    "trading",
+    "vercel"
+  ],
+  "author": "Elvin",
+  "license": "MIT",
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}

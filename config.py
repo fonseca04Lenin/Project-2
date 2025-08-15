@@ -16,7 +16,7 @@ class Config:
     
     # App Settings
     DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-    PORT = int(os.environ.get('PORT', 5001))
+    PORT = int(os.environ.get('PORT', 5000))
     
     # Rate limiting
     RATELIMIT_STORAGE_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
