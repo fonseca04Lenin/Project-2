@@ -14,14 +14,24 @@ import time
 
 app = Flask(__name__)
 
-# Enable CORS for React frontend
-CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
+# Enable CORS for frontend (local development and Vercel)
+CORS(app, origins=[
+    "http://localhost:3000",  # Local development
+    "http://localhost:5000",  # Local Flask dev
+    "https://*.vercel.app",   # Vercel deployments
+    "https://*.vercel.com"    # Vercel custom domains
+], supports_credentials=True)
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 
 # Initialize extensions
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
+socketio = SocketIO(app, cors_allowed_origins=[
+    "http://localhost:3000",
+    "http://localhost:5000", 
+    "https://*.vercel.app",
+    "https://*.vercel.com"
+], async_mode='threading', logger=True, engineio_logger=True)
 login_manager.init_app(app)
 
 # Register blueprints
