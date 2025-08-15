@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import login_required, current_user
+from flask_cors import CORS
 import json
 from datetime import datetime, timedelta
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
@@ -8,14 +9,19 @@ from firebase_service import FirebaseService
 from auth import auth, login_manager
 from config import Config
 import os
+import threading
+import time
 
 app = Flask(__name__)
+
+# Enable CORS for React frontend
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 
 # Initialize extensions
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
 login_manager.init_app(app)
 
 # Register blueprints
@@ -26,9 +32,160 @@ yahoo_finance_api = YahooFinanceAPI()
 news_api = NewsAPI()
 finnhub_api = FinnhubAPI()
 
+# Store connected users and their watchlists
+connected_users = {}
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
+# WebSocket Events
+@socketio.on('connect')
+def handle_connect():
+    print(f"Client connected: {request.sid}")
+    try:
+        emit('connected', {'message': 'Connected to server'})
+    except Exception as e:
+        print(f"Error in connect handler: {e}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"Client disconnected: {request.sid}")
+    if request.sid in connected_users:
+        del connected_users[request.sid]
+
+@socketio.on('join_user_room')
+def handle_join_user_room(data):
+    """Join user to their personal room for private updates"""
+    try:
+        user_id = data.get('user_id')
+        if user_id:
+            join_room(f"user_{user_id}")
+            connected_users[request.sid] = user_id
+            print(f"User {user_id} joined room: user_{user_id}")
+    except Exception as e:
+        print(f"Error joining user room: {e}")
+
+@socketio.on('join_watchlist_updates')
+def handle_join_watchlist_updates(data):
+    """Join user to watchlist updates room"""
+    try:
+        user_id = data.get('user_id')
+        if user_id:
+            join_room(f"watchlist_{user_id}")
+            print(f"User {user_id} joined watchlist updates")
+    except Exception as e:
+        print(f"Error joining watchlist updates: {e}")
+
+@socketio.on('join_market_updates')
+def handle_join_market_updates():
+    """Join user to market updates room"""
+    try:
+        join_room("market_updates")
+        print(f"Client {request.sid} joined market updates")
+    except Exception as e:
+        print(f"Error joining market updates: {e}")
+
+@socketio.on('join_news_updates')
+def handle_join_news_updates():
+    """Join user to news updates room"""
+    try:
+        join_room("news_updates")
+        print(f"Client {request.sid} joined news updates")
+    except Exception as e:
+        print(f"Error joining news updates: {e}")
+
+# Real-time stock price updates
+def update_stock_prices():
+    """Background task to update stock prices"""
+    while True:
+        try:
+            # Get all active users and their watchlists
+            for sid, user_id in connected_users.items():
+                if user_id:
+                    watchlist = FirebaseService.get_watchlist(user_id)
+                    if watchlist:
+                        updated_prices = []
+                        for item in watchlist:
+                            try:
+                                stock = Stock(item['symbol'], yahoo_finance_api)
+                                stock.retrieve_data()
+                                
+                                # Calculate price change
+                                price_change = 0
+                                price_change_percent = 0
+                                if 'last_price' in item:
+                                    price_change = stock.price - item['last_price']
+                                    price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
+                                
+                                updated_prices.append({
+                                    'symbol': item['symbol'],
+                                    'name': item['name'],
+                                    'price': stock.price,
+                                    'price_change': price_change,
+                                    'price_change_percent': price_change_percent,
+                                    'last_updated': datetime.now().isoformat()
+                                })
+                                
+                                # Check for triggered alerts
+                                triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
+                                if triggered_alerts:
+                                    socketio.emit('alert_triggered', {
+                                        'symbol': item['symbol'],
+                                        'alerts': triggered_alerts
+                                    }, room=f"user_{user_id}")
+                                
+                            except Exception as e:
+                                print(f"Error updating {item['symbol']}: {e}")
+                        
+                        if updated_prices:
+                            socketio.emit('watchlist_updated', {
+                                'prices': updated_prices
+                            }, room=f"watchlist_{user_id}")
+            
+            # Update market status
+            market_status = get_market_status()
+            socketio.emit('market_status_updated', market_status, room="market_updates")
+            
+            time.sleep(30)  # Update every 30 seconds
+            
+        except Exception as e:
+            print(f"Error in price update loop: {e}")
+            time.sleep(60)  # Wait longer on error
+
+# Start background task for price updates
+def start_price_updates():
+    """Start the background price update task"""
+    thread = threading.Thread(target=update_stock_prices, daemon=True)
+    thread.start()
+
+# Market status function
+def get_market_status():
+    """Get current market status"""
+    try:
+        now = datetime.now()
+        # Simple market hours check (9:30 AM - 4:00 PM ET, Monday-Friday)
+        is_weekday = now.weekday() < 5
+        is_market_hours = 9 <= now.hour < 16 or (now.hour == 16 and now.minute <= 30)
+        
+        if is_weekday and is_market_hours:
+            return {
+                'isOpen': True,
+                'status': 'Market is Open',
+                'last_updated': now.isoformat()
+            }
+        else:
+            return {
+                'isOpen': False,
+                'status': 'Market is Closed',
+                'last_updated': now.isoformat()
+            }
+    except Exception as e:
+        return {
+            'isOpen': False,
+            'status': 'Market status unknown',
+            'last_updated': datetime.now().isoformat()
+        }
 
 @app.route('/api/search', methods=['POST'])
 def search_stock():
@@ -625,5 +782,10 @@ if __name__ == '__main__':
     port = Config.PORT
     print("\n🚀 Starting Stock Watchlist App...")
     print("🔥 Using Firebase for authentication and data storage")
+    print("⚡ Starting real-time price updates...")
     print(f"🌐 Open your browser and go to: http://localhost:{port}\n")
+    
+    # Start the background price update task
+    start_price_updates()
+    
     socketio.run(app, debug=Config.DEBUG, host='0.0.0.0', port=port) 

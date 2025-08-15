@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Watchlist Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="app">
+        <!-- Notification Container -->
+        <div id="notificationContainer" class="notification-container"></div>
+        
+        <!-- Auth Forms -->
+        <div class="center-wrapper">
+            <h1 class="app-title" style="margin-bottom: 0.5rem;">Stock Watchlist Pro</h1>
+            <p class="welcome-message" style="margin-bottom: 2rem;">Track, analyze, and get alerts for your favorite stocks. Stay updated with real-time news and market intelligence—all in one place.</p>
+            <div id="auth-container" class="auth-container">
+                <div id="login-form" class="auth-form">
+                    <h2>Login</h2>
+                    <form onsubmit="handleLogin(event)">
+                        <input type="text" id="login-username" placeholder="Username" required>
+                        <input type="password" id="login-password" placeholder="Password" required>
+                        <button type="submit">Login</button>
+                    </form>
+                    <p>Don't have an account? <a href="#" onclick="toggleAuthForm('register')">Register</a></p>
+                </div>
+
+                <div id="register-form" class="auth-form" style="display: none;">
+                    <h2>Register</h2>
+                    <form onsubmit="handleRegister(event)">
+                        <input type="text" id="register-username" placeholder="Username" required>
+                        <input type="email" id="register-email" placeholder="Email" required>
+                        <input type="password" id="register-password" placeholder="Password" required>
+                        <button type="submit">Register</button>
+                    </form>
+                    <p>Already have an account? <a href="#" onclick="toggleAuthForm('login')">Login</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App Content (hidden until authenticated) -->
+        <div id="main-content" class="main-content" style="display: none;">
+            <header class="main-header">
+                <div class="header-content">
+                    <div class="header-center">
+                        <h1 class="app-title">Stock Watchlist Pro</h1>
+                        <p class="welcome-message">Track your favorite stocks and stay updated with market news</p>
+                        <div class="market-status-wrapper">
+                            <span id="marketStatusIndicator" class="market-status-indicator">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- Username welcome message at the top -->
+            <div id="username-welcome" class="username-welcome" style="display:none;"></div>
+
+            <!-- Main Content -->
+            <main class="main">
+                <div class="container">
+                    <!-- Search Section -->
+                    <section class="search-section">
+                        <div class="search-container">
+                            <div class="search-box">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="searchInput" placeholder="Search stocks by name or symbol (e.g., Apple, AAPL, Tesla)" class="search-input">
+                                <button id="searchBtn" class="search-btn">
+                                    <span class="btn-text">Search</span>
+                                    <i class="fas fa-spinner fa-spin btn-loading" style="display: none;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Dashboard -->
+                    <div class="dashboard">
+                        <!-- Stock Results -->
+                        <section class="stock-results" id="stockResults" style="display: none;">
+                            <div class="stock-card" id="stockCard">
+                                <!-- Stock data will be populated here -->
+                            </div>
+                        </section>
+
+                        <!-- Content Grid -->
+                        <div class="content-grid">
+                            <!-- Watchlist Section -->
+                            <section class="watchlist-section">
+                                <div class="section-header">
+                                    <h2>
+                                        <i class="fas fa-star"></i>
+                                        My Watchlist
+                                    </h2>
+                                    <button id="clearWatchlistBtn" class="clear-btn" title="Clear All">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="watchlist-container" id="watchlistContainer">
+                                    <div class="empty-state" id="emptyWatchlist">
+                                        <i class="fas fa-star-o"></i>
+                                        <p>Your watchlist is empty</p>
+                                        <small>Search for stocks and add them to your watchlist</small>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- News Section -->
+                            <section class="news-section">
+                                <div class="section-header">
+                                    <h2>
+                                        <i class="fas fa-newspaper"></i>
+                                        Market News
+                                    </h2>
+                                    <button id="refreshNewsBtn" class="refresh-btn" title="Refresh News">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                                <div class="news-container" id="newsContainer">
+                                    <div class="loading-state">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        <p>Loading news...</p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Chart Section -->
+                            <section class="chart-section" id="chartSection" style="display: none;">
+                                <div class="section-header">
+                                    <h2>
+                                        <i class="fas fa-chart-area"></i>
+                                        Price Chart
+                                        <span id="chartSelectedSymbol" class="chart-selected-symbol"></span>
+                                    </h2>
+                                    <button id="closeChartBtn" class="close-chart-btn" title="Close Chart" onclick="closeChartSection()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="stockChart"></canvas>
+                                </div>
+                            </section>
+
+                            <!-- Add Alerts Section -->
+                            <div class="alerts-container">
+                                <h2>Price Alerts</h2>
+                                <div class="alerts-form">
+                                    <input type="text" id="alert-symbol" placeholder="Stock Symbol">
+                                    <input type="number" id="alert-price" placeholder="Target Price" step="0.01">
+                                    <select id="alert-type">
+                                        <option value="above">Price Above</option>
+                                        <option value="below">Price Below</option>
+                                    </select>
+                                    <button onclick="createAlert()">Set Alert</button>
+                                </div>
+                                <div id="alerts-list"></div>
+                            </div>
+
+                            <!-- Market Intelligence Section -->
+                            <div class="market-intelligence-container">
+                                <h2>
+                                    <i class="fas fa-brain"></i>
+                                    Market Intelligence
+                                </h2>
+                                <div class="intelligence-tabs">
+                                    <button class="tab-btn active" onclick="showIntelligenceTab('earnings')">Earnings Calendar</button>
+                                    <button class="tab-btn" onclick="showIntelligenceTab('insider')">Insider Trading</button>
+                                    <button class="tab-btn" onclick="showIntelligenceTab('analyst')">Analyst Ratings</button>
+                                    <button class="tab-btn" onclick="showIntelligenceTab('options')">Options Data</button>
+                                </div>
+                                <div class="intelligence-content">
+                                    <!-- Earnings Calendar Tab -->
+                                    <div id="earnings-tab" class="tab-content active">
+                                        <h3>Upcoming Earnings</h3>
+                                        <div id="earningsList" class="earnings-list">
+                                            <div class="loading-state">
+                                                <i class="fas fa-spinner fa-spin"></i>
+                                                <p>Loading earnings data...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Insider Trading Tab -->
+                                    <div id="insider-tab" class="tab-content">
+                                        <h3>Insider Trading</h3>
+                                        <div class="insider-search">
+                                            <input type="text" id="insider-symbol" placeholder="Enter stock symbol">
+                                            <button onclick="getInsiderTrading()">Search</button>
+                                        </div>
+                                        <div id="insiderList" class="insider-list">
+                                            <div class="empty-state">
+                                                <i class="fas fa-user-secret"></i>
+                                                <p>Search for insider trading data</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Analyst Ratings Tab -->
+                                    <div id="analyst-tab" class="tab-content">
+                                        <h3>Analyst Ratings</h3>
+                                        <div class="analyst-search">
+                                            <input type="text" id="analyst-symbol" placeholder="Enter stock symbol">
+                                            <button onclick="getAnalystRatings()">Search</button>
+                                        </div>
+                                        <div id="analystList" class="analyst-list">
+                                            <div class="empty-state">
+                                                <i class="fas fa-chart-bar"></i>
+                                                <p>Search for analyst ratings</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Options Data Tab -->
+                                    <div id="options-tab" class="tab-content">
+                                        <h3>Options Data</h3>
+                                        <div class="options-search">
+                                            <input type="text" id="options-symbol" placeholder="Enter stock symbol">
+                                            <button onclick="getOptionsData()">Search</button>
+                                        </div>
+                                        <div id="optionsList" class="options-list">
+                                            <div class="empty-state">
+                                                <i class="fas fa-chart-area"></i>
+                                                <p>Search for options data</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Less prominent Logout Button at the bottom -->
+            <footer class="footer-logout">
+                <button onclick="handleLogout()" class="logout-btn subtle">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+                <span id="username-display" class="footer-username"></span>
+            </footer>
+
+            <!-- Toast Notifications -->
+            <div id="toastContainer" class="toast-container"></div>
+        </div>
+
+        <!-- Stock Details Modal -->
+        <div id="stockDetailsModal" class="stock-details-modal" style="display: none;">
+          <div class="stock-details-content">
+            <button class="close-details-btn close-details-btn-right" id="closeDetailsBtn" title="Close" onclick="closeStockDetailsModal()">
+              <i class="fas fa-times"></i>
+            </button>
+            <div class="stock-details-header">
+              <h2 id="detailsCompanyName">Company Name</h2>
+              <span id="detailsSymbol" class="details-symbol"></span>
+            </div>
+            <div class="stock-details-meta">
+              <div><strong data-icon="ceo">CEO:</strong> <span id="detailsCEO">-</span></div>
+              <div><strong data-icon="desc">Description:</strong> <span id="detailsDescription">-</span></div>
+              <div><strong data-icon="price">Price:</strong> $<span id="detailsPrice">-</span></div>
+              <div><strong data-icon="marketcap">Market Cap:</strong> <span id="detailsMarketCap">-</span></div>
+              <div><strong data-icon="pe">P/E Ratio:</strong> <span id="detailsPERatio">-</span></div>
+              <div><strong data-icon="dividend">Dividend Yield:</strong> <span id="detailsDividendYield">-</span></div>
+              <div><strong data-icon="website">Website:</strong> <a id="detailsWebsite" href="#" target="_blank" rel="noopener noreferrer">-</a></div>
+              <div><strong data-icon="hq">Headquarters:</strong> <span id="detailsHeadquarters">-</span></div>
+            </div>
+            <div id="detailsChartContainer" class="chart-container" style="min-height: 300px;"></div>
+            <div id="detailsNewsContainer" class="stock-details-news"></div>
+            <button id="addToWatchlistBtn" class="add-to-watchlist-btn" style="display: none;">Add to Watchlist</button>
+          </div>
+        </div>
+        <!-- End Stock Details Modal -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html> 
