@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, request, jsonify, session
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import login_required, current_user
 from flask_cors import CORS
@@ -15,23 +15,25 @@ import time
 app = Flask(__name__)
 
 # Enable CORS for frontend (local development and Vercel)
-CORS(app, origins=[
+allowed_origins = [
     "http://localhost:3000",  # Local development
     "http://localhost:5000",  # Local Flask dev
     "https://*.vercel.app",   # Vercel deployments
     "https://*.vercel.com"    # Vercel custom domains
-], supports_credentials=True)
+]
+
+# Add specific frontend URL from environment if available
+frontend_url = os.environ.get('FRONTEND_URL')
+if frontend_url:
+    allowed_origins.append(frontend_url)
+
+CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 
 # Initialize extensions
-socketio = SocketIO(app, cors_allowed_origins=[
-    "http://localhost:3000",
-    "http://localhost:5000", 
-    "https://*.vercel.app",
-    "https://*.vercel.com"
-], async_mode='threading', logger=True, engineio_logger=True)
+socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading', logger=True, engineio_logger=True)
 login_manager.init_app(app)
 
 # Register blueprints
@@ -47,7 +49,7 @@ connected_users = {}
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return {"message": "Stock Watchlist API", "status": "active"}
 
 # WebSocket Events
 @socketio.on('connect')
@@ -793,7 +795,7 @@ if __name__ == '__main__':
     print("\n🚀 Starting Stock Watchlist App...")
     print("🔥 Using Firebase for authentication and data storage")
     print("⚡ Starting real-time price updates...")
-    print(f"🌐 Open your browser and go to: http://localhost:{port}\n")
+    print(f"🌐 Server running on port: {port}\n")
     
     # Start the background price update task
     start_price_updates()
