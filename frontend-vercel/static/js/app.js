@@ -1069,11 +1069,12 @@ function showMainContent(user) {
     console.log('✅ Main content shown');
     
     // Update username display (footer)
-    usernameDisplay.textContent = `Welcome, ${user.username}!`;
+    const displayName = user.name || user.email.split('@')[0];
+    usernameDisplay.textContent = `Welcome, ${displayName}!`;
     // Update username welcome at the top
-    usernameWelcome.textContent = `Welcome, ${user.username}!`;
+    usernameWelcome.textContent = `Welcome, ${displayName}!`;
     usernameWelcome.style.display = 'block';
-    console.log('✅ Username updated:', user.username);
+    console.log('✅ Username updated:', displayName);
     
     // Load fresh data
     loadWatchlist();
@@ -1122,7 +1123,7 @@ function toggleAuthForm(form) {
 async function handleLogin(event) {
     event.preventDefault();
     console.log('🔐 Login attempt started');
-    const username = document.getElementById('login-username').value;
+    const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
 
     try {
@@ -1131,7 +1132,7 @@ async function handleLogin(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ email, password })
         });
 
         const data = await response.json();
@@ -1160,7 +1161,7 @@ async function handleLogin(event) {
 async function handleRegister(event) {
     event.preventDefault();
     console.log('📝 Register attempt started');
-    const username = document.getElementById('register-username').value;
+    const name = document.getElementById('register-name').value;
     const email = document.getElementById('register-email').value;
     const password = document.getElementById('register-password').value;
 
@@ -1170,7 +1171,7 @@ async function handleRegister(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username, email, password })
+            body: JSON.stringify({ name, email, password })
         });
 
         const data = await response.json();
