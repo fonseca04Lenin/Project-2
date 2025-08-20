@@ -13,20 +13,20 @@ def load_user(user_id):
 @auth.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
-    username = data.get('username')
+    name = data.get('name')
     email = data.get('email')
     password = data.get('password')
 
-    if not username or not email or not password:
+    if not name or not email or not password:
         return jsonify({'error': 'All fields are required'}), 400
 
-    # Check if username already exists
-    existing_user = FirebaseService.get_user_by_username(username)
+    # Check if email already exists
+    existing_user = FirebaseService.get_user_by_email(email)
     if existing_user:
-        return jsonify({'error': 'Username already exists'}), 400
+        return jsonify({'error': 'Email already exists'}), 400
 
     try:
-        user_data = FirebaseService.create_user(username, email, password)
+        user_data = FirebaseService.create_user(name, email, password)
         user = FirebaseUser(user_data)
         login_user(user)
         
@@ -34,7 +34,7 @@ def register():
             'message': 'Registration successful',
             'user': {
                 'id': user.id,
-                'username': user.username,
+                'name': user.name,
                 'email': user.email
             }
         })
@@ -44,15 +44,14 @@ def register():
 @auth.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
 
-    if not username or not password:
-        return jsonify({'error': 'Username and password are required'}), 400
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
 
-    # For Firebase, we'll use email as the login identifier
-    # You might want to store email in a separate field or use email as username
-    user = FirebaseService.get_user_by_username(username)
+    # Use email for login
+    user = FirebaseService.get_user_by_email(email)
     if user:
         # Update last login
         FirebaseService.update_last_login(user.id)
@@ -62,12 +61,12 @@ def login():
             'message': 'Login successful',
             'user': {
                 'id': user.id,
-                'username': user.username,
+                'name': user.name,
                 'email': user.email
             }
         })
     
-    return jsonify({'error': 'Invalid username or password'}), 401
+    return jsonify({'error': 'Invalid email or password'}), 401
 
 @auth.route('/api/auth/logout')
 def logout():
