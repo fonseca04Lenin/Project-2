@@ -5,18 +5,30 @@ from datetime import datetime, timedelta
 import uuid
 from config import Config
 import os
+import base64
+import json
 
 # Initialize Firebase
 firebase_initialized = False
 try:
-    if os.path.exists(Config.FIREBASE_CREDENTIALS_PATH):
+    # Try to use base64 encoded credentials first (for Heroku)
+    credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
+    if credentials_base64:
+        print("🔑 Loading Firebase credentials from base64 environment variable")
+        credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
+        credentials_dict = json.loads(credentials_json)
+        cred = credentials.Certificate(credentials_dict)
+        firebase_admin.initialize_app(cred)
+        firebase_initialized = True
+        print("✅ Firebase initialized successfully with base64 credentials")
+    elif os.path.exists(Config.FIREBASE_CREDENTIALS_PATH):
         print(f"🔑 Loading Firebase credentials from: {Config.FIREBASE_CREDENTIALS_PATH}")
         cred = credentials.Certificate(Config.FIREBASE_CREDENTIALS_PATH)
         firebase_admin.initialize_app(cred)
         firebase_initialized = True
-        print("✅ Firebase initialized successfully with credentials")
+        print("✅ Firebase initialized successfully with file credentials")
     else:
-        print(f"⚠️ Firebase credentials file not found: {Config.FIREBASE_CREDENTIALS_PATH}")
+        print(f"⚠️ Firebase credentials not found")
         firebase_admin.initialize_app()
         print("🔥 Firebase Demo Mode: Using default configuration")
 except Exception as e:
