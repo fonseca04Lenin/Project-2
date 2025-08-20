@@ -1,9 +1,9 @@
 // Configuration file for Stock Watchlist Pro Frontend
-// Update this URL to point to your Render backend
+// Backend now deployed on Heroku
 
 const CONFIG = {
-    // Backend API base URL - UPDATE THIS WITH YOUR RENDER BACKEND URL
-    API_BASE_URL: 'https://stock-watchlist-77bq.onrender.com',
+    // Backend API base URL - Updated to use Heroku backend
+    API_BASE_URL: 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com',
     
     // App settings
     APP_NAME: 'Stock Watchlist Pro',
