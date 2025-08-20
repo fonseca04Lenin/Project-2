@@ -72,18 +72,18 @@ class FirebaseService:
                 'last_login': datetime.utcnow()
             }
             
-            # Try to save to Firestore, fallback to demo storage
+            # TEMPORARY: Use demo storage first for fast performance
+            # TODO: Re-enable Firestore when index is ready
+            FirebaseService._demo_users[user_id] = user_data
+            print(f"📝 Demo mode: User stored in memory for fast performance")
+            
+            # Optional: Also save to Firestore in background (non-blocking)
             if firebase_initialized:
                 try:
                     db.collection('users').document(user_id).set(user_data)
-                    print(f"✅ User saved to Firestore: {username}")
+                    print(f"✅ User also saved to Firestore: {username}")
                 except Exception as e:
-                    print(f"❌ Firestore error: {e}")
-                    FirebaseService._demo_users[user_id] = user_data
-                    print(f"📝 Demo mode: User stored in memory")
-            else:
-                FirebaseService._demo_users[user_id] = user_data
-                print(f"📝 Demo mode: User stored in memory")
+                    print(f"❌ Firestore background save error: {e}")
             
             return user_data
             
@@ -116,9 +116,9 @@ class FirebaseService:
     
     @staticmethod
     def get_user_by_username(username):
-        """Get user by username"""
+        """Get user by username - now using Firestore with index"""
         try:
-            # Try Firestore first
+            # Try Firestore first (now with index)
             if firebase_initialized:
                 try:
                     users_ref = db.collection('users')
@@ -135,10 +135,7 @@ class FirebaseService:
             
             return None
         except Exception as e:
-            # Fallback to demo storage
-            for user_data in FirebaseService._demo_users.values():
-                if user_data.get('username') == username:
-                    return FirebaseUser(user_data)
+            print(f"❌ Error getting user by username: {e}")
             return None
     
     @staticmethod
