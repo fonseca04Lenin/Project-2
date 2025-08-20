@@ -42,7 +42,7 @@ db = firestore.client()
 class FirebaseUser(UserMixin):
     def __init__(self, user_data):
         self.id = user_data.get('uid')
-        self.username = user_data.get('username')
+        self.name = user_data.get('name') or user_data.get('username')  # Support both
         self.email = user_data.get('email')
         self.created_at = user_data.get('created_at')
         self.last_login = user_data.get('last_login')
@@ -57,7 +57,7 @@ class FirebaseService:
     _demo_alerts = {}
     
     @staticmethod
-    def create_user(username, email, password):
+    def create_user(name, email, password):
         """Create a new user in Firebase Auth and Firestore"""
         try:
             # Generate a demo user ID
@@ -66,7 +66,7 @@ class FirebaseService:
             # Store additional user data in Firestore (or demo storage)
             user_data = {
                 'uid': user_id,
-                'username': username,
+                'name': name,
                 'email': email,
                 'created_at': datetime.utcnow(),
                 'last_login': datetime.utcnow()
@@ -115,27 +115,27 @@ class FirebaseService:
             return None
     
     @staticmethod
-    def get_user_by_username(username):
-        """Get user by username - now using Firestore with index"""
+    def get_user_by_email(email):
+        """Get user by email - fast and efficient"""
         try:
-            # Try Firestore first (now with index)
+            # Try demo storage first for speed
+            for user_data in FirebaseService._demo_users.values():
+                if user_data.get('email') == email:
+                    return FirebaseUser(user_data)
+            
+            # Try Firestore (email queries are naturally indexed)
             if firebase_initialized:
                 try:
                     users_ref = db.collection('users')
-                    query = users_ref.where('username', '==', username).limit(1).stream()
+                    query = users_ref.where('email', '==', email).limit(1).stream()
                     for doc in query:
                         return FirebaseUser(doc.to_dict())
                 except Exception as e:
-                    print(f"❌ Firestore error getting user by username: {e}")
-            
-            # Fallback to demo storage
-            for user_data in FirebaseService._demo_users.values():
-                if user_data.get('username') == username:
-                    return FirebaseUser(user_data)
+                    print(f"❌ Firestore error getting user by email: {e}")
             
             return None
         except Exception as e:
-            print(f"❌ Error getting user by username: {e}")
+            print(f"❌ Error getting user by email: {e}")
             return None
     
     @staticmethod
