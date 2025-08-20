@@ -351,10 +351,17 @@ class FirebaseService:
             # Try Firestore first
             if firebase_initialized:
                 try:
-                    alerts = db.collection('users').document(user_id).collection('alerts').where('symbol', '==', symbol.upper()).where('is_active', '==', True).where('triggered', '==', False).stream()
+                    # Simplified query for better performance on Heroku
+                    alerts_ref = db.collection('users').document(user_id).collection('alerts')
+                    alerts = alerts_ref.where('symbol', '==', symbol.upper()).limit(10).stream()
                     
                     for doc in alerts:
                         alert_data = doc.to_dict()
+                        
+                        # Filter in Python for better performance
+                        if not alert_data.get('is_active', False) or alert_data.get('triggered', False):
+                            continue
+                            
                         should_trigger = False
                         
                         if alert_data['alert_type'] == 'above' and current_price >= alert_data['target_price']:
