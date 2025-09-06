@@ -133,16 +133,27 @@ class FirebaseService:
     
     @staticmethod
     def get_user_by_email(email):
-        """Get user by email - for demo/fallback only"""
+        """Get user by email - checks both Firestore and demo storage"""
         try:
-            # Try demo storage for local development
+            # Try demo storage first for local development
             for user_data in FirebaseService._demo_users.values():
                 if user_data.get('email') == email:
                     return FirebaseUser(user_data)
             
-            # Note: With Firebase Auth, we shouldn't need email lookups for login
-            # Authentication should be handled via Firebase Auth tokens
-            print(f"⚠️ get_user_by_email called - consider using Firebase Auth tokens instead")
+            # Check Firestore for Firebase Auth users
+            if firebase_initialized:
+                try:
+                    # Query Firestore for user profile by email
+                    users_ref = db.collection('users')
+                    query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
+                    for doc in query:
+                        user_data = doc.to_dict()
+                        print(f"✅ Found user in Firestore: {user_data.get('name')}")
+                        return FirebaseUser(user_data)
+                except Exception as e:
+                    print(f"❌ Firestore error getting user by email: {e}")
+            
+            print(f"⚠️ User not found with email: {email}")
             return None
         except Exception as e:
             print(f"❌ Error getting user by email: {e}")
