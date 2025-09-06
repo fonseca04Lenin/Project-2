@@ -140,8 +140,9 @@ class FirebaseService:
                 if user_data.get('email') == email:
                     return FirebaseUser(user_data)
             
-            # Check Firestore for Firebase Auth users
-            if firebase_initialized:
+            # TEMPORARILY DISABLED: Firestore queries cause timeouts on Heroku
+            # Firebase Auth users should use token-based authentication instead
+            if False:  # firebase_initialized:
                 try:
                     # Query Firestore for user profile by email
                     users_ref = db.collection('users')
