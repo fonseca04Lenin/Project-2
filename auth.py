@@ -16,16 +16,38 @@ def register():
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
+    id_token = data.get('idToken')
 
-    if not name or not email or not password:
-        return jsonify({'error': 'All fields are required'}), 400
-
-    # Check if email already exists
-    existing_user = FirebaseService.get_user_by_email(email)
-    if existing_user:
-        return jsonify({'error': 'Email already exists'}), 400
+    if not name or not email:
+        return jsonify({'error': 'Name and email are required'}), 400
 
     try:
+        # If idToken is provided, this is a Firebase Auth registration
+        if id_token:
+            # Verify the user was created in Firebase and create profile
+            user = FirebaseService.authenticate_with_token(id_token)
+            if user:
+                login_user(user)
+                return jsonify({
+                    'message': 'Registration successful',
+                    'user': {
+                        'id': user.id,
+                        'name': user.name,
+                        'email': user.email
+                    }
+                })
+            else:
+                return jsonify({'error': 'Failed to verify Firebase registration'}), 400
+        
+        # Fallback for demo/local development
+        if not password:
+            return jsonify({'error': 'Password is required for demo registration'}), 400
+            
+        # Check if email already exists in demo storage
+        existing_user = FirebaseService.get_user_by_email(email)
+        if existing_user:
+            return jsonify({'error': 'Email already exists'}), 400
+            
         user_data = FirebaseService.create_user(name, email, password)
         user = FirebaseUser(user_data)
         login_user(user)
@@ -44,21 +66,41 @@ def register():
 @auth.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
+    
+    # Check if this is a token-based login (Firebase Auth)
+    id_token = data.get('idToken')
+    if id_token:
+        # Firebase Authentication flow
+        user = FirebaseService.authenticate_with_token(id_token)
+        if user:
+            login_user(user)
+            return jsonify({
+                'message': 'Login successful',
+                'user': {
+                    'id': user.id,
+                    'name': user.name,
+                    'email': user.email
+                }
+            })
+        else:
+            return jsonify({'error': 'Invalid authentication token'}), 401
+    
+    # Fallback for demo/local development (email/password)
     email = data.get('email')
     password = data.get('password')
-
+    
     if not email or not password:
-        return jsonify({'error': 'Email and password are required'}), 400
+        return jsonify({'error': 'Email and password (or idToken) are required'}), 400
 
-    # Use email for login
+    # Demo storage lookup for local development
     user = FirebaseService.get_user_by_email(email)
     if user:
-        # Update last login
-        FirebaseService.update_last_login(user.id)
+        # Note: In demo mode, we skip password verification
+        # In production, this will be handled by Firebase Auth
         login_user(user)
         
         return jsonify({
-            'message': 'Login successful',
+            'message': 'Login successful (demo mode)',
             'user': {
                 'id': user.id,
                 'name': user.name,
