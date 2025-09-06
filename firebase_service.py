@@ -58,50 +58,53 @@ class FirebaseService:
     
     @staticmethod
     def create_user(name, email, password):
-        """Create a new user in Firebase Auth and Firestore"""
+        """Create a new user using Firebase Authentication"""
         try:
-            # Generate a demo user ID
-            user_id = str(uuid.uuid4())
+            if not firebase_initialized:
+                # Fallback to demo storage for local development
+                user_id = str(uuid.uuid4())
+                user_data = {
+                    'uid': user_id,
+                    'name': name,
+                    'email': email,
+                    'created_at': datetime.utcnow(),
+                    'last_login': datetime.utcnow()
+                }
+                FirebaseService._demo_users[user_id] = user_data
+                print(f"📝 Demo mode: User created in memory")
+                return user_data
             
-            # Store additional user data in Firestore (or demo storage)
-            user_data = {
-                'uid': user_id,
+            # Create user in Firebase Authentication
+            user_record = auth.create_user(
+                email=email,
+                password=password,
+                display_name=name
+            )
+            
+            print(f"✅ Firebase Auth user created: {user_record.uid}")
+            
+            # Store additional user profile data in Firestore
+            user_profile = {
+                'uid': user_record.uid,
                 'name': name,
                 'email': email,
                 'created_at': datetime.utcnow(),
                 'last_login': datetime.utcnow()
             }
             
-            # TEMPORARY: Use demo storage first for fast performance
-            # TODO: Re-enable Firestore when index is ready
-            FirebaseService._demo_users[user_id] = user_data
-            print(f"📝 Demo mode: User stored in memory for fast performance")
+            # Save user profile to Firestore
+            db.collection('users').document(user_record.uid).set(user_profile)
+            print(f"✅ User profile saved to Firestore: {name}")
             
-            # TEMPORARILY DISABLED: Firestore saves to debug timeout issues
-            # TODO: Re-enable once timeout issues are resolved
-            if False:  # firebase_initialized:
-                try:
-                    # Use asynchronous write with timeout protection
-                    import threading
-                    def background_save():
-                        try:
-                            db.collection('users').document(user_id).set(user_data)
-                            print(f"✅ User also saved to Firestore: {name}")
-                        except Exception as e:
-                            print(f"❌ Firestore background save error: {e}")
-                    
-                    # Run in background thread with timeout
-                    thread = threading.Thread(target=background_save)
-                    thread.daemon = True
-                    thread.start()
-                except Exception as e:
-                    print(f"❌ Failed to start Firestore background save: {e}")
-            else:
-                print(f"📝 Firestore saves temporarily disabled for debugging")
-            
-            return user_data
+            return {
+                'uid': user_record.uid,
+                'name': name,
+                'email': email,
+                'created_at': datetime.utcnow()
+            }
             
         except Exception as e:
+            print(f"❌ Error creating user: {e}")
             raise Exception(f"Failed to create user: {str(e)}")
     
     @staticmethod
@@ -130,27 +133,55 @@ class FirebaseService:
     
     @staticmethod
     def get_user_by_email(email):
-        """Get user by email - fast and efficient"""
+        """Get user by email - for demo/fallback only"""
         try:
-            # Try demo storage first for speed
+            # Try demo storage for local development
             for user_data in FirebaseService._demo_users.values():
                 if user_data.get('email') == email:
                     return FirebaseUser(user_data)
             
-            # TEMPORARILY DISABLED: Firestore reads to debug timeout issues
-            # Try Firestore (email queries are naturally indexed)
-            if False:  # firebase_initialized:
-                try:
-                    users_ref = db.collection('users')
-                    query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
-                    for doc in query:
-                        return FirebaseUser(doc.to_dict())
-                except Exception as e:
-                    print(f"❌ Firestore error getting user by email: {e}")
-            
+            # Note: With Firebase Auth, we shouldn't need email lookups for login
+            # Authentication should be handled via Firebase Auth tokens
+            print(f"⚠️ get_user_by_email called - consider using Firebase Auth tokens instead")
             return None
         except Exception as e:
             print(f"❌ Error getting user by email: {e}")
+            return None
+    
+    @staticmethod
+    def authenticate_with_token(id_token):
+        """Authenticate user using Firebase Auth ID token"""
+        try:
+            if not firebase_initialized:
+                print("⚠️ Firebase not initialized, cannot verify token")
+                return None
+                
+            # Verify the ID token
+            decoded_token = auth.verify_id_token(id_token)
+            uid = decoded_token['uid']
+            
+            print(f"✅ Token verified for user: {uid}")
+            
+            # Get user profile from Firestore
+            user_doc = db.collection('users').document(uid).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                return FirebaseUser(user_data)
+            else:
+                # Create user profile if it doesn't exist
+                user_record = auth.get_user(uid)
+                user_profile = {
+                    'uid': uid,
+                    'name': user_record.display_name or 'User',
+                    'email': user_record.email,
+                    'created_at': datetime.utcnow(),
+                    'last_login': datetime.utcnow()
+                }
+                db.collection('users').document(uid).set(user_profile)
+                return FirebaseUser(user_profile)
+                
+        except Exception as e:
+            print(f"❌ Token verification failed: {e}")
             return None
     
     @staticmethod

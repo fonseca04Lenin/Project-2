@@ -1129,6 +1129,49 @@ async function handleLogin(event) {
     const password = document.getElementById('login-password').value;
 
     try {
+        // Try Firebase Authentication first
+        if (window.firebaseAuth) {
+            console.log('🔥 Using Firebase Authentication');
+            try {
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                const idToken = await user.getIdToken();
+                
+                console.log('✅ Firebase Auth successful, verifying with backend...');
+                
+                // Send the ID token to the backend for session creation
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ idToken }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showNotification('Login successful', 'success');
+                    document.getElementById('login-email').value = '';
+                    document.getElementById('login-password').value = '';
+                    showMainContent(data.user);
+                    watchlistData = [];
+                    currentStock = null;
+                } else {
+                    showNotification(data.error, 'error');
+                    await firebase.auth().signOut(); // Sign out from Firebase if backend rejects
+                }
+                return;
+            } catch (firebaseError) {
+                console.log('🔥 Firebase Auth failed, trying fallback:', firebaseError.message);
+                showNotification(firebaseError.message, 'error');
+                return;
+            }
+        }
+        
+        // Fallback to backend authentication (for local development)
+        console.log('🔙 Using fallback authentication');
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: {
@@ -1142,14 +1185,10 @@ async function handleLogin(event) {
         console.log('🔐 Login response:', response.status, data);
         
         if (response.ok) {
-            showNotification('Login successful', 'success');
-            // Clear login form
+            showNotification('Login successful (fallback mode)', 'success');
             document.getElementById('login-email').value = '';
             document.getElementById('login-password').value = '';
-            // Force UI update
-            console.log('🔄 Switching to main content...');
             showMainContent(data.user);
-            // Clear any cached data
             watchlistData = [];
             currentStock = null;
         } else {
@@ -1169,6 +1208,56 @@ async function handleRegister(event) {
     const password = document.getElementById('register-password').value;
 
     try {
+        // Try Firebase Authentication first
+        if (window.firebaseAuth) {
+            console.log('🔥 Using Firebase Authentication for registration');
+            try {
+                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                
+                // Update the user's display name
+                await user.updateProfile({
+                    displayName: name
+                });
+                
+                const idToken = await user.getIdToken();
+                console.log('✅ Firebase registration successful, creating profile...');
+                
+                // Send user info to backend to create profile
+                const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email, password, idToken }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showNotification('Registration successful', 'success');
+                    document.getElementById('register-name').value = '';
+                    document.getElementById('register-email').value = '';
+                    document.getElementById('register-password').value = '';
+                    showMainContent(data.user);
+                    watchlistData = [];
+                    currentStock = null;
+                } else {
+                    showNotification(data.error, 'error');
+                    // Delete the user from Firebase if backend registration fails
+                    await user.delete();
+                }
+                return;
+            } catch (firebaseError) {
+                console.log('🔥 Firebase registration failed, trying fallback:', firebaseError.message);
+                showNotification(firebaseError.message, 'error');
+                return;
+            }
+        }
+        
+        // Fallback to backend registration (for local development)
+        console.log('🔙 Using fallback registration');
         const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
             method: 'POST',
             headers: {
@@ -1182,15 +1271,11 @@ async function handleRegister(event) {
         console.log('📝 Register response:', response.status, data);
         
         if (response.ok) {
-            showNotification('Registration successful', 'success');
-            // Clear register form
+            showNotification('Registration successful (fallback mode)', 'success');
             document.getElementById('register-name').value = '';
             document.getElementById('register-email').value = '';
             document.getElementById('register-password').value = '';
-            // Force UI update
-            console.log('🔄 Switching to main content...');
             showMainContent(data.user);
-            // Clear any cached data
             watchlistData = [];
             currentStock = null;
         } else {
@@ -1205,6 +1290,13 @@ async function handleRegister(event) {
 async function handleLogout() {
     console.log('🚪 Logout attempt started');
     try {
+        // Sign out from Firebase if authenticated
+        if (window.firebaseAuth && firebase.auth().currentUser) {
+            console.log('🔥 Signing out from Firebase');
+            await firebase.auth().signOut();
+        }
+        
+        // Also sign out from backend
         const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
             credentials: 'include'
         });
