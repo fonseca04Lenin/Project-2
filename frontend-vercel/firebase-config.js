@@ -2,21 +2,13 @@
 // You need to replace these with your actual Firebase project config
 
 const firebaseConfig = {
-    // TODO: Replace with your actual Firebase project configuration
-    // Get this from Firebase Console > Project Settings > General > Your apps
-    apiKey: "your-api-key-here",
-    authDomain: "your-project-id.firebaseapp.com", 
-    projectId: "your-project-id",
-    storageBucket: "your-project-id.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "your-app-id"
-    
-    // ⚠️ IMPORTANT: You need to replace these values with your actual Firebase config!
-    // Instructions:
-    // 1. Go to Firebase Console > Project Settings
-    // 2. Scroll to "Your apps" section  
-    // 3. Click "Add app" > Web (if not done already)
-    // 4. Copy the config object and replace the values above
+    apiKey: "AIzaSyCB_8dEiQH0AxqUq7qXneOWOdXeJw-GFOQ",
+    authDomain: "stock-watcher-bbb20.firebaseapp.com",
+    projectId: "stock-watcher-bbb20",
+    storageBucket: "stock-watcher-bbb20.firebasestorage.app",
+    messagingSenderId: "745996753351",
+    appId: "1:745996753351:web:c4506624bb8dc058ffe1e2",
+    measurementId: "G-MSV396NJ1V"
 };
 
 // Initialize Firebase
