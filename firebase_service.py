@@ -81,7 +81,7 @@ class FirebaseService:
             if firebase_initialized:
                 try:
                     db.collection('users').document(user_id).set(user_data)
-                    print(f"✅ User also saved to Firestore: {username}")
+                    print(f"✅ User also saved to Firestore: {name}")
                 except Exception as e:
                     print(f"❌ Firestore background save error: {e}")
             
