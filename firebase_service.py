@@ -77,8 +77,9 @@ class FirebaseService:
             FirebaseService._demo_users[user_id] = user_data
             print(f"📝 Demo mode: User stored in memory for fast performance")
             
-            # Optional: Also save to Firestore in background (non-blocking)
-            if firebase_initialized:
+            # TEMPORARILY DISABLED: Firestore saves to debug timeout issues
+            # TODO: Re-enable once timeout issues are resolved
+            if False:  # firebase_initialized:
                 try:
                     # Use asynchronous write with timeout protection
                     import threading
@@ -95,6 +96,8 @@ class FirebaseService:
                     thread.start()
                 except Exception as e:
                     print(f"❌ Failed to start Firestore background save: {e}")
+            else:
+                print(f"📝 Firestore saves temporarily disabled for debugging")
             
             return user_data
             
@@ -134,8 +137,9 @@ class FirebaseService:
                 if user_data.get('email') == email:
                     return FirebaseUser(user_data)
             
+            # TEMPORARILY DISABLED: Firestore reads to debug timeout issues
             # Try Firestore (email queries are naturally indexed)
-            if firebase_initialized:
+            if False:  # firebase_initialized:
                 try:
                     users_ref = db.collection('users')
                     query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
