@@ -3,7 +3,7 @@
 
 const CONFIG = {
     // Backend API base URL - Updated to use Heroku backend
-    API_BASE_URL: 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com',
+    API_BASE_URL: 'https://stock-watchlist-77bq.onrender.com',
     
     // App settings
     APP_NAME: 'Stock Watchlist Pro',
