@@ -167,10 +167,18 @@ class FirebaseService:
     def update_last_login(user_id):
         """Update user's last login time"""
         try:
-            db.collection('users').document(user_id).update({
-                'last_login': datetime.utcnow()
-            })
-        except:
+            # TEMPORARILY DISABLED: Firestore operations to debug timeout issues
+            if False:  # Direct Firestore disabled
+                db.collection('users').document(user_id).update({
+                    'last_login': datetime.utcnow()
+                })
+            
+            # Use demo storage for fast performance
+            if user_id in FirebaseService._demo_users:
+                FirebaseService._demo_users[user_id]['last_login'] = datetime.utcnow()
+                print(f"📝 Updated last login for user in demo storage")
+        except Exception as e:
+            print(f"❌ Error updating last login: {e}")
             # Fallback to demo storage
             if user_id in FirebaseService._demo_users:
                 FirebaseService._demo_users[user_id]['last_login'] = datetime.utcnow()
