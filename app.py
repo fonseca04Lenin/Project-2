@@ -17,7 +17,9 @@ app = Flask(__name__)
 # Enable CORS for frontend (local development and Vercel)
 allowed_origins = [
     "http://localhost:3000",  # Local development
+    "http://127.0.0.1:3000",  # Local development alternative
     "http://localhost:5000",  # Local Flask dev
+    "http://localhost:8000",  # Local Flask dev on port 8000
     "https://*.vercel.app",   # Vercel deployments
     "https://*.vercel.com"    # Vercel custom domains
 ]
@@ -31,6 +33,9 @@ CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Initialize extensions
 socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading', logger=True, engineio_logger=True)

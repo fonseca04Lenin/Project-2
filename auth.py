@@ -87,7 +87,7 @@ def get_user():
         return jsonify({
             'user': {
                 'id': current_user.id,
-                'username': current_user.username,
+                'name': current_user.name,
                 'email': current_user.email
             }
         })

@@ -1025,7 +1025,9 @@ function getNotificationIcon(type) {
 // Auth Functions
 async function checkAuthStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/user`);
+        const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
+            credentials: 'include'
+        });
         if (response.ok) {
             const data = await response.json();
             showMainContent(data.user);
@@ -1132,7 +1134,8 @@ async function handleLogin(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password }),
+            credentials: 'include'
         });
 
         const data = await response.json();
@@ -1141,7 +1144,7 @@ async function handleLogin(event) {
         if (response.ok) {
             showNotification('Login successful', 'success');
             // Clear login form
-            document.getElementById('login-username').value = '';
+            document.getElementById('login-email').value = '';
             document.getElementById('login-password').value = '';
             // Force UI update
             console.log('🔄 Switching to main content...');
@@ -1171,7 +1174,8 @@ async function handleRegister(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name, email, password })
+            body: JSON.stringify({ name, email, password }),
+            credentials: 'include'
         });
 
         const data = await response.json();
@@ -1180,7 +1184,7 @@ async function handleRegister(event) {
         if (response.ok) {
             showNotification('Registration successful', 'success');
             // Clear register form
-            document.getElementById('register-username').value = '';
+            document.getElementById('register-name').value = '';
             document.getElementById('register-email').value = '';
             document.getElementById('register-password').value = '';
             // Force UI update
@@ -1201,7 +1205,9 @@ async function handleRegister(event) {
 async function handleLogout() {
     console.log('🚪 Logout attempt started');
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/logout`);
+        const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+            credentials: 'include'
+        });
         console.log('🚪 Logout response:', response.status);
         
         // Always treat logout as successful to clear frontend state
@@ -1216,9 +1222,9 @@ async function handleLogout() {
         showAuthForms();
         
         // Clear any cached data
-        document.getElementById('login-username').value = '';
+        document.getElementById('login-email').value = '';
         document.getElementById('login-password').value = '';
-        document.getElementById('register-username').value = '';
+        document.getElementById('register-name').value = '';
         document.getElementById('register-email').value = '';
         document.getElementById('register-password').value = '';
         
