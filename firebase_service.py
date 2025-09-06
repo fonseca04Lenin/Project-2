@@ -80,10 +80,21 @@ class FirebaseService:
             # Optional: Also save to Firestore in background (non-blocking)
             if firebase_initialized:
                 try:
-                    db.collection('users').document(user_id).set(user_data)
-                    print(f"✅ User also saved to Firestore: {name}")
+                    # Use asynchronous write with timeout protection
+                    import threading
+                    def background_save():
+                        try:
+                            db.collection('users').document(user_id).set(user_data)
+                            print(f"✅ User also saved to Firestore: {name}")
+                        except Exception as e:
+                            print(f"❌ Firestore background save error: {e}")
+                    
+                    # Run in background thread with timeout
+                    thread = threading.Thread(target=background_save)
+                    thread.daemon = True
+                    thread.start()
                 except Exception as e:
-                    print(f"❌ Firestore background save error: {e}")
+                    print(f"❌ Failed to start Firestore background save: {e}")
             
             return user_data
             
@@ -127,7 +138,7 @@ class FirebaseService:
             if firebase_initialized:
                 try:
                     users_ref = db.collection('users')
-                    query = users_ref.where('email', '==', email).limit(1).stream()
+                    query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
                     for doc in query:
                         return FirebaseUser(doc.to_dict())
                 except Exception as e:
@@ -295,7 +306,7 @@ class FirebaseService:
                     query = db.collection('users').document(user_id).collection('alerts')
                     
                     if symbol:
-                        query = query.where('symbol', '==', symbol.upper())
+                        query = query.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper()))
                     
                     docs = query.stream()
                     for doc in docs:
@@ -350,7 +361,7 @@ class FirebaseService:
                 try:
                     # Simplified query for better performance on Heroku
                     alerts_ref = db.collection('users').document(user_id).collection('alerts')
-                    alerts = alerts_ref.where('symbol', '==', symbol.upper()).limit(10).stream()
+                    alerts = alerts_ref.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper())).limit(10).stream()
                     
                     for doc in alerts:
                         alert_data = doc.to_dict()
