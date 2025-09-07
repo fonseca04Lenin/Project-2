@@ -1027,13 +1027,49 @@ function getNotificationIcon(type) {
 // Auth Functions
 async function checkAuthStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/user`, {
-            credentials: 'include'
-        });
-        if (response.ok) {
-            const data = await response.json();
-            showMainContent(data.user);
+        console.log('🔍 Checking Firebase Auth state...');
+        
+        // Check Firebase Auth state
+        if (window.firebaseAuth) {
+            // Wait for Firebase Auth state to be determined
+            firebase.auth().onAuthStateChanged(async (user) => {
+                if (user) {
+                    console.log('✅ User is logged in with Firebase:', user.uid);
+                    console.log('🔗 Verifying with backend...');
+                    
+                    try {
+                        // Get fresh ID token and verify with backend
+                        const idToken = await user.getIdToken();
+                        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ idToken }),
+                            credentials: 'include'
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('✅ Backend session restored for:', data.user.email);
+                            showMainContent(data.user);
+                        } else {
+                            console.log('❌ Backend session invalid, signing out...');
+                            await firebase.auth().signOut();
+                            showAuthForms();
+                        }
+                    } catch (error) {
+                        console.error('❌ Error verifying with backend:', error);
+                        await firebase.auth().signOut();
+                        showAuthForms();
+                    }
+                } else {
+                    console.log('❌ No Firebase user logged in');
+                    showAuthForms();
+                }
+            });
         } else {
+            console.log('❌ Firebase Auth not available');
             showAuthForms();
         }
     } catch (error) {
