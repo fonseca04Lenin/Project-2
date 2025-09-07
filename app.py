@@ -21,14 +21,23 @@ allowed_origins = [
     "http://localhost:5000",  # Local Flask dev
     "http://localhost:8000",  # Local Flask dev on port 8000
     "https://stock-watchlist-frontend.vercel.app",  # Main Vercel deployment
-    "https://*.vercel.app",   # Vercel deployments (wildcard)
-    "https://*.vercel.com"    # Vercel custom domains (wildcard)
 ]
 
 # Add specific frontend URL from environment if available
 frontend_url = os.environ.get('FRONTEND_URL')
 if frontend_url:
     allowed_origins.append(frontend_url)
+    print(f"🔗 Added FRONTEND_URL to CORS: {frontend_url}")
+
+# Add additional Vercel domains explicitly
+vercel_domains = [
+    "https://stock-watchlist-frontend-ql5o74lkh-lenny-s-projects-87605fc1.vercel.app",
+    "https://stock-watchlist-frontend-git-main-lenny-s-projects-87605fc1.vercel.app",
+    "https://stock-watchlist-frontend-lennys-projects-87605fc1.vercel.app"
+]
+allowed_origins.extend(vercel_domains)
+
+print(f"🌐 CORS allowed origins: {allowed_origins}")
 
 # Enable CORS with specific auth-friendly settings
 CORS(app, 
