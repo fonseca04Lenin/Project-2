@@ -65,50 +65,64 @@ def register():
 
 @auth.route('/api/auth/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    
-    # Check if this is a token-based login (Firebase Auth)
-    id_token = data.get('idToken')
-    if id_token:
-        # Firebase Authentication flow
-        user = FirebaseService.authenticate_with_token(id_token)
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request data'}), 400
+        
+        # Check if this is a token-based login (Firebase Auth)
+        id_token = data.get('idToken')
+        if id_token:
+            print(f"🔐 Token-based login attempt with token length: {len(id_token)}")
+            # Firebase Authentication flow
+            user = FirebaseService.authenticate_with_token(id_token)
+            if user:
+                login_user(user)
+                print(f"✅ Login successful for user: {user.email}")
+                return jsonify({
+                    'message': 'Login successful',
+                    'user': {
+                        'id': user.id,
+                        'name': user.name,
+                        'email': user.email
+                    }
+                })
+            else:
+                print("❌ Token authentication failed")
+                return jsonify({'error': 'Invalid authentication token. Please try logging in again.'}), 401
+        
+        # Fallback for demo/local development (email/password)
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'error': 'Email and password (or idToken) are required'}), 400
+
+        print(f"🔙 Fallback authentication attempt for: {email}")
+        
+        # Demo storage lookup for local development
+        user = FirebaseService.get_user_by_email(email)
         if user:
+            # Note: In demo mode, we skip password verification
+            # In production, this will be handled by Firebase Auth
             login_user(user)
+            print(f"✅ Fallback login successful for user: {email}")
+            
             return jsonify({
-                'message': 'Login successful',
+                'message': 'Login successful (demo mode)',
                 'user': {
                     'id': user.id,
                     'name': user.name,
                     'email': user.email
                 }
             })
-        else:
-            return jsonify({'error': 'Invalid authentication token'}), 401
-    
-    # Fallback for demo/local development (email/password)
-    email = data.get('email')
-    password = data.get('password')
-    
-    if not email or not password:
-        return jsonify({'error': 'Email and password (or idToken) are required'}), 400
-
-    # Demo storage lookup for local development
-    user = FirebaseService.get_user_by_email(email)
-    if user:
-        # Note: In demo mode, we skip password verification
-        # In production, this will be handled by Firebase Auth
-        login_user(user)
         
-        return jsonify({
-            'message': 'Login successful (demo mode)',
-            'user': {
-                'id': user.id,
-                'name': user.name,
-                'email': user.email
-            }
-        })
-    
-    return jsonify({'error': 'Invalid email or password'}), 401
+        print(f"❌ User not found: {email}")
+        return jsonify({'error': 'Invalid email or password'}), 401
+        
+    except Exception as e:
+        print(f"❌ Login error: {e}")
+        return jsonify({'error': 'Login failed. Please try again.'}), 500
 
 @auth.route('/api/auth/logout')
 def logout():
