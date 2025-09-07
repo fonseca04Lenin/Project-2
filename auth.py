@@ -39,27 +39,8 @@ def register():
             else:
                 return jsonify({'error': 'Failed to verify Firebase registration'}), 400
         
-        # Fallback for demo/local development
-        if not password:
-            return jsonify({'error': 'Password is required for demo registration'}), 400
-            
-        # Check if email already exists in demo storage
-        existing_user = FirebaseService.get_user_by_email(email)
-        if existing_user:
-            return jsonify({'error': 'Email already exists'}), 400
-            
-        user_data = FirebaseService.create_user(name, email, password)
-        user = FirebaseUser(user_data)
-        login_user(user)
-        
-        return jsonify({
-            'message': 'Registration successful',
-            'user': {
-                'id': user.id,
-                'name': user.name,
-                'email': user.email
-            }
-        })
+        # No fallback registration - Firebase token required
+        return jsonify({'error': 'Firebase authentication token required. Please use the frontend registration form.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -91,34 +72,8 @@ def login():
                 print("❌ Token authentication failed")
                 return jsonify({'error': 'Invalid authentication token. Please try logging in again.'}), 401
         
-        # Fallback for demo/local development (email/password)
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not email or not password:
-            return jsonify({'error': 'Email and password (or idToken) are required'}), 400
-
-        print(f"🔙 Fallback authentication attempt for: {email}")
-        
-        # Demo storage lookup for local development
-        user = FirebaseService.get_user_by_email(email)
-        if user:
-            # Note: In demo mode, we skip password verification
-            # In production, this will be handled by Firebase Auth
-            login_user(user)
-            print(f"✅ Fallback login successful for user: {email}")
-            
-            return jsonify({
-                'message': 'Login successful (demo mode)',
-                'user': {
-                    'id': user.id,
-                    'name': user.name,
-                    'email': user.email
-                }
-            })
-        
-        print(f"❌ User not found: {email}")
-        return jsonify({'error': 'Invalid email or password'}), 401
+        # No fallback authentication - Firebase token required
+        return jsonify({'error': 'Firebase authentication token required. Please use the frontend login form.'}), 400
         
     except Exception as e:
         print(f"❌ Login error: {e}")

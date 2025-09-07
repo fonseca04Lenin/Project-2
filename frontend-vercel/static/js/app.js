@@ -1182,30 +1182,9 @@ async function handleLogin(event) {
             }
         }
         
-        // Fallback to backend authentication (for local development)
-        console.log('🔙 Using fallback authentication');
-        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password }),
-            credentials: 'include'
-        });
-
-        const data = await response.json();
-        console.log('🔐 Login response:', response.status, data);
-        
-        if (response.ok) {
-            showNotification('Login successful (fallback mode)', 'success');
-            document.getElementById('login-email').value = '';
-            document.getElementById('login-password').value = '';
-            showMainContent(data.user);
-            watchlistData = [];
-            currentStock = null;
-        } else {
-            showNotification(data.error, 'error');
-        }
+        // No fallback authentication - Firebase is required
+        console.log('❌ Firebase not available - authentication failed');
+        showNotification('Firebase authentication is required. Please check your internet connection and try again.', 'error');
     } catch (error) {
         console.error('Error during login:', error);
         showNotification('Error during login', 'error');
@@ -1286,31 +1265,9 @@ async function handleRegister(event) {
             }
         }
         
-        // Fallback to backend registration (for local development)
-        console.log('🔙 Using fallback registration');
-        const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name, email, password }),
-            credentials: 'include'
-        });
-
-        const data = await response.json();
-        console.log('📝 Register response:', response.status, data);
-        
-        if (response.ok) {
-            showNotification('Registration successful (fallback mode)', 'success');
-            document.getElementById('register-name').value = '';
-            document.getElementById('register-email').value = '';
-            document.getElementById('register-password').value = '';
-            showMainContent(data.user);
-            watchlistData = [];
-            currentStock = null;
-        } else {
-            showNotification(data.error, 'error');
-        }
+        // No fallback registration - Firebase is required
+        console.log('❌ Firebase not available - registration failed');
+        showNotification('Firebase authentication is required. Please check your internet connection and try again.', 'error');
     } catch (error) {
         console.error('Error during registration:', error);
         showNotification('Error during registration', 'error');
