@@ -1137,7 +1137,9 @@ async function handleLogin(event) {
                 const user = userCredential.user;
                 const idToken = await user.getIdToken();
                 
-                console.log('✅ Firebase Auth successful, verifying with backend...');
+                console.log('✅ Firebase Auth successful, token length:', idToken.length);
+                console.log('✅ User details:', { uid: user.uid, email: user.email, displayName: user.displayName });
+                console.log('🔗 Verifying with backend...');
                 
                 // Send the ID token to the backend for session creation
                 const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -1150,6 +1152,7 @@ async function handleLogin(event) {
                 });
 
                 const data = await response.json();
+                console.log('🔐 Backend response:', { status: response.status, data });
                 
                 if (response.ok) {
                     showNotification('Login successful', 'success');
@@ -1159,13 +1162,22 @@ async function handleLogin(event) {
                     watchlistData = [];
                     currentStock = null;
                 } else {
-                    showNotification(data.error, 'error');
+                    console.error('❌ Backend rejected token:', data.error);
+                    showNotification(data.error || 'Authentication failed', 'error');
                     await firebase.auth().signOut(); // Sign out from Firebase if backend rejects
                 }
                 return;
             } catch (firebaseError) {
-                console.log('🔥 Firebase Auth failed, trying fallback:', firebaseError.message);
-                showNotification(firebaseError.message, 'error');
+                console.error('🔥 Firebase Auth failed:', firebaseError);
+                if (firebaseError.code === 'auth/user-not-found') {
+                    showNotification('User not found. Please register first.', 'error');
+                } else if (firebaseError.code === 'auth/wrong-password') {
+                    showNotification('Incorrect password. Please try again.', 'error');
+                } else if (firebaseError.code === 'auth/too-many-requests') {
+                    showNotification('Too many failed attempts. Please try again later.', 'error');
+                } else {
+                    showNotification(firebaseError.message || 'Authentication failed', 'error');
+                }
                 return;
             }
         }
@@ -1215,13 +1227,16 @@ async function handleRegister(event) {
                 const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
                 
+                console.log('✅ Firebase user created:', { uid: user.uid, email: user.email });
+                
                 // Update the user's display name
                 await user.updateProfile({
                     displayName: name
                 });
                 
                 const idToken = await user.getIdToken();
-                console.log('✅ Firebase registration successful, creating profile...');
+                console.log('✅ Firebase registration successful, token length:', idToken.length);
+                console.log('🔗 Creating backend profile...');
                 
                 // Send user info to backend to create profile
                 const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
@@ -1234,6 +1249,7 @@ async function handleRegister(event) {
                 });
 
                 const data = await response.json();
+                console.log('📝 Backend registration response:', { status: response.status, data });
                 
                 if (response.ok) {
                     showNotification('Registration successful', 'success');
@@ -1244,14 +1260,28 @@ async function handleRegister(event) {
                     watchlistData = [];
                     currentStock = null;
                 } else {
-                    showNotification(data.error, 'error');
+                    console.error('❌ Backend registration failed:', data.error);
+                    showNotification(data.error || 'Registration failed', 'error');
                     // Delete the user from Firebase if backend registration fails
-                    await user.delete();
+                    try {
+                        await user.delete();
+                        console.log('🗑️ Cleaned up Firebase user after backend failure');
+                    } catch (deleteError) {
+                        console.error('❌ Failed to cleanup Firebase user:', deleteError);
+                    }
                 }
                 return;
             } catch (firebaseError) {
-                console.log('🔥 Firebase registration failed, trying fallback:', firebaseError.message);
-                showNotification(firebaseError.message, 'error');
+                console.error('🔥 Firebase registration failed:', firebaseError);
+                if (firebaseError.code === 'auth/email-already-in-use') {
+                    showNotification('Email already registered. Please try logging in.', 'error');
+                } else if (firebaseError.code === 'auth/weak-password') {
+                    showNotification('Password should be at least 6 characters.', 'error');
+                } else if (firebaseError.code === 'auth/invalid-email') {
+                    showNotification('Invalid email address.', 'error');
+                } else {
+                    showNotification(firebaseError.message || 'Registration failed', 'error');
+                }
                 return;
             }
         }

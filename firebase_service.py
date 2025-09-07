@@ -10,34 +10,70 @@ import json
 
 # Initialize Firebase
 firebase_initialized = False
-try:
-    # Try to use base64 encoded credentials first (for Heroku)
-    credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
-    if credentials_base64:
-        print("🔑 Loading Firebase credentials from base64 environment variable")
-        credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
-        credentials_dict = json.loads(credentials_json)
-        cred = credentials.Certificate(credentials_dict)
-        firebase_admin.initialize_app(cred)
-        firebase_initialized = True
-        print("✅ Firebase initialized successfully with base64 credentials")
-    elif os.path.exists(Config.FIREBASE_CREDENTIALS_PATH):
-        print(f"🔑 Loading Firebase credentials from: {Config.FIREBASE_CREDENTIALS_PATH}")
-        cred = credentials.Certificate(Config.FIREBASE_CREDENTIALS_PATH)
-        firebase_admin.initialize_app(cred)
-        firebase_initialized = True
-        print("✅ Firebase initialized successfully with file credentials")
-    else:
-        print(f"⚠️ Firebase credentials not found")
-        firebase_admin.initialize_app()
-        print("🔥 Firebase Demo Mode: Using default configuration")
-except Exception as e:
-    print(f"⚠️ Firebase initialization error: {e}")
-    # Fallback to demo mode
-    firebase_admin.initialize_app()
-    print("🔥 Firebase Demo Mode: Using fallback configuration")
+db = None
 
-db = firestore.client()
+def initialize_firebase():
+    global firebase_initialized, db
+    
+    try:
+        # Prevent multiple initializations
+        if firebase_initialized:
+            return True
+            
+        # Try to use base64 encoded credentials first (for production deployment)
+        credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
+        if credentials_base64:
+            print("🔑 Loading Firebase credentials from base64 environment variable")
+            try:
+                credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
+                credentials_dict = json.loads(credentials_json)
+                cred = credentials.Certificate(credentials_dict)
+                firebase_admin.initialize_app(cred)
+                firebase_initialized = True
+                print("✅ Firebase initialized successfully with base64 credentials")
+            except Exception as e:
+                print(f"❌ Failed to initialize Firebase with base64 credentials: {e}")
+                return False
+                
+        elif os.path.exists(Config.FIREBASE_CREDENTIALS_PATH):
+            print(f"🔑 Loading Firebase credentials from: {Config.FIREBASE_CREDENTIALS_PATH}")
+            try:
+                cred = credentials.Certificate(Config.FIREBASE_CREDENTIALS_PATH)
+                firebase_admin.initialize_app(cred)
+                firebase_initialized = True
+                print("✅ Firebase initialized successfully with file credentials")
+            except Exception as e:
+                print(f"❌ Failed to initialize Firebase with file credentials: {e}")
+                return False
+        else:
+            print(f"⚠️ Firebase credentials not found - FIREBASE_CREDENTIALS_BASE64 env var missing and {Config.FIREBASE_CREDENTIALS_PATH} file not found")
+            print("🔥 Running in demo mode - authentication will use fallback method")
+            firebase_initialized = False
+            return False
+            
+        # Initialize Firestore client only if Firebase is properly initialized
+        if firebase_initialized:
+            db = firestore.client()
+            print("✅ Firestore client initialized successfully")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Critical Firebase initialization error: {e}")
+        firebase_initialized = False
+        return False
+    
+    return firebase_initialized
+
+# Initialize Firebase on module load
+initialize_firebase()
+
+# Initialize Firestore client (will be None if Firebase init failed)
+if not db and firebase_initialized:
+    try:
+        db = firestore.client()
+    except Exception as e:
+        print(f"❌ Firestore client initialization failed: {e}")
+        db = None
 
 class FirebaseUser(UserMixin):
     def __init__(self, user_data):
@@ -168,28 +204,68 @@ class FirebaseService:
                 print("⚠️ Firebase not initialized, cannot verify token")
                 return None
                 
+            if not id_token:
+                print("⚠️ No ID token provided")
+                return None
+                
             # Verify the ID token
             decoded_token = auth.verify_id_token(id_token)
             uid = decoded_token['uid']
+            email = decoded_token.get('email', '')
+            name = decoded_token.get('name', '') or decoded_token.get('display_name', '')
             
-            print(f"✅ Token verified for user: {uid}")
+            print(f"✅ Token verified for user: {uid} ({email})")
             
-            # Get user profile from Firestore
-            user_doc = db.collection('users').document(uid).get()
-            if user_doc.exists:
-                user_data = user_doc.to_dict()
-                return FirebaseUser(user_data)
-            else:
-                # Create user profile if it doesn't exist
-                user_record = auth.get_user(uid)
+            # Get user profile from Firestore if available
+            if db:
+                try:
+                    user_doc = db.collection('users').document(uid).get()
+                    if user_doc.exists:
+                        user_data = user_doc.to_dict()
+                        # Update last login
+                        user_data['last_login'] = datetime.utcnow()
+                        db.collection('users').document(uid).update({'last_login': datetime.utcnow()})
+                        return FirebaseUser(user_data)
+                except Exception as e:
+                    print(f"❌ Firestore error getting user profile: {e}")
+            
+            # Create user profile from token data if Firestore fails or doesn't exist
+            try:
+                if db:
+                    # Try to get additional user details from Firebase Auth
+                    user_record = auth.get_user(uid)
+                    user_profile = {
+                        'uid': uid,
+                        'name': user_record.display_name or name or 'User',
+                        'email': user_record.email or email,
+                        'created_at': datetime.utcnow(),
+                        'last_login': datetime.utcnow()
+                    }
+                    db.collection('users').document(uid).set(user_profile)
+                    print(f"✅ Created new user profile for {uid}")
+                else:
+                    # Fallback when Firestore is not available
+                    user_profile = {
+                        'uid': uid,
+                        'name': name or 'User',
+                        'email': email,
+                        'created_at': datetime.utcnow(),
+                        'last_login': datetime.utcnow()
+                    }
+                    print(f"✅ Using token data for user profile {uid} (Firestore unavailable)")
+                
+                return FirebaseUser(user_profile)
+                
+            except Exception as e:
+                print(f"❌ Error creating user profile: {e}")
+                # Return minimal user data from token
                 user_profile = {
                     'uid': uid,
-                    'name': user_record.display_name or 'User',
-                    'email': user_record.email,
+                    'name': name or 'User',
+                    'email': email,
                     'created_at': datetime.utcnow(),
                     'last_login': datetime.utcnow()
                 }
-                db.collection('users').document(uid).set(user_profile)
                 return FirebaseUser(user_profile)
                 
         except Exception as e:

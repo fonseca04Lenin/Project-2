@@ -29,7 +29,13 @@ frontend_url = os.environ.get('FRONTEND_URL')
 if frontend_url:
     allowed_origins.append(frontend_url)
 
-CORS(app, origins=allowed_origins, supports_credentials=True)
+# Enable CORS with specific auth-friendly settings
+CORS(app, 
+     origins=allowed_origins, 
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+     expose_headers=['Content-Type', 'Authorization'])
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
