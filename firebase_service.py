@@ -190,57 +190,59 @@ class FirebaseService:
             
             print(f"✅ Token verified for user: {uid} ({email})")
             
-            # Get user profile from Firestore if available
+            # Fast path: create user profile from token data first
+            user_profile = {
+                'uid': uid,
+                'name': name or 'User',
+                'email': email,
+                'created_at': datetime.utcnow(),
+                'last_login': datetime.utcnow()
+            }
+            
+            # Try to get user profile from Firestore (non-blocking)
             if db:
                 try:
+                    print(f"🔍 Checking Firestore for user {uid}...")
                     user_doc = db.collection('users').document(uid).get()
                     if user_doc.exists:
-                        user_data = user_doc.to_dict()
-                        # Update last login
-                        user_data['last_login'] = datetime.utcnow()
-                        db.collection('users').document(uid).update({'last_login': datetime.utcnow()})
-                        return FirebaseUser(user_data)
+                        print(f"✅ Found existing user profile in Firestore")
+                        firestore_data = user_doc.to_dict()
+                        # Merge Firestore data with token data, preferring Firestore
+                        user_profile.update(firestore_data)
+                        user_profile['last_login'] = datetime.utcnow()
+                        
+                        # Update last login asynchronously (don't wait)
+                        try:
+                            db.collection('users').document(uid).update({'last_login': datetime.utcnow()})
+                        except Exception as update_e:
+                            print(f"⚠️ Failed to update last_login (non-critical): {update_e}")
+                    else:
+                        print(f"🆕 Creating new user profile in Firestore...")
+                        # User doesn't exist, create new profile
+                        try:
+                            # Get additional details from Firebase Auth if possible
+                            user_record = auth.get_user(uid)
+                            user_profile.update({
+                                'name': user_record.display_name or name or 'User',
+                                'email': user_record.email or email
+                            })
+                        except Exception as auth_e:
+                            print(f"⚠️ Could not get Firebase Auth details: {auth_e}")
+                        
+                        # Create profile in Firestore (don't wait if it fails)
+                        try:
+                            db.collection('users').document(uid).set(user_profile)
+                            print(f"✅ Created new user profile for {uid}")
+                        except Exception as create_e:
+                            print(f"⚠️ Failed to create Firestore profile (non-critical): {create_e}")
+                            
                 except Exception as e:
-                    print(f"❌ Firestore error getting user profile: {e}")
+                    print(f"⚠️ Firestore operation failed (using token data): {e}")
+            else:
+                print(f"⚠️ Firestore not available, using token data only")
             
-            # Create user profile from token data if Firestore fails or doesn't exist
-            try:
-                if db:
-                    # Try to get additional user details from Firebase Auth
-                    user_record = auth.get_user(uid)
-                    user_profile = {
-                        'uid': uid,
-                        'name': user_record.display_name or name or 'User',
-                        'email': user_record.email or email,
-                        'created_at': datetime.utcnow(),
-                        'last_login': datetime.utcnow()
-                    }
-                    db.collection('users').document(uid).set(user_profile)
-                    print(f"✅ Created new user profile for {uid}")
-                else:
-                    # Fallback when Firestore is not available
-                    user_profile = {
-                        'uid': uid,
-                        'name': name or 'User',
-                        'email': email,
-                        'created_at': datetime.utcnow(),
-                        'last_login': datetime.utcnow()
-                    }
-                    print(f"✅ Using token data for user profile {uid} (Firestore unavailable)")
-                
-                return FirebaseUser(user_profile)
-                
-            except Exception as e:
-                print(f"❌ Error creating user profile: {e}")
-                # Return minimal user data from token
-                user_profile = {
-                    'uid': uid,
-                    'name': name or 'User',
-                    'email': email,
-                    'created_at': datetime.utcnow(),
-                    'last_login': datetime.utcnow()
-                }
-                return FirebaseUser(user_profile)
+            print(f"✅ Returning user profile for {uid}")
+            return FirebaseUser(user_profile)
                 
         except Exception as e:
             print(f"❌ Token verification failed: {e}")
