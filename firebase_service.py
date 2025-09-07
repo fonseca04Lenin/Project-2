@@ -46,8 +46,8 @@ def initialize_firebase():
                 print(f"❌ Failed to initialize Firebase with file credentials: {e}")
                 return False
         else:
-            print(f"⚠️ Firebase credentials not found - FIREBASE_CREDENTIALS_BASE64 env var missing and {Config.FIREBASE_CREDENTIALS_PATH} file not found")
-            print("🔥 Running in demo mode - authentication will use fallback method")
+            print(f"❌ Firebase credentials not found - FIREBASE_CREDENTIALS_BASE64 env var missing and {Config.FIREBASE_CREDENTIALS_PATH} file not found")
+            print("❌ Firebase authentication is required for this application to function")
             firebase_initialized = False
             return False
             
@@ -87,28 +87,12 @@ class FirebaseUser(UserMixin):
         return self.id
 
 class FirebaseService:
-    # Demo storage for testing without Firebase
-    _demo_users = {}
-    _demo_watchlists = {}
-    _demo_alerts = {}
-    
     @staticmethod
     def create_user(name, email, password):
         """Create a new user using Firebase Authentication"""
         try:
             if not firebase_initialized:
-                # Fallback to demo storage for local development
-                user_id = str(uuid.uuid4())
-                user_data = {
-                    'uid': user_id,
-                    'name': name,
-                    'email': email,
-                    'created_at': datetime.utcnow(),
-                    'last_login': datetime.utcnow()
-                }
-                FirebaseService._demo_users[user_id] = user_data
-                print(f"📝 Demo mode: User created in memory")
-                return user_data
+                raise Exception("Firebase not initialized. Please check your Firebase credentials.")
             
             # Create user in Firebase Authentication
             user_record = auth.create_user(
@@ -129,8 +113,9 @@ class FirebaseService:
             }
             
             # Save user profile to Firestore
-            db.collection('users').document(user_record.uid).set(user_profile)
-            print(f"✅ User profile saved to Firestore: {name}")
+            if db:
+                db.collection('users').document(user_record.uid).set(user_profile)
+                print(f"✅ User profile saved to Firestore: {name}")
             
             return {
                 'uid': user_record.uid,
@@ -147,48 +132,37 @@ class FirebaseService:
     def get_user_by_id(user_id):
         """Get user data from Firestore"""
         try:
-            # Try Firestore first
-            if firebase_initialized:
-                try:
-                    doc = db.collection('users').document(user_id).get()
-                    if doc.exists:
-                        return FirebaseUser(doc.to_dict())
-                except Exception as e:
-                    print(f"❌ Firestore error getting user: {e}")
-            
-            # Fallback to demo storage
-            if user_id in FirebaseService._demo_users:
-                return FirebaseUser(FirebaseService._demo_users[user_id])
-            
-            return None
+            if not firebase_initialized or not db:
+                print("❌ Firebase or Firestore not initialized")
+                return None
+                
+            doc = db.collection('users').document(user_id).get()
+            if doc.exists:
+                return FirebaseUser(doc.to_dict())
+            else:
+                print(f"⚠️ User not found in Firestore: {user_id}")
+                return None
+                
         except Exception as e:
-            # Fallback to demo storage
-            if user_id in FirebaseService._demo_users:
-                return FirebaseUser(FirebaseService._demo_users[user_id])
+            print(f"❌ Error getting user by ID: {e}")
             return None
     
     @staticmethod
     def get_user_by_email(email):
-        """Get user by email - checks both Firestore and demo storage"""
+        """Get user by email from Firestore - Note: Use token-based auth instead for better performance"""
         try:
-            # Try demo storage first for local development
-            for user_data in FirebaseService._demo_users.values():
-                if user_data.get('email') == email:
-                    return FirebaseUser(user_data)
+            if not firebase_initialized or not db:
+                print("❌ Firebase or Firestore not initialized")
+                return None
             
-            # TEMPORARILY DISABLED: Firestore queries cause timeouts on Heroku
-            # Firebase Auth users should use token-based authentication instead
-            if False:  # firebase_initialized:
-                try:
-                    # Query Firestore for user profile by email
-                    users_ref = db.collection('users')
-                    query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
-                    for doc in query:
-                        user_data = doc.to_dict()
-                        print(f"✅ Found user in Firestore: {user_data.get('name')}")
-                        return FirebaseUser(user_data)
-                except Exception as e:
-                    print(f"❌ Firestore error getting user by email: {e}")
+            # Note: Firestore email queries can be slow. Token-based authentication is preferred.
+            # This method is mainly kept for compatibility but should not be the primary auth method.
+            users_ref = db.collection('users')
+            query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
+            for doc in query:
+                user_data = doc.to_dict()
+                print(f"✅ Found user in Firestore: {user_data.get('name')}")
+                return FirebaseUser(user_data)
             
             print(f"⚠️ User not found with email: {email}")
             return None
@@ -286,26 +260,26 @@ class FirebaseService:
     def update_last_login(user_id):
         """Update user's last login time"""
         try:
-            # TEMPORARILY DISABLED: Firestore operations to debug timeout issues
-            if False:  # Direct Firestore disabled
-                db.collection('users').document(user_id).update({
-                    'last_login': datetime.utcnow()
-                })
-            
-            # Use demo storage for fast performance
-            if user_id in FirebaseService._demo_users:
-                FirebaseService._demo_users[user_id]['last_login'] = datetime.utcnow()
-                print(f"📝 Updated last login for user in demo storage")
+            if not firebase_initialized or not db:
+                print("❌ Firebase or Firestore not initialized")
+                return False
+                
+            db.collection('users').document(user_id).update({
+                'last_login': datetime.utcnow()
+            })
+            print(f"✅ Updated last login for user: {user_id}")
+            return True
         except Exception as e:
             print(f"❌ Error updating last login: {e}")
-            # Fallback to demo storage
-            if user_id in FirebaseService._demo_users:
-                FirebaseService._demo_users[user_id]['last_login'] = datetime.utcnow()
+            return False
     
     @staticmethod
     def add_to_watchlist(user_id, symbol, company_name):
         """Add stock to user's watchlist"""
         try:
+            if not firebase_initialized or not db:
+                raise Exception("Firebase not initialized. Cannot add to watchlist.")
+                
             watchlist_data = {
                 'symbol': symbol.upper(),
                 'company_name': company_name,
@@ -313,83 +287,53 @@ class FirebaseService:
                 'last_updated': datetime.utcnow()
             }
             
-            # Try Firestore first
-            if firebase_initialized:
-                try:
-                    db.collection('users').document(user_id).collection('watchlist').document(symbol.upper()).set(watchlist_data)
-                except Exception as e:
-                    print(f"❌ Firestore error adding to watchlist: {e}")
-                    # Fallback to demo storage
-                    if user_id not in FirebaseService._demo_watchlists:
-                        FirebaseService._demo_watchlists[user_id] = {}
-                    FirebaseService._demo_watchlists[user_id][symbol.upper()] = watchlist_data
-                    print(f"📝 Demo mode: Watchlist item stored in memory")
-            else:
-                # Fallback to demo storage
-                if user_id not in FirebaseService._demo_watchlists:
-                    FirebaseService._demo_watchlists[user_id] = {}
-                FirebaseService._demo_watchlists[user_id][symbol.upper()] = watchlist_data
-                print(f"📝 Demo mode: Watchlist item stored in memory")
-            
+            db.collection('users').document(user_id).collection('watchlist').document(symbol.upper()).set(watchlist_data)
+            print(f"✅ Added {symbol.upper()} to watchlist for user {user_id}")
             return True
         except Exception as e:
-            print(f"Error adding to watchlist: {e}")
+            print(f"❌ Error adding to watchlist: {e}")
             return False
     
     @staticmethod
     def remove_from_watchlist(user_id, symbol):
         """Remove stock from user's watchlist"""
         try:
-            # Try Firestore first
-            if firebase_initialized:
-                try:
-                    db.collection('users').document(user_id).collection('watchlist').document(symbol.upper()).delete()
-                except Exception as e:
-                    print(f"❌ Firestore error removing from watchlist: {e}")
-                    # Fallback to demo storage
-                    if user_id in FirebaseService._demo_watchlists and symbol.upper() in FirebaseService._demo_watchlists[user_id]:
-                        del FirebaseService._demo_watchlists[user_id][symbol.upper()]
-            else:
-                # Fallback to demo storage
-                if user_id in FirebaseService._demo_watchlists and symbol.upper() in FirebaseService._demo_watchlists[user_id]:
-                    del FirebaseService._demo_watchlists[user_id][symbol.upper()]
-            
+            if not firebase_initialized or not db:
+                raise Exception("Firebase not initialized. Cannot remove from watchlist.")
+                
+            db.collection('users').document(user_id).collection('watchlist').document(symbol.upper()).delete()
+            print(f"✅ Removed {symbol.upper()} from watchlist for user {user_id}")
             return True
         except Exception as e:
-            print(f"Error removing from watchlist: {e}")
+            print(f"❌ Error removing from watchlist: {e}")
             return False
     
     @staticmethod
     def get_watchlist(user_id):
         """Get user's watchlist"""
         try:
+            if not firebase_initialized or not db:
+                print("❌ Firebase not initialized. Cannot get watchlist.")
+                return []
+                
             watchlist = []
+            docs = db.collection('users').document(user_id).collection('watchlist').stream()
+            for doc in docs:
+                watchlist.append(doc.to_dict())
             
-            # Try Firestore first
-            if firebase_initialized:
-                try:
-                    docs = db.collection('users').document(user_id).collection('watchlist').stream()
-                    for doc in docs:
-                        watchlist.append(doc.to_dict())
-                except Exception as e:
-                    print(f"❌ Firestore error getting watchlist: {e}")
-                    # Fallback to demo storage
-                    if user_id in FirebaseService._demo_watchlists:
-                        watchlist = list(FirebaseService._demo_watchlists[user_id].values())
-            else:
-                # Fallback to demo storage
-                if user_id in FirebaseService._demo_watchlists:
-                    watchlist = list(FirebaseService._demo_watchlists[user_id].values())
-            
+            print(f"✅ Retrieved {len(watchlist)} items from watchlist for user {user_id}")
             return watchlist
         except Exception as e:
-            print(f"Error getting watchlist: {e}")
+            print(f"❌ Error getting watchlist: {e}")
             return []
     
     @staticmethod
     def create_alert(user_id, symbol, target_price, alert_type):
         """Create a price alert"""
         try:
+            if not firebase_initialized or not db:
+                raise Exception("Firebase not initialized. Cannot create alert.")
+                
             alert_data = {
                 'symbol': symbol.upper(),
                 'target_price': target_price,
@@ -401,70 +345,37 @@ class FirebaseService:
             }
             
             alert_id = str(uuid.uuid4())
-            
-            # Try Firestore first
-            if firebase_initialized:
-                try:
-                    db.collection('users').document(user_id).collection('alerts').document(alert_id).set(alert_data)
-                except Exception as e:
-                    print(f"❌ Firestore error creating alert: {e}")
-                    # Fallback to demo storage
-                    if user_id not in FirebaseService._demo_alerts:
-                        FirebaseService._demo_alerts[user_id] = {}
-                    FirebaseService._demo_alerts[user_id][alert_id] = alert_data
-                    print(f"📝 Demo mode: Alert stored in memory")
-            else:
-                # Fallback to demo storage
-                if user_id not in FirebaseService._demo_alerts:
-                    FirebaseService._demo_alerts[user_id] = {}
-                FirebaseService._demo_alerts[user_id][alert_id] = alert_data
-                print(f"📝 Demo mode: Alert stored in memory")
-            
+            db.collection('users').document(user_id).collection('alerts').document(alert_id).set(alert_data)
+            print(f"✅ Created alert {alert_id} for user {user_id}")
             return alert_id
         except Exception as e:
-            print(f"Error creating alert: {e}")
+            print(f"❌ Error creating alert: {e}")
             return None
     
     @staticmethod
     def get_alerts(user_id, symbol=None):
         """Get user's alerts"""
         try:
+            if not firebase_initialized or not db:
+                print("❌ Firebase not initialized. Cannot get alerts.")
+                return []
+                
             alerts = []
+            query = db.collection('users').document(user_id).collection('alerts')
             
-            # Try Firestore first
-            if firebase_initialized:
-                try:
-                    query = db.collection('users').document(user_id).collection('alerts')
-                    
-                    if symbol:
-                        query = query.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper()))
-                    
-                    docs = query.stream()
-                    for doc in docs:
-                        alert_data = doc.to_dict()
-                        alert_data['id'] = doc.id
-                        alerts.append(alert_data)
-                except Exception as e:
-                    print(f"❌ Firestore error getting alerts: {e}")
-                    # Fallback to demo storage
-                    if user_id in FirebaseService._demo_alerts:
-                        for alert_id, alert_data in FirebaseService._demo_alerts[user_id].items():
-                            if not symbol or alert_data['symbol'] == symbol.upper():
-                                alert_data_copy = alert_data.copy()
-                                alert_data_copy['id'] = alert_id
-                                alerts.append(alert_data_copy)
-            else:
-                # Fallback to demo storage
-                if user_id in FirebaseService._demo_alerts:
-                    for alert_id, alert_data in FirebaseService._demo_alerts[user_id].items():
-                        if not symbol or alert_data['symbol'] == symbol.upper():
-                            alert_data_copy = alert_data.copy()
-                            alert_data_copy['id'] = alert_id
-                            alerts.append(alert_data_copy)
+            if symbol:
+                query = query.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper()))
             
+            docs = query.stream()
+            for doc in docs:
+                alert_data = doc.to_dict()
+                alert_data['id'] = doc.id
+                alerts.append(alert_data)
+            
+            print(f"✅ Retrieved {len(alerts)} alerts for user {user_id}")
             return alerts
         except Exception as e:
-            print(f"Error getting alerts: {e}")
+            print(f"❌ Error getting alerts: {e}")
             return []
     
     @staticmethod
@@ -485,57 +396,38 @@ class FirebaseService:
     def check_triggered_alerts(user_id, symbol, current_price):
         """Check if any alerts should be triggered"""
         try:
+            if not firebase_initialized or not db:
+                print("❌ Firebase not initialized. Cannot check triggered alerts.")
+                return []
+                
             triggered_alerts = []
+            alerts_ref = db.collection('users').document(user_id).collection('alerts')
+            alerts = alerts_ref.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper())).limit(10).stream()
             
-            # Try Firestore first
-            if firebase_initialized:
-                try:
-                    # Simplified query for better performance on Heroku
-                    alerts_ref = db.collection('users').document(user_id).collection('alerts')
-                    alerts = alerts_ref.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper())).limit(10).stream()
+            for doc in alerts:
+                alert_data = doc.to_dict()
+                
+                # Filter in Python for better performance
+                if not alert_data.get('is_active', False) or alert_data.get('triggered', False):
+                    continue
                     
-                    for doc in alerts:
-                        alert_data = doc.to_dict()
-                        
-                        # Filter in Python for better performance
-                        if not alert_data.get('is_active', False) or alert_data.get('triggered', False):
-                            continue
-                            
-                        should_trigger = False
-                        
-                        if alert_data['alert_type'] == 'above' and current_price >= alert_data['target_price']:
-                            should_trigger = True
-                        elif alert_data['alert_type'] == 'below' and current_price <= alert_data['target_price']:
-                            should_trigger = True
-                        
-                        if should_trigger:
-                            # Mark alert as triggered
-                            db.collection('users').document(user_id).collection('alerts').document(doc.id).update({
-                                'triggered': True,
-                                'triggered_at': datetime.utcnow()
-                            })
-                            triggered_alerts.append(alert_data)
-                except Exception as e:
-                    print(f"❌ Firestore error checking triggered alerts: {e}")
-                    # Fallback to demo storage
-                    if user_id in FirebaseService._demo_alerts:
-                        for alert_id, alert_data in FirebaseService._demo_alerts[user_id].items():
-                            if (alert_data['symbol'] == symbol.upper() and 
-                                alert_data['is_active'] and 
-                                not alert_data['triggered']):
-                                
-                                should_trigger = False
-                                if alert_data['alert_type'] == 'above' and current_price >= alert_data['target_price']:
-                                    should_trigger = True
-                                elif alert_data['alert_type'] == 'below' and current_price <= alert_data['target_price']:
-                                    should_trigger = True
-                                
-                                if should_trigger:
-                                    FirebaseService._demo_alerts[user_id][alert_id]['triggered'] = True
-                                    FirebaseService._demo_alerts[user_id][alert_id]['triggered_at'] = datetime.utcnow()
-                                    triggered_alerts.append(alert_data)
+                should_trigger = False
+                
+                if alert_data['alert_type'] == 'above' and current_price >= alert_data['target_price']:
+                    should_trigger = True
+                elif alert_data['alert_type'] == 'below' and current_price <= alert_data['target_price']:
+                    should_trigger = True
+                
+                if should_trigger:
+                    # Mark alert as triggered
+                    db.collection('users').document(user_id).collection('alerts').document(doc.id).update({
+                        'triggered': True,
+                        'triggered_at': datetime.utcnow()
+                    })
+                    triggered_alerts.append(alert_data)
+                    print(f"✅ Alert triggered for {symbol} at ${current_price}")
             
             return triggered_alerts
         except Exception as e:
-            print(f"Error checking triggered alerts: {e}")
+            print(f"❌ Error checking triggered alerts: {e}")
             return [] 
