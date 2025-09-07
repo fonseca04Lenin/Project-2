@@ -1139,16 +1139,27 @@ async function handleLogin(event) {
         // Try Firebase Authentication first
         if (window.firebaseAuth) {
             console.log('🔥 Using Firebase Authentication');
+            console.log('🔍 DEBUG: Attempting signInWithEmailAndPassword with email:', email);
             try {
+                console.log('🔍 DEBUG: Calling firebase.auth().signInWithEmailAndPassword...');
                 const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                console.log('🔍 DEBUG: Firebase auth successful, userCredential:', userCredential);
+                
                 const user = userCredential.user;
+                console.log('🔍 DEBUG: User object:', user);
+                console.log('🔍 DEBUG: Getting ID token...');
                 const idToken = await user.getIdToken();
+                console.log('🔍 DEBUG: ID token obtained, length:', idToken.length);
                 
                 console.log('✅ Firebase Auth successful, token length:', idToken.length);
                 console.log('✅ User details:', { uid: user.uid, email: user.email, displayName: user.displayName });
                 console.log('🔗 Verifying with backend...');
                 
                 // Send the ID token to the backend for session creation
+                console.log('🔍 DEBUG: About to send request to backend...');
+                console.log('🔍 DEBUG: API_BASE_URL =', API_BASE_URL);
+                console.log('🔍 DEBUG: Request body =', JSON.stringify({ idToken }));
+                
                 const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: {
@@ -1157,6 +1168,8 @@ async function handleLogin(event) {
                     body: JSON.stringify({ idToken }),
                     credentials: 'include'
                 });
+                
+                console.log('🔍 DEBUG: Response received, status =', response.status);
 
                 const data = await response.json();
                 console.log('🔐 Backend response:', { status: response.status, data });
@@ -1176,6 +1189,9 @@ async function handleLogin(event) {
                 return;
             } catch (firebaseError) {
                 console.error('🔥 Firebase Auth failed:', firebaseError);
+                console.error('🔍 DEBUG: Firebase error code:', firebaseError.code);
+                console.error('🔍 DEBUG: Firebase error message:', firebaseError.message);
+                console.error('🔍 DEBUG: Full Firebase error:', firebaseError);
                 if (firebaseError.code === 'auth/user-not-found') {
                     showNotification('User not found. Please register first.', 'error');
                 } else if (firebaseError.code === 'auth/wrong-password') {
@@ -1191,6 +1207,8 @@ async function handleLogin(event) {
         
         // No fallback authentication - Firebase is required
         console.log('❌ Firebase not available - authentication failed');
+        console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
+        console.log('🔍 DEBUG: Reached fallback path - Firebase authentication bypassed');
         showNotification('Firebase authentication is required. Please check your internet connection and try again.', 'error');
     } catch (error) {
         console.error('Error during login:', error);
