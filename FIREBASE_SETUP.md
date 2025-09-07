@@ -135,15 +135,15 @@ users/{userId}/alerts/{alertId}
 3. Initialize: `firebase init hosting`
 4. Deploy: `firebase deploy`
 
-### Option 2: Render.com
-1. Connect your GitHub repo
-2. Set environment variables
-3. Deploy automatically
-
-### Option 3: Heroku
+### Option 2: Heroku
 1. Create Heroku app
-2. Set environment variables
+2. Set environment variables with base64 Firebase credentials
 3. Deploy with Git
+
+### Option 3: Other Platforms
+1. Configure your hosting platform
+2. Set environment variables
+3. Deploy your application
 
 ## 💰 Firebase Pricing
 

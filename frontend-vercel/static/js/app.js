@@ -5,7 +5,7 @@ let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
 
 // Backend API base URL - Get from config file
-const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://your-app-name.onrender.com';
+const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com';
 
 // DOM elements
 const searchInput = document.getElementById('searchInput');
