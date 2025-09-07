@@ -11,8 +11,8 @@ This is the frontend for Stock Watchlist Pro, designed to be deployed on Vercel.
    ```
 
 2. **IMPORTANT: Update your backend URL first!**
-   - Edit `config.js` and change `API_BASE_URL` to your Render backend URL
-   - Example: `API_BASE_URL: 'https://your-app-name.onrender.com'`
+   - Edit `config.js` and change `API_BASE_URL` to your Heroku backend URL
+   - Example: `API_BASE_URL: 'https://your-app-name.herokuapp.com'`
 
 3. Deploy:
    ```bash
@@ -44,18 +44,18 @@ frontend-vercel/
 
 ## ⚠️ Important Notes
 
-- **Backend Required**: This frontend needs your Flask backend to be running (hosted on Render)
+- **Backend Required**: This frontend needs your Flask backend to be running (hosted on Heroku)
 - **API Endpoints**: All API calls now use the URL from `config.js`
 - **CORS**: Ensure your backend has CORS enabled for your Vercel domain
-- **Update Backend URL**: Before deploying, edit `config.js` and change `API_BASE_URL` to your actual Render backend URL
+- **Update Backend URL**: Before deploying, edit `config.js` and change `API_BASE_URL` to your actual Heroku backend URL
 
 ## 🔧 Configuration
 
 ### Backend URL Setup
 1. Open `config.js`
-2. Change `API_BASE_URL` to your Render backend URL:
+2. Change `API_BASE_URL` to your Heroku backend URL:
    ```javascript
-   API_BASE_URL: 'https://your-actual-app-name.onrender.com'
+   API_BASE_URL: 'https://your-actual-app-name.herokuapp.com'
    ```
 
 The `vercel.json` file configures:

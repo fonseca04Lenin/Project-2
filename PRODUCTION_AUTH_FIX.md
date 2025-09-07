@@ -57,7 +57,7 @@ git add .
 git commit -m "Fix: Firebase authentication issues in production"
 git push heroku main
 
-# Or for Render/other platforms
+# Or for other platforms (Render, Railway, etc.)
 git push origin main
 ```
 
