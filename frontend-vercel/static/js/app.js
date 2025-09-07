@@ -1126,9 +1126,11 @@ function toggleAuthForm(form) {
 
 async function handleLogin(event) {
     event.preventDefault();
-    console.log('🔐 Login attempt started');
+    console.log('🔐 Login attempt started [NEW VERSION 2.0]');
     console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
     console.log('🔍 DEBUG: firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
+    console.log('🔍 DEBUG: Event object =', event);
+    console.log('🔍 DEBUG: This is the NEW DEBUGGING VERSION');
     
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
