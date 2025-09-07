@@ -20,8 +20,9 @@ allowed_origins = [
     "http://127.0.0.1:3000",  # Local development alternative
     "http://localhost:5000",  # Local Flask dev
     "http://localhost:8000",  # Local Flask dev on port 8000
-    "https://*.vercel.app",   # Vercel deployments
-    "https://*.vercel.com"    # Vercel custom domains
+    "https://stock-watchlist-frontend.vercel.app",  # Main Vercel deployment
+    "https://*.vercel.app",   # Vercel deployments (wildcard)
+    "https://*.vercel.com"    # Vercel custom domains (wildcard)
 ]
 
 # Add specific frontend URL from environment if available
@@ -33,9 +34,10 @@ if frontend_url:
 CORS(app, 
      origins=allowed_origins, 
      supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-     expose_headers=['Content-Type', 'Authorization'])
+     expose_headers=['Content-Type', 'Authorization'],
+     vary_header=False)
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
