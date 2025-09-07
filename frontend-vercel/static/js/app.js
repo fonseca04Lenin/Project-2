@@ -27,6 +27,8 @@ const optionsSymbolInput = document.getElementById('options-symbol');
 // Initialize app
 function initializeApp() {
     console.log('🚀 App initialized');
+    console.log('🔍 DEBUG: Firebase status at init - window.firebaseAuth =', window.firebaseAuth);
+    console.log('🔍 DEBUG: Firebase status at init - firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
     checkAuthStatus();
     updateMarketStatus();
     
@@ -1125,6 +1127,9 @@ function toggleAuthForm(form) {
 async function handleLogin(event) {
     event.preventDefault();
     console.log('🔐 Login attempt started');
+    console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
+    console.log('🔍 DEBUG: firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
+    
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
 
@@ -1194,6 +1199,9 @@ async function handleLogin(event) {
 async function handleRegister(event) {
     event.preventDefault();
     console.log('📝 Register attempt started');
+    console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
+    console.log('🔍 DEBUG: firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
+    
     const name = document.getElementById('register-name').value;
     const email = document.getElementById('register-email').value;
     const password = document.getElementById('register-password').value;
