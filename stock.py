@@ -18,7 +18,7 @@ class NewsAPI:
                 'pageSize': limit,
                 'apiKey': self.api_key
             }
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=3)
             if response.status_code == 200:
                 articles = response.json().get('articles', [])
                 news_items = []
@@ -56,7 +56,7 @@ class NewsAPI:
                 'apiKey': self.api_key
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=3)
             if response.status_code == 200:
                 articles = response.json().get('articles', [])
                 news_items = []
@@ -108,7 +108,7 @@ class YahooFinanceAPI:
                 "newsCount": 0,
                 "lang": "en"
             }
-            response = requests.get(url, params=params, timeout=5)
+            response = requests.get(url, params=params, timeout=3)
             if response.status_code == 200:
                 data = response.json()
                 results = []
@@ -409,7 +409,7 @@ class FinnhubAPI:
         try:
             url = f'{self.base_url}stock/profile2'
             params = {'symbol': symbol, 'token': self.api_key}
-            response = requests.get(url, params=params, timeout=5)
+            response = requests.get(url, params=params, timeout=3)
             if response.status_code == 200:
                 data = response.json()
                 return {
