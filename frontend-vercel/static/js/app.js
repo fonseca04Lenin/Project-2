@@ -1192,22 +1192,35 @@ function getNotificationIcon(type) {
 }
 
 // Auth Functions
+let authListenerSetup = false; // Guard to prevent multiple listeners
+let currentAuthRequest = null; // Guard to prevent parallel auth requests
+
 async function checkAuthStatus() {
     try {
         console.log('🔍 Checking Firebase Auth state...');
         
         // Check Firebase Auth state
-        if (window.firebaseAuth) {
+        if (window.firebaseAuth && !authListenerSetup) {
+            authListenerSetup = true; // Set guard to prevent duplicate listeners
+            console.log('🔧 Setting up auth state listener...');
             // Wait for Firebase Auth state to be determined
             firebase.auth().onAuthStateChanged(async (user) => {
                 if (user) {
                     console.log('✅ User is logged in with Firebase:', user.uid);
+                    
+                    // Prevent multiple parallel auth requests for the same user
+                    if (currentAuthRequest) {
+                        console.log('⏳ Auth request already in progress, waiting...');
+                        await currentAuthRequest;
+                        return;
+                    }
+                    
                     console.log('🔗 Verifying with backend...');
                     
                     try {
                         // Get fresh ID token and verify with backend
                         const idToken = await user.getIdToken();
-                        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                        currentAuthRequest = fetch(`${API_BASE_URL}/api/auth/login`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1216,6 +1229,8 @@ async function checkAuthStatus() {
                             credentials: 'include'
                         });
 
+                        const response = await currentAuthRequest;
+                        
                         if (response.ok) {
                             const data = await response.json();
                             console.log('✅ Backend session restored for:', data.user.email);
@@ -1229,6 +1244,8 @@ async function checkAuthStatus() {
                         console.error('❌ Error verifying with backend:', error);
                         await firebase.auth().signOut();
                         showAuthForms();
+                    } finally {
+                        currentAuthRequest = null; // Clear the guard
                     }
                 } else {
                     console.log('❌ No Firebase user logged in');
