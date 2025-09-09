@@ -29,11 +29,13 @@ if frontend_url:
     allowed_origins.append(frontend_url)
     print(f"🔗 Added FRONTEND_URL to CORS: {frontend_url}")
 
-# Add additional Vercel domains explicitly (only if needed)
-# Simplified for better performance
-if frontend_url and 'vercel.app' in frontend_url:
-    allowed_origins.append(frontend_url.replace('https://stock-watchlist-frontend', 'https://stock-watchlist-frontend-git-main'))
-    allowed_origins.append(frontend_url.replace('https://stock-watchlist-frontend', 'https://stock-watchlist-frontend-lennys-projects'))
+# Add additional Vercel domains explicitly
+vercel_domains = [
+    "https://stock-watchlist-frontend-ql5o74lkh-lenny-s-projects-87605fc1.vercel.app",
+    "https://stock-watchlist-frontend-git-main-lenny-s-projects-87605fc1.vercel.app",
+    "https://stock-watchlist-frontend-lennys-projects-87605fc1.vercel.app"
+]
+allowed_origins.extend(vercel_domains)
 
 print(f"🌐 CORS allowed origins: {allowed_origins}")
 
@@ -51,9 +53,9 @@ app.config['SECRET_KEY'] = Config.SECRET_KEY
 
 # Session configuration for cross-origin setup (Vercel frontend + Heroku backend)
 is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('HEROKU_APP_NAME') is not None
-app.config['SESSION_COOKIE_SECURE'] = is_production  # HTTPS required in production
+app.config['SESSION_COOKIE_SECURE'] = True  # Always secure in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None' if is_production else 'Lax'  # None for cross-origin in production
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requests
 
 # Initialize extensions
 socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading', logger=True, engineio_logger=True)
