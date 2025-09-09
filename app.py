@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, redirect
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import login_required, current_user
 from flask_cors import CORS
@@ -60,6 +60,13 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requ
 # Initialize extensions
 socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading', logger=True, engineio_logger=True)
 login_manager.init_app(app)
+
+# Custom error handler for unauthorized API requests
+@login_manager.unauthorized_handler
+def unauthorized():
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Authentication required'}), 401
+    return redirect('/')
 
 # Debug session configuration
 print(f"🔧 Session Config - Secure: {app.config['SESSION_COOKIE_SECURE']}, SameSite: {app.config['SESSION_COOKIE_SAMESITE']}, Production: {is_production}")
