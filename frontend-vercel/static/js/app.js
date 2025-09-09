@@ -874,19 +874,23 @@ async function updateMarketStatus() {
         const data = await response.json();
 
         // Find the market status element
-        const marketStatusElement = document.querySelector('.market-status');
+        const marketStatusElement = document.getElementById('marketStatusIndicator');
         if (!marketStatusElement) {
             console.warn('⚠️ Market status element not found');
             return;
         }
 
-        const statusElement = marketStatusElement.querySelector('.status-text');
-        if (statusElement) {
-            statusElement.textContent = data.status;
-        }
+        // Update the text content directly
+        marketStatusElement.textContent = data.status;
 
         // Update styling based on market status
-        marketStatusElement.className = `market-status ${data.isOpen ? 'open' : 'closed'}`;
+        if (data.isOpen) {
+            marketStatusElement.style.background = '#22c55e'; // green
+            marketStatusElement.style.color = '#fff';
+        } else {
+            marketStatusElement.style.background = '#ef4444'; // red
+            marketStatusElement.style.color = '#fff';
+        }
     } catch (error) {
         console.error('Error updating market status:', error);
     }
@@ -2278,7 +2282,8 @@ async function getOptionsData() {
 
 // Initialize market intelligence data when user is authenticated
 function initializeMarketIntelligence() {
-    if (isAuthenticated) {
+    // Check if user is authenticated by checking if Firebase auth user exists
+    if (window.firebaseAuth && window.firebaseAuth.currentUser) {
         loadEarningsCalendar();
     }
 } 
