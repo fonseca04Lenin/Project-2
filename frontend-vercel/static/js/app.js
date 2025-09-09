@@ -316,7 +316,162 @@ window.getOptionsData = getOptionsData;
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     initializeMarketIntelligence();
+    initializeLandingPageInteractions();
 });
+
+// Premium Landing Page Interactions
+function initializeLandingPageInteractions() {
+    // Add hover effects to floating elements
+    const floatingElements = document.querySelectorAll('.float-element');
+    floatingElements.forEach((element, index) => {
+        element.addEventListener('mouseenter', () => {
+            element.style.animationPlayState = 'paused';
+            element.style.transform += ' scale(1.1)';
+            element.style.opacity = '0.2';
+        });
+        
+        element.addEventListener('mouseleave', () => {
+            element.style.animationPlayState = 'running';
+            element.style.transform = element.style.transform.replace(' scale(1.1)', '');
+            element.style.opacity = '0.1';
+        });
+    });
+
+    // Add parallax effect to orbs
+    let mouseMoveHandler;
+    if (window.innerWidth > 768) {
+        mouseMoveHandler = (e) => {
+            const orbs = document.querySelectorAll('.orb');
+            const xPos = (e.clientX / window.innerWidth) * 100;
+            const yPos = (e.clientY / window.innerHeight) * 100;
+            
+            orbs.forEach((orb, index) => {
+                const speed = (index + 1) * 0.5;
+                const x = (xPos - 50) * speed;
+                const y = (yPos - 50) * speed;
+                orb.style.transform += ` translate(${x}px, ${y}px)`;
+            });
+        };
+        
+        document.addEventListener('mousemove', mouseMoveHandler);
+    }
+
+    // Add smooth scroll animation for feature pills
+    const pills = document.querySelectorAll('.pill');
+    pills.forEach((pill, index) => {
+        pill.style.animationDelay = `${index * 0.1}s`;
+        pill.classList.add('fade-in-up');
+    });
+
+    // Enhanced form interactions
+    const inputs = document.querySelectorAll('.input-wrapper input');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.closest('.input-wrapper').classList.add('focused');
+            addRippleEffect(this);
+        });
+        
+        input.addEventListener('blur', function() {
+            this.closest('.input-wrapper').classList.remove('focused');
+        });
+        
+        input.addEventListener('input', function() {
+            if (this.value.length > 0) {
+                this.closest('.input-wrapper').classList.add('has-value');
+            } else {
+                this.closest('.input-wrapper').classList.remove('has-value');
+            }
+        });
+    });
+
+    // Enhanced submit button interactions
+    const submitButtons = document.querySelectorAll('.premium-submit-btn');
+    submitButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            if (!this.classList.contains('loading')) {
+                addButtonRipple(this, e);
+            }
+        });
+    });
+
+    // Dynamic ticker updates (simulate real market data)
+    setTimeout(() => {
+        updateMarketTicker();
+        setInterval(updateMarketTicker, 30000); // Update every 30 seconds
+    }, 2000);
+}
+
+// Add ripple effect to input focus
+function addRippleEffect(input) {
+    const ripple = document.createElement('div');
+    ripple.className = 'input-ripple';
+    ripple.style.position = 'absolute';
+    ripple.style.borderRadius = '50%';
+    ripple.style.background = 'rgba(74, 222, 128, 0.3)';
+    ripple.style.transform = 'scale(0)';
+    ripple.style.animation = 'ripple 0.6s linear';
+    ripple.style.left = '50%';
+    ripple.style.top = '50%';
+    ripple.style.width = '20px';
+    ripple.style.height = '20px';
+    ripple.style.marginLeft = '-10px';
+    ripple.style.marginTop = '-10px';
+    ripple.style.pointerEvents = 'none';
+    
+    input.parentNode.appendChild(ripple);
+    
+    setTimeout(() => {
+        ripple.remove();
+    }, 600);
+}
+
+// Add ripple effect to buttons
+function addButtonRipple(button, event) {
+    const ripple = document.createElement('div');
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = event.clientX - rect.left - size / 2;
+    const y = event.clientY - rect.top - size / 2;
+    
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = x + 'px';
+    ripple.style.top = y + 'px';
+    ripple.className = 'button-ripple';
+    ripple.style.position = 'absolute';
+    ripple.style.borderRadius = '50%';
+    ripple.style.background = 'rgba(255, 255, 255, 0.3)';
+    ripple.style.transform = 'scale(0)';
+    ripple.style.animation = 'ripple 0.6s linear';
+    ripple.style.pointerEvents = 'none';
+    
+    button.appendChild(ripple);
+    
+    setTimeout(() => {
+        ripple.remove();
+    }, 600);
+}
+
+// Update market ticker with simulated data
+function updateMarketTicker() {
+    const tickerValues = document.querySelectorAll('.ticker-value');
+    const symbols = ['S&P 500', 'NASDAQ', 'DOW'];
+    
+    tickerValues.forEach((value, index) => {
+        const change = (Math.random() - 0.5) * 2; // Random change between -1 and 1
+        const currentValue = parseFloat(value.textContent.replace(/[+-%]/g, '')) || 0;
+        const newValue = (currentValue + change).toFixed(1);
+        const sign = newValue >= 0 ? '+' : '';
+        
+        value.textContent = `${sign}${newValue}%`;
+        value.className = `ticker-value ${newValue >= 0 ? 'positive' : 'negative'}`;
+        
+        // Add flash animation
+        value.style.animation = 'flash 0.5s ease';
+        setTimeout(() => {
+            value.style.animation = '';
+        }, 500);
+    });
+}
 
 
 
@@ -1082,15 +1237,15 @@ function showMainContent(user) {
     console.log('🎯 showMainContent called with user:', user);
     
     // Check if elements exist
-    const centerWrapper = document.querySelector('.center-wrapper');
+    const landingContainer = document.querySelector('.landing-page');
     const authContainer = document.getElementById('auth-container');
     const mainContent = document.getElementById('main-content');
     const usernameDisplay = document.getElementById('username-display');
     const usernameWelcome = document.getElementById('username-welcome');
     
-    if (!centerWrapper || !authContainer || !mainContent || !usernameDisplay || !usernameWelcome) {
+    if (!landingContainer || !authContainer || !mainContent || !usernameDisplay || !usernameWelcome) {
         console.error('❌ Required elements not found:', {
-            centerWrapper: !!centerWrapper,
+            landingContainer: !!landingContainer,
             authContainer: !!authContainer,
             mainContent: !!mainContent,
             usernameDisplay: !!usernameDisplay,
@@ -1099,10 +1254,10 @@ function showMainContent(user) {
         return;
     }
     
-    // Hide auth container and center wrapper
-    centerWrapper.style.display = 'none';
+    // Hide auth container and landing container
+    landingContainer.style.display = 'none';
     authContainer.style.display = 'none';
-    console.log('✅ Auth container and center wrapper hidden');
+    console.log('✅ Auth container and landing container hidden');
     
     // Show main content
     mainContent.style.display = 'block';
@@ -1128,37 +1283,68 @@ function showAuthForms() {
     console.log('🎯 showAuthForms called');
     
     // Check if elements exist
-    const centerWrapper = document.querySelector('.center-wrapper');
+    const landingContainer = document.querySelector('.landing-page');
     const authContainer = document.getElementById('auth-container');
     const mainContent = document.getElementById('main-content');
     
-    if (!centerWrapper || !authContainer || !mainContent) {
+    if (!landingContainer || !authContainer || !mainContent) {
         console.error('❌ Required elements not found:', {
-            centerWrapper: !!centerWrapper,
+            landingContainer: !!landingContainer,
             authContainer: !!authContainer,
             mainContent: !!mainContent
         });
         return;
     }
     
-    // Show auth container and center wrapper
-    centerWrapper.style.display = 'flex';
-    authContainer.style.display = 'flex';
-    console.log('✅ Auth container and center wrapper shown');
+    // Show landing container and auth container
+    landingContainer.style.display = 'block';
+    authContainer.style.display = 'block';
+    console.log('✅ Landing container and auth container shown');
     
     // Hide main content
     mainContent.style.display = 'none';
     console.log('✅ Main content hidden');
     
     // Reset to login form
-    toggleAuthForm('login');
+    switchAuthTab('login');
     console.log('✅ Auth forms should now be visible');
 }
 
 function toggleAuthForm(form) {
-    document.getElementById('login-form').style.display = form === 'login' ? 'block' : 'none';
-    document.getElementById('register-form').style.display = form === 'register' ? 'block' : 'none';
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    
+    if (form === 'login') {
+        loginForm.classList.add('active');
+        registerForm.classList.remove('active');
+    } else {
+        registerForm.classList.add('active');
+        loginForm.classList.remove('active');
+    }
 }
+
+// Modern auth tab switching
+function switchAuthTab(form) {
+    const loginTab = document.getElementById('login-tab');
+    const registerTab = document.getElementById('register-tab');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    
+    if (form === 'login') {
+        loginTab.classList.add('active');
+        registerTab.classList.remove('active');
+        loginForm.classList.add('active');
+        registerForm.classList.remove('active');
+    } else {
+        registerTab.classList.add('active');
+        loginTab.classList.remove('active');
+        registerForm.classList.add('active');
+        loginForm.classList.remove('active');
+    }
+}
+
+// Make switchAuthTab globally available
+window.switchAuthTab = switchAuthTab;
 
 async function handleLogin(event) {
     event.preventDefault();
@@ -1170,6 +1356,13 @@ async function handleLogin(event) {
     
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+    const submitBtn = event.target.querySelector('.cta-button') || event.target.closest('form').querySelector('.cta-button');
+    
+    // Add loading state
+    if (submitBtn) {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+    }
 
     try {
         // Try Firebase Authentication first
@@ -1249,6 +1442,12 @@ async function handleLogin(event) {
     } catch (error) {
         console.error('Error during login:', error);
         showNotification('Error during login', 'error');
+    } finally {
+        // Remove loading state
+        if (submitBtn) {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
     }
 }
 
@@ -1261,6 +1460,13 @@ async function handleRegister(event) {
     const name = document.getElementById('register-name').value;
     const email = document.getElementById('register-email').value;
     const password = document.getElementById('register-password').value;
+    const submitBtn = event.target.querySelector('.cta-button') || event.target.closest('form').querySelector('.cta-button');
+    
+    // Add loading state
+    if (submitBtn) {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+    }
 
     try {
         // Try Firebase Authentication first
@@ -1335,6 +1541,12 @@ async function handleRegister(event) {
     } catch (error) {
         console.error('Error during registration:', error);
         showNotification('Error during registration', 'error');
+    } finally {
+        // Remove loading state
+        if (submitBtn) {
+            submitBtn.classList.remove('loading');
+            submitBtn.disabled = false;
+        }
     }
 }
 
