@@ -9,7 +9,7 @@ A real-time stock tracking application with user authentication, watchlists, and
 - 📈 Historical price charts
 - 🔔 Price alerts (above/below target)
 - 📰 Market and company news
-- 💾 Persistent user data with SQLite database
+- 💾 Persistent user data with Firebase Firestore
 
 ## Quick Start
 
@@ -55,15 +55,18 @@ Navigate to `http://localhost:5000`
 
 ```
 Project-2/
-├── app.py              # Main Flask application
-├── models.py           # Database models
-├── auth.py             # Authentication handlers
-├── stock.py            # Stock data API
-├── requirements.txt    # Python dependencies
-├── setup.py           # Setup script
-├── templates/         # HTML templates
-├── static/           # CSS, JS, and static files
-└── stockwatchlist.db # SQLite database (created automatically)
+├── app.py                    # Main Flask application
+├── auth.py                   # Authentication handlers
+├── firebase_service.py       # Firebase Firestore integration
+├── stock.py                  # Stock data API
+├── requirements.txt          # Python dependencies
+├── firebase-credentials.json # Firebase service account credentials
+├── frontend-vercel/          # Frontend application (Vercel)
+│   ├── index.html           # Main HTML page
+│   ├── static/css/style.css # Application styles
+│   └── static/js/app.js     # Application logic
+├── firestore.rules          # Firestore security rules
+└── firestore.indexes.json   # Firestore database indexes
 ```
 
 ## API Endpoints
@@ -82,14 +85,16 @@ Project-2/
 ## Troubleshooting
 
 1. **Port already in use:** Change the port in `app.py` or kill the process using the port
-2. **Database errors:** Delete `stockwatchlist.db` and restart the app
+2. **Firebase errors:** Check your `firebase-credentials.json` file and Firebase project settings
 3. **Import errors:** Make sure all requirements are installed with `pip install -r requirements.txt`
+4. **Authentication issues:** Verify Firebase Authentication is enabled in your Firebase console
 
 ## Security Features
 
-- Password hashing with bcrypt
-- Session-based authentication
-- User-specific data isolation
-- Protected API endpoints
+- Firebase Authentication with secure token verification
+- Session-based user management
+- User-specific data isolation in Firestore
+- Protected API endpoints with login requirements
+- Firestore security rules for data access control
 
 Happy trading! 📈
