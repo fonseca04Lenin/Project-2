@@ -50,13 +50,19 @@ CORS(app,
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+
+# Session configuration for cross-origin setup (Vercel frontend + Heroku backend)
+is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('HEROKU_APP_NAME') is not None
+app.config['SESSION_COOKIE_SECURE'] = is_production  # HTTPS required in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None' if is_production else 'Lax'  # None for cross-origin in production
 
 # Initialize extensions
 socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading', logger=True, engineio_logger=True)
 login_manager.init_app(app)
+
+# Debug session configuration
+print(f"🔧 Session Config - Secure: {app.config['SESSION_COOKIE_SECURE']}, SameSite: {app.config['SESSION_COOKIE_SAMESITE']}, Production: {is_production}")
 
 # Register blueprints
 app.register_blueprint(auth)
@@ -367,6 +373,7 @@ def get_watchlist_route():
 @app.route('/api/watchlist', methods=['POST'])
 @login_required
 def add_to_watchlist():
+    print(f"🔐 Watchlist POST: User authenticated: {current_user.is_authenticated}, User ID: {current_user.id if current_user.is_authenticated else 'None'}")
     data = request.get_json()
     symbol = data.get('symbol', '').upper()
     
