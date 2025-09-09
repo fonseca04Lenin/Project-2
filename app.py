@@ -79,6 +79,11 @@ connected_users = {}
 def index():
     return {"message": "Stock Watchlist API", "status": "active"}
 
+@app.route('/health')
+def health_check():
+    """Quick health check endpoint"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
