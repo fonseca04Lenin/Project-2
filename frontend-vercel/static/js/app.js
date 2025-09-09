@@ -580,7 +580,9 @@ function displayStockResult(stock) {
 //Watchlist functionality
 async function loadWatchlist() {
     try {
-        const response = await fetch('/api/watchlist');
+        const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         watchlistData = data;
@@ -647,7 +649,8 @@ async function addToWatchlist(symbol) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ symbol: symbol })
+            body: JSON.stringify({ symbol: symbol }),
+            credentials: 'include'
         });
 
         const data = await response.json();
@@ -667,7 +670,8 @@ async function addToWatchlist(symbol) {
 async function removeFromWatchlist(symbol) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
 
         const data = await response.json();
@@ -1043,7 +1047,9 @@ function getToastIcon(type) {
 // Alert Management Functions
 async function loadAlerts() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/alerts`);
+        const response = await fetch(`${API_BASE_URL}/api/alerts`, {
+            credentials: 'include'
+        });
         const alerts = await response.json();
         displayAlerts(alerts);
     } catch (error) {
@@ -1097,7 +1103,8 @@ async function createAlert() {
                 symbol,
                 target_price: price,
                 alert_type: type
-            })
+            }),
+            credentials: 'include'
         });
 
         if (response.ok) {
@@ -1118,7 +1125,8 @@ async function createAlert() {
 async function deleteAlert(symbol, index) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/alerts/${symbol}/${index}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            credentials: 'include'
         });
 
         if (response.ok) {
