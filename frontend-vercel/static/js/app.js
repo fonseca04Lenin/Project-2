@@ -1571,6 +1571,36 @@ async function handleRegister(event) {
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
 
+// Add event listeners for form submissions to prevent page reload
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔧 Setting up form event listeners...');
+    
+    const loginForm = document.getElementById('login-form-element');
+    const registerForm = document.getElementById('register-form-element');
+    
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(event) {
+            console.log('🔐 Login form submitted via event listener');
+            event.preventDefault();
+            handleLogin(event);
+        });
+        console.log('✅ Login form event listener attached');
+    } else {
+        console.error('❌ Login form not found');
+    }
+    
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(event) {
+            console.log('📝 Register form submitted via event listener');
+            event.preventDefault();
+            handleRegister(event);
+        });
+        console.log('✅ Register form event listener attached');
+    } else {
+        console.error('❌ Register form not found');
+    }
+});
+
 async function handleLogout() {
     console.log('🚪 Logout attempt started');
     try {
