@@ -18,32 +18,218 @@
         <!-- Notification Container -->
         <div id="notificationContainer" class="notification-container"></div>
         
-        <!-- Auth Forms -->
-        <div class="center-wrapper">
-            <h1 class="app-title" style="margin-bottom: 0.5rem;">Stock Watchlist Pro</h1>
-            <p class="welcome-message" style="margin-bottom: 2rem;">Track, analyze, and get alerts for your favorite stocks. Stay updated with real-time news and market intelligence—all in one place.</p>
-            <div id="auth-container" class="auth-container">
-                <div id="login-form" class="auth-form">
-                    <h2>Login</h2>
-                    <form onsubmit="handleLogin(event)">
-                        <input type="email" id="login-email" placeholder="Email" required>
-                        <input type="password" id="login-password" placeholder="Password" required>
-                        <button type="submit">Login</button>
-                    </form>
-                    <p>Don't have an account? <a href="#" onclick="toggleAuthForm('register')">Register</a></p>
+        <!-- Modern Landing Page -->
+        <div class="landing-page">
+            <!-- Navigation -->
+            <nav class="navbar">
+                <div class="nav-container">
+                    <div class="nav-brand">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 13h2l2-7 4 12 4-9 2 2h4v-2h-3l-1-1-3 7-4-12-4 9H3z"/>
+                        </svg>
+                        <span class="brand-text">Watchlist Pro</span>
+                    </div>
+                    <div class="nav-links">
+                        <a href="#features" class="nav-link">Features</a>
+                        <a href="#pricing" class="nav-link">Pricing</a>
+                        <a href="#about" class="nav-link">About</a>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Hero Section -->
+            <div class="hero-section">
+                <div class="hero-container">
+                    <!-- Left Side: Content -->
+                    <div class="hero-content">
+                        
+                        <h1 class="hero-title">
+                            Professional Stock Market Analysis
+                            <span class="title-highlight">Made Simple</span>
+                        </h1>
+                        
+                        <p class="hero-description">
+                            Track your portfolio, analyze market trends, and make informed investment decisions with real-time data and advanced analytics. Join thousands of successful investors.
+                        </p>
+
+
+                        <!-- Key Features -->
+                        <div class="key-features">
+                            <div class="feature-point">
+                                <div class="feature-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                                    </svg>
+                                </div>
+                                <span>Real-time market data</span>
+                            </div>
+                            <div class="feature-point">
+                                <div class="feature-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                                    </svg>
+                                </div>
+                                <span>Smart price alerts</span>
+                            </div>
+                            <div class="feature-point">
+                                <div class="feature-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                                    </svg>
+                                </div>
+                                <span>Advanced portfolio analytics</span>
+                            </div>
+                        </div>
+
+                        <!-- Social Proof -->
+                        <div class="social-proof">
+                            <div class="proof-item">
+                                <div class="proof-number">50K+</div>
+                                <div class="proof-label">Active Users</div>
+                            </div>
+                            <div class="proof-item">
+                                <div class="proof-number">$2.4B</div>
+                                <div class="proof-label">Assets Tracked</div>
+                            </div>
+                            <div class="proof-item">
+                                <div class="proof-number">99.9%</div>
+                                <div class="proof-label">Uptime</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Authentication -->
+                    <div class="auth-section">
+                        <div class="auth-card">
+                            <div class="auth-header">
+                                <h2 class="auth-title">Get Started Today</h2>
+                                <p class="auth-subtitle">Join thousands of investors making smarter decisions</p>
+                            </div>
+
+                            <div id="auth-container" class="auth-tabs-container">
+                                <!-- Modern Tab Navigation -->
+                                <div class="tab-navigation">
+                                    <button id="login-tab" class="tab-btn active" onclick="switchAuthTab('login')">
+                                        Sign In
+                                    </button>
+                                    <button id="register-tab" class="tab-btn" onclick="switchAuthTab('register')">
+                                        Create Account
+                                    </button>
+                                </div>
+
+                                <!-- Login Form -->
+                                <div id="login-form" class="auth-form-container active">
+                                    <form onsubmit="handleLogin(event)" class="modern-form">
+                                        <div class="input-field">
+                                            <label for="login-email" class="input-label">Email address</label>
+                                            <input 
+                                                type="email" 
+                                                id="login-email" 
+                                                class="modern-input" 
+                                                placeholder="Enter your email"
+                                                required
+                                            >
+                                        </div>
+                                        
+                                        <div class="input-field">
+                                            <label for="login-password" class="input-label">Password</label>
+                                            <input 
+                                                type="password" 
+                                                id="login-password" 
+                                                class="modern-input" 
+                                                placeholder="Enter your password"
+                                                required
+                                            >
+                                        </div>
+                                        
+                                        <div class="form-options">
+                                            <label class="checkbox-container">
+                                                <input type="checkbox" class="checkbox">
+                                                <span class="checkmark"></span>
+                                                <span class="checkbox-label">Remember me</span>
+                                            </label>
+                                            <a href="#forgot" class="forgot-link">Forgot password?</a>
+                                        </div>
+                                        
+                                        <button type="submit" class="cta-button primary">
+                                            <span class="btn-text">Sign In</span>
+                                            <div class="btn-spinner" style="display: none;">
+                                                <div class="spinner"></div>
+                                            </div>
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <!-- Register Form -->
+                                <div id="register-form" class="auth-form-container">
+                                    <form onsubmit="handleRegister(event)" class="modern-form">
+                                        <div class="input-field">
+                                            <label for="register-name" class="input-label">Full name</label>
+                                            <input 
+                                                type="text" 
+                                                id="register-name" 
+                                                class="modern-input" 
+                                                placeholder="Enter your full name"
+                                                required
+                                            >
+                                        </div>
+                                        
+                                        <div class="input-field">
+                                            <label for="register-email" class="input-label">Email address</label>
+                                            <input 
+                                                type="email" 
+                                                id="register-email" 
+                                                class="modern-input" 
+                                                placeholder="Enter your email"
+                                                required
+                                            >
+                                        </div>
+                                        
+                                        <div class="input-field">
+                                            <label for="register-password" class="input-label">Password</label>
+                                            <input 
+                                                type="password" 
+                                                id="register-password" 
+                                                class="modern-input" 
+                                                placeholder="Create a strong password"
+                                                required
+                                            >
+                                        </div>
+                                        
+                                        <div class="form-agreement">
+                                            <label class="checkbox-container">
+                                                <input type="checkbox" class="checkbox" required>
+                                                <span class="checkmark"></span>
+                                                <span class="checkbox-label">
+                                                    I agree to the <a href="#terms" class="link">Terms of Service</a> and <a href="#privacy" class="link">Privacy Policy</a>
+                                                </span>
+                                            </label>
                 </div>
 
-                <div id="register-form" class="auth-form" style="display: none;">
-                    <h2>Register</h2>
-                    <form onsubmit="handleRegister(event)">
-                        <input type="text" id="register-name" placeholder="Display Name" required>
-                        <input type="email" id="register-email" placeholder="Email" required>
-                        <input type="password" id="register-password" placeholder="Password" required>
-                        <button type="submit">Register</button>
+                                        <button type="submit" class="cta-button primary">
+                                            <span class="btn-text">Create Account</span>
+                                            <div class="btn-spinner" style="display: none;">
+                                                <div class="spinner"></div>
+                                            </div>
+                                        </button>
                     </form>
-                    <p>Already have an account? <a href="#" onclick="toggleAuthForm('login')">Login</a></p>
+                                </div>
+                            </div>
+
+                            <!-- Trust Indicators -->
+                            <div class="trust-bar">
+                                <div class="trust-item">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
+                                    </svg>
+                                    <span>No credit card required</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
         </div>
 
         <!-- Main App Content (hidden until authenticated) -->
