@@ -1239,6 +1239,7 @@ async function checkAuthStatus() {
 
 function showMainContent(user) {
     console.log('🎯 showMainContent called with user:', user);
+    console.log('🔍 DEBUG: Checking for required DOM elements...');
     
     // Check if elements exist
     const landingContainer = document.querySelector('.landing-page');
@@ -1352,15 +1353,24 @@ window.switchAuthTab = switchAuthTab;
 
 async function handleLogin(event) {
     event.preventDefault();
-    console.log('🔐 Login attempt started [NEW VERSION 2.0]');
+    console.log('🔐 Login attempt started [NEW VERSION 2.1]');
     console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
     console.log('🔍 DEBUG: firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
     console.log('🔍 DEBUG: Event object =', event);
-    console.log('🔍 DEBUG: This is the NEW DEBUGGING VERSION');
+    console.log('🔍 DEBUG: This is the NEW DEBUGGING VERSION 2.1');
     
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const submitBtn = event.target.querySelector('.cta-button') || event.target.closest('form').querySelector('.cta-button');
+    
+    console.log('🔍 DEBUG: Form values - email:', email, 'password length:', password.length);
+    
+    // Validate inputs
+    if (!email || !password) {
+        console.error('❌ Missing email or password');
+        showNotification('Please enter both email and password', 'error');
+        return;
+    }
     
     // Add loading state
     if (submitBtn) {
@@ -1408,12 +1418,15 @@ async function handleLogin(event) {
                 console.log('🔐 Backend response:', { status: response.status, data });
                 
                 if (response.ok) {
+                    console.log('✅ Backend accepted token, user data:', data.user);
                     showNotification('Login successful', 'success');
                     document.getElementById('login-email').value = '';
                     document.getElementById('login-password').value = '';
+                    console.log('🔄 Calling showMainContent...');
                     showMainContent(data.user);
                     watchlistData = [];
                     currentStock = null;
+                    console.log('✅ Login process completed successfully');
                 } else {
                     console.error('❌ Backend rejected token:', data.error);
                     showNotification(data.error || 'Authentication failed', 'error');
