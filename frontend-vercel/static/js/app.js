@@ -1554,6 +1554,10 @@ async function handleRegister(event) {
     }
 }
 
+// Make authentication functions globally available for HTML form handlers
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+
 async function handleLogout() {
     console.log('🚪 Logout attempt started');
     try {
