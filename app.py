@@ -29,13 +29,11 @@ if frontend_url:
     allowed_origins.append(frontend_url)
     print(f"🔗 Added FRONTEND_URL to CORS: {frontend_url}")
 
-# Add additional Vercel domains explicitly
-vercel_domains = [
-    "https://stock-watchlist-frontend-ql5o74lkh-lenny-s-projects-87605fc1.vercel.app",
-    "https://stock-watchlist-frontend-git-main-lenny-s-projects-87605fc1.vercel.app",
-    "https://stock-watchlist-frontend-lennys-projects-87605fc1.vercel.app"
-]
-allowed_origins.extend(vercel_domains)
+# Add additional Vercel domains explicitly (only if needed)
+# Simplified for better performance
+if frontend_url and 'vercel.app' in frontend_url:
+    allowed_origins.append(frontend_url.replace('https://stock-watchlist-frontend', 'https://stock-watchlist-frontend-git-main'))
+    allowed_origins.append(frontend_url.replace('https://stock-watchlist-frontend', 'https://stock-watchlist-frontend-lennys-projects'))
 
 print(f"🌐 CORS allowed origins: {allowed_origins}")
 
@@ -373,7 +371,6 @@ def get_watchlist_route():
 @app.route('/api/watchlist', methods=['POST'])
 @login_required
 def add_to_watchlist():
-    print(f"🔐 Watchlist POST: User authenticated: {current_user.is_authenticated}, User ID: {current_user.id if current_user.is_authenticated else 'None'}")
     data = request.get_json()
     symbol = data.get('symbol', '').upper()
     
