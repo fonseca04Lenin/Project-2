@@ -1,31 +1,36 @@
-# Stock Watchlist Pro - React Migration
+# Stock Watchlist Pro - Architecture Overview
 
-This project has been successfully migrated from a Flask-only application to a **full-stack application** with:
-- **React TypeScript frontend** (new)
-- **Flask Python backend** (existing, enhanced)
+This project is a **full-stack application** with:
+- **Vanilla JavaScript frontend** (deployed on Vercel)
+- **Flask Python backend** (deployed on Heroku)
 
-## 🎯 Migration Summary
+## 🎯 Current Architecture
 
-### What Changed
-- ✅ **Frontend**: Migrated from Flask templates to React TypeScript
-- ✅ **Backend**: Enhanced Flask API with CORS support
-- ✅ **Styling**: Preserved all original CSS and design
-- ✅ **Functionality**: All features maintained and improved
-- ✅ **API**: All existing endpoints preserved and enhanced
+### Frontend (Vercel)
+- ✅ **Technology**: Vanilla JavaScript with modern ES6+ features
+- ✅ **Styling**: Professional CSS with Robinhood-inspired design
+- ✅ **Deployment**: Static hosting on Vercel with auto-deploy from GitHub
+- ✅ **Performance**: Fast loading with CDN distribution
 
-### What Stayed the Same
-- 🔒 **Authentication**: Firebase integration maintained
-- 📊 **Stock Data**: Yahoo Finance API integration preserved
-- 📰 **News**: NewsAPI.org integration maintained
-- 🔔 **Alerts**: Price alert system preserved
-- 🧠 **Market Intelligence**: All market data features maintained
-- 🎨 **Design**: Exact same visual design and user experience
+### Backend (Heroku)
+- ✅ **Framework**: Flask with CORS support
+- ✅ **Database**: Firebase Firestore for user data and watchlists
+- ✅ **Authentication**: Firebase Auth integration
+- ✅ **APIs**: Yahoo Finance, NewsAPI.org, Finnhub integrations
+- ✅ **Real-time**: Flask-SocketIO for WebSocket support
+
+### Key Features
+- 🔒 **Authentication**: Firebase integration with secure token verification
+- 📊 **Stock Data**: Real-time Yahoo Finance API integration
+- 📰 **News**: NewsAPI.org integration for market news
+- 🔔 **Alerts**: Price alert system with Firestore persistence
+- 🧠 **Market Intelligence**: Comprehensive market data features
+- 🎨 **Design**: Professional, modern UI with elegant styling
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.7+ with pip
-- Node.js 16+ with npm
 - Firebase credentials (optional, demo mode available)
 
 ### 1. Install Dependencies
@@ -35,68 +40,55 @@ This project has been successfully migrated from a Flask-only application to a *
 pip install -r requirements.txt
 ```
 
-**Frontend (React):**
-```bash
-cd stock-watchlist-frontend
-npm install
-```
-
 ### 2. Run the Application
 
-**Option A: Use the convenience script**
-```bash
-python run_app.py
-```
-
-**Option B: Run manually**
-
-Terminal 1 (Flask Backend):
+**Backend (Flask):**
 ```bash
 python app.py
 ```
 
-Terminal 2 (React Frontend):
+**Frontend (Development):**
 ```bash
-cd stock-watchlist-frontend
-npm start
+cd frontend-vercel
+python -m http.server 3000
 ```
 
 ### 3. Access the Application
-- **React Frontend**: http://localhost:3000
-- **Flask Backend API**: http://localhost:5000
+- **Production Frontend**: https://stock-watchlist-frontend.vercel.app
+- **Local Frontend**: http://localhost:3000
+- **Backend API**: https://stock-watchlist-backend-8bea295dd646.herokuapp.com (production)
+- **Local Backend API**: http://localhost:5000
 
 ## 📁 Project Structure
 
 ```
 Project-2/
-├── app.py                    # Flask backend (enhanced)
+├── app.py                    # Flask backend (Heroku)
 ├── stock.py                  # Stock data API
 ├── auth.py                   # Authentication
 ├── firebase_service.py       # Firebase integration
 ├── requirements.txt          # Python dependencies
-├── run_app.py               # Convenience script
-├── README_MIGRATION.md      # This file
-└── stock-watchlist-frontend/ # React frontend
-    ├── src/
-    │   ├── components/      # React components
-    │   ├── contexts/        # React contexts
-    │   ├── types/           # TypeScript types
-    │   ├── App.tsx          # Main app
-    │   └── App.css          # Styles (copied)
-    ├── package.json         # Node dependencies
-    └── README.md           # Frontend docs
+├── README_MIGRATION.md       # This file
+├── Procfile                  # Heroku deployment config
+├── runtime.txt               # Python version specification
+└── frontend-vercel/          # Frontend (Vercel)
+    ├── index.html           # Main application page
+    ├── config.js            # API configuration
+    ├── firebase-config.js   # Firebase client config
+    ├── static/css/style.css # Application styles
+    ├── static/js/app.js     # Application logic
+    └── vercel.json          # Vercel deployment config
 ```
 
 ## 🔧 Technical Details
 
-### Frontend (React TypeScript)
-- **Framework**: React 18 with TypeScript
-- **State Management**: React Context API
-- **Routing**: React Router (ready for future expansion)
+### Frontend (Vanilla JavaScript)
+- **Technology**: Modern JavaScript (ES6+) with no framework
+- **State Management**: Global variables and DOM manipulation
 - **API Calls**: Fetch API with proper error handling
-- **Styling**: CSS3 with glassmorphism effects
-- **Icons**: Font Awesome
-- **Build Tool**: Create React App
+- **Styling**: CSS3 with professional Robinhood-inspired design
+- **Icons**: Font Awesome v6
+- **Deployment**: Static files on Vercel CDN
 
 ### Backend (Flask Python)
 - **Framework**: Flask with CORS support
@@ -107,11 +99,11 @@ Project-2/
 - **Deployment**: Gunicorn ready
 
 ### API Integration
-The React frontend communicates with the Flask backend through:
-- **Proxy**: Configured to forward requests to `localhost:5000`
-- **CORS**: Enabled for `localhost:3000`
-- **Credentials**: Session-based authentication preserved
-- **Endpoints**: All existing APIs maintained
+The frontend communicates with the Flask backend through:
+- **Direct API calls**: Frontend makes requests to backend API
+- **CORS**: Enabled for Vercel domain and localhost
+- **Authentication**: Firebase Auth tokens with Flask session management
+- **Endpoints**: RESTful API with JSON responses
 
 ## 🎨 Features Preserved
 
