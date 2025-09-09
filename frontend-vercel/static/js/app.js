@@ -458,7 +458,7 @@ function updateMarketTicker() {
     
     tickerValues.forEach((value, index) => {
         const change = (Math.random() - 0.5) * 2; // Random change between -1 and 1
-        const currentValue = parseFloat(value.textContent.replace(/[+-%]/g, '')) || 0;
+        const currentValue = parseFloat(value.textContent.replace(/[+\-%]/g, '')) || 0;
         const newValue = (currentValue + change).toFixed(1);
         const sign = newValue >= 0 ? '+' : '';
         
@@ -1571,10 +1571,11 @@ async function handleRegister(event) {
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
 
-// Add event listeners for form submissions to prevent page reload
+// Add event listeners for form submissions and tab buttons
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔧 Setting up form event listeners...');
+    console.log('🔧 Setting up form and tab event listeners...');
     
+    // Form event listeners
     const loginForm = document.getElementById('login-form-element');
     const registerForm = document.getElementById('register-form-element');
     
@@ -1598,6 +1599,32 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Register form event listener attached');
     } else {
         console.error('❌ Register form not found');
+    }
+    
+    // Tab button event listeners
+    const loginTab = document.getElementById('login-tab');
+    const registerTab = document.getElementById('register-tab');
+    
+    if (loginTab) {
+        loginTab.addEventListener('click', function(event) {
+            console.log('🔄 Login tab clicked via event listener');
+            event.preventDefault();
+            switchAuthTab('login');
+        });
+        console.log('✅ Login tab event listener attached');
+    } else {
+        console.error('❌ Login tab not found');
+    }
+    
+    if (registerTab) {
+        registerTab.addEventListener('click', function(event) {
+            console.log('🔄 Register tab clicked via event listener');
+            event.preventDefault();
+            switchAuthTab('register');
+        });
+        console.log('✅ Register tab event listener attached');
+    } else {
+        console.error('❌ Register tab not found');
     }
 });
 

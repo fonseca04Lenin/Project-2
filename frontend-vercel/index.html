@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Watchlist Pro</title>
-    <!-- Cache busting: v1.4 - Fix form submission page reload -->
+    <!-- Cache busting: v1.5 - Fix JS syntax errors and tab switching -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/css/style.css?v=1.4">
+    <link rel="stylesheet" href="static/css/style.css?v=1.5">
     
     <!-- Firebase SDK v8 (compatible with existing code) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -110,10 +110,10 @@
                             <div id="auth-container" class="auth-tabs-container">
                                 <!-- Modern Tab Navigation -->
                                 <div class="tab-navigation">
-                                    <button id="login-tab" class="tab-btn active" onclick="switchAuthTab('login')">
+                                    <button id="login-tab" class="tab-btn active">
                                         Sign In
                                     </button>
-                                    <button id="register-tab" class="tab-btn" onclick="switchAuthTab('register')">
+                                    <button id="register-tab" class="tab-btn">
                                         Create Account
                                     </button>
                                 </div>
@@ -466,7 +466,7 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="config.js?v=1.4"></script>
-    <script src="static/js/app.js?v=1.4"></script>
+    <script src="config.js?v=1.5"></script>
+    <script src="static/js/app.js?v=1.5"></script>
 </body>
 </html> 
