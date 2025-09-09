@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Watchlist Pro</title>
-    <!-- Cache busting: v1.5 - Fix JS syntax errors and tab switching -->
+    <!-- Cache busting: v1.6 - Modern header and footer redesign -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/css/style.css?v=1.5">
+    <link rel="stylesheet" href="static/css/style.css?v=1.6">
     
     <!-- Firebase SDK v8 (compatible with existing code) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -235,19 +235,32 @@
 
         <!-- Main App Content (hidden until authenticated) -->
         <div id="main-content" class="main-content" style="display: none;">
-            <header class="main-header">
-                <div class="header-content">
+            <header class="modern-header">
+                <div class="header-container">
+                    <div class="header-left">
+                        <div class="app-brand">
+                            <i class="fas fa-chart-line brand-icon"></i>
+                            <h1 class="brand-title">Watchlist Pro</h1>
+                        </div>
+                    </div>
+                    
                     <div class="header-center">
-                        <h1 class="app-title">Stock Watchlist Pro</h1>
-                        <p class="welcome-message">Track your favorite stocks and stay updated with market news</p>
-                        <div class="market-status-wrapper">
-                            <span id="marketStatusIndicator" class="market-status-indicator">Loading...</span>
+                        <div class="market-status-display">
+                            <span id="marketStatusIndicator" class="market-indicator">Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="header-right">
+                        <div class="user-profile">
+                            <div id="username-welcome" class="user-welcome">Welcome, User!</div>
+                            <button onclick="handleLogout()" class="modern-logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Logout</span>
+                            </button>
                         </div>
                     </div>
                 </div>
             </header>
-            <!-- Username welcome message at the top -->
-            <div id="username-welcome" class="username-welcome" style="display:none;"></div>
 
             <!-- Main Content -->
             <main class="main">
@@ -423,13 +436,28 @@
                 </div>
             </main>
 
-            <!-- Less prominent Logout Button at the bottom -->
-            <footer class="footer-logout">
-                <button onclick="handleLogout()" class="logout-btn subtle">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </button>
-                <span id="username-display" class="footer-username"></span>
+            <!-- Modern Footer -->
+            <footer class="modern-footer">
+                <div class="footer-content">
+                    <div class="footer-left">
+                        <div class="app-info">
+                            <i class="fas fa-chart-line footer-icon"></i>
+                            <span class="footer-brand">Watchlist Pro</span>
+                        </div>
+                    </div>
+                    
+                    <div class="footer-center">
+                        <div class="footer-stats">
+                            <span class="stats-label">Real-time market data</span>
+                        </div>
+                    </div>
+                    
+                    <div class="footer-right">
+                        <div class="user-info">
+                            <span id="username-display" class="footer-username">User</span>
+                        </div>
+                    </div>
+                </div>
             </footer>
 
             <!-- Toast Notifications -->
@@ -466,7 +494,7 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="config.js?v=1.5"></script>
-    <script src="static/js/app.js?v=1.5"></script>
+    <script src="config.js?v=1.6"></script>
+    <script src="static/js/app.js?v=1.6"></script>
 </body>
 </html> 
