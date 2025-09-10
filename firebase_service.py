@@ -164,22 +164,19 @@ class FirebaseService:
             if not firebase_initialized:
                 print("⚠️ Firebase not initialized, cannot verify token")
                 return None
-                
+
             if not id_token:
                 print("⚠️ No ID token provided")
                 return None
-                
+
             # Verify the ID token
             decoded_token = auth.verify_id_token(id_token)
             uid = decoded_token['uid']
             email = decoded_token.get('email', '')
             name = decoded_token.get('name', '') or decoded_token.get('display_name', '')
-            
+
             print(f"✅ Token verified for user: {uid} ({email})")
-            
-            # Use Firebase Authentication ONLY - no Firestore operations
-            print(f"🚀 Using Firebase Auth only (no Firestore) for user {uid}")
-            
+
             # Get additional user details from Firebase Auth
             try:
                 user_record = auth.get_user(uid)
@@ -201,10 +198,27 @@ class FirebaseService:
                     'created_at': datetime.utcnow(),
                     'last_login': datetime.utcnow()
                 }
-            
+
+            # Store user in Firestore for session persistence
+            try:
+                if db:
+                    user_doc = {
+                        'uid': uid,
+                        'name': user_profile['name'],
+                        'email': user_profile['email'],
+                        'created_at': user_profile['created_at'],
+                        'last_login': user_profile['last_login']
+                    }
+                    db.collection('users').document(uid).set(user_doc, merge=True)
+                    print(f"✅ User stored in Firestore: {uid}")
+                else:
+                    print("⚠️ Firestore not available, user not stored")
+            except Exception as store_e:
+                print(f"⚠️ Could not store user in Firestore: {store_e}")
+
             print(f"✅ Returning Firebase Auth user profile for {uid}")
             return FirebaseUser(user_profile)
-                
+
         except Exception as e:
             print(f"❌ Token verification failed: {e}")
             return None
