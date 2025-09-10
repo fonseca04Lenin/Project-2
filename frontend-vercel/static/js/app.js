@@ -7,6 +7,9 @@ let searchTimeout = null; // Add timeout for search debouncing
 // Backend API base URL - Get from config file
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com';
 
+// Force cache busting - deployment timestamp: 2025-09-10-03:05
+const DEPLOYMENT_VERSION = '2.3.0-' + Date.now();
+
 // DOM elements
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
