@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 from firebase_service import FirebaseService
 from auth import auth, login_manager
-from config import Config
+from config import config, is_testing_environment, is_production_environment
 import os
 import threading
 import time
@@ -49,11 +49,19 @@ CORS(app,
      vary_header=False)
 
 # Configuration
-app.config['SECRET_KEY'] = Config.SECRET_KEY
+app.config.from_object(config)
+
+# Environment-specific logging
+if is_testing_environment():
+    print("🧪 TESTING ENVIRONMENT DETECTED")
+    print(f"🔧 Test Firebase Project: {config.FIREBASE_PROJECT_ID}")
+elif is_production_environment():
+    print("🏭 PRODUCTION ENVIRONMENT DETECTED")
+else:
+    print("💻 DEVELOPMENT ENVIRONMENT DETECTED")
 
 # Session configuration for cross-origin setup (Vercel frontend + Heroku backend)
-is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('HEROKU_APP_NAME') is not None
-app.config['SESSION_COOKIE_SECURE'] = True  # Always secure in production
+app.config['SESSION_COOKIE_SECURE'] = is_production_environment() or is_testing_environment()
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requests
 
