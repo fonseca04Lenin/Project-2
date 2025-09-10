@@ -364,11 +364,17 @@ def authenticate_request():
     auth_header = request.headers.get('Authorization')
     user_id_header = request.headers.get('X-User-ID')
 
+    print(f"🔐 Token auth attempt - Header: {auth_header[:20] if auth_header else 'None'}, UserID: {user_id_header}")
+
     if auth_header and auth_header.startswith('Bearer '):
         token = auth_header.replace('Bearer ', '')
+        print(f"🔑 Token received, length: {len(token)}")
         try:
             # Verify Firebase token
             decoded_token = FirebaseService.verify_token(token)
+            print(f"🔍 Token decoded: {decoded_token is not None}")
+            if decoded_token:
+                print(f"✅ Token UID: {decoded_token.get('uid')}, Header UID: {user_id_header}")
             if decoded_token and decoded_token.get('uid') == user_id_header:
                 # Get or create user in Firestore
                 user = FirebaseService.get_user_by_id(decoded_token['uid'])
