@@ -593,12 +593,16 @@ async function loadWatchlist() {
         const headers = await getAuthHeaders();
         console.log('🔐 Auth headers prepared for watchlist load');
 
+        console.log('🌐 Making request to:', `${API_BASE_URL}/api/watchlist`);
+        console.log('📨 Request headers:', JSON.stringify(headers, null, 2));
+
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'GET',
             headers: headers
         });
 
         console.log('📡 Watchlist GET response status:', response.status);
+        console.log('📡 Response headers:', [...response.headers.entries()]);
 
         if (response.status === 401) {
             console.error('❌ Authentication failed for watchlist');
@@ -681,12 +685,23 @@ async function getAuthHeaders() {
     }
 
     try {
-        const idToken = await window.firebaseAuth.currentUser.getIdToken();
-        return {
+        // Force refresh token to ensure it's valid
+        const idToken = await window.firebaseAuth.currentUser.getIdToken(true);
+        console.log('🔑 Fresh token obtained, length:', idToken.length);
+
+        const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`,
             'X-User-ID': window.firebaseAuth.currentUser.uid
         };
+
+        console.log('📨 Auth headers prepared:', {
+            hasAuth: !!headers.Authorization,
+            userId: headers['X-User-ID'],
+            tokenPrefix: headers.Authorization?.substring(0, 20) + '...'
+        });
+
+        return headers;
     } catch (error) {
         console.error('❌ Error getting auth token:', error);
         throw new Error('Failed to get authentication token');
