@@ -155,8 +155,10 @@ function setupIntelligenceSearch(inputElement, resultsContainerId, searchFunctio
         // Debounce search
         searchTimeout = setTimeout(async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/search/stocks?q=${encodeURIComponent(query)}`);
-                const data = await response.json();
+                        const response = await fetch(`${API_BASE_URL}/api/search/stocks?q=${encodeURIComponent(query)}`, {
+                    credentials: 'include'
+                });
+        const data = await response.json();
                 
                 if (data.results && data.results.length > 0) {
                     displaySearchSuggestions(suggestionsContainer, data.results, inputElement);
@@ -490,7 +492,9 @@ async function searchStock() {
             suggestions = window.mainSearchSuggestions;
         } else {
                     // Fetch suggestions if not already loaded
-        const companyResponse = await fetch(`${API_BASE_URL}/api/search/companies?q=${encodeURIComponent(query)}`);
+        const companyResponse = await fetch(`${API_BASE_URL}/api/search/companies?q=${encodeURIComponent(query)}`, {
+            credentials: 'include'
+        });
             if (companyResponse.ok) {
                 const companyData = await companyResponse.json();
                 if (companyData.results && companyData.results.length > 0) {
@@ -516,6 +520,7 @@ async function searchStock() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({ symbol })
         });
         const data = await response.json();
@@ -744,7 +749,9 @@ async function viewChart(symbol) {
         if (chartSelectedSymbol) chartSelectedSymbol.textContent = symbol;
 
         console.log('📡 Fetching chart data for:', symbol);
-        const response = await fetch(`${API_BASE_URL}/api/chart/${symbol}`);
+        const response = await fetch(`${API_BASE_URL}/api/chart/${symbol}`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         console.log('📊 Chart data received:', data);
 
@@ -874,7 +881,9 @@ function displayChart(chartData, symbol) {
 // Market status
 async function updateMarketStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/market-status`);
+        const response = await fetch(`${API_BASE_URL}/api/market-status`, {
+            credentials: 'include'
+        });
         const data = await response.json();
 
         // Find the market status element
@@ -903,7 +912,9 @@ async function updateMarketStatus() {
 // News functionality
 async function loadMarketNews() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/news/market`);
+        const response = await fetch(`${API_BASE_URL}/api/news/market`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         
         if (response.ok) {
@@ -1230,7 +1241,7 @@ async function checkAuthStatus() {
                         });
 
                         const response = await currentAuthRequest;
-                        
+
                         if (response.ok) {
                             const data = await response.json();
                             console.log('✅ Backend session restored for:', data.user.email);
@@ -1735,7 +1746,9 @@ async function loadStockDetails(symbol) {
 
     try {
         // Fetch company info from backend
-        const response = await fetch(`${API_BASE_URL}/api/company/${symbol}`);
+        const response = await fetch(`${API_BASE_URL}/api/company/${symbol}`, {
+            credentials: 'include'
+        });
         const data = await response.json();
         if (response.ok) {
             document.getElementById('detailsCompanyName').textContent = data.name || symbol;
@@ -1766,7 +1779,9 @@ async function loadStockDetails(symbol) {
 
     // Fetch and display chart in modal
     try {
-        const chartResp = await fetch(`${API_BASE_URL}/api/chart/${symbol}`);
+        const chartResp = await fetch(`${API_BASE_URL}/api/chart/${symbol}`, {
+            credentials: 'include'
+        });
         const chartData = await chartResp.json();
         if (chartResp.ok && chartContainer) {
             chartContainer.innerHTML = '<canvas id="detailsStockChart"></canvas>';
@@ -1806,7 +1821,9 @@ async function loadStockDetails(symbol) {
 
     // Fetch and display company news using main site style
     try {
-        const newsRes = await fetch(`${API_BASE_URL}/api/news/company/${symbol}`);
+        const newsRes = await fetch(`${API_BASE_URL}/api/news/company/${symbol}`, {
+            credentials: 'include'
+        });
         let newsData = await newsRes.json();
         if (newsRes.ok && Array.isArray(newsData)) {
             // Filter out news with missing title or link
@@ -2007,7 +2024,9 @@ async function loadEarningsCalendar() {
     `;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/market/earnings`);
+        const response = await fetch(`${API_BASE_URL}/api/market/earnings`, {
+            credentials: 'include'
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -2096,7 +2115,9 @@ async function getInsiderTrading() {
     `;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/market/insider-trading/${symbol}`);
+        const response = await fetch(`${API_BASE_URL}/api/market/insider-trading/${symbol}`, {
+            credentials: 'include'
+        });
         
         if (!response.ok) {
             if (response.status === 404) {
@@ -2189,7 +2210,9 @@ async function getAnalystRatings() {
     `;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/market/analyst-ratings/${symbol}`);
+        const response = await fetch(`${API_BASE_URL}/api/market/analyst-ratings/${symbol}`, {
+            credentials: 'include'
+        });
         
         if (!response.ok) {
             if (response.status === 404) {
@@ -2289,7 +2312,9 @@ async function getOptionsData() {
     `;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/market/options/${symbol}`);
+        const response = await fetch(`${API_BASE_URL}/api/market/options/${symbol}`, {
+            credentials: 'include'
+        });
         
         if (!response.ok) {
             if (response.status === 404) {
