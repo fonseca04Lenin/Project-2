@@ -1593,7 +1593,7 @@ async function handleLogin(event) {
             try {
                 console.log('🔍 DEBUG: Calling signInWithEmailAndPassword...');
 
-                // Use Firebase v10 compatible API
+                // Use Firebase v9 compatibility mode API
                 const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
                 console.log('🔍 DEBUG: Firebase auth successful, userCredential:', userCredential);
 
@@ -1601,7 +1601,7 @@ async function handleLogin(event) {
                 console.log('🔍 DEBUG: User object:', user);
                 console.log('🔍 DEBUG: Getting ID token...');
 
-                // Firebase v10: getIdToken(forceRefresh)
+                // Firebase v9: getIdToken(forceRefresh)
                 const idToken = await user.getIdToken(true);
                 console.log('🔍 DEBUG: ID token obtained, length:', idToken.length);
 

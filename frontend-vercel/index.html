@@ -9,45 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/css/style.css?v=2.0">
     
-    <!-- Firebase SDK v10 (Latest - Better performance & features) -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getAuth, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCB_8dEiQH0AxqUq7qXneOWOdXeJw-GFOQ",
-            authDomain: "stock-watcher-bbb20.firebaseapp.com",
-            projectId: "stock-watcher-bbb20",
-            storageBucket: "stock-watcher-bbb20.firebasestorage.app",
-            messagingSenderId: "745996753351",
-            appId: "1:745996753351:web:c4506624bb8dc058ffe1e2",
-            measurementId: "G-MSV396NJ1V"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-
-        // Enhanced auth state listener with better error handling
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                console.log('🔥 Firebase user signed in:', user.uid);
-                console.log('📧 User email:', user.email);
-                console.log('🏷️ User display name:', user.displayName);
-            } else {
-                console.log('🔥 Firebase user signed out');
-            }
-        }, (error) => {
-            console.error('❌ Firebase auth state error:', error);
-        });
-
-        // Make auth globally available
-        window.firebaseAuth = auth;
-        window.firebaseApp = app;
-
-        console.log('✅ Firebase v10 initialized successfully');
-    </script>
+    <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="firebase-config.js"></script>
 </head>
 <body>
