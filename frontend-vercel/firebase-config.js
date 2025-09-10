@@ -1,7 +1,6 @@
 // Firebase configuration for Stock Watchlist Pro
-// This file is now secondary - main initialization is in index.html
+// Using Firebase v9 with compatibility mode for maximum reliability
 
-// Fallback configuration in case module loading fails
 const firebaseConfig = {
     apiKey: "AIzaSyCB_8dEiQH0AxqUq7qXneOWOdXeJw-GFOQ",
     authDomain: "stock-watcher-bbb20.firebaseapp.com",
@@ -12,34 +11,58 @@ const firebaseConfig = {
     measurementId: "G-MSV396NJ1V"
 };
 
-// Fallback initialization (only if module loading fails)
-if (!window.firebaseAuth) {
-    console.log('🔄 Firebase module loading failed, using fallback...');
+// Initialize Firebase with error handling
+try {
+    console.log('🔥 Initializing Firebase v9...');
 
-    // Load Firebase v9 compat for fallback
-    if (!document.querySelector('script[src*="firebase-app"]')) {
-        const script1 = document.createElement('script');
-        script1.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
-        document.head.appendChild(script1);
+    // Initialize Firebase App
+    const app = firebase.initializeApp(firebaseConfig);
+    console.log('✅ Firebase App initialized');
 
-        const script2 = document.createElement('script');
-        script2.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js';
-        document.head.appendChild(script2);
+    // Initialize Firebase Auth
+    const auth = firebase.auth();
+    console.log('✅ Firebase Auth initialized');
 
-        script2.onload = () => {
-            try {
-                const app = firebase.initializeApp(firebaseConfig);
-                const auth = firebase.auth();
-                window.firebaseAuth = auth;
-                window.firebaseApp = app;
-                console.log('✅ Firebase fallback initialized successfully');
-            } catch (error) {
-                console.error('❌ Firebase fallback initialization error:', error);
-                window.firebaseAuth = null;
-                window.firebaseApp = null;
-            }
-        };
-    }
-} else {
-    console.log('✅ Firebase v10 already initialized');
+    // Set persistence to browser local storage for better reliability
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .then(() => {
+            console.log('✅ Firebase persistence set to LOCAL');
+        })
+        .catch((error) => {
+            console.warn('⚠️ Could not set persistence:', error);
+        });
+
+    // Enhanced auth state listener
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            console.log('🔥 Firebase user signed in:', user.uid);
+            console.log('📧 User email:', user.email);
+            console.log('🏷️ User display name:', user.displayName);
+        } else {
+            console.log('🔥 Firebase user signed out');
+        }
+    }, (error) => {
+        console.error('❌ Firebase auth state error:', error);
+    });
+
+    // Make auth globally available
+    window.firebaseAuth = auth;
+    window.firebaseApp = app;
+
+    console.log('✅ Firebase v9 with compat mode initialized successfully');
+
+} catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    console.error('❌ Error details:', error.message);
+
+    // Fallback: Set null values to prevent undefined errors
+    window.firebaseAuth = null;
+    window.firebaseApp = null;
+
+    // Show user-friendly error
+    setTimeout(() => {
+        if (document.readyState === 'complete') {
+            showNotification('Firebase authentication unavailable. Please refresh the page.', 'error');
+        }
+    }, 1000);
 }
