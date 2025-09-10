@@ -7,6 +7,7 @@ from config import Config
 import os
 import base64
 import json
+import warnings
 
 # Initialize Firebase
 firebase_initialized = False
@@ -259,7 +260,16 @@ class FirebaseService:
     
     @staticmethod
     def add_to_watchlist(user_id, symbol, company_name):
-        """Add stock to user's watchlist"""
+        """Add stock to user's watchlist
+
+        DEPRECATED: This method is deprecated. Use watchlist_service.WatchlistService.add_stock() instead.
+        This method will be removed in a future version.
+        """
+        warnings.warn(
+            "FirebaseService.add_to_watchlist() is deprecated. Use watchlist_service.WatchlistService.add_stock() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         try:
             if not firebase_initialized or not db:
                 raise Exception("Firebase not initialized. Cannot add to watchlist.")
@@ -280,7 +290,16 @@ class FirebaseService:
     
     @staticmethod
     def remove_from_watchlist(user_id, symbol):
-        """Remove stock from user's watchlist"""
+        """Remove stock from user's watchlist
+
+        DEPRECATED: This method is deprecated. Use watchlist_service.WatchlistService.remove_stock() instead.
+        This method will be removed in a future version.
+        """
+        warnings.warn(
+            "FirebaseService.remove_from_watchlist() is deprecated. Use watchlist_service.WatchlistService.remove_stock() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         try:
             if not firebase_initialized or not db:
                 raise Exception("Firebase not initialized. Cannot remove from watchlist.")
@@ -294,7 +313,16 @@ class FirebaseService:
     
     @staticmethod
     def get_watchlist(user_id):
-        """Get user's watchlist"""
+        """Get user's watchlist
+
+        DEPRECATED: This method is deprecated. Use watchlist_service.WatchlistService.get_watchlist() instead.
+        This method will be removed in a future version.
+        """
+        warnings.warn(
+            "FirebaseService.get_watchlist() is deprecated. Use watchlist_service.WatchlistService.get_watchlist() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         try:
             if not firebase_initialized or not db:
                 print("❌ Firebase not initialized. Cannot get watchlist.")

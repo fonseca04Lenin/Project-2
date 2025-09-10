@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 from firebase_service import FirebaseService
+from watchlist_service import get_watchlist_service
 from auth import auth, login_manager
 from config import Config
 import os
@@ -78,6 +79,9 @@ app.register_blueprint(auth)
 yahoo_finance_api = YahooFinanceAPI()
 news_api = NewsAPI()
 finnhub_api = FinnhubAPI()
+
+# Initialize Watchlist Service
+watchlist_service = get_watchlist_service()
 
 # Store connected users and their watchlists
 connected_users = {}
@@ -155,38 +159,41 @@ def update_stock_prices():
             # Get all active users and their watchlists
             for sid, user_id in connected_users.items():
                 if user_id:
-                    watchlist = FirebaseService.get_watchlist(user_id)
+                    watchlist = watchlist_service.get_watchlist(user_id)
                     if watchlist:
                         updated_prices = []
                         for item in watchlist:
                             try:
                                 stock = Stock(item['symbol'], yahoo_finance_api)
                                 stock.retrieve_data()
-                                
+
                                 # Calculate price change
                                 price_change = 0
                                 price_change_percent = 0
                                 if 'last_price' in item:
                                     price_change = stock.price - item['last_price']
                                     price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
-                                
+
                                 updated_prices.append({
                                     'symbol': item['symbol'],
-                                    'name': item['name'],
+                                    'name': item.get('company_name', item.get('name', '')),
                                     'price': stock.price,
                                     'price_change': price_change,
                                     'price_change_percent': price_change_percent,
-                                    'last_updated': datetime.now().isoformat()
+                                    'last_updated': datetime.now().isoformat(),
+                                    'category': item.get('category', 'General'),
+                                    'priority': item.get('priority', 'medium')
                                 })
-                                
-                                # Check for triggered alerts
-                                triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
-                                if triggered_alerts:
-                                    socketio.emit('alert_triggered', {
-                                        'symbol': item['symbol'],
-                                        'alerts': triggered_alerts
-                                    }, room=f"user_{user_id}")
-                                
+
+                                # Check for triggered alerts (if alerts are enabled for this stock)
+                                if item.get('alert_enabled', True):
+                                    triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
+                                    if triggered_alerts:
+                                        socketio.emit('alert_triggered', {
+                                            'symbol': item['symbol'],
+                                            'alerts': triggered_alerts
+                                        }, room=f"user_{user_id}")
+
                             except Exception as e:
                                 print(f"Error updating {item['symbol']}: {e}")
                         
@@ -405,30 +412,65 @@ def get_watchlist_route():
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
+    # Get query parameters for filtering
+    category = request.args.get('category')
+    priority = request.args.get('priority')
+
+    # Get watchlist using new service
+    watchlist = watchlist_service.get_watchlist(user.id, category=category, priority=priority)
+
     stocks_data = []
-    watchlist = FirebaseService.get_watchlist(user.id)
     for watchlist_stock in watchlist:
-        stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
-        stock.retrieve_data()
-        # Calculate last month's price and performance
-        last_month_date = datetime.now() - timedelta(days=30)
-        start_date = last_month_date.strftime("%Y-%m-%d")
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        historical_data = yahoo_finance_api.get_historical_data(stock.symbol, start_date, end_date)
-        last_month_price = 0.0
-        if historical_data and len(historical_data) > 0:
-            last_month_price = historical_data[0]['close']
-        price_change = stock.price - last_month_price if last_month_price > 0 else 0
-        price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
-        stocks_data.append({
-            'id': watchlist_stock['symbol'],
-            'symbol': stock.symbol,
-            'name': stock.name,
-            'price': stock.price,
-            'lastMonthPrice': last_month_price,
-            'priceChange': price_change,
-            'priceChangePercent': price_change_percent
-        })
+        try:
+            stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
+            stock.retrieve_data()
+
+            # Calculate last month's price and performance
+            last_month_date = datetime.now() - timedelta(days=30)
+            start_date = last_month_date.strftime("%Y-%m-%d")
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            historical_data = yahoo_finance_api.get_historical_data(stock.symbol, start_date, end_date)
+            last_month_price = 0.0
+            if historical_data and len(historical_data) > 0:
+                last_month_price = historical_data[0]['close']
+            price_change = stock.price - last_month_price if last_month_price > 0 else 0
+            price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
+
+            stock_data = {
+                'id': watchlist_stock['symbol'],
+                'symbol': stock.symbol,
+                'name': stock.name,
+                'price': stock.price,
+                'lastMonthPrice': last_month_price,
+                'priceChange': price_change,
+                'priceChangePercent': price_change_percent,
+                'category': watchlist_stock.get('category', 'General'),
+                'priority': watchlist_stock.get('priority', 'medium'),
+                'notes': watchlist_stock.get('notes', ''),
+                'added_at': watchlist_stock.get('added_at'),
+                'target_price': watchlist_stock.get('target_price'),
+                'stop_loss': watchlist_stock.get('stop_loss'),
+                'alert_enabled': watchlist_stock.get('alert_enabled', True)
+            }
+            stocks_data.append(stock_data)
+        except Exception as e:
+            print(f"Error processing {watchlist_stock['symbol']}: {e}")
+            # Return basic data if stock API fails
+            stocks_data.append({
+                'id': watchlist_stock['symbol'],
+                'symbol': watchlist_stock['symbol'],
+                'name': watchlist_stock.get('company_name', 'Unknown'),
+                'price': 0.0,
+                'lastMonthPrice': 0.0,
+                'priceChange': 0.0,
+                'priceChangePercent': 0.0,
+                'category': watchlist_stock.get('category', 'General'),
+                'priority': watchlist_stock.get('priority', 'medium'),
+                'notes': watchlist_stock.get('notes', ''),
+                'added_at': watchlist_stock.get('added_at'),
+                'error': 'Failed to fetch current price'
+            })
+
     return jsonify(stocks_data)
 
 @app.route('/api/watchlist', methods=['POST'])
@@ -447,11 +489,33 @@ def add_to_watchlist():
     stock.retrieve_data()
 
     if stock.name and 'not found' not in stock.name.lower():
-        success = FirebaseService.add_to_watchlist(user.id, symbol, stock.name)
-        if success:
-            return jsonify({'message': f'{stock.name} added to watchlist'})
+        # Get additional options from request
+        category = data.get('category', 'General')
+        notes = data.get('notes', '')
+        priority = data.get('priority', 'medium')
+        target_price = data.get('target_price')
+        stop_loss = data.get('stop_loss')
+        alert_enabled = data.get('alert_enabled', True)
+
+        result = watchlist_service.add_stock(
+            user.id,
+            symbol,
+            stock.name,
+            category=category,
+            notes=notes,
+            priority=priority,
+            target_price=target_price,
+            stop_loss=stop_loss,
+            alert_enabled=alert_enabled
+        )
+
+        if result['success']:
+            return jsonify({
+                'message': result['message'],
+                'item': result.get('item')
+            })
         else:
-            return jsonify({'error': 'Failed to add to watchlist'}), 500
+            return jsonify({'error': result['message']}), 400
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
@@ -462,12 +526,127 @@ def remove_from_watchlist(symbol):
         return jsonify({'error': 'Authentication required'}), 401
 
     symbol = symbol.upper()
-    success = FirebaseService.remove_from_watchlist(user.id, symbol)
+    result = watchlist_service.remove_stock(user.id, symbol)
 
-    if success:
-        return jsonify({'message': f'Stock removed from watchlist'})
+    if result['success']:
+        return jsonify({'message': result['message']})
 
-    return jsonify({'error': 'Stock not found in watchlist'}), 404
+    return jsonify({'error': result['message']}), 404
+
+@app.route('/api/watchlist/<symbol>', methods=['PUT'])
+def update_watchlist_stock(symbol):
+    """Update a stock in the watchlist with new details"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    symbol = symbol.upper()
+    data = request.get_json()
+
+    # Remove symbol from data if present (can't update symbol)
+    data.pop('symbol', None)
+
+    result = watchlist_service.update_stock(user.id, symbol, **data)
+
+    if result['success']:
+        return jsonify({
+            'message': result['message'],
+            'item': result.get('item')
+        })
+
+    return jsonify({'error': result['message']}), 400
+
+@app.route('/api/watchlist/categories', methods=['GET'])
+def get_watchlist_categories():
+    """Get all categories used by the user"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    categories = watchlist_service.get_categories(user.id)
+    return jsonify({'categories': categories})
+
+@app.route('/api/watchlist/stats', methods=['GET'])
+def get_watchlist_stats():
+    """Get statistics about user's watchlist"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    stats = watchlist_service.get_watchlist_stats(user.id)
+    return jsonify(stats)
+
+@app.route('/api/watchlist/clear', methods=['DELETE'])
+def clear_watchlist():
+    """Clear all stocks from user's watchlist"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    result = watchlist_service.clear_watchlist(user.id)
+
+    if result['success']:
+        return jsonify({'message': result['message']})
+
+    return jsonify({'error': result['message']}), 500
+
+@app.route('/api/watchlist/batch', methods=['PUT'])
+def batch_update_watchlist():
+    """Batch update multiple stocks in watchlist"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    data = request.get_json()
+    if not data or 'updates' not in data:
+        return jsonify({'error': 'Updates data required'}), 400
+
+    updates = data['updates']
+    result = watchlist_service.batch_update(user.id, updates)
+
+    if result['success']:
+        return jsonify({'message': result['message']})
+
+    return jsonify({'error': result['message']}), 500
+
+@app.route('/api/watchlist/migrate', methods=['POST'])
+def migrate_watchlist():
+    """Migrate user's watchlist from old format to new format"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    from migrate_watchlist import migrate_user_watchlist
+    result = migrate_user_watchlist(user.id)
+
+    if result['success']:
+        return jsonify({
+            'message': 'Migration completed successfully',
+            'details': result
+        })
+
+    return jsonify({'error': result['message']}), 500
+
+@app.route('/api/watchlist/migration-status', methods=['GET'])
+def get_migration_status():
+    """Check user's migration status"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    from migrate_watchlist import check_migration_status
+    status = check_migration_status(user.id)
+
+    if status:
+        return jsonify({
+            'migrated': True,
+            'status': status
+        })
+    else:
+        return jsonify({
+            'migrated': False,
+            'message': 'No migration record found'
+        })
 
 @app.route('/api/chart/<symbol>')
 def get_chart_data(symbol):
