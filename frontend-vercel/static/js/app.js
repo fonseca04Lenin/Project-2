@@ -590,15 +590,23 @@ async function loadWatchlist() {
     try {
         console.log('🔐 Loading watchlist...');
 
-        const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for watchlist load');
+        let headers;
+        try {
+            headers = await getAuthHeaders();
+            console.log('🔐 Auth headers prepared for watchlist load');
+        } catch (authError) {
+            console.error('❌ Auth failed, falling back to session-based auth:', authError.message);
+            // Fallback to session-based authentication
+            headers = { 'Content-Type': 'application/json' };
+        }
 
         console.log('🌐 Making request to:', `${API_BASE_URL}/api/watchlist`);
         console.log('📨 Request headers:', JSON.stringify(headers, null, 2));
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'GET',
-            headers: headers
+            headers: headers,
+            credentials: 'include' // Fallback for session auth
         });
 
         console.log('📡 Watchlist GET response status:', response.status);
@@ -617,14 +625,9 @@ async function loadWatchlist() {
         watchlistData = data;
         displayWatchlist(data);
     } catch (error) {
-        if (error.message === 'User not authenticated') {
-            console.log('⚠️ User not authenticated, cannot load watchlist');
-            displayWatchlist([]);
-        } else {
-            console.error('❌ Error loading watchlist:', error);
-            showToast('Error loading watchlist. Please try again.', 'error');
-            displayWatchlist([]);
-        }
+        console.error('❌ Error loading watchlist:', error);
+        showToast('Error loading watchlist. Please try again.', 'error');
+        displayWatchlist([]);
     }
 }
 
@@ -680,14 +683,27 @@ function displayWatchlist(stocks) {
 
 // Enhanced authentication helper
 async function getAuthHeaders() {
-    if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+    console.log('🔍 getAuthHeaders called');
+    console.log('🔍 window.firebaseAuth exists:', !!window.firebaseAuth);
+    console.log('🔍 currentUser exists:', !!(window.firebaseAuth?.currentUser));
+
+    if (!window.firebaseAuth) {
+        console.error('❌ Firebase auth not initialized');
+        throw new Error('Firebase auth not initialized');
+    }
+
+    if (!window.firebaseAuth.currentUser) {
+        console.error('❌ User not authenticated - currentUser is null');
+        console.log('🔍 Firebase auth state:', window.firebaseAuth);
         throw new Error('User not authenticated');
     }
 
     try {
+        console.log('🔑 Getting ID token for user:', window.firebaseAuth.currentUser.uid);
+
         // Force refresh token to ensure it's valid
         const idToken = await window.firebaseAuth.currentUser.getIdToken(true);
-        console.log('🔑 Fresh token obtained, length:', idToken.length);
+        console.log('✅ Fresh token obtained, length:', idToken.length);
 
         const headers = {
             'Content-Type': 'application/json',
@@ -704,6 +720,7 @@ async function getAuthHeaders() {
         return headers;
     } catch (error) {
         console.error('❌ Error getting auth token:', error);
+        console.error('❌ Error details:', error.message);
         throw new Error('Failed to get authentication token');
     }
 }
@@ -712,13 +729,21 @@ async function addToWatchlist(symbol) {
     try {
         console.log('📈 Adding symbol to watchlist:', symbol);
 
-        const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for user:', window.firebaseAuth.currentUser.uid);
+        let headers;
+        try {
+            headers = await getAuthHeaders();
+            console.log('🔐 Auth headers prepared for user:', window.firebaseAuth.currentUser.uid);
+        } catch (authError) {
+            console.error('❌ Auth failed, falling back to session-based auth:', authError.message);
+            // Fallback to session-based authentication
+            headers = { 'Content-Type': 'application/json' };
+        }
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({ symbol: symbol })
+            body: JSON.stringify({ symbol: symbol }),
+            credentials: 'include' // Fallback for session auth
         });
 
         console.log('📡 Watchlist POST response status:', response.status);
@@ -738,12 +763,8 @@ async function addToWatchlist(symbol) {
             showToast(data.error || 'Error adding to watchlist', 'error');
         }
     } catch (error) {
-        if (error.message === 'User not authenticated') {
-            showToast('Please log in to add stocks to your watchlist', 'error');
-        } else {
-            console.error('❌ Network error adding to watchlist:', error);
-            showToast('Network error. Please check your connection and try again.', 'error');
-        }
+        console.error('❌ Network error adding to watchlist:', error);
+        showToast('Network error. Please check your connection and try again.', 'error');
     }
 }
 
