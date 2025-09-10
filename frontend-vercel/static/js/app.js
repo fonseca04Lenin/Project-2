@@ -1415,12 +1415,16 @@ async function checkAuthStatus() {
                             showMainContent(data.user);
                         } else {
                             console.log('❌ Backend session invalid, signing out...');
-                            await firebase.auth().signOut();
+                            if (window.firebaseAuth) {
+                                await window.firebaseAuth.signOut();
+                            }
                             showAuthForms();
                         }
                     } catch (error) {
                         console.error('❌ Error verifying with backend:', error);
-                        await firebase.auth().signOut();
+                        if (window.firebaseAuth) {
+                            await window.firebaseAuth.signOut();
+                        }
                         showAuthForms();
                     } finally {
                         currentAuthRequest = null; // Clear the guard
@@ -1587,16 +1591,20 @@ async function handleLogin(event) {
             console.log('🔥 Using Firebase Authentication');
             console.log('🔍 DEBUG: Attempting signInWithEmailAndPassword with email:', email);
             try {
-                console.log('🔍 DEBUG: Calling firebase.auth().signInWithEmailAndPassword...');
-                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                console.log('🔍 DEBUG: Calling signInWithEmailAndPassword...');
+
+                // Use Firebase v10 compatible API
+                const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
                 console.log('🔍 DEBUG: Firebase auth successful, userCredential:', userCredential);
-                
+
                 const user = userCredential.user;
                 console.log('🔍 DEBUG: User object:', user);
                 console.log('🔍 DEBUG: Getting ID token...');
-                const idToken = await user.getIdToken();
+
+                // Firebase v10: getIdToken(forceRefresh)
+                const idToken = await user.getIdToken(true);
                 console.log('🔍 DEBUG: ID token obtained, length:', idToken.length);
-                
+
                 console.log('✅ Firebase Auth successful, token length:', idToken.length);
                 console.log('✅ User details:', { uid: user.uid, email: user.email, displayName: user.displayName });
                 console.log('🔗 Verifying with backend...');
@@ -1633,7 +1641,9 @@ async function handleLogin(event) {
                 } else {
                     console.error('❌ Backend rejected token:', data.error);
                     showNotification(data.error || 'Authentication failed', 'error');
-                    await firebase.auth().signOut(); // Sign out from Firebase if backend rejects
+                    if (window.firebaseAuth) {
+                        await window.firebaseAuth.signOut(); // Sign out from Firebase if backend rejects
+                    }
                 }
                 return;
             } catch (firebaseError) {
@@ -1835,9 +1845,9 @@ async function handleLogout() {
     console.log('🚪 Logout attempt started');
     try {
         // Sign out from Firebase if authenticated
-        if (window.firebaseAuth && firebase.auth().currentUser) {
+        if (window.firebaseAuth && window.firebaseAuth.currentUser) {
             console.log('🔥 Signing out from Firebase');
-            await firebase.auth().signOut();
+            await window.firebaseAuth.signOut();
         }
         
         // Also sign out from backend
