@@ -5,7 +5,7 @@ from flask_cors import CORS
 import json
 from datetime import datetime, timedelta
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
-from firebase_service import FirebaseService
+from firebase_service import FirebaseService, get_firestore_client
 from watchlist_service import get_watchlist_service
 from auth import auth, login_manager
 from config import Config
@@ -166,14 +166,14 @@ def update_stock_prices():
                             try:
                                 stock = Stock(item['symbol'], yahoo_finance_api)
                                 stock.retrieve_data()
-
+                                
                                 # Calculate price change
                                 price_change = 0
                                 price_change_percent = 0
                                 if 'last_price' in item:
                                     price_change = stock.price - item['last_price']
                                     price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
-
+                                
                                 updated_prices.append({
                                     'symbol': item['symbol'],
                                     'name': item.get('company_name', item.get('name', '')),
@@ -184,16 +184,16 @@ def update_stock_prices():
                                     'category': item.get('category', 'General'),
                                     'priority': item.get('priority', 'medium')
                                 })
-
+                                
                                 # Check for triggered alerts (if alerts are enabled for this stock)
                                 if item.get('alert_enabled', True):
-                                    triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
-                                    if triggered_alerts:
-                                        socketio.emit('alert_triggered', {
-                                            'symbol': item['symbol'],
-                                            'alerts': triggered_alerts
-                                        }, room=f"user_{user_id}")
-
+                                triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
+                                if triggered_alerts:
+                                    socketio.emit('alert_triggered', {
+                                        'symbol': item['symbol'],
+                                        'alerts': triggered_alerts
+                                    }, room=f"user_{user_id}")
+                                
                             except Exception as e:
                                 print(f"Error updating {item['symbol']}: {e}")
                         
@@ -383,24 +383,35 @@ def authenticate_request():
             if decoded_token:
                 print(f"✅ Token UID: {decoded_token.get('uid')}, Header UID: {user_id_header}")
             if decoded_token and decoded_token.get('uid') == user_id_header:
-                # Get or create user in Firestore
-                user = FirebaseService.get_user_by_id(decoded_token['uid'])
-                if not user:
-                    # Create user profile if not exists
-                    user_data = {
-                        'uid': decoded_token['uid'],
-                        'name': decoded_token.get('name', 'User'),
-                        'email': decoded_token.get('email', ''),
-                        'created_at': datetime.utcnow(),
-                        'last_login': datetime.utcnow()
-                    }
-                    FirebaseService.create_user(
-                        user_data['name'],
-                        user_data['email'],
-                        'firebase_auth'  # Dummy password for Firebase users
-                    )
-                    user = FirebaseUser(user_data)
-                return user
+                uid = decoded_token['uid']
+                # Get user from Firestore (they should exist if they were properly authenticated)
+                user = FirebaseService.get_user_by_id(uid)
+                if user:
+                    print(f"✅ User authenticated: {user.email}")
+                    return user
+                else:
+                    print(f"⚠️ User {uid} not found in Firestore, attempting to create profile")
+                    # Try to create user profile in Firestore only (not in Firebase Auth)
+                    try:
+                        user_profile = {
+                            'uid': uid,
+                            'name': decoded_token.get('name', 'User'),
+                            'email': decoded_token.get('email', ''),
+                            'created_at': datetime.utcnow(),
+                            'last_login': datetime.utcnow()
+                        }
+                        # Store in Firestore directly
+                        firestore_db = get_firestore_client()
+                        if firestore_db:
+                            firestore_db.collection('users').document(uid).set(user_profile, merge=True)
+                            print(f"✅ User profile created in Firestore: {uid}")
+                            return FirebaseUser(user_profile)
+                        else:
+                            print("❌ Firestore not available")
+                            return None
+                    except Exception as create_e:
+                        print(f"❌ Failed to create user profile: {create_e}")
+                        return None
         except Exception as e:
             print(f"Token authentication failed: {e}")
 
@@ -422,27 +433,27 @@ def get_watchlist_route():
     stocks_data = []
     for watchlist_stock in watchlist:
         try:
-            stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
-            stock.retrieve_data()
+        stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
+        stock.retrieve_data()
 
-            # Calculate last month's price and performance
-            last_month_date = datetime.now() - timedelta(days=30)
-            start_date = last_month_date.strftime("%Y-%m-%d")
-            end_date = datetime.now().strftime("%Y-%m-%d")
-            historical_data = yahoo_finance_api.get_historical_data(stock.symbol, start_date, end_date)
-            last_month_price = 0.0
-            if historical_data and len(historical_data) > 0:
-                last_month_price = historical_data[0]['close']
-            price_change = stock.price - last_month_price if last_month_price > 0 else 0
-            price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
+        # Calculate last month's price and performance
+        last_month_date = datetime.now() - timedelta(days=30)
+        start_date = last_month_date.strftime("%Y-%m-%d")
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        historical_data = yahoo_finance_api.get_historical_data(stock.symbol, start_date, end_date)
+        last_month_price = 0.0
+        if historical_data and len(historical_data) > 0:
+            last_month_price = historical_data[0]['close']
+        price_change = stock.price - last_month_price if last_month_price > 0 else 0
+        price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
 
             stock_data = {
-                'id': watchlist_stock['symbol'],
-                'symbol': stock.symbol,
-                'name': stock.name,
-                'price': stock.price,
-                'lastMonthPrice': last_month_price,
-                'priceChange': price_change,
+            'id': watchlist_stock['symbol'],
+            'symbol': stock.symbol,
+            'name': stock.name,
+            'price': stock.price,
+            'lastMonthPrice': last_month_price,
+            'priceChange': price_change,
                 'priceChangePercent': price_change_percent,
                 'category': watchlist_stock.get('category', 'General'),
                 'priority': watchlist_stock.get('priority', 'medium'),

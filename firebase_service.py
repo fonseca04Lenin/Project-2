@@ -76,6 +76,10 @@ if not db and firebase_initialized:
         print(f"❌ Firestore client initialization failed: {e}")
         db = None
 
+def get_firestore_client():
+    """Get the Firestore client instance"""
+    return db
+
 class FirebaseUser(UserMixin):
     def __init__(self, user_data):
         self.id = user_data.get('uid')
