@@ -588,15 +588,37 @@ function displayStockResult(stock) {
 //Watchlist functionality
 async function loadWatchlist() {
     try {
+        // Check if user is authenticated
+        if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+            console.log('⚠️ User not authenticated, cannot load watchlist');
+            displayWatchlist([]);
+            return;
+        }
+
+        console.log('🔐 Loading watchlist for user:', window.firebaseAuth.currentUser.uid);
+
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             credentials: 'include'
         });
+
+        console.log('📡 Watchlist GET response status:', response.status);
+
+        if (response.status === 401) {
+            console.error('❌ Authentication required for watchlist');
+            showToast('Please log in to view your watchlist', 'error');
+            displayWatchlist([]);
+            return;
+        }
+
         const data = await response.json();
-        
+        console.log('📄 Watchlist data:', data);
+
         watchlistData = data;
         displayWatchlist(data);
     } catch (error) {
-        console.error('Error loading watchlist:', error);
+        console.error('❌ Error loading watchlist:', error);
+        showToast('Error loading watchlist. Please try again.', 'error');
+        displayWatchlist([]);
     }
 }
 
@@ -652,6 +674,16 @@ function displayWatchlist(stocks) {
 
 async function addToWatchlist(symbol) {
     try {
+        // Check if user is authenticated
+        if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+            showToast('Please log in to add stocks to your watchlist', 'error');
+            console.error('❌ User not authenticated');
+            return;
+        }
+
+        console.log('🔐 Adding to watchlist - User authenticated:', window.firebaseAuth.currentUser.uid);
+        console.log('📈 Adding symbol:', symbol);
+
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'POST',
             headers: {
@@ -661,31 +693,51 @@ async function addToWatchlist(symbol) {
             credentials: 'include'
         });
 
+        console.log('📡 Watchlist response status:', response.status);
+
         const data = await response.json();
+        console.log('📄 Watchlist response data:', data);
 
         if (response.ok) {
-            showToast(data.message, 'success');
+            showToast(data.message || `${symbol} added to watchlist`, 'success');
             loadWatchlist();
         } else {
+            console.error('❌ Watchlist error:', data.error);
             showToast(data.error || 'Error adding to watchlist', 'error');
         }
     } catch (error) {
-        console.error('Error adding to watchlist:', error);
-        showToast('Error adding to watchlist', 'error');
+        console.error('❌ Network error adding to watchlist:', error);
+        showToast('Network error. Please check your connection and try again.', 'error');
     }
 }
 
 async function removeFromWatchlist(symbol) {
     try {
+        // Check if user is authenticated
+        if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+            showToast('Please log in to remove stocks from your watchlist', 'error');
+            return;
+        }
+
+        console.log('🗑️ Removing from watchlist:', symbol);
+
         const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
             method: 'DELETE',
             credentials: 'include'
         });
 
+        console.log('📡 Delete response status:', response.status);
+
+        if (response.status === 401) {
+            showToast('Please log in to remove stocks from your watchlist', 'error');
+            return;
+        }
+
         const data = await response.json();
+        console.log('📄 Delete response data:', data);
 
         if (response.ok) {
-            showToast(data.message, 'success');
+            showToast(data.message || `${symbol} removed from watchlist`, 'success');
             loadWatchlist();
         } else {
             showToast(data.error || 'Error removing from watchlist', 'error');
