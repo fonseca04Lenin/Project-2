@@ -40,10 +40,10 @@ allowed_origins.extend(vercel_domains)
 print(f"🌐 CORS allowed origins: {allowed_origins}")
 
 # Enable CORS with specific auth-friendly settings
-CORS(app, 
-     origins=allowed_origins, 
+CORS(app,
+     origins=allowed_origins,
      supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-User-ID'],  # Added X-User-ID for Firebase token auth
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
      expose_headers=['Content-Type', 'Authorization'],
      vary_header=False)
