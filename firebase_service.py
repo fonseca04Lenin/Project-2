@@ -227,10 +227,17 @@ class FirebaseService:
     def verify_token(id_token):
         """Verify Firebase ID token"""
         try:
+            print(f"🔐 Verifying Firebase token, Firebase initialized: {firebase_initialized}")
+            if not firebase_initialized:
+                print("❌ Firebase not initialized")
+                return None
+
             decoded_token = auth.verify_id_token(id_token)
+            print(f"✅ Token verified successfully for user: {decoded_token.get('uid')}")
             return decoded_token
         except Exception as e:
-            print(f"Error verifying token: {e}")
+            print(f"❌ Error verifying token: {e}")
+            print(f"❌ Firebase initialized status: {firebase_initialized}")
             return None
     
     @staticmethod
