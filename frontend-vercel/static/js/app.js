@@ -588,25 +588,22 @@ function displayStockResult(stock) {
 //Watchlist functionality
 async function loadWatchlist() {
     try {
-        // Check if user is authenticated
-        if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-            console.log('⚠️ User not authenticated, cannot load watchlist');
-            displayWatchlist([]);
-            return;
-        }
+        console.log('🔐 Loading watchlist...');
 
-        console.log('🔐 Loading watchlist for user:', window.firebaseAuth.currentUser.uid);
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for watchlist load');
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
-            credentials: 'include'
+            method: 'GET',
+            headers: headers
         });
 
         console.log('📡 Watchlist GET response status:', response.status);
 
         if (response.status === 401) {
-            console.error('❌ Authentication required for watchlist');
-            showToast('Please log in to view your watchlist', 'error');
-            displayWatchlist([]);
+            console.error('❌ Authentication failed for watchlist');
+            showToast('Session expired. Please log in again.', 'error');
+            handleLogout();
             return;
         }
 
@@ -616,9 +613,14 @@ async function loadWatchlist() {
         watchlistData = data;
         displayWatchlist(data);
     } catch (error) {
-        console.error('❌ Error loading watchlist:', error);
-        showToast('Error loading watchlist. Please try again.', 'error');
-        displayWatchlist([]);
+        if (error.message === 'User not authenticated') {
+            console.log('⚠️ User not authenticated, cannot load watchlist');
+            displayWatchlist([]);
+        } else {
+            console.error('❌ Error loading watchlist:', error);
+            showToast('Error loading watchlist. Please try again.', 'error');
+            displayWatchlist([]);
+        }
     }
 }
 
@@ -672,28 +674,39 @@ function displayWatchlist(stocks) {
     watchlistContainer.innerHTML = watchlistHTML;
 }
 
+// Enhanced authentication helper
+async function getAuthHeaders() {
+    if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+        throw new Error('User not authenticated');
+    }
+
+    try {
+        const idToken = await window.firebaseAuth.currentUser.getIdToken();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+            'X-User-ID': window.firebaseAuth.currentUser.uid
+        };
+    } catch (error) {
+        console.error('❌ Error getting auth token:', error);
+        throw new Error('Failed to get authentication token');
+    }
+}
+
 async function addToWatchlist(symbol) {
     try {
-        // Check if user is authenticated
-        if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-            showToast('Please log in to add stocks to your watchlist', 'error');
-            console.error('❌ User not authenticated');
-            return;
-        }
+        console.log('📈 Adding symbol to watchlist:', symbol);
 
-        console.log('🔐 Adding to watchlist - User authenticated:', window.firebaseAuth.currentUser.uid);
-        console.log('📈 Adding symbol:', symbol);
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for user:', window.firebaseAuth.currentUser.uid);
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ symbol: symbol }),
-            credentials: 'include'
+            headers: headers,
+            body: JSON.stringify({ symbol: symbol })
         });
 
-        console.log('📡 Watchlist response status:', response.status);
+        console.log('📡 Watchlist POST response status:', response.status);
 
         const data = await response.json();
         console.log('📄 Watchlist response data:', data);
@@ -701,35 +714,42 @@ async function addToWatchlist(symbol) {
         if (response.ok) {
             showToast(data.message || `${symbol} added to watchlist`, 'success');
             loadWatchlist();
+        } else if (response.status === 401) {
+            console.error('❌ Authentication failed - redirecting to login');
+            showToast('Session expired. Please log in again.', 'error');
+            handleLogout();
         } else {
             console.error('❌ Watchlist error:', data.error);
             showToast(data.error || 'Error adding to watchlist', 'error');
         }
     } catch (error) {
-        console.error('❌ Network error adding to watchlist:', error);
-        showToast('Network error. Please check your connection and try again.', 'error');
+        if (error.message === 'User not authenticated') {
+            showToast('Please log in to add stocks to your watchlist', 'error');
+        } else {
+            console.error('❌ Network error adding to watchlist:', error);
+            showToast('Network error. Please check your connection and try again.', 'error');
+        }
     }
 }
 
 async function removeFromWatchlist(symbol) {
     try {
-        // Check if user is authenticated
-        if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-            showToast('Please log in to remove stocks from your watchlist', 'error');
-            return;
-        }
-
         console.log('🗑️ Removing from watchlist:', symbol);
+
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for watchlist removal');
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
             method: 'DELETE',
-            credentials: 'include'
+            headers: headers
         });
 
         console.log('📡 Delete response status:', response.status);
 
         if (response.status === 401) {
-            showToast('Please log in to remove stocks from your watchlist', 'error');
+            console.error('❌ Authentication failed for watchlist removal');
+            showToast('Session expired. Please log in again.', 'error');
+            handleLogout();
             return;
         }
 
@@ -743,8 +763,12 @@ async function removeFromWatchlist(symbol) {
             showToast(data.error || 'Error removing from watchlist', 'error');
         }
     } catch (error) {
-        console.error('Error removing from watchlist:', error);
-        showToast('Error removing from watchlist', 'error');
+        if (error.message === 'User not authenticated') {
+            showToast('Please log in to remove stocks from your watchlist', 'error');
+        } else {
+            console.error('❌ Error removing from watchlist:', error);
+            showToast('Error removing from watchlist', 'error');
+        }
     }
 }
 
@@ -1113,14 +1137,37 @@ function getToastIcon(type) {
 // Alert Management Functions
 async function loadAlerts() {
     try {
+        console.log('🔐 Loading alerts...');
+
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for alerts load');
+
         const response = await fetch(`${API_BASE_URL}/api/alerts`, {
-            credentials: 'include'
+            method: 'GET',
+            headers: headers
         });
+
+        console.log('📡 Alerts GET response status:', response.status);
+
+        if (response.status === 401) {
+            console.error('❌ Authentication failed for alerts');
+            showToast('Session expired. Please log in again.', 'error');
+            handleLogout();
+            return;
+        }
+
         const alerts = await response.json();
+        console.log('📄 Alerts data:', alerts);
+
         displayAlerts(alerts);
     } catch (error) {
-        console.error('Error loading alerts:', error);
-        showNotification('Error loading alerts', 'error');
+        if (error.message === 'User not authenticated') {
+            console.log('⚠️ User not authenticated, cannot load alerts');
+            displayAlerts([]);
+        } else {
+            console.error('❌ Error loading alerts:', error);
+            showToast('Error loading alerts. Please try again.', 'error');
+        }
     }
 }
 
@@ -1155,56 +1202,85 @@ async function createAlert() {
     const type = document.getElementById('alert-type').value;
 
     if (!symbol || !price) {
-        showNotification('Please enter both symbol and price', 'error');
+        showToast('Please enter both symbol and price', 'error');
         return;
     }
 
     try {
+        console.log('📈 Creating alert for:', symbol, price, type);
+
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for alert creation');
+
         const response = await fetch(`${API_BASE_URL}/api/alerts`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({
                 symbol,
                 target_price: price,
                 alert_type: type
-            }),
-            credentials: 'include'
+            })
         });
 
+        console.log('📡 Alert POST response status:', response.status);
+
         if (response.ok) {
-            showNotification('Alert created successfully', 'success');
+            showToast('Alert created successfully', 'success');
             document.getElementById('alert-symbol').value = '';
             document.getElementById('alert-price').value = '';
             loadAlerts();
+        } else if (response.status === 401) {
+            console.error('❌ Authentication failed for alert creation');
+            showToast('Session expired. Please log in again.', 'error');
+            handleLogout();
         } else {
             const error = await response.json();
-            showNotification(error.error || 'Error creating alert', 'error');
+            console.error('❌ Alert creation error:', error.error);
+            showToast(error.error || 'Error creating alert', 'error');
         }
     } catch (error) {
-        console.error('Error creating alert:', error);
-        showNotification('Error creating alert', 'error');
+        if (error.message === 'User not authenticated') {
+            showToast('Please log in to create alerts', 'error');
+        } else {
+            console.error('❌ Network error creating alert:', error);
+            showToast('Network error. Please check your connection and try again.', 'error');
+        }
     }
 }
 
 async function deleteAlert(symbol, index) {
     try {
+        console.log('🗑️ Deleting alert:', symbol, index);
+
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for alert deletion');
+
         const response = await fetch(`${API_BASE_URL}/api/alerts/${symbol}/${index}`, {
             method: 'DELETE',
-            credentials: 'include'
+            headers: headers
         });
 
+        console.log('📡 Alert DELETE response status:', response.status);
+
         if (response.ok) {
-            showNotification('Alert deleted successfully', 'success');
+            showToast('Alert deleted successfully', 'success');
             loadAlerts();
+        } else if (response.status === 401) {
+            console.error('❌ Authentication failed for alert deletion');
+            showToast('Session expired. Please log in again.', 'error');
+            handleLogout();
         } else {
             const error = await response.json();
-            showNotification(error.error || 'Error deleting alert', 'error');
+            console.error('❌ Alert deletion error:', error.error);
+            showToast(error.error || 'Error deleting alert', 'error');
         }
     } catch (error) {
-        console.error('Error deleting alert:', error);
-        showNotification('Error deleting alert', 'error');
+        if (error.message === 'User not authenticated') {
+            showToast('Please log in to delete alerts', 'error');
+        } else {
+            console.error('❌ Error deleting alert:', error);
+            showToast('Error deleting alert', 'error');
+        }
     }
 }
 

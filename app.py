@@ -353,11 +353,54 @@ def search_companies():
         print(f"Error searching companies: {e}")
         return jsonify({'error': 'Failed to search companies'}), 500
 
+# Authentication decorator that supports both session and token auth
+def authenticate_request():
+    """Authenticate request using either session or Firebase token"""
+    # First try session-based auth (existing Flask-Login)
+    if current_user.is_authenticated:
+        return current_user
+
+    # Try token-based auth
+    auth_header = request.headers.get('Authorization')
+    user_id_header = request.headers.get('X-User-ID')
+
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.replace('Bearer ', '')
+        try:
+            # Verify Firebase token
+            decoded_token = FirebaseService.verify_token(token)
+            if decoded_token and decoded_token.get('uid') == user_id_header:
+                # Get or create user in Firestore
+                user = FirebaseService.get_user_by_id(decoded_token['uid'])
+                if not user:
+                    # Create user profile if not exists
+                    user_data = {
+                        'uid': decoded_token['uid'],
+                        'name': decoded_token.get('name', 'User'),
+                        'email': decoded_token.get('email', ''),
+                        'created_at': datetime.utcnow(),
+                        'last_login': datetime.utcnow()
+                    }
+                    FirebaseService.create_user(
+                        user_data['name'],
+                        user_data['email'],
+                        'firebase_auth'  # Dummy password for Firebase users
+                    )
+                    user = FirebaseUser(user_data)
+                return user
+        except Exception as e:
+            print(f"Token authentication failed: {e}")
+
+    return None
+
 @app.route('/api/watchlist', methods=['GET'])
-@login_required
 def get_watchlist_route():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
     stocks_data = []
-    watchlist = FirebaseService.get_watchlist(current_user.id)
+    watchlist = FirebaseService.get_watchlist(user.id)
     for watchlist_stock in watchlist:
         stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
         stock.retrieve_data()
@@ -383,19 +426,22 @@ def get_watchlist_route():
     return jsonify(stocks_data)
 
 @app.route('/api/watchlist', methods=['POST'])
-@login_required
 def add_to_watchlist():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
     data = request.get_json()
     symbol = data.get('symbol', '').upper()
-    
+
     if not symbol:
         return jsonify({'error': 'Please provide a stock symbol'}), 400
-    
+
     stock = Stock(symbol, yahoo_finance_api)
     stock.retrieve_data()
-    
+
     if stock.name and 'not found' not in stock.name.lower():
-        success = FirebaseService.add_to_watchlist(current_user.id, symbol, stock.name)
+        success = FirebaseService.add_to_watchlist(user.id, symbol, stock.name)
         if success:
             return jsonify({'message': f'{stock.name} added to watchlist'})
         else:
@@ -404,14 +450,17 @@ def add_to_watchlist():
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
 @app.route('/api/watchlist/<symbol>', methods=['DELETE'])
-@login_required
 def remove_from_watchlist(symbol):
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
     symbol = symbol.upper()
-    success = FirebaseService.remove_from_watchlist(current_user.id, symbol)
-    
+    success = FirebaseService.remove_from_watchlist(user.id, symbol)
+
     if success:
         return jsonify({'message': f'Stock removed from watchlist'})
-    
+
     return jsonify({'error': 'Stock not found in watchlist'}), 404
 
 @app.route('/api/chart/<symbol>')
@@ -484,42 +533,51 @@ def get_company_info(symbol):
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
 @app.route('/api/alerts', methods=['GET'])
-@login_required
 def get_alerts():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
     symbol = request.args.get('symbol')
-    alerts = FirebaseService.get_alerts(current_user.id, symbol)
+    alerts = FirebaseService.get_alerts(user.id, symbol)
     return jsonify(alerts)
 
 @app.route('/api/alerts', methods=['POST'])
-@login_required
 def create_alert():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
     data = request.get_json()
     symbol = data.get('symbol', '').upper()
     target_price = data.get('target_price')
     alert_type = data.get('alert_type', 'above')
-    
+
     if not symbol or target_price is None:
         return jsonify({'error': 'Symbol and target price are required'}), 400
-    
+
     try:
         target_price = float(target_price)
     except ValueError:
         return jsonify({'error': 'Invalid target price'}), 400
-    
+
     if alert_type not in ['above', 'below']:
         return jsonify({'error': 'Alert type must be either "above" or "below"'}), 400
-    
-    alert_id = FirebaseService.create_alert(current_user.id, symbol, target_price, alert_type)
+
+    alert_id = FirebaseService.create_alert(user.id, symbol, target_price, alert_type)
     if alert_id:
         return jsonify({'message': 'Alert created successfully', 'alert_id': alert_id})
     else:
         return jsonify({'error': 'Failed to create alert'}), 500
 
 @app.route('/api/alerts/<alert_id>', methods=['DELETE'])
-@login_required
 def delete_alert(alert_id):
-    success = FirebaseService.delete_alert(current_user.id, alert_id)
-    
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    success = FirebaseService.delete_alert(user.id, alert_id)
+
     if success:
         return jsonify({'message': 'Alert removed successfully'})
     return jsonify({'error': 'Alert not found'}), 404
