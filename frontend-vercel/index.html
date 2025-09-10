@@ -12,7 +12,15 @@
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js"></script>
+
+    <!-- Load appropriate Firebase config based on environment -->
+    <script src="config.js"></script>
+    <script>
+        // Load Firebase config based on environment
+        const firebaseScript = document.createElement('script');
+        firebaseScript.src = window.CONFIG.FIREBASE_CONFIG;
+        document.head.appendChild(firebaseScript);
+    </script>
 </head>
 <body>
     <div id="app">
