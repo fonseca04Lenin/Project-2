@@ -319,9 +319,20 @@ window.getOptionsData = getOptionsData;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
-    initializeMarketIntelligence();
-    initializeLandingPageInteractions();
+    // Wait for Firebase to be initialized before starting the app
+    const waitForFirebase = () => {
+        if (window.firebaseAuth) {
+            console.log('✅ Firebase ready, initializing app...');
+            initializeApp();
+            initializeMarketIntelligence();
+            initializeLandingPageInteractions();
+        } else {
+            console.log('⏳ Waiting for Firebase to initialize...');
+            setTimeout(waitForFirebase, 100);
+        }
+    };
+    
+    waitForFirebase();
 });
 
 // Premium Landing Page Interactions
@@ -1382,7 +1393,7 @@ async function checkAuthStatus() {
             authListenerSetup = true; // Set guard to prevent duplicate listeners
             console.log('🔧 Setting up auth state listener...');
             // Wait for Firebase Auth state to be determined
-            firebase.auth().onAuthStateChanged(async (user) => {
+            window.firebaseAuth.onAuthStateChanged(async (user) => {
                 if (user) {
                     console.log('✅ User is logged in with Firebase:', user.uid);
                     
@@ -1703,7 +1714,7 @@ async function handleRegister(event) {
         if (window.firebaseAuth) {
             console.log('🔥 Using Firebase Authentication for registration');
             try {
-                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
                 
                 console.log('✅ Firebase user created:', { uid: user.uid, email: user.email });

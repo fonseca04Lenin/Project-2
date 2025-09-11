@@ -59,10 +59,12 @@ try {
     window.firebaseAuth = null;
     window.firebaseApp = null;
 
-    // Show user-friendly error
+    // Show user-friendly error (only if showNotification function is available)
     setTimeout(() => {
-        if (document.readyState === 'complete') {
+        if (document.readyState === 'complete' && typeof showNotification === 'function') {
             showNotification('Firebase authentication unavailable. Please refresh the page.', 'error');
+        } else {
+            console.error('Firebase authentication unavailable. Please refresh the page.');
         }
     }, 1000);
 }
