@@ -153,70 +153,118 @@ def handle_join_news_updates():
 
 # Real-time stock price updates
 def update_stock_prices():
-    """Background task to update stock prices"""
+    """Background task to update stock prices - optimized for memory and rate limiting"""
+    print("🔄 Starting optimized price update task...")
+    
     while True:
         try:
+            # Only run if there are connected users to avoid unnecessary API calls
+            if not connected_users:
+                print("⏸️ No connected users, skipping price updates")
+                time.sleep(60)  # Wait 1 minute if no users
+                continue
+            
+            print(f"📊 Updating prices for {len(connected_users)} connected users...")
+            
             # Get all active users and their watchlists
             for sid, user_id in connected_users.items():
                 if user_id:
-                    watchlist = watchlist_service.get_watchlist(user_id)
-                    if watchlist:
-                        updated_prices = []
-                        for item in watchlist:
-                            try:
-                                stock = Stock(item['symbol'], yahoo_finance_api)
-                                stock.retrieve_data()
-                                
-                                # Calculate price change
-                                price_change = 0
-                                price_change_percent = 0
-                                if 'last_price' in item:
-                                    price_change = stock.price - item['last_price']
-                                    price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
-                                
-                                updated_prices.append({
-                                    'symbol': item['symbol'],
-                                    'name': item.get('company_name', item.get('name', '')),
-                                    'price': stock.price,
-                                    'price_change': price_change,
-                                    'price_change_percent': price_change_percent,
-                                    'last_updated': datetime.now().isoformat(),
-                                    'category': item.get('category', 'General'),
-                                    'priority': item.get('priority', 'medium')
-                                })
-                                
-                                # Check for triggered alerts (if alerts are enabled for this stock)
-                                if item.get('alert_enabled', True):
-                                    triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
-                                    if triggered_alerts:
-                                        socketio.emit('alert_triggered', {
-                                            'symbol': item['symbol'],
-                                            'alerts': triggered_alerts
-                                        }, room=f"user_{user_id}")
-                                
-                            except Exception as e:
-                                print(f"Error updating {item['symbol']}: {e}")
+                    try:
+                        watchlist = watchlist_service.get_watchlist(user_id)
+                        if watchlist:
+                            updated_prices = []
+                            # Limit to max 10 stocks per user to prevent memory issues
+                            limited_watchlist = watchlist[:10]
+                            
+                            for item in limited_watchlist:
+                                try:
+                                    # Add delay between API calls to respect rate limits
+                                    time.sleep(0.5)  # 500ms delay between calls
+                                    
+                                    stock = Stock(item['symbol'], yahoo_finance_api)
+                                    stock.retrieve_data()
+                                    
+                                    # Calculate price change
+                                    price_change = 0
+                                    price_change_percent = 0
+                                    if 'last_price' in item:
+                                        price_change = stock.price - item['last_price']
+                                        price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
+                                    
+                                    updated_prices.append({
+                                        'symbol': item['symbol'],
+                                        'name': item.get('company_name', item.get('name', '')),
+                                        'price': stock.price,
+                                        'price_change': price_change,
+                                        'price_change_percent': price_change_percent,
+                                        'last_updated': datetime.now().isoformat(),
+                                        'category': item.get('category', 'General'),
+                                        'priority': item.get('priority', 'medium')
+                                    })
+                                    
+                                    # Check for triggered alerts (if alerts are enabled for this stock)
+                                    if item.get('alert_enabled', True):
+                                        triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
+                                        if triggered_alerts:
+                                            socketio.emit('alert_triggered', {
+                                                'symbol': item['symbol'],
+                                                'alerts': triggered_alerts
+                                            }, room=f"user_{user_id}")
+                                    
+                                except Exception as e:
+                                    print(f"⚠️ Error updating {item['symbol']}: {e}")
+                                    # Skip this stock and continue
+                                    continue
+                            
+                            if updated_prices:
+                                socketio.emit('watchlist_updated', {
+                                    'prices': updated_prices
+                                }, room=f"watchlist_{user_id}")
+                                print(f"✅ Updated {len(updated_prices)} stocks for user {user_id}")
                         
-                        if updated_prices:
-                            socketio.emit('watchlist_updated', {
-                                'prices': updated_prices
-                            }, room=f"watchlist_{user_id}")
+                    except Exception as user_error:
+                        print(f"⚠️ Error processing user {user_id}: {user_error}")
+                        continue
             
-            # Update market status
-            market_status = get_market_status()
-            socketio.emit('market_status_updated', market_status, room="market_updates")
+            # Update market status (less frequently)
+            try:
+                market_status = get_market_status()
+                socketio.emit('market_status_updated', market_status, room="market_updates")
+                print("📈 Market status updated")
+            except Exception as market_error:
+                print(f"⚠️ Error updating market status: {market_error}")
             
-            time.sleep(30)  # Update every 30 seconds
+            # Increased sleep time to reduce API pressure
+            print("😴 Sleeping for 2 minutes before next update...")
+            time.sleep(120)  # Update every 2 minutes instead of 30 seconds
             
         except Exception as e:
-            print(f"Error in price update loop: {e}")
-            time.sleep(60)  # Wait longer on error
+            print(f"❌ Error in price update loop: {e}")
+            print("😴 Sleeping for 5 minutes after error...")
+            time.sleep(300)  # Wait 5 minutes on error
 
 # Start background task for price updates
 def start_price_updates():
-    """Start the background price update task"""
-    thread = threading.Thread(target=update_stock_prices, daemon=True)
+    """Start the background price update task with proper memory management"""
+    thread = threading.Thread(target=update_stock_prices, daemon=True, name="PriceUpdateThread")
     thread.start()
+    print("🚀 Price update background thread started")
+    
+    # Add garbage collection to prevent memory leaks
+    import gc
+    def cleanup_memory():
+        """Periodic memory cleanup"""
+        while True:
+            time.sleep(300)  # Run every 5 minutes
+            try:
+                gc.collect()  # Force garbage collection
+                print("🧹 Memory cleanup completed")
+            except Exception as e:
+                print(f"⚠️ Memory cleanup error: {e}")
+    
+    cleanup_thread = threading.Thread(target=cleanup_memory, daemon=True, name="MemoryCleanupThread")
+    cleanup_thread.start()
+    print("🧹 Memory cleanup thread started")
 
 # Market status function
 def get_market_status():
