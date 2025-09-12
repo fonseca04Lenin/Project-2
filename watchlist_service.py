@@ -135,6 +135,8 @@ class WatchlistService:
             Dict with success status and message
         """
         try:
+            print(f"🔍 WatchlistService.add_stock called - User: {user_id}, Symbol: {symbol}, Company: {company_name}")
+            print(f"🔍 Firestore client available: {self.db is not None}")
             # Check if user has reached limit
             if not self._validate_user_watchlist_limit(user_id):
                 return {
@@ -162,13 +164,16 @@ class WatchlistService:
                 }
 
             # Add to Firestore
+            print(f"🔍 Adding to Firestore - Collection: users/{user_id}/watchlist, Document: {symbol}")
             watchlist_ref = self.db.collection('users').document(user_id).collection('watchlist')
             watchlist_ref.document(symbol).set(item.to_dict())
+            print(f"✅ Successfully added {symbol} to Firestore")
 
             # Update user's watchlist metadata
             self._update_watchlist_metadata(user_id)
 
             logger.info(f"Added {symbol} to watchlist for user {user_id}")
+            print(f"✅ WatchlistService.add_stock completed successfully for {symbol}")
             return {
                 'success': True,
                 'message': f'{company_name} added to watchlist',
@@ -177,6 +182,7 @@ class WatchlistService:
 
         except Exception as e:
             logger.error(f"Error adding {symbol} to watchlist for user {user_id}: {e}")
+            print(f"❌ WatchlistService.add_stock failed for {symbol}: {e}")
             return {
                 'success': False,
                 'message': 'Failed to add stock to watchlist'

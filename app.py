@@ -80,8 +80,8 @@ yahoo_finance_api = YahooFinanceAPI()
 news_api = NewsAPI()
 finnhub_api = FinnhubAPI()
 
-# Initialize Watchlist Service
-watchlist_service = get_watchlist_service()
+# Initialize Watchlist Service with proper Firestore client
+watchlist_service = get_watchlist_service(get_firestore_client())
 
 # Store connected users and their watchlists
 connected_users = {}
