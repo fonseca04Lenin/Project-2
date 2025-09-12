@@ -547,7 +547,7 @@ async function searchStock() {
                     const message = `Alert triggered for ${symbol}: Price ${alert.alert_type} $${alert.target_price}`;
                     showNotification(message, 'warning');
                 });
-                // loadAlerts(); // Disabled
+                // loadAlerts(); // Alerts still disabled
             }
         } else {
             showToast(data.error || 'Stock not found', 'error');
@@ -596,53 +596,43 @@ function displayStockResult(stock) {
     `;
 }
 
-//Watchlist functionality
+//Watchlist functionality - Reactivated with independent operation
 async function loadWatchlist() {
-    // Watchlist functionality disabled for now
-    console.log('⏸️ Watchlist functionality disabled');
-    return;
+    console.log('📊 Loading watchlist (independent operation)...');
     
     try {
-        console.log('🔐 Loading watchlist...');
-
-        let headers;
-        try {
-            headers = await getAuthHeaders();
-            console.log('🔐 Auth headers prepared for watchlist load');
-        } catch (authError) {
-            console.error('❌ Auth failed, falling back to session-based auth:', authError.message);
-            // Fallback to session-based authentication
-            headers = { 'Content-Type': 'application/json' };
-        }
-
-        console.log('🌐 Making request to:', `${API_BASE_URL}/api/watchlist`);
-        console.log('📨 Request headers:', JSON.stringify(headers, null, 2));
-
+        // Get authentication headers
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for watchlist load');
+        
+        // Make request to backend
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'GET',
             headers: headers,
-            credentials: 'include' // Fallback for session auth
+            credentials: 'include'
         });
-
-        console.log('📡 Watchlist GET response status:', response.status);
-        console.log('📡 Response headers:', [...response.headers.entries()]);
-
-        if (response.status === 401) {
-            console.error('❌ Authentication failed for watchlist');
-            showToast('Session expired. Please log in again.', 'error');
-            handleLogout();
-            return;
+        
+        console.log('📊 Watchlist response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('📊 Watchlist data received:', data);
+            
+            // Update watchlist display
+            displayWatchlist(data.watchlist || []);
+            console.log('✅ Watchlist loaded successfully');
+            
+        } else if (response.status === 401) {
+            console.log('⚠️ Watchlist: Authentication required');
+            // Don't show error, just silently fail for independent operation
+        } else {
+            console.log('⚠️ Watchlist: Error loading, status:', response.status);
+            // Don't show error, just silently fail for independent operation
         }
-
-        const data = await response.json();
-        console.log('📄 Watchlist data:', data);
-
-        watchlistData = data;
-        displayWatchlist(data);
+        
     } catch (error) {
-        console.error('❌ Error loading watchlist:', error);
-        showToast('Error loading watchlist. Please try again.', 'error');
-        displayWatchlist([]);
+        console.log('⚠️ Watchlist: Error loading (independent operation):', error.message);
+        // Don't show error, just silently fail for independent operation
     }
 }
 
@@ -768,7 +758,12 @@ async function addToWatchlist(symbol) {
 
         if (response.ok) {
             showToast(data.message || `${symbol} added to watchlist`, 'success');
-            // loadWatchlist(); // Disabled
+            // Load watchlist independently after adding stock
+            setTimeout(() => {
+                loadWatchlist().catch(error => {
+                    console.log('⚠️ Watchlist refresh after add failed (non-blocking):', error.message);
+                });
+            }, 500);
         } else if (response.status === 401) {
             console.error('❌ Authentication failed - redirecting to login');
             showToast('Session expired. Please log in again.', 'error');
@@ -809,7 +804,12 @@ async function removeFromWatchlist(symbol) {
 
         if (response.ok) {
             showToast(data.message || `${symbol} removed from watchlist`, 'success');
-            // loadWatchlist(); // Disabled
+            // Load watchlist independently after removing stock
+            setTimeout(() => {
+                loadWatchlist().catch(error => {
+                    console.log('⚠️ Watchlist refresh after remove failed (non-blocking):', error.message);
+                });
+            }, 500);
         } else {
             showToast(data.error || 'Error removing from watchlist', 'error');
         }
@@ -1526,8 +1526,12 @@ function showMainContent(user) {
     // Load other non-critical data in background
     updateMarketStatus();
     
-    // Watchlist and alerts completely disabled for now
-    console.log('⏸️ Watchlist and alerts systems disabled');
+    // Load watchlist independently in background (non-blocking)
+    setTimeout(() => {
+        loadWatchlist().catch(error => {
+            console.log('⚠️ Background watchlist loading failed (non-blocking):', error.message);
+        });
+    }, 2000); // 2 second delay to ensure other features are ready
     console.log('✅ Main content should now be visible');
 }
 
@@ -1599,12 +1603,24 @@ function activateSearchFunctionality() {
             searchBtn.style.backgroundColor = '#4CAF50';
         }
         
-        // Watchlist and alerts disabled for now to fix search issues
-        console.log('⏸️ Watchlist and alerts disabled for independent search functionality');
+        // Load watchlist independently (non-blocking)
+        loadWatchlistIndependently();
         
     } catch (error) {
         console.log('⚠️ Error activating search:', error);
     }
+}
+
+// Independent watchlist loading function
+function loadWatchlistIndependently() {
+    console.log('📊 Starting independent watchlist loading...');
+    
+    // Load watchlist in background without blocking other operations
+    setTimeout(() => {
+        loadWatchlist().catch(error => {
+            console.log('⚠️ Independent watchlist loading failed (non-blocking):', error.message);
+        });
+    }, 1000); // 1 second delay to ensure search is ready first
 }
 
 async function loadIntelligenceSection() {
