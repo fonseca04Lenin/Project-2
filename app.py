@@ -187,12 +187,12 @@ def update_stock_prices():
                                 
                                 # Check for triggered alerts (if alerts are enabled for this stock)
                                 if item.get('alert_enabled', True):
-                                triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
-                                if triggered_alerts:
-                                    socketio.emit('alert_triggered', {
-                                        'symbol': item['symbol'],
-                                        'alerts': triggered_alerts
-                                    }, room=f"user_{user_id}")
+                                    triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
+                                    if triggered_alerts:
+                                        socketio.emit('alert_triggered', {
+                                            'symbol': item['symbol'],
+                                            'alerts': triggered_alerts
+                                        }, room=f"user_{user_id}")
                                 
                             except Exception as e:
                                 print(f"Error updating {item['symbol']}: {e}")
@@ -433,27 +433,27 @@ def get_watchlist_route():
     stocks_data = []
     for watchlist_stock in watchlist:
         try:
-        stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
-        stock.retrieve_data()
+            stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
+            stock.retrieve_data()
 
-        # Calculate last month's price and performance
-        last_month_date = datetime.now() - timedelta(days=30)
-        start_date = last_month_date.strftime("%Y-%m-%d")
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        historical_data = yahoo_finance_api.get_historical_data(stock.symbol, start_date, end_date)
-        last_month_price = 0.0
-        if historical_data and len(historical_data) > 0:
-            last_month_price = historical_data[0]['close']
-        price_change = stock.price - last_month_price if last_month_price > 0 else 0
-        price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
+            # Calculate last month's price and performance
+            last_month_date = datetime.now() - timedelta(days=30)
+            start_date = last_month_date.strftime("%Y-%m-%d")
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            historical_data = yahoo_finance_api.get_historical_data(stock.symbol, start_date, end_date)
+            last_month_price = 0.0
+            if historical_data and len(historical_data) > 0:
+                last_month_price = historical_data[0]['close']
+            price_change = stock.price - last_month_price if last_month_price > 0 else 0
+            price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
 
             stock_data = {
-            'id': watchlist_stock['symbol'],
-            'symbol': stock.symbol,
-            'name': stock.name,
-            'price': stock.price,
-            'lastMonthPrice': last_month_price,
-            'priceChange': price_change,
+                'id': watchlist_stock['symbol'],
+                'symbol': stock.symbol,
+                'name': stock.name,
+                'price': stock.price,
+                'lastMonthPrice': last_month_price,
+                'priceChange': price_change,
                 'priceChangePercent': price_change_percent,
                 'category': watchlist_stock.get('category', 'General'),
                 'priority': watchlist_stock.get('priority', 'medium'),
