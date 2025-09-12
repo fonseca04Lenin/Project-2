@@ -81,7 +81,11 @@ news_api = NewsAPI()
 finnhub_api = FinnhubAPI()
 
 # Initialize Watchlist Service with proper Firestore client
-watchlist_service = get_watchlist_service(get_firestore_client())
+print("🔍 Initializing WatchlistService...")
+firestore_client = get_firestore_client()
+print(f"🔍 Firestore client available: {firestore_client is not None}")
+watchlist_service = get_watchlist_service(firestore_client)
+print("✅ WatchlistService initialized successfully")
 
 # Store connected users and their watchlists
 connected_users = {}
@@ -89,6 +93,28 @@ connected_users = {}
 @app.route('/')
 def index():
     return {"message": "Stock Watchlist API", "status": "active"}
+
+@app.route('/api/test/watchlist-service')
+def test_watchlist_service():
+    """Test endpoint to verify watchlist service is working"""
+    try:
+        print("🧪 Testing watchlist service...")
+        # Test if service is initialized
+        if watchlist_service is None:
+            return jsonify({'error': 'WatchlistService not initialized'}), 500
+        
+        # Test if Firestore client is available
+        if watchlist_service.db is None:
+            return jsonify({'error': 'Firestore client not available'}), 500
+            
+        return jsonify({
+            'status': 'success',
+            'message': 'WatchlistService is working correctly',
+            'firestore_available': watchlist_service.db is not None
+        })
+    except Exception as e:
+        print(f"❌ WatchlistService test failed: {e}")
+        return jsonify({'error': f'WatchlistService test failed: {str(e)}'}), 500
 
 @app.route('/health')
 def health_check():
