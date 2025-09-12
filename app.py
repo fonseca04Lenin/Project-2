@@ -500,8 +500,14 @@ def get_watchlist_route():
     category = request.args.get('category')
     priority = request.args.get('priority')
 
-    # Get watchlist using new service
-    watchlist = watchlist_service.get_watchlist(user.id, category=category, priority=priority)
+    try:
+        print(f"🔍 GET watchlist request for user: {user.id}")
+        # Get watchlist using new service
+        watchlist = watchlist_service.get_watchlist(user.id, category=category, priority=priority)
+        print(f"✅ Retrieved {len(watchlist)} items from watchlist")
+    except Exception as e:
+        print(f"❌ Error in get_watchlist_route: {e}")
+        return jsonify({'error': 'Failed to retrieve watchlist'}), 500
 
     # Return watchlist data without making API calls to prevent memory issues and rate limiting
     stocks_data = []
@@ -554,6 +560,7 @@ def add_to_watchlist():
 
     # Add stock without making API calls to prevent timeout and memory issues
     try:
+        print(f"🔍 POST watchlist request - User: {user.id}, Symbol: {symbol}, Company: {company_name}")
         result = watchlist_service.add_stock(
             user.id,
             symbol,
