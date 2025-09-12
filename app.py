@@ -14,6 +14,7 @@ import threading
 import time
 import signal
 from functools import wraps
+from collections import defaultdict
 
 app = Flask(__name__)
 
@@ -91,6 +92,15 @@ print("✅ WatchlistService initialized successfully")
 
 # Store connected users and their watchlists
 connected_users = {}
+
+# Request tracking to prevent memory leaks
+active_requests = {}
+request_lock = threading.Lock()
+
+def cleanup_request(request_id):
+    """Clean up request tracking to prevent memory leaks"""
+    with request_lock:
+        active_requests.pop(request_id, None)
 
 def timeout_handler(signum, frame):
     raise TimeoutError("Request timed out")
@@ -488,60 +498,85 @@ def search_companies():
 
 # Authentication decorator that supports both session and token auth
 def authenticate_request():
-    """Authenticate request using either session or Firebase token"""
-    # First try session-based auth (existing Flask-Login)
-    if current_user.is_authenticated:
-        return current_user
+    """Authenticate request using either session or Firebase token with memory leak protection"""
+    request_id = id(request)
+    
+    # Check if this request is already being processed
+    with request_lock:
+        if request_id in active_requests:
+            print(f"🔍 Request {request_id} already being processed, returning cached result")
+            return active_requests[request_id]
+    
+    try:
+        # First try session-based auth (existing Flask-Login)
+        if current_user.is_authenticated:
+            with request_lock:
+                active_requests[request_id] = current_user
+            return current_user
 
-    # Try token-based auth
-    auth_header = request.headers.get('Authorization')
-    user_id_header = request.headers.get('X-User-ID')
+        # Try token-based auth
+        auth_header = request.headers.get('Authorization')
+        user_id_header = request.headers.get('X-User-ID')
 
-    print(f"🔐 Token auth attempt - Header: {auth_header[:20] if auth_header else 'None'}, UserID: {user_id_header}")
+        print(f"🔐 Token auth attempt - Header: {auth_header[:20] if auth_header else 'None'}, UserID: {user_id_header}")
 
-    if auth_header and auth_header.startswith('Bearer '):
-        token = auth_header.replace('Bearer ', '')
-        print(f"🔑 Token received, length: {len(token)}")
-        try:
-            # Verify Firebase token
-            decoded_token = FirebaseService.verify_token(token)
-            print(f"🔍 Token decoded: {decoded_token is not None}")
-            if decoded_token:
-                print(f"✅ Token UID: {decoded_token.get('uid')}, Header UID: {user_id_header}")
-            if decoded_token and decoded_token.get('uid') == user_id_header:
-                uid = decoded_token['uid']
-                # Get user from Firestore (they should exist if they were properly authenticated)
-                user = FirebaseService.get_user_by_id(uid)
-                if user:
-                    print(f"✅ User authenticated: {user.email}")
-                    return user
-                else:
-                    print(f"⚠️ User {uid} not found in Firestore, attempting to create profile")
-                    # Try to create user profile in Firestore only (not in Firebase Auth)
-                    try:
-                        user_profile = {
-                            'uid': uid,
-                            'name': decoded_token.get('name', 'User'),
-                            'email': decoded_token.get('email', ''),
-                            'created_at': datetime.utcnow(),
-                            'last_login': datetime.utcnow()
-                        }
-                        # Store in Firestore directly
-                        firestore_db = get_firestore_client()
-                        if firestore_db:
-                            firestore_db.collection('users').document(uid).set(user_profile, merge=True)
-                            print(f"✅ User profile created in Firestore: {uid}")
-                            return FirebaseUser(user_profile)
-                        else:
-                            print("❌ Firestore not available")
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.replace('Bearer ', '')
+            print(f"🔑 Token received, length: {len(token)}")
+            try:
+                # Verify Firebase token
+                decoded_token = FirebaseService.verify_token(token)
+                print(f"🔍 Token decoded: {decoded_token is not None}")
+                if decoded_token:
+                    print(f"✅ Token UID: {decoded_token.get('uid')}, Header UID: {user_id_header}")
+                if decoded_token and decoded_token.get('uid') == user_id_header:
+                    uid = decoded_token['uid']
+                    # Get user from Firestore (they should exist if they were properly authenticated)
+                    user = FirebaseService.get_user_by_id(uid)
+                    if user:
+                        print(f"✅ User authenticated: {user.email}")
+                        with request_lock:
+                            active_requests[request_id] = user
+                        return user
+                    else:
+                        print(f"⚠️ User {uid} not found in Firestore, attempting to create profile")
+                        # Try to create user profile in Firestore only (not in Firebase Auth)
+                        try:
+                            user_profile = {
+                                'uid': uid,
+                                'name': decoded_token.get('name', 'User'),
+                                'email': decoded_token.get('email', ''),
+                                'created_at': datetime.utcnow(),
+                                'last_login': datetime.utcnow()
+                            }
+                            # Store in Firestore directly
+                            firestore_db = get_firestore_client()
+                            if firestore_db:
+                                firestore_db.collection('users').document(uid).set(user_profile, merge=True)
+                                print(f"✅ User profile created in Firestore: {uid}")
+                                firebase_user = FirebaseUser(user_profile)
+                                with request_lock:
+                                    active_requests[request_id] = firebase_user
+                                return firebase_user
+                            else:
+                                print("❌ Firestore not available")
+                                return None
+                        except Exception as create_e:
+                            print(f"❌ Failed to create user profile: {create_e}")
                             return None
-                    except Exception as create_e:
-                        print(f"❌ Failed to create user profile: {create_e}")
-                        return None
-        except Exception as e:
-            print(f"Token authentication failed: {e}")
+            except Exception as e:
+                print(f"Token authentication failed: {e}")
 
-    return None
+        return None
+    
+    finally:
+        # Clean up request tracking after a delay to prevent memory leaks
+        def delayed_cleanup():
+            time.sleep(30)  # Keep in memory for 30 seconds for potential reuse
+            cleanup_request(request_id)
+        
+        # Start cleanup in background thread
+        threading.Thread(target=delayed_cleanup, daemon=True).start()
 
 @app.route('/api/watchlist', methods=['GET'])
 def get_watchlist_route():
