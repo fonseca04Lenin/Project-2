@@ -102,6 +102,33 @@ def cleanup_request(request_id):
     with request_lock:
         active_requests.pop(request_id, None)
 
+# Rate limiting system
+class RateLimiter:
+    def __init__(self, max_requests=10, window_seconds=60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests = defaultdict(list)
+        self.lock = threading.Lock()
+    
+    def is_allowed(self, user_id):
+        with self.lock:
+            now = time.time()
+            user_requests = self.requests[user_id]
+            
+            # Remove old requests outside the window
+            user_requests[:] = [req_time for req_time in user_requests if now - req_time < self.window_seconds]
+            
+            # Check if under limit
+            if len(user_requests) >= self.max_requests:
+                return False
+            
+            # Add current request
+            user_requests.append(now)
+            return True
+
+# Initialize rate limiter
+rate_limiter = RateLimiter(max_requests=20, window_seconds=60)  # 20 requests per minute
+
 def timeout_handler(signum, frame):
     raise TimeoutError("Request timed out")
 
@@ -584,6 +611,11 @@ def get_watchlist_route():
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check rate limit
+    if not rate_limiter.is_allowed(user.id):
+        print(f"⚠️ Rate limit exceeded for user: {user.id}")
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     try:
         print(f"🔍 GET watchlist request for user: {user.id}")
@@ -641,6 +673,11 @@ def add_to_watchlist():
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check rate limit
+    if not rate_limiter.is_allowed(user.id):
+        print(f"⚠️ Rate limit exceeded for user: {user.id}")
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     data = request.get_json()
     symbol = data.get('symbol', '').upper()
