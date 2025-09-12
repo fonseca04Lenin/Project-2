@@ -5,7 +5,7 @@ from flask_cors import CORS
 import json
 from datetime import datetime, timedelta
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
-from firebase_service import FirebaseService, get_firestore_client
+from firebase_service import FirebaseService, get_firestore_client, FirebaseUser
 from watchlist_service import get_watchlist_service
 from auth import auth, login_manager
 from config import Config
