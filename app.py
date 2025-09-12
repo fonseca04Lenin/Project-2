@@ -12,6 +12,8 @@ from config import Config
 import os
 import threading
 import time
+import signal
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -89,6 +91,31 @@ print("✅ WatchlistService initialized successfully")
 
 # Store connected users and their watchlists
 connected_users = {}
+
+def timeout_handler(signum, frame):
+    raise TimeoutError("Request timed out")
+
+def with_timeout(seconds=25):
+    """Decorator to add timeout to functions"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Set up timeout
+            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(seconds)
+            
+            try:
+                result = func(*args, **kwargs)
+                return result
+            except TimeoutError:
+                print(f"⏰ Function {func.__name__} timed out after {seconds} seconds")
+                return jsonify({'error': 'Request timed out'}), 408
+            finally:
+                # Cancel timeout and restore old handler
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
+        return wrapper
+    return decorator
 
 @app.route('/')
 def index():
@@ -517,6 +544,7 @@ def authenticate_request():
     return None
 
 @app.route('/api/watchlist', methods=['GET'])
+@with_timeout(25)  # 25 second timeout
 def get_watchlist_route():
     user = authenticate_request()
     if not user:
@@ -564,6 +592,7 @@ def get_watchlist_route():
     return jsonify(stocks_data)
 
 @app.route('/api/watchlist', methods=['POST'])
+@with_timeout(25)  # 25 second timeout
 def add_to_watchlist():
     user = authenticate_request()
     if not user:
