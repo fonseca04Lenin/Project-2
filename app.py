@@ -503,60 +503,32 @@ def get_watchlist_route():
     # Get watchlist using new service
     watchlist = watchlist_service.get_watchlist(user.id, category=category, priority=priority)
 
+    # Return watchlist data without making API calls to prevent memory issues and rate limiting
     stocks_data = []
-    # Limit to max 10 stocks to prevent timeout
-    limited_watchlist = watchlist[:10]
+    print(f"📊 Processing {len(watchlist)} watchlist items (no API calls)")
     
-    for i, watchlist_stock in enumerate(limited_watchlist):
-        try:
-            # Add delay between API calls to prevent rate limiting
-            if i > 0:
-                import time
-                time.sleep(0.5)  # 500ms delay between stocks
-            
-            stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
-            stock.retrieve_data()
+    for watchlist_stock in watchlist:
+        # Return basic watchlist data without price updates to prevent API overload
+        stock_data = {
+            'id': watchlist_stock['symbol'],
+            'symbol': watchlist_stock['symbol'],
+            'name': watchlist_stock.get('company_name', watchlist_stock['symbol']),
+            'price': watchlist_stock.get('last_price', 0.0),
+            'lastMonthPrice': watchlist_stock.get('last_price', 0.0),
+            'priceChange': 0.0,
+            'priceChangePercent': 0.0,
+            'category': watchlist_stock.get('category', 'General'),
+            'priority': watchlist_stock.get('priority', 'medium'),
+            'notes': watchlist_stock.get('notes', ''),
+            'added_at': watchlist_stock.get('added_at'),
+            'target_price': watchlist_stock.get('target_price'),
+            'stop_loss': watchlist_stock.get('stop_loss'),
+            'alert_enabled': watchlist_stock.get('alert_enabled', True)
+        }
+        stocks_data.append(stock_data)
+        print(f"📊 Added {watchlist_stock['symbol']} to watchlist (no API call)")
 
-            # Simplified price calculation to avoid historical data API calls
-            last_month_price = watchlist_stock.get('last_price', 0.0)
-            price_change = stock.price - last_month_price if last_month_price > 0 else 0
-            price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
-
-            stock_data = {
-                'id': watchlist_stock['symbol'],
-                'symbol': stock.symbol,
-                'name': stock.name,
-                'price': stock.price,
-                'lastMonthPrice': last_month_price,
-                'priceChange': price_change,
-                'priceChangePercent': price_change_percent,
-                'category': watchlist_stock.get('category', 'General'),
-                'priority': watchlist_stock.get('priority', 'medium'),
-                'notes': watchlist_stock.get('notes', ''),
-                'added_at': watchlist_stock.get('added_at'),
-                'target_price': watchlist_stock.get('target_price'),
-                'stop_loss': watchlist_stock.get('stop_loss'),
-                'alert_enabled': watchlist_stock.get('alert_enabled', True)
-            }
-            stocks_data.append(stock_data)
-        except Exception as e:
-            print(f"Error processing {watchlist_stock['symbol']}: {e}")
-            # Return basic data if stock API fails
-            stocks_data.append({
-                'id': watchlist_stock['symbol'],
-                'symbol': watchlist_stock['symbol'],
-                'name': watchlist_stock.get('company_name', 'Unknown'),
-                'price': 0.0,
-                'lastMonthPrice': 0.0,
-                'priceChange': 0.0,
-                'priceChangePercent': 0.0,
-                'category': watchlist_stock.get('category', 'General'),
-                'priority': watchlist_stock.get('priority', 'medium'),
-                'notes': watchlist_stock.get('notes', ''),
-                'added_at': watchlist_stock.get('added_at'),
-                'error': 'Failed to fetch current price'
-            })
-
+    print(f"✅ Watchlist loaded successfully: {len(stocks_data)} stocks")
     return jsonify(stocks_data)
 
 @app.route('/api/watchlist', methods=['POST'])
