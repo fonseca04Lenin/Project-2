@@ -543,22 +543,21 @@ def add_to_watchlist():
     if not symbol:
         return jsonify({'error': 'Please provide a stock symbol'}), 400
 
-    stock = Stock(symbol, yahoo_finance_api)
-    stock.retrieve_data()
+    # Get additional options from request
+    category = data.get('category', 'General')
+    notes = data.get('notes', '')
+    priority = data.get('priority', 'medium')
+    target_price = data.get('target_price')
+    stop_loss = data.get('stop_loss')
+    alert_enabled = data.get('alert_enabled', True)
+    company_name = data.get('company_name', symbol)  # Use provided name or fallback to symbol
 
-    if stock.name and 'not found' not in stock.name.lower():
-        # Get additional options from request
-        category = data.get('category', 'General')
-        notes = data.get('notes', '')
-        priority = data.get('priority', 'medium')
-        target_price = data.get('target_price')
-        stop_loss = data.get('stop_loss')
-        alert_enabled = data.get('alert_enabled', True)
-
+    # Add stock without making API calls to prevent timeout and memory issues
+    try:
         result = watchlist_service.add_stock(
             user.id,
             symbol,
-            stock.name,
+            company_name,
             category=category,
             notes=notes,
             priority=priority,
@@ -574,8 +573,10 @@ def add_to_watchlist():
             })
         else:
             return jsonify({'error': result['message']}), 400
-    else:
-        return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+    
+    except Exception as e:
+        print(f"⚠️ Error adding stock to watchlist: {e}")
+        return jsonify({'error': f'Failed to add {symbol} to watchlist'}), 500
 
 @app.route('/api/watchlist/<symbol>', methods=['DELETE'])
 def remove_from_watchlist(symbol):
