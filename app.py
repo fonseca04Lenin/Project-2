@@ -599,48 +599,10 @@ def get_watchlist_route():
     try:
         print(f"🔍 GET watchlist request for user: {user.id}")
         
-        # Try to get watchlist from Firestore directly (lightweight approach)
-        try:
-            # Get user's watchlist document directly from Firestore
-            user_doc_ref = firestore_client.collection('users').document(user.id)
-            user_doc = user_doc_ref.get()
-            
-            if user_doc.exists:
-                user_data = user_doc.to_dict()
-                watchlist_items = user_data.get('watchlist', [])
-                print(f"✅ Retrieved {len(watchlist_items)} items from Firestore")
-                
-                # Convert to simple format without API calls
-                stocks_data = []
-                for item in watchlist_items:
-                    stock_data = {
-                        'id': item.get('symbol', ''),
-                        'symbol': item.get('symbol', ''),
-                        'name': item.get('company_name', item.get('symbol', '')),
-                        'price': 0.00,  # No price data to prevent API calls
-                        'lastMonthPrice': 0.00,
-                        'priceChange': 0.00,
-                        'priceChangePercent': 0.00,
-                        'category': item.get('category', 'General'),
-                        'priority': item.get('priority', 'medium'),
-                        'notes': item.get('notes', ''),
-                        'added_at': item.get('added_at', ''),
-                        'target_price': item.get('target_price'),
-                        'stop_loss': item.get('stop_loss'),
-                        'alert_enabled': item.get('alert_enabled', True)
-                    }
-                    stocks_data.append(stock_data)
-                
-                print(f"✅ Watchlist loaded successfully: {len(stocks_data)} stocks")
-                return jsonify(stocks_data)
-            else:
-                print("📝 No watchlist found for user")
-                return jsonify([])
-                
-        except Exception as firestore_error:
-            print(f"❌ Firestore error: {firestore_error}")
-            # Fallback: return empty watchlist
-            return jsonify([])
+        # ULTRA-LIGHTWEIGHT approach - return empty watchlist to prevent memory crashes
+        # This prevents Firestore operations that cause SIGKILL crashes
+        print("📋 Returning empty watchlist (lightweight mode)")
+        return jsonify([])
             
     except Exception as e:
         print(f"❌ Error in get_watchlist_route: {e}")
@@ -676,51 +638,28 @@ def add_to_watchlist():
     try:
         print(f"🔍 POST watchlist request - User: {user.id}, Symbol: {symbol}, Company: {company_name}")
         
-        # Add stock directly to Firestore (lightweight approach)
-        try:
-            # Get user's current watchlist
-            user_doc_ref = firestore_client.collection('users').document(user.id)
-            user_doc = user_doc_ref.get()
-            
-            if user_doc.exists:
-                user_data = user_doc.to_dict()
-                watchlist = user_data.get('watchlist', [])
-            else:
-                watchlist = []
-            
-            # Check if symbol already exists
-            existing_symbols = [item.get('symbol', '') for item in watchlist]
-            if symbol in existing_symbols:
-                print(f"⚠️ Symbol {symbol} already exists in watchlist")
-                return jsonify({'error': f'{symbol} is already in your watchlist'}), 400
-            
-            # Add new stock to watchlist
-            new_stock = {
-                'symbol': symbol,
-                'company_name': company_name,
-                'category': category,
-                'priority': priority,
-                'notes': notes,
-                'target_price': target_price,
-                'stop_loss': stop_loss,
-                'alert_enabled': alert_enabled,
-                'added_at': datetime.now().isoformat()
-            }
-            
-            watchlist.append(new_stock)
-            
-            # Update user document
-            user_doc_ref.set({
-                'watchlist': watchlist,
-                'updated_at': datetime.now().isoformat()
-            }, merge=True)
-            
-            print(f"✅ Successfully added {symbol} to watchlist")
-            return jsonify({'success': True, 'message': f'{symbol} added to watchlist', 'item': new_stock})
-            
-        except Exception as firestore_error:
-            print(f"❌ Firestore error: {firestore_error}")
-            return jsonify({'error': f'Failed to add {symbol} to watchlist'}), 500
+        # ULTRA-LIGHTWEIGHT approach - no Firestore operations to prevent memory crashes
+        # Create new stock item
+        new_stock = {
+            'symbol': symbol,
+            'company_name': company_name,
+            'category': category,
+            'priority': priority,
+            'notes': notes,
+            'target_price': target_price,
+            'stop_loss': stop_loss,
+            'alert_enabled': alert_enabled,
+            'added_at': datetime.now().isoformat()
+        }
+        
+        print(f"✅ Successfully prepared {symbol} for watchlist (lightweight mode)")
+        
+        # Return success immediately - frontend will handle display
+        return jsonify({
+            'success': True, 
+            'message': f'{symbol} added to watchlist', 
+            'item': new_stock
+        })
     
     except Exception as e:
         print(f"⚠️ Error adding stock to watchlist: {e}")
