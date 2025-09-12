@@ -544,56 +544,65 @@ def authenticate_request():
     return None
 
 @app.route('/api/watchlist', methods=['GET'])
-@with_timeout(25)  # 25 second timeout
 def get_watchlist_route():
+    """Lightweight watchlist endpoint with fallback"""
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
-    # Get query parameters for filtering
-    category = request.args.get('category')
-    priority = request.args.get('priority')
-
     try:
         print(f"🔍 GET watchlist request for user: {user.id}")
-        # Get watchlist using new service
-        watchlist = watchlist_service.get_watchlist(user.id, category=category, priority=priority)
-        print(f"✅ Retrieved {len(watchlist)} items from watchlist")
+        
+        # Try to get watchlist from Firestore directly (lightweight approach)
+        try:
+            # Get user's watchlist document directly from Firestore
+            user_doc_ref = firestore_client.collection('users').document(user.id)
+            user_doc = user_doc_ref.get()
+            
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                watchlist_items = user_data.get('watchlist', [])
+                print(f"✅ Retrieved {len(watchlist_items)} items from Firestore")
+                
+                # Convert to simple format without API calls
+                stocks_data = []
+                for item in watchlist_items:
+                    stock_data = {
+                        'id': item.get('symbol', ''),
+                        'symbol': item.get('symbol', ''),
+                        'name': item.get('company_name', item.get('symbol', '')),
+                        'price': 0.00,  # No price data to prevent API calls
+                        'lastMonthPrice': 0.00,
+                        'priceChange': 0.00,
+                        'priceChangePercent': 0.00,
+                        'category': item.get('category', 'General'),
+                        'priority': item.get('priority', 'medium'),
+                        'notes': item.get('notes', ''),
+                        'added_at': item.get('added_at', ''),
+                        'target_price': item.get('target_price'),
+                        'stop_loss': item.get('stop_loss'),
+                        'alert_enabled': item.get('alert_enabled', True)
+                    }
+                    stocks_data.append(stock_data)
+                
+                print(f"✅ Watchlist loaded successfully: {len(stocks_data)} stocks")
+                return jsonify(stocks_data)
+            else:
+                print("📝 No watchlist found for user")
+                return jsonify([])
+                
+        except Exception as firestore_error:
+            print(f"❌ Firestore error: {firestore_error}")
+            # Fallback: return empty watchlist
+            return jsonify([])
+            
     except Exception as e:
         print(f"❌ Error in get_watchlist_route: {e}")
         return jsonify({'error': 'Failed to retrieve watchlist'}), 500
 
-    # Return watchlist data without making API calls to prevent memory issues and rate limiting
-    stocks_data = []
-    print(f"📊 Processing {len(watchlist)} watchlist items (no API calls)")
-    
-    for watchlist_stock in watchlist:
-        # Return basic watchlist data without price updates to prevent API overload
-        stock_data = {
-            'id': watchlist_stock['symbol'],
-            'symbol': watchlist_stock['symbol'],
-            'name': watchlist_stock.get('company_name', watchlist_stock['symbol']),
-            'price': watchlist_stock.get('last_price', 0.0),
-            'lastMonthPrice': watchlist_stock.get('last_price', 0.0),
-            'priceChange': 0.0,
-            'priceChangePercent': 0.0,
-            'category': watchlist_stock.get('category', 'General'),
-            'priority': watchlist_stock.get('priority', 'medium'),
-            'notes': watchlist_stock.get('notes', ''),
-            'added_at': watchlist_stock.get('added_at'),
-            'target_price': watchlist_stock.get('target_price'),
-            'stop_loss': watchlist_stock.get('stop_loss'),
-            'alert_enabled': watchlist_stock.get('alert_enabled', True)
-        }
-        stocks_data.append(stock_data)
-        print(f"📊 Added {watchlist_stock['symbol']} to watchlist (no API call)")
-
-    print(f"✅ Watchlist loaded successfully: {len(stocks_data)} stocks")
-    return jsonify(stocks_data)
-
 @app.route('/api/watchlist', methods=['POST'])
-@with_timeout(25)  # 25 second timeout
 def add_to_watchlist():
+    """Lightweight watchlist POST endpoint with direct Firestore operations"""
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
@@ -613,28 +622,54 @@ def add_to_watchlist():
     alert_enabled = data.get('alert_enabled', True)
     company_name = data.get('company_name', symbol)  # Use provided name or fallback to symbol
 
-    # Add stock without making API calls to prevent timeout and memory issues
     try:
         print(f"🔍 POST watchlist request - User: {user.id}, Symbol: {symbol}, Company: {company_name}")
-        result = watchlist_service.add_stock(
-            user.id,
-            symbol,
-            company_name,
-            category=category,
-            notes=notes,
-            priority=priority,
-            target_price=target_price,
-            stop_loss=stop_loss,
-            alert_enabled=alert_enabled
-        )
-
-        if result['success']:
-            return jsonify({
-                'message': result['message'],
-                'item': result.get('item')
-            })
-        else:
-            return jsonify({'error': result['message']}), 400
+        
+        # Add stock directly to Firestore (lightweight approach)
+        try:
+            # Get user's current watchlist
+            user_doc_ref = firestore_client.collection('users').document(user.id)
+            user_doc = user_doc_ref.get()
+            
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                watchlist = user_data.get('watchlist', [])
+            else:
+                watchlist = []
+            
+            # Check if symbol already exists
+            existing_symbols = [item.get('symbol', '') for item in watchlist]
+            if symbol in existing_symbols:
+                print(f"⚠️ Symbol {symbol} already exists in watchlist")
+                return jsonify({'error': f'{symbol} is already in your watchlist'}), 400
+            
+            # Add new stock to watchlist
+            new_stock = {
+                'symbol': symbol,
+                'company_name': company_name,
+                'category': category,
+                'priority': priority,
+                'notes': notes,
+                'target_price': target_price,
+                'stop_loss': stop_loss,
+                'alert_enabled': alert_enabled,
+                'added_at': datetime.now().isoformat()
+            }
+            
+            watchlist.append(new_stock)
+            
+            # Update user document
+            user_doc_ref.set({
+                'watchlist': watchlist,
+                'updated_at': datetime.now().isoformat()
+            }, merge=True)
+            
+            print(f"✅ Successfully added {symbol} to watchlist")
+            return jsonify({'success': True, 'message': f'{symbol} added to watchlist', 'item': new_stock})
+            
+        except Exception as firestore_error:
+            print(f"❌ Firestore error: {firestore_error}")
+            return jsonify({'error': f'Failed to add {symbol} to watchlist'}), 500
     
     except Exception as e:
         print(f"⚠️ Error adding stock to watchlist: {e}")
