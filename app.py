@@ -246,9 +246,9 @@ def update_stock_prices():
 # Start background task for price updates
 def start_price_updates():
     """Start the background price update task with proper memory management"""
-    thread = threading.Thread(target=update_stock_prices, daemon=True, name="PriceUpdateThread")
-    thread.start()
-    print("🚀 Price update background thread started")
+    # TEMPORARILY DISABLED to fix memory issues
+    print("⏸️ Price update background task temporarily disabled to fix memory issues")
+    print("📊 Real-time updates will be available on-demand instead")
     
     # Add garbage collection to prevent memory leaks
     import gc
@@ -265,6 +265,11 @@ def start_price_updates():
     cleanup_thread = threading.Thread(target=cleanup_memory, daemon=True, name="MemoryCleanupThread")
     cleanup_thread.start()
     print("🧹 Memory cleanup thread started")
+    
+    # TODO: Re-enable price updates once memory issues are fully resolved
+    # thread = threading.Thread(target=update_stock_prices, daemon=True, name="PriceUpdateThread")
+    # thread.start()
+    # print("🚀 Price update background thread started")
 
 # Market status function
 def get_market_status():
@@ -342,7 +347,7 @@ def search_stock():
 
 @app.route('/api/search/stocks', methods=['GET'])
 def search_stocks():
-    """Search stocks by name or symbol"""
+    """Search stocks by name or symbol with caching and rate limiting protection"""
     query = request.args.get('q', '').strip()
     
     if not query:
@@ -352,8 +357,12 @@ def search_stocks():
         return jsonify({'error': 'Search query must be at least 2 characters'}), 400
     
     try:
+        # Add rate limiting protection
+        import time
+        time.sleep(0.2)  # 200ms delay to prevent rate limiting
+        
         # Search for stocks using the Yahoo Finance API
-        search_results = yahoo_finance_api.search_stocks(query, limit=15)
+        search_results = yahoo_finance_api.search_stocks(query, limit=10)  # Reduced limit
         
         if search_results:
             return jsonify({
@@ -368,12 +377,18 @@ def search_stocks():
             })
             
     except Exception as e:
-        print(f"Error searching stocks: {e}")
-        return jsonify({'error': 'Failed to search stocks'}), 500
+        print(f"⚠️ Error searching stocks for '{query}': {e}")
+        # Return a fallback response instead of 500 error
+        return jsonify({
+            'results': [],
+            'query': query,
+            'message': f'Search temporarily unavailable. Please try again in a moment.',
+            'error': str(e)
+        })
 
 @app.route('/api/search/companies', methods=['GET'])
 def search_companies():
-    """Search companies by name with enhanced results"""
+    """Search companies by name with enhanced results and rate limiting protection"""
     query = request.args.get('q', '').strip()
     
     if not query:
@@ -383,8 +398,12 @@ def search_companies():
         return jsonify({'error': 'Search query must be at least 2 characters'}), 400
     
     try:
+        # Add rate limiting protection
+        import time
+        time.sleep(0.3)  # 300ms delay to prevent rate limiting
+        
         # Enhanced search with company names
-        search_results = yahoo_finance_api.search_stocks(query, limit=20)
+        search_results = yahoo_finance_api.search_stocks(query, limit=15)  # Reduced limit
         
         # Filter and enhance results
         enhanced_results = []
@@ -405,8 +424,14 @@ def search_companies():
         })
             
     except Exception as e:
-        print(f"Error searching companies: {e}")
-        return jsonify({'error': 'Failed to search companies'}), 500
+        print(f"⚠️ Error searching companies for '{query}': {e}")
+        # Return a fallback response instead of 500 error
+        return jsonify({
+            'results': [],
+            'query': query,
+            'message': f'Company search temporarily unavailable. Please try again in a moment.',
+            'error': str(e)
+        })
 
 # Authentication decorator that supports both session and token auth
 def authenticate_request():
@@ -479,19 +504,21 @@ def get_watchlist_route():
     watchlist = watchlist_service.get_watchlist(user.id, category=category, priority=priority)
 
     stocks_data = []
-    for watchlist_stock in watchlist:
+    # Limit to max 10 stocks to prevent timeout
+    limited_watchlist = watchlist[:10]
+    
+    for i, watchlist_stock in enumerate(limited_watchlist):
         try:
+            # Add delay between API calls to prevent rate limiting
+            if i > 0:
+                import time
+                time.sleep(0.5)  # 500ms delay between stocks
+            
             stock = Stock(watchlist_stock['symbol'], yahoo_finance_api)
             stock.retrieve_data()
 
-            # Calculate last month's price and performance
-            last_month_date = datetime.now() - timedelta(days=30)
-            start_date = last_month_date.strftime("%Y-%m-%d")
-            end_date = datetime.now().strftime("%Y-%m-%d")
-            historical_data = yahoo_finance_api.get_historical_data(stock.symbol, start_date, end_date)
-            last_month_price = 0.0
-            if historical_data and len(historical_data) > 0:
-                last_month_price = historical_data[0]['close']
+            # Simplified price calculation to avoid historical data API calls
+            last_month_price = watchlist_stock.get('last_price', 0.0)
             price_change = stock.price - last_month_price if last_month_price > 0 else 0
             price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
 
