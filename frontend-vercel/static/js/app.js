@@ -730,7 +730,18 @@ async function getAuthHeaders() {
     }
 }
 
+// Debouncing mechanism to prevent multiple rapid calls
+let addingToWatchlist = new Set();
+
 async function addToWatchlist(symbol, companyName = null) {
+    // Prevent multiple rapid calls for the same symbol
+    if (addingToWatchlist.has(symbol)) {
+        console.log('⏸️ Already adding', symbol, 'to watchlist, skipping...');
+        return;
+    }
+    
+    addingToWatchlist.add(symbol);
+    
     try {
         console.log('📈 Adding symbol to watchlist:', symbol, 'Company:', companyName);
 
@@ -778,6 +789,9 @@ async function addToWatchlist(symbol, companyName = null) {
     } catch (error) {
         console.error('❌ Network error adding to watchlist:', error);
         showToast('Network error. Please check your connection and try again.', 'error');
+    } finally {
+        // Always remove from the set when operation completes
+        addingToWatchlist.delete(symbol);
     }
 }
 
