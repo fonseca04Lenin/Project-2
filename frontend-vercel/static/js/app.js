@@ -597,6 +597,30 @@ function displayStockResult(stock) {
 }
 
 //Watchlist functionality - Reactivated with independent operation
+// Global request tracking to prevent concurrent requests
+let watchlistRequestInProgress = false;
+let watchlistRequestPromise = null;
+
+async function loadWatchlistWithDeduplication() {
+    // If request already in progress, return the existing promise
+    if (watchlistRequestInProgress && watchlistRequestPromise) {
+        console.log('📊 Watchlist request already in progress, returning existing promise');
+        return watchlistRequestPromise;
+    }
+    
+    // Set flag and create new promise
+    watchlistRequestInProgress = true;
+    watchlistRequestPromise = loadWatchlist();
+    
+    try {
+        const result = await watchlistRequestPromise;
+        return result;
+    } finally {
+        watchlistRequestInProgress = false;
+        watchlistRequestPromise = null;
+    }
+}
+
 async function loadWatchlist() {
     console.log('📊 Loading watchlist (independent operation)...');
     
@@ -775,7 +799,7 @@ async function addToWatchlist(symbol, companyName = null) {
             showToast(data.message || `${symbol} added to watchlist`, 'success');
             // Load watchlist independently after adding stock
             setTimeout(() => {
-                loadWatchlist().catch(error => {
+                loadWatchlistWithDeduplication().catch(error => {
                     console.log('⚠️ Watchlist refresh after add failed (non-blocking):', error.message);
                 });
             }, 500);
@@ -824,7 +848,7 @@ async function removeFromWatchlist(symbol) {
             showToast(data.message || `${symbol} removed from watchlist`, 'success');
             // Load watchlist independently after removing stock
             setTimeout(() => {
-                loadWatchlist().catch(error => {
+                loadWatchlistWithDeduplication().catch(error => {
                     console.log('⚠️ Watchlist refresh after remove failed (non-blocking):', error.message);
                 });
             }, 500);
@@ -1546,7 +1570,7 @@ function showMainContent(user) {
     
     // Load watchlist independently in background (non-blocking)
     setTimeout(() => {
-        loadWatchlist().catch(error => {
+        loadWatchlistWithDeduplication().catch(error => {
             console.log('⚠️ Background watchlist loading failed (non-blocking):', error.message);
         });
     }, 2000); // 2 second delay to ensure other features are ready
@@ -1635,7 +1659,7 @@ function loadWatchlistIndependently() {
     
     // Load watchlist in background without blocking other operations
     setTimeout(() => {
-        loadWatchlist().catch(error => {
+        loadWatchlistWithDeduplication().catch(error => {
             console.log('⚠️ Independent watchlist loading failed (non-blocking):', error.message);
         });
     }, 1000); // 1 second delay to ensure search is ready first
