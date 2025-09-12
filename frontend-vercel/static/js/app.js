@@ -7,8 +7,8 @@ let searchTimeout = null; // Add timeout for search debouncing
 // Backend API base URL - Get from config file
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com';
 
-// Force cache busting - deployment timestamp: 2025-09-10-03:05
-const DEPLOYMENT_VERSION = '2.3.0-' + Date.now();
+// Force cache busting - deployment timestamp: 2025-09-12-03:25
+const DEPLOYMENT_VERSION = '2.4.0-' + Date.now();
 
 // DOM elements
 const searchInput = document.getElementById('searchInput');
@@ -605,8 +605,9 @@ async function loadWatchlist() {
         const headers = await getAuthHeaders();
         console.log('🔐 Auth headers prepared for watchlist load');
         
-        // Make request to backend
-        const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
+        // Make request to backend with cache busting
+        const timestamp = new Date().getTime();
+        const response = await fetch(`${API_BASE_URL}/api/watchlist?v=2.0&t=${timestamp}`, {
             method: 'GET',
             headers: headers,
             credentials: 'include'
