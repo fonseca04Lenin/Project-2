@@ -525,7 +525,7 @@ def search_companies():
 
 # Authentication decorator that supports both session and token auth
 def authenticate_request():
-    """Authenticate request using either session or Firebase token with memory leak protection"""
+    """Lightweight authentication that avoids Firestore calls to prevent memory leaks"""
     request_id = id(request)
     
     # Check if this request is already being processed
@@ -541,7 +541,7 @@ def authenticate_request():
                 active_requests[request_id] = current_user
             return current_user
 
-        # Try token-based auth
+        # Try token-based auth - LIGHTWEIGHT VERSION (no Firestore calls)
         auth_header = request.headers.get('Authorization')
         user_id_header = request.headers.get('X-User-ID')
 
@@ -558,39 +558,18 @@ def authenticate_request():
                     print(f"✅ Token UID: {decoded_token.get('uid')}, Header UID: {user_id_header}")
                 if decoded_token and decoded_token.get('uid') == user_id_header:
                     uid = decoded_token['uid']
-                    # Get user from Firestore (they should exist if they were properly authenticated)
-                    user = FirebaseService.get_user_by_id(uid)
-                    if user:
-                        print(f"✅ User authenticated: {user.email}")
-                        with request_lock:
-                            active_requests[request_id] = user
-                        return user
-                    else:
-                        print(f"⚠️ User {uid} not found in Firestore, attempting to create profile")
-                        # Try to create user profile in Firestore only (not in Firebase Auth)
-                        try:
-                            user_profile = {
-                                'uid': uid,
-                                'name': decoded_token.get('name', 'User'),
-                                'email': decoded_token.get('email', ''),
-                                'created_at': datetime.utcnow(),
-                                'last_login': datetime.utcnow()
-                            }
-                            # Store in Firestore directly
-                            firestore_db = get_firestore_client()
-                            if firestore_db:
-                                firestore_db.collection('users').document(uid).set(user_profile, merge=True)
-                                print(f"✅ User profile created in Firestore: {uid}")
-                                firebase_user = FirebaseUser(user_profile)
-                                with request_lock:
-                                    active_requests[request_id] = firebase_user
-                                return firebase_user
-                            else:
-                                print("❌ Firestore not available")
-                                return None
-                        except Exception as create_e:
-                            print(f"❌ Failed to create user profile: {create_e}")
-                            return None
+                    # Create lightweight user object from token data (no Firestore call)
+                    user_profile = {
+                        'uid': uid,
+                        'name': decoded_token.get('name', 'User'),
+                        'email': decoded_token.get('email', ''),
+                        'id': uid  # Ensure id field exists for compatibility
+                    }
+                    firebase_user = FirebaseUser(user_profile)
+                    print(f"✅ User authenticated from token: {firebase_user.email}")
+                    with request_lock:
+                        active_requests[request_id] = firebase_user
+                    return firebase_user
             except Exception as e:
                 print(f"Token authentication failed: {e}")
 
