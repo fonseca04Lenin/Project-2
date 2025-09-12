@@ -1494,12 +1494,145 @@ function showMainContent(user) {
     usernameWelcome.style.display = 'block';
     console.log('✅ Username updated:', displayName);
     
-    // Load fresh data
-    loadWatchlist();
-    loadAlerts();
+    // Progressive loading: News first, then search, then intelligence
+    console.log('📰 Starting progressive loading...');
+    showProgressiveLoadingIndicator();
+    
+    // 1. Load news first (since it's working well)
+    loadMarketNews().then(() => {
+        console.log('✅ News loaded successfully');
+        updateLoadingIndicator('Search functionality activating...', 1);
+        
+        // 2. Activate search functionality after news loads
+        activateSearchFunctionality().then(() => {
+            console.log('✅ Search functionality activated');
+            updateLoadingIndicator('Market intelligence loading...', 2);
+            
+            // 3. Load intelligence section last (market intelligence)
+            loadIntelligenceSection().then(() => {
+                console.log('✅ All sections loaded progressively');
+                hideProgressiveLoadingIndicator();
+            });
+        });
+    });
+    
+    // Load other non-critical data in background
     updateMarketStatus();
-    loadMarketNews();
     console.log('✅ Main content should now be visible');
+}
+
+// Progressive loading indicator functions
+function showProgressiveLoadingIndicator() {
+    // Create or show loading indicator
+    let indicator = document.getElementById('progressive-loading');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'progressive-loading';
+        indicator.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                        background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; 
+                        z-index: 9999; text-align: center; min-width: 300px;">
+                <div style="margin-bottom: 10px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                </div>
+                <div id="loading-message">Loading news...</div>
+                <div style="margin-top: 10px; font-size: 12px; opacity: 0.7;">
+                    Step <span id="loading-step">1</span> of 3
+                </div>
+            </div>
+        `;
+        document.body.appendChild(indicator);
+    }
+    indicator.style.display = 'block';
+}
+
+function updateLoadingIndicator(message, step) {
+    const messageEl = document.getElementById('loading-message');
+    const stepEl = document.getElementById('loading-step');
+    if (messageEl) messageEl.textContent = message;
+    if (stepEl) stepEl.textContent = step;
+}
+
+function hideProgressiveLoadingIndicator() {
+    const indicator = document.getElementById('progressive-loading');
+    if (indicator) {
+        indicator.style.display = 'none';
+    }
+}
+
+// Progressive loading functions
+async function activateSearchFunctionality() {
+    console.log('🔍 Activating search functionality...');
+    
+    return new Promise((resolve) => {
+        try {
+            // Ensure search input is enabled and visible
+            const searchInput = document.getElementById('search-input');
+            const searchBtn = document.getElementById('search-btn');
+            
+            if (searchInput) {
+                searchInput.disabled = false;
+                searchInput.placeholder = 'Search stocks...';
+                searchInput.style.opacity = '1';
+                console.log('✅ Search input activated');
+                
+                // Add visual feedback that search is ready
+                searchInput.style.borderColor = '#4CAF50';
+                searchInput.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.3)';
+            }
+            
+            if (searchBtn) {
+                searchBtn.disabled = false;
+                searchBtn.style.opacity = '1';
+                console.log('✅ Search button activated');
+                
+                // Add visual feedback that button is ready
+                searchBtn.style.backgroundColor = '#4CAF50';
+            }
+            
+            // Load watchlist in background (non-blocking)
+            loadWatchlist().catch(error => {
+                console.log('⚠️ Watchlist loading in background:', error);
+            });
+            
+            // Load alerts in background (non-blocking)
+            loadAlerts().catch(error => {
+                console.log('⚠️ Alerts loading in background:', error);
+            });
+            
+            // Resolve after a short delay to ensure UI is ready
+            setTimeout(resolve, 500);
+            
+        } catch (error) {
+            console.log('⚠️ Error activating search:', error);
+            resolve(); // Continue anyway
+        }
+    });
+}
+
+async function loadIntelligenceSection() {
+    console.log('🧠 Loading market intelligence section...');
+    
+    return new Promise((resolve) => {
+        try {
+            // Initialize market intelligence features
+            initializeMarketIntelligence();
+            
+            // Show intelligence section with loading indicator
+            const intelligenceSection = document.querySelector('.market-intelligence');
+            if (intelligenceSection) {
+                intelligenceSection.style.opacity = '1';
+                console.log('✅ Market intelligence section activated');
+            }
+            
+            // Resolve after a short delay
+            setTimeout(resolve, 1000);
+            
+        } catch (error) {
+            console.log('⚠️ Error loading intelligence section:', error);
+            resolve(); // Continue anyway
+        }
+    });
 }
 
 function showAuthForms() {
