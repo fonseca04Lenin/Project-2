@@ -547,7 +547,7 @@ async function searchStock() {
                     const message = `Alert triggered for ${symbol}: Price ${alert.alert_type} $${alert.target_price}`;
                     showNotification(message, 'warning');
                 });
-                loadAlerts();
+                // loadAlerts(); // Disabled
             }
         } else {
             showToast(data.error || 'Stock not found', 'error');
@@ -598,6 +598,10 @@ function displayStockResult(stock) {
 
 //Watchlist functionality
 async function loadWatchlist() {
+    // Watchlist functionality disabled for now
+    console.log('⏸️ Watchlist functionality disabled');
+    return;
+    
     try {
         console.log('🔐 Loading watchlist...');
 
@@ -764,7 +768,7 @@ async function addToWatchlist(symbol) {
 
         if (response.ok) {
             showToast(data.message || `${symbol} added to watchlist`, 'success');
-            loadWatchlist();
+            // loadWatchlist(); // Disabled
         } else if (response.status === 401) {
             console.error('❌ Authentication failed - redirecting to login');
             showToast('Session expired. Please log in again.', 'error');
@@ -805,7 +809,7 @@ async function removeFromWatchlist(symbol) {
 
         if (response.ok) {
             showToast(data.message || `${symbol} removed from watchlist`, 'success');
-            loadWatchlist();
+            // loadWatchlist(); // Disabled
         } else {
             showToast(data.error || 'Error removing from watchlist', 'error');
         }
@@ -1183,6 +1187,10 @@ function getToastIcon(type) {
 
 // Alert Management Functions
 async function loadAlerts() {
+    // Alert system completely disabled for now
+    console.log('⏸️ Alert system disabled');
+    return;
+    
     try {
         console.log('🔐 Loading alerts...');
 
@@ -1275,7 +1283,7 @@ async function createAlert() {
             showToast('Alert created successfully', 'success');
             document.getElementById('alert-symbol').value = '';
             document.getElementById('alert-price').value = '';
-            loadAlerts();
+            // loadAlerts(); // Disabled
         } else if (response.status === 401) {
             console.error('❌ Authentication failed for alert creation');
             showToast('Session expired. Please log in again.', 'error');
@@ -1311,7 +1319,7 @@ async function deleteAlert(symbol, index) {
 
         if (response.ok) {
             showToast('Alert deleted successfully', 'success');
-            loadAlerts();
+            // loadAlerts(); // Disabled
         } else if (response.status === 401) {
             console.error('❌ Authentication failed for alert deletion');
             showToast('Session expired. Please log in again.', 'error');
@@ -1503,21 +1511,23 @@ function showMainContent(user) {
         console.log('✅ News loaded successfully');
         updateLoadingIndicator('Search functionality activating...', 1);
         
-        // 2. Activate search functionality after news loads
-        activateSearchFunctionality().then(() => {
-            console.log('✅ Search functionality activated');
-            updateLoadingIndicator('Market intelligence loading...', 2);
-            
-            // 3. Load intelligence section last (market intelligence)
-            loadIntelligenceSection().then(() => {
-                console.log('✅ All sections loaded progressively');
-                hideProgressiveLoadingIndicator();
-            });
+        // 2. Activate search functionality after news loads (immediate)
+        activateSearchFunctionality();
+        console.log('✅ Search functionality activated immediately');
+        updateLoadingIndicator('Market intelligence loading...', 2);
+        
+        // 3. Load intelligence section last (market intelligence)
+        loadIntelligenceSection().then(() => {
+            console.log('✅ All sections loaded progressively');
+            hideProgressiveLoadingIndicator();
         });
     });
     
     // Load other non-critical data in background
     updateMarketStatus();
+    
+    // Watchlist and alerts completely disabled for now
+    console.log('⏸️ Watchlist and alerts systems disabled');
     console.log('✅ Main content should now be visible');
 }
 
@@ -1561,53 +1571,40 @@ function hideProgressiveLoadingIndicator() {
 }
 
 // Progressive loading functions
-async function activateSearchFunctionality() {
-    console.log('🔍 Activating search functionality...');
+function activateSearchFunctionality() {
+    console.log('🔍 Activating search functionality immediately...');
     
-    return new Promise((resolve) => {
-        try {
-            // Ensure search input is enabled and visible
-            const searchInput = document.getElementById('search-input');
-            const searchBtn = document.getElementById('search-btn');
+    try {
+        // Ensure search input is enabled and visible
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        
+        if (searchInput) {
+            searchInput.disabled = false;
+            searchInput.placeholder = 'Search stocks...';
+            searchInput.style.opacity = '1';
+            console.log('✅ Search input activated');
             
-            if (searchInput) {
-                searchInput.disabled = false;
-                searchInput.placeholder = 'Search stocks...';
-                searchInput.style.opacity = '1';
-                console.log('✅ Search input activated');
-                
-                // Add visual feedback that search is ready
-                searchInput.style.borderColor = '#4CAF50';
-                searchInput.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.3)';
-            }
-            
-            if (searchBtn) {
-                searchBtn.disabled = false;
-                searchBtn.style.opacity = '1';
-                console.log('✅ Search button activated');
-                
-                // Add visual feedback that button is ready
-                searchBtn.style.backgroundColor = '#4CAF50';
-            }
-            
-            // Load watchlist in background (non-blocking)
-            loadWatchlist().catch(error => {
-                console.log('⚠️ Watchlist loading in background:', error);
-            });
-            
-            // Load alerts in background (non-blocking)
-            loadAlerts().catch(error => {
-                console.log('⚠️ Alerts loading in background:', error);
-            });
-            
-            // Resolve after a short delay to ensure UI is ready
-            setTimeout(resolve, 500);
-            
-        } catch (error) {
-            console.log('⚠️ Error activating search:', error);
-            resolve(); // Continue anyway
+            // Add visual feedback that search is ready
+            searchInput.style.borderColor = '#4CAF50';
+            searchInput.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.3)';
         }
-    });
+        
+        if (searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.style.opacity = '1';
+            console.log('✅ Search button activated');
+            
+            // Add visual feedback that button is ready
+            searchBtn.style.backgroundColor = '#4CAF50';
+        }
+        
+        // Watchlist and alerts disabled for now to fix search issues
+        console.log('⏸️ Watchlist and alerts disabled for independent search functionality');
+        
+    } catch (error) {
+        console.log('⚠️ Error activating search:', error);
+    }
 }
 
 async function loadIntelligenceSection() {
