@@ -584,7 +584,7 @@ function displayStockResult(stock) {
             </div>
         </div>
         <div class="stock-actions">
-            <button class="btn btn-primary" onclick="addToWatchlist('${stock.symbol}')">
+            <button class="btn btn-primary" onclick="addToWatchlist('${stock.symbol}', '${stock.name || stock.symbol}')">
                 <i class="fas fa-star"></i>
                 Add to Watchlist
             </button>
@@ -730,9 +730,9 @@ async function getAuthHeaders() {
     }
 }
 
-async function addToWatchlist(symbol) {
+async function addToWatchlist(symbol, companyName = null) {
     try {
-        console.log('📈 Adding symbol to watchlist:', symbol);
+        console.log('📈 Adding symbol to watchlist:', symbol, 'Company:', companyName);
 
         let headers;
         try {
@@ -747,7 +747,10 @@ async function addToWatchlist(symbol) {
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({ symbol: symbol }),
+            body: JSON.stringify({ 
+                symbol: symbol,
+                company_name: companyName || symbol
+            }),
             credentials: 'include' // Fallback for session auth
         });
 
