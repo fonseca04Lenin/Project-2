@@ -2425,6 +2425,224 @@ body {
     }
 }
 
+/* Handmade/Artistic Elements */
+.floating-decorations {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.floating-shape {
+    position: absolute;
+    font-size: 2rem;
+    opacity: 0.6;
+    animation: float 6s ease-in-out infinite;
+    filter: drop-shadow(0 4px 8px rgba(0, 217, 36, 0.3));
+}
+
+.shape-1 {
+    top: 20%;
+    left: 10%;
+    animation-delay: 0s;
+    animation-duration: 4s;
+}
+
+.shape-2 {
+    top: 60%;
+    left: 5%;
+    animation-delay: 1s;
+    animation-duration: 5s;
+}
+
+.shape-3 {
+    top: 40%;
+    right: 15%;
+    animation-delay: 2s;
+    animation-duration: 6s;
+}
+
+.shape-4 {
+    top: 80%;
+    right: 20%;
+    animation-delay: 3s;
+    animation-duration: 4.5s;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-20px) rotate(5deg);
+    }
+    50% {
+        transform: translateY(-10px) rotate(-5deg);
+    }
+    75% {
+        transform: translateY(-15px) rotate(3deg);
+    }
+}
+
+/* Handwritten style title underline */
+.title-underline {
+    width: 120px;
+    height: 6px;
+    background: var(--primary-color);
+    margin-top: 10px;
+    border-radius: 3px;
+    position: relative;
+    animation: drawLine 2s ease-out;
+    transform-origin: left;
+}
+
+.title-underline::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    width: 8px;
+    height: 10px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    transform: translateX(-50%);
+    opacity: 0.7;
+}
+
+@keyframes drawLine {
+    0% {
+        width: 0;
+    }
+    100% {
+        width: 120px;
+    }
+}
+
+/* Wiggle animation for highlight text */
+.wiggle-text {
+    display: inline-block;
+    animation: wiggle 3s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    25% {
+        transform: rotate(0.5deg);
+    }
+    75% {
+        transform: rotate(-0.5deg);
+    }
+}
+
+/* Floating badges for stats */
+.floating-badge {
+    animation: floatUp 3s ease-in-out infinite;
+    transform-origin: center;
+}
+
+@keyframes floatUp {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* Pulsing numbers */
+.pulse-number {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Handwritten accent for title */
+.handwritten-accent {
+    position: relative;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.handwritten-accent::before {
+    content: '✨';
+    position: absolute;
+    top: -20px;
+    right: -30px;
+    font-size: 1.5rem;
+    animation: sparkle 2s ease-in-out infinite;
+    opacity: 0.8;
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.2) rotate(180deg);
+        opacity: 1;
+    }
+}
+
+/* Add subtle hover effects */
+.proof-item:hover {
+    transform: translateY(-2px);
+    transition: transform 0.3s ease;
+}
+
+.feature-point:hover .feature-icon {
+    transform: rotate(10deg) scale(1.1);
+    transition: transform 0.3s ease;
+}
+
+/* Artistic auth card */
+.artistic-card {
+    position: relative;
+    transform: rotate(-0.5deg);
+    transition: all 0.3s ease;
+    box-shadow: 
+        var(--shadow-lg),
+        0 0 0 1px rgba(0, 217, 36, 0.1);
+}
+
+.artistic-card:hover {
+    transform: rotate(0deg) scale(1.02);
+    box-shadow: 
+        0 12px 32px rgba(0, 0, 0, 0.6),
+        0 0 0 2px rgba(0, 217, 36, 0.2);
+}
+
+.artistic-card::before {
+    content: '🚀';
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    font-size: 2rem;
+    animation: bounce 2s ease-in-out infinite;
+    z-index: 10;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    50% {
+        transform: translateY(-10px) rotate(10deg);
+    }
+}
+
 .modern-form {
     display: flex;
     flex-direction: column;
