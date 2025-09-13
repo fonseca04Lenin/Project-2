@@ -633,8 +633,7 @@ async function loadWatchlist() {
         const timestamp = new Date().getTime();
         const response = await fetch(`${API_BASE_URL}/api/watchlist?v=2.0&t=${timestamp}`, {
             method: 'GET',
-            headers: headers,
-            credentials: 'include'
+            headers: headers
         });
         
         console.log('📊 Watchlist response status:', response.status);
@@ -770,15 +769,8 @@ async function addToWatchlist(symbol, companyName = null) {
     try {
         console.log('📈 Adding symbol to watchlist:', symbol, 'Company:', companyName);
 
-        let headers;
-        try {
-            headers = await getAuthHeaders();
-            console.log('🔐 Auth headers prepared for user:', window.firebaseAuth.currentUser.uid);
-        } catch (authError) {
-            console.error('❌ Auth failed, falling back to session-based auth:', authError.message);
-            // Fallback to session-based authentication
-            headers = { 'Content-Type': 'application/json' };
-        }
+        const headers = await getAuthHeaders();
+        console.log('🔐 Auth headers prepared for user:', window.firebaseAuth.currentUser.uid);
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'POST',
@@ -786,8 +778,7 @@ async function addToWatchlist(symbol, companyName = null) {
             body: JSON.stringify({ 
                 symbol: symbol,
                 company_name: companyName || symbol
-            }),
-            credentials: 'include' // Fallback for session auth
+            })
         });
 
         console.log('📡 Watchlist POST response status:', response.status);
@@ -1457,32 +1448,31 @@ async function checkAuthStatus() {
                     console.log('🔗 Verifying with backend...');
                     
                     try {
-                        // Get fresh ID token and verify with backend
-                        const idToken = await user.getIdToken();
-                        currentAuthRequest = fetch(`${API_BASE_URL}/api/auth/login`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ idToken }),
-                            credentials: 'include'
+                        // Test token-based authentication directly
+                        console.log('🔑 Testing token-based authentication...');
+                        const testHeaders = await getAuthHeaders();
+                        
+                        currentAuthRequest = fetch(`${API_BASE_URL}/api/debug/auth`, {
+                            method: 'GET',
+                            headers: testHeaders
                         });
 
                         const response = await currentAuthRequest;
 
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('✅ Backend session restored for:', data.user.email);
+                            console.log('✅ Token-based authentication successful for:', data.user.email);
                             showMainContent(data.user);
                         } else {
-                            console.log('❌ Backend session invalid, signing out...');
+                            const errorText = await response.text();
+                            console.log('❌ Token authentication failed:', response.status, errorText);
                             if (window.firebaseAuth) {
                                 await window.firebaseAuth.signOut();
                             }
                             showAuthForms();
                         }
                     } catch (error) {
-                        console.error('❌ Error verifying with backend:', error);
+                        console.error('❌ Error with token authentication:', error);
                         if (window.firebaseAuth) {
                             await window.firebaseAuth.signOut();
                         }
