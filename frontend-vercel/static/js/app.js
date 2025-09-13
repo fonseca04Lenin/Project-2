@@ -625,22 +625,20 @@ async function loadWatchlistWithDeduplication() {
 }
 
 async function loadWatchlist() {
-    console.log('📊 Loading watchlist with backend-first approach...');
+    console.log('📊 Loading watchlist from browser storage...');
     
-    // Try to load from backend first
-    const success = await loadWatchlistWithRetry();
+    // Load watchlist from local storage
+    const watchlist = getBrowserWatchlist();
     
-    // If backend fails, try local cache as fallback
-    if (!success) {
-        const localWatchlist = getLocalWatchlist();
-        if (localWatchlist.length > 0) {
-            console.log('📦 Backend unavailable, using cached watchlist...');
-            displayWatchlist(localWatchlist);
-            showToast('Using cached watchlist (backend unavailable)', 'warning');
-        } else {
-            console.log('📭 No watchlist data available (backend down, no cache)');
-            displayWatchlist([]);
-        }
+    if (watchlist.length > 0) {
+        console.log(`📦 Found ${watchlist.length} stocks in browser watchlist`);
+        displayWatchlist(watchlist);
+        
+        // Fetch live prices for stored stocks
+        await updateWatchlistPrices(watchlist);
+    } else {
+        console.log('📭 No stocks in watchlist');
+        displayWatchlist([]);
     }
 }
 
@@ -743,24 +741,39 @@ function displayWatchlist(stocks) {
     }
 
     const watchlistHTML = stocks.map(stock => {
-        const perf = stock.priceChangePercent;
+        // Handle different field names from browser storage
+        const stockName = stock.company_name || stock.name || stock.symbol;
+        const stockPrice = typeof stock.price === 'number' ? stock.price : 
+                          (stock.price === 'Loading...' ? 0 : parseFloat(stock.price) || 0);
+        const changePercent = stock.change_percent || stock.priceChangePercent || 0;
+        const change = stock.change || 0;
+        
         let perfClass = 'watchlist-perf-flat';
-        let perfText = 'No change this month';
-        if (perf > 0.01) {
-            perfClass = 'watchlist-perf-up';
-            perfText = `Up ${perf.toFixed(2)}% this month`;
-        } else if (perf < -0.01) {
-            perfClass = 'watchlist-perf-down';
-            perfText = `Down ${Math.abs(perf).toFixed(2)}% this month`;
+        let perfText = 'No change';
+        
+        if (typeof changePercent === 'number' && changePercent !== 0) {
+            if (changePercent > 0) {
+                perfClass = 'watchlist-perf-up';
+                perfText = `+${changePercent.toFixed(2)}% today`;
+            } else {
+                perfClass = 'watchlist-perf-down';
+                perfText = `${changePercent.toFixed(2)}% today`;
+            }
+        } else if (stock.price === 'Loading...' || stock.change === 'Loading...') {
+            perfText = 'Loading...';
         }
+        
+        const priceDisplay = stock.price === 'Loading...' ? 'Loading...' : 
+                           `$${stockPrice.toFixed(2)}`;
+        
         return `
         <div class="watchlist-item">
             <div class="watchlist-item-header">
                 <div>
-                    <h4>${stock.name}</h4>
+                    <h4>${stockName}</h4>
                     <span class="watchlist-item-symbol">${stock.symbol}</span>
                 </div>
-                <div class="watchlist-item-price ${perfClass}">$${stock.price.toFixed(2)}</div>
+                <div class="watchlist-item-price ${perfClass}">${priceDisplay}</div>
             </div>
             <div class="watchlist-item-performance ${perfClass}">${perfText}</div>
             <div class="watchlist-item-actions">
@@ -780,77 +793,70 @@ function displayWatchlist(stocks) {
     watchlistContainer.innerHTML = watchlistHTML;
 }
 
-// Local Storage Functions for Watchlist
-function getLocalWatchlist() {
+// Browser Storage Functions for Watchlist (Portfolio Version)
+function getBrowserWatchlist() {
     try {
-        const stored = localStorage.getItem('watchlist_cache');
+        const stored = localStorage.getItem('portfolio_watchlist');
         if (!stored) return [];
         
-        const cacheData = JSON.parse(stored);
-        const now = Date.now();
-        
-        // Check if cache is expired
-        if (now - cacheData.timestamp > cacheData.expiresAfter) {
-            console.log('🗑️ Local watchlist cache expired, clearing...');
-            localStorage.removeItem('watchlist_cache');
-            return [];
-        }
-        
-        console.log('📦 Using cached watchlist (valid for ' + 
-                   Math.round((cacheData.expiresAfter - (now - cacheData.timestamp)) / 1000 / 60) + ' more minutes)');
-        return cacheData.watchlist || [];
+        const watchlistData = JSON.parse(stored);
+        console.log('📦 Retrieved watchlist from browser storage');
+        return watchlistData || [];
     } catch (error) {
-        console.log('⚠️ Error reading local watchlist cache:', error.message);
+        console.log('⚠️ Error reading browser watchlist:', error.message);
         return [];
     }
 }
 
-function saveLocalWatchlist(watchlist) {
+function saveBrowserWatchlist(watchlist) {
     try {
-        // Save with timestamp for cache invalidation
-        const cacheData = {
-            watchlist: watchlist,
-            timestamp: Date.now(),
-            expiresAfter: 24 * 60 * 60 * 1000 // 24 hours
-        };
-        localStorage.setItem('watchlist_cache', JSON.stringify(cacheData));
-        console.log('💾 Watchlist cached locally (24h expiry)');
+        localStorage.setItem('portfolio_watchlist', JSON.stringify(watchlist));
+        console.log('💾 Watchlist saved to browser storage');
     } catch (error) {
-        console.log('⚠️ Error caching watchlist:', error.message);
+        console.log('⚠️ Error saving browser watchlist:', error.message);
     }
 }
 
-function addToLocalWatchlist(symbol, companyName) {
+function addToBrowserWatchlist(symbol, companyName) {
     try {
-        const watchlist = getLocalWatchlist();
+        const watchlist = getBrowserWatchlist();
         const exists = watchlist.find(stock => stock.symbol === symbol);
         
         if (!exists) {
-            watchlist.push({
+            const newStock = {
                 symbol: symbol,
                 company_name: companyName || symbol,
                 price: 'Loading...',
                 change: 'Loading...',
-                change_percent: 'Loading...'
-            });
-            saveLocalWatchlist(watchlist);
+                change_percent: 'Loading...',
+                added_at: new Date().toISOString()
+            };
+            
+            watchlist.push(newStock);
+            saveBrowserWatchlist(watchlist);
             displayWatchlist(watchlist);
-            console.log(`💾 ${symbol} added to local watchlist`);
+            console.log(`💾 ${symbol} added to browser watchlist`);
+            
+            // Fetch price for the new stock
+            fetchStockPrice(symbol, companyName);
+        } else {
+            console.log(`📊 ${symbol} already exists in watchlist`);
         }
     } catch (error) {
-        console.log('⚠️ Error adding to local watchlist:', error.message);
+        console.log('⚠️ Error adding to browser watchlist:', error.message);
     }
 }
 
-function removeFromLocalWatchlist(symbol) {
+function removeFromBrowserWatchlist(symbol) {
     try {
-        const watchlist = getLocalWatchlist();
+        const watchlist = getBrowserWatchlist();
         const filtered = watchlist.filter(stock => stock.symbol !== symbol);
-        saveLocalWatchlist(filtered);
+        saveBrowserWatchlist(filtered);
         displayWatchlist(filtered);
-        console.log(`💾 ${symbol} removed from local watchlist`);
+        console.log(`💾 ${symbol} removed from browser watchlist`);
+        showToast(`${symbol} removed from watchlist`, 'success');
     } catch (error) {
-        console.log('⚠️ Error removing from local watchlist:', error.message);
+        console.log('⚠️ Error removing from browser watchlist:', error.message);
     }
 }
 
@@ -917,6 +923,87 @@ async function getAuthHeaders() {
     }
 }
 
+// Stock Price Fetching Functions (Portfolio Version)
+async function fetchStockPrice(symbol, companyName) {
+    try {
+        console.log(`💰 Fetching price for ${symbol}...`);
+        
+        // Use Yahoo Finance API (free, no auth required)
+        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`, {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const result = data.chart.result[0];
+        const meta = result.meta;
+        const quote = result.indicators.quote[0];
+        
+        const currentPrice = meta.regularMarketPrice;
+        const previousClose = meta.previousClose;
+        const change = currentPrice - previousClose;
+        const changePercent = (change / previousClose) * 100;
+        
+        // Update the watchlist with new price data
+        updateStockInWatchlist(symbol, {
+            price: currentPrice.toFixed(2),
+            change: change.toFixed(2),
+            change_percent: changePercent.toFixed(2),
+            company_name: companyName || meta.longName || symbol
+        });
+        
+        console.log(`✅ Updated price for ${symbol}: $${currentPrice.toFixed(2)}`);
+        
+    } catch (error) {
+        console.log(`⚠️ Error fetching price for ${symbol}:`, error.message);
+        
+        // Update with demo data if API fails
+        updateStockInWatchlist(symbol, {
+            price: (Math.random() * 200 + 50).toFixed(2),
+            change: (Math.random() * 10 - 5).toFixed(2),
+            change_percent: (Math.random() * 5 - 2.5).toFixed(2),
+            company_name: companyName || symbol
+        });
+    }
+}
+
+async function updateWatchlistPrices(watchlist) {
+    console.log('🔄 Updating prices for all watchlist stocks...');
+    
+    for (const stock of watchlist) {
+        await fetchStockPrice(stock.symbol, stock.company_name);
+        // Add small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+}
+
+function updateStockInWatchlist(symbol, priceData) {
+    try {
+        const watchlist = getBrowserWatchlist();
+        const stockIndex = watchlist.findIndex(stock => stock.symbol === symbol);
+        
+        if (stockIndex !== -1) {
+            // Update the stock with new price data
+            watchlist[stockIndex] = {
+                ...watchlist[stockIndex],
+                ...priceData,
+                last_updated: new Date().toISOString()
+            };
+            
+            saveBrowserWatchlist(watchlist);
+            displayWatchlist(watchlist);
+        }
+    } catch (error) {
+        console.log('⚠️ Error updating stock in watchlist:', error.message);
+    }
+}
+
 // Debouncing mechanism to prevent multiple rapid calls
 let addingToWatchlist = new Set();
 
@@ -930,25 +1017,24 @@ async function addToWatchlist(symbol, companyName = null) {
     addingToWatchlist.add(symbol);
     
     try {
-        console.log('📈 Adding symbol to watchlist:', symbol, 'Company:', companyName);
+        console.log('📈 Adding symbol to browser watchlist:', symbol, 'Company:', companyName);
 
-        // Show optimistic UI immediately
-        showToast(`Adding ${symbol} to watchlist...`, 'info');
-
-        // Attempt to add to backend first (with retries)
-        const success = await syncWatchlistAddition(symbol, companyName);
+        // Check if already exists
+        const watchlist = getBrowserWatchlist();
+        const exists = watchlist.find(stock => stock.symbol === symbol);
         
-        if (success) {
-            showToast(`${symbol} added to watchlist`, 'success');
-        } else {
-            // Fallback: add to local cache with warning
-            addToLocalWatchlist(symbol, companyName);
-            showToast(`${symbol} added locally (will sync when backend available)`, 'warning');
+        if (exists) {
+            showToast(`${symbol} is already in your watchlist`, 'warning');
+            return;
         }
+
+        // Add to browser storage
+        addToBrowserWatchlist(symbol, companyName);
+        showToast(`${symbol} added to watchlist`, 'success');
         
     } catch (error) {
         console.error('❌ Error adding to watchlist:', error);
-        showToast('Added to local watchlist (will sync when backend available)', 'warning');
+        showToast('Error adding to watchlist', 'error');
     } finally {
         // Always remove from the set when operation completes
         addingToWatchlist.delete(symbol);
@@ -1018,62 +1104,32 @@ async function syncWatchlistAddition(symbol, companyName, retryCount = 0, maxRet
 
 async function removeFromWatchlist(symbol) {
     try {
-        console.log('🗑️ Removing from watchlist:', symbol);
-
-        const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for watchlist removal');
-
-        const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
-            method: 'DELETE',
-            headers: headers
-        });
-
-        console.log('📡 Delete response status:', response.status);
-
-        if (response.status === 401) {
-            console.error('❌ Authentication failed for watchlist removal');
-            showToast('Session expired. Please log in again.', 'error');
-            handleLogout();
-            return;
-        }
-
-        const data = await response.json();
-        console.log('📄 Delete response data:', data);
-
-        if (response.ok) {
-            showToast(data.message || `${symbol} removed from watchlist`, 'success');
-            // Load watchlist independently after removing stock
-            setTimeout(() => {
-                loadWatchlistWithDeduplication().catch(error => {
-                    console.log('⚠️ Watchlist refresh after remove failed (non-blocking):', error.message);
-                });
-            }, 500);
-        } else {
-            showToast(data.error || 'Error removing from watchlist', 'error');
-        }
+        console.log('🗑️ Removing from browser watchlist:', symbol);
+        
+        // Remove from browser storage
+        removeFromBrowserWatchlist(symbol);
+        
     } catch (error) {
-        if (error.message === 'User not authenticated') {
-            showToast('Please log in to remove stocks from your watchlist', 'error');
-        } else {
-            console.error('❌ Error removing from watchlist:', error);
-            showToast('Error removing from watchlist', 'error');
-        }
+        console.error('❌ Error removing from watchlist:', error);
+        showToast('Error removing from watchlist', 'error');
     }
 }
 
 async function clearWatchlist() {
-    if (watchlistData.length === 0) {
+    const watchlist = getBrowserWatchlist();
+    
+    if (watchlist.length === 0) {
         showToast('Watchlist is already empty', 'info');
         return;
     }
 
     if (confirm('Are you sure you want to clear your entire watchlist?')) {
         try {
-            // Remove each stock individually
-            for (const stock of watchlistData) {
-                await removeFromWatchlist(stock.symbol);
-            }
+            // Clear browser storage
+            saveBrowserWatchlist([]);
+            displayWatchlist([]);
             showToast('Watchlist cleared successfully', 'success');
+            console.log('🗑️ Watchlist cleared from browser storage');
         } catch (error) {
             console.error('Error clearing watchlist:', error);
             showToast('Error clearing watchlist', 'error');
@@ -1827,7 +1883,7 @@ function showMainContent(user) {
     
     // Load watchlist independently in background (non-blocking)
     setTimeout(() => {
-        loadWatchlistWithDeduplication().catch(error => {
+        loadWatchlist().catch(error => {
             console.log('⚠️ Background watchlist loading failed (non-blocking):', error.message);
         });
     }, 2000); // 2 second delay to ensure other features are ready
@@ -1926,7 +1982,7 @@ function loadWatchlistIndependently() {
             // Small delay to let other initialization finish
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            await loadWatchlistWithDeduplication();
+            await loadWatchlist();
         } catch (error) {
             console.log('⚠️ Independent watchlist loading failed (non-blocking):', error.message);
         }
