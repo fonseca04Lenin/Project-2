@@ -29,9 +29,6 @@ const optionsSymbolInput = document.getElementById('options-symbol');
 
 // Initialize app
 function initializeApp() {
-    console.log('🚀 App initialized');
-    console.log('🔍 DEBUG: Firebase status at init - window.firebaseAuth =', window.firebaseAuth);
-    console.log('🔍 DEBUG: Firebase status at init - firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
     checkAuthStatus();
     updateMarketStatus();
     
@@ -172,7 +169,6 @@ function setupIntelligenceSearch(inputElement, resultsContainerId, searchFunctio
                     suggestionsContainer.style.display = 'none';
                 }
             } catch (error) {
-                console.error('Error fetching suggestions:', error);
             } finally {
                 loadingSpinner.style.display = 'none';
             }
@@ -274,7 +270,6 @@ function setupMainSearchSuggestions() {
                     suggestionsContainer.style.display = 'none';
                 }
             } catch (error) {
-                console.error('Error fetching company suggestions:', error);
             } finally {
                 loadingSpinner.style.display = 'none';
             }
@@ -325,12 +320,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Wait for Firebase to be initialized before starting the app
     const waitForFirebase = () => {
         if (window.firebaseAuth) {
-            console.log('✅ Firebase ready, initializing app...');
             initializeApp();
             initializeMarketIntelligence();
             initializeLandingPageInteractions();
         } else {
-            console.log('⏳ Waiting for Firebase to initialize...');
             setTimeout(waitForFirebase, 100);
         }
     };
@@ -531,7 +524,6 @@ const POPULAR_STOCKS = [
 // Direct Yahoo Finance stock data fetch for fast search
 async function fetchStockDataDirect(symbol) {
     try {
-        console.log(`⚡ Fetching direct data for ${symbol}...`);
         
         const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`, {
             method: 'GET',
@@ -548,7 +540,6 @@ async function fetchStockDataDirect(symbol) {
         const result = data?.chart?.result?.[0];
         
         if (!result) {
-            console.log(`⚠️ No data found for ${symbol}`);
             return null;
         }
         
@@ -571,11 +562,9 @@ async function fetchStockDataDirect(symbol) {
             currency: meta.currency || 'USD'
         };
         
-        console.log(`✅ Direct fetch successful for ${symbol}:`, stockData);
         return stockData;
         
     } catch (error) {
-        console.log(`⚠️ Direct fetch failed for ${symbol}:`, error.message);
         
         // Return demo data as fallback
         return {
@@ -596,7 +585,6 @@ async function fetchStockDataDirect(symbol) {
 // Wake up backend for faster search
 async function wakeUpBackend() {
     try {
-        console.log('⏰ Waking up backend for search...');
         const response = await fetch(`${API_BASE_URL}/api/health`, {
             method: 'GET',
             credentials: 'include',
@@ -604,12 +592,9 @@ async function wakeUpBackend() {
         });
         
         if (response.ok) {
-            console.log('✅ Backend is awake and ready');
         } else {
-            console.log('⚠️ Backend wake-up returned non-OK status');
         }
     } catch (error) {
-        console.log('⚠️ Backend wake-up failed:', error.message);
     }
 }
 
@@ -623,7 +608,6 @@ async function searchStock() {
     setLoadingState(true);
     
     try {
-        console.log('🔍 Optimized search for:', query);
         
         // Step 1: Wake up backend proactively for faster response
         const wakeUpPromise = wakeUpBackend();
@@ -635,7 +619,6 @@ async function searchStock() {
         // Check our local popular stocks database first for instant feedback
         const directMatch = POPULAR_STOCKS.find(stock => stock.symbol === symbol);
         if (directMatch) {
-            console.log('✅ Found in popular stocks:', directMatch.symbol, directMatch.name);
             symbol = directMatch.symbol;
         } else {
             // Search by company name (partial matching)
@@ -645,14 +628,12 @@ async function searchStock() {
             );
             if (nameMatch) {
                 symbol = nameMatch.symbol;
-                console.log('✅ Name match in popular stocks:', symbol, nameMatch.name);
                 searchInput.value = symbol; // Update search box with symbol
             }
         }
         
         // Step 3: Wait for backend to be ready, then search
         await wakeUpPromise;
-        console.log('🔥 Backend ready, searching for:', symbol);
         
         // Try backend suggestions first for comprehensive results
         try {
@@ -669,12 +650,10 @@ async function searchStock() {
                     if (!/^[A-Z]{1,5}$/.test(query.toUpperCase()) && suggestions.length > 0) {
                         symbol = suggestions[0].symbol;
                         searchInput.value = symbol;
-                        console.log('✅ Using backend suggestion:', symbol);
                     }
                 }
             }
         } catch (suggestionError) {
-            console.log('⚠️ Backend suggestions failed, using local match:', suggestionError.message);
             // Continue with local match
         }
         
@@ -694,7 +673,6 @@ async function searchStock() {
             currentStock = data;
             displayStockResult(data);
             stockResults.style.display = 'block';
-            console.log('✅ Backend search completed successfully');
             
             if (data.triggeredAlerts && data.triggeredAlerts.length > 0) {
                 data.triggeredAlerts.forEach(alert => {
@@ -708,7 +686,6 @@ async function searchStock() {
             stockResults.style.display = 'none';
         }
     } catch (error) {
-        console.error('Error searching stock:', error);
         showToast('Error searching stock. Please try again.', 'error');
         stockResults.style.display = 'none';
     } finally {
@@ -758,7 +735,6 @@ let watchlistRequestPromise = null;
 async function loadWatchlistWithDeduplication() {
     // If request already in progress, return the existing promise
     if (watchlistRequestInProgress && watchlistRequestPromise) {
-        console.log('📊 Watchlist request already in progress, returning existing promise');
         return watchlistRequestPromise;
     }
     
@@ -776,33 +752,28 @@ async function loadWatchlistWithDeduplication() {
 }
 
 async function loadWatchlist() {
-    console.log('📊 Loading watchlist from browser storage...');
     
     // Load watchlist from local storage
     const watchlist = getBrowserWatchlist();
     
     if (watchlist.length > 0) {
-        console.log(`📦 Found ${watchlist.length} stocks in browser watchlist`);
         displayWatchlist(watchlist);
         
         // Fetch live prices for stored stocks
         await updateWatchlistPrices(watchlist);
     } else {
-        console.log('📭 No stocks in watchlist');
         displayWatchlist([]);
     }
 }
 
 async function loadWatchlistWithRetry(retryCount = 0, maxRetries = 3) {
     try {
-        console.log(`🔄 Watchlist sync attempt ${retryCount + 1}/${maxRetries + 1}`);
         
         // Wake up backend first
         await wakeUpBackendForWatchlist();
         
         // Get authentication headers
         const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for watchlist load');
         
         // Make request to backend with cache busting
         const timestamp = new Date().getTime();
@@ -812,57 +783,46 @@ async function loadWatchlistWithRetry(retryCount = 0, maxRetries = 3) {
             signal: AbortSignal.timeout(30000) // Increased to 30 second timeout
         });
         
-        console.log('📊 Watchlist response status:', response.status);
         
         if (response.ok) {
             const data = await response.json();
-            console.log('📊 Watchlist data received:', data);
             
             // Save to local storage
             saveLocalWatchlist(data.watchlist || []);
             
             // Update watchlist display
             displayWatchlist(data.watchlist || []);
-            console.log('✅ Watchlist synced successfully with backend');
             return true;
             
         } else if (response.status === 503 && retryCount < maxRetries) {
             // Backend sleeping, retry with exponential backoff
             const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-            console.log(`⏳ Backend sleeping (503), retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return await loadWatchlistWithRetry(retryCount + 1, maxRetries);
             
         } else if (response.status === 401) {
-            console.log('⚠️ Watchlist: Authentication required');
             return false;
         } else {
-            console.log('⚠️ Watchlist: Error loading, status:', response.status);
             return false;
         }
         
     } catch (error) {
         if (error.name === 'TimeoutError') {
-            console.log('⏰ Watchlist request timeout');
         } else {
-            console.log('⚠️ Watchlist sync error:', error.message);
         }
         
         if (retryCount < maxRetries) {
             const delay = Math.pow(2, retryCount) * 1000;
-            console.log(`🔄 Retrying watchlist sync in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return await loadWatchlistWithRetry(retryCount + 1, maxRetries);
         }
         
-        console.log('📦 Using local watchlist data (backend unavailable)');
         return false;
     }
 }
 
 async function wakeUpBackendForWatchlist() {
     try {
-        console.log('🚀 Waking up backend for watchlist...');
         const response = await fetch(`${API_BASE_URL}/`, {
             method: 'GET',
             cache: 'no-cache',
@@ -870,12 +830,10 @@ async function wakeUpBackendForWatchlist() {
         });
         
         if (response.ok) {
-            console.log('✅ Backend awakened for watchlist');
             // Additional delay to ensure full readiness
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     } catch (error) {
-        console.log('⚠️ Backend wake-up failed:', error.message);
     }
 }
 
@@ -951,10 +909,8 @@ function getBrowserWatchlist() {
         if (!stored) return [];
         
         const watchlistData = JSON.parse(stored);
-        console.log('📦 Retrieved watchlist from browser storage');
         return watchlistData || [];
     } catch (error) {
-        console.log('⚠️ Error reading browser watchlist:', error.message);
         return [];
     }
 }
@@ -962,9 +918,7 @@ function getBrowserWatchlist() {
 function saveBrowserWatchlist(watchlist) {
     try {
         localStorage.setItem('portfolio_watchlist', JSON.stringify(watchlist));
-        console.log('💾 Watchlist saved to browser storage');
     } catch (error) {
-        console.log('⚠️ Error saving browser watchlist:', error.message);
     }
 }
 
@@ -986,15 +940,12 @@ function addToBrowserWatchlist(symbol, companyName) {
             watchlist.push(newStock);
             saveBrowserWatchlist(watchlist);
             displayWatchlist(watchlist);
-            console.log(`💾 ${symbol} added to browser watchlist`);
             
             // Fetch price for the new stock
             fetchStockPrice(symbol, companyName);
         } else {
-            console.log(`📊 ${symbol} already exists in watchlist`);
         }
     } catch (error) {
-        console.log('⚠️ Error adding to browser watchlist:', error.message);
     }
 }
 
@@ -1004,27 +955,20 @@ function removeFromBrowserWatchlist(symbol) {
         const filtered = watchlist.filter(stock => stock.symbol !== symbol);
         saveBrowserWatchlist(filtered);
         displayWatchlist(filtered);
-        console.log(`💾 ${symbol} removed from browser watchlist`);
         showToast(`${symbol} removed from watchlist`, 'success');
     } catch (error) {
-        console.log('⚠️ Error removing from browser watchlist:', error.message);
     }
 }
 
 // Enhanced authentication helper with auth state waiting
 async function getAuthHeaders() {
-    console.log('🔍 getAuthHeaders called');
-    console.log('🔍 window.firebaseAuth exists:', !!window.firebaseAuth);
-    console.log('🔍 currentUser exists:', !!(window.firebaseAuth?.currentUser));
 
     if (!window.firebaseAuth) {
-        console.error('❌ Firebase auth not initialized');
         throw new Error('Firebase auth not initialized');
     }
 
     // Wait for auth state if currentUser is null
     if (!window.firebaseAuth.currentUser) {
-        console.log('⏳ Current user is null, waiting for auth state...');
         
         // Wait up to 5 seconds for auth state to be determined
         const authUser = await new Promise((resolve, reject) => {
@@ -1040,19 +984,15 @@ async function getAuthHeaders() {
         });
 
         if (!authUser) {
-            console.error('❌ User not authenticated after waiting');
             throw new Error('User not authenticated');
         }
 
-        console.log('✅ Auth state determined, user found:', authUser.uid);
     }
 
     try {
-        console.log('🔑 Getting ID token for user:', window.firebaseAuth.currentUser.uid);
 
         // Force refresh token to ensure it's valid
         const idToken = await window.firebaseAuth.currentUser.getIdToken(true);
-        console.log('✅ Fresh token obtained, length:', idToken.length);
 
         const headers = {
             'Content-Type': 'application/json',
@@ -1060,7 +1000,6 @@ async function getAuthHeaders() {
             'X-User-ID': window.firebaseAuth.currentUser.uid
         };
 
-        console.log('📨 Auth headers prepared:', {
             hasAuth: !!headers.Authorization,
             userId: headers['X-User-ID'],
             tokenPrefix: headers.Authorization?.substring(0, 20) + '...'
@@ -1068,8 +1007,6 @@ async function getAuthHeaders() {
 
         return headers;
     } catch (error) {
-        console.error('❌ Error getting auth token:', error);
-        console.error('❌ Error details:', error.message);
         throw new Error('Failed to get authentication token');
     }
 }
@@ -1077,7 +1014,6 @@ async function getAuthHeaders() {
 // Stock Price Fetching Functions (Portfolio Version)
 async function fetchStockPrice(symbol, companyName) {
     try {
-        console.log(`💰 Fetching price for ${symbol}...`);
         
         // Use Yahoo Finance API (free, no auth required)
         const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`, {
@@ -1109,10 +1045,8 @@ async function fetchStockPrice(symbol, companyName) {
             company_name: companyName || meta.longName || symbol
         });
         
-        console.log(`✅ Updated price for ${symbol}: $${currentPrice.toFixed(2)}`);
         
     } catch (error) {
-        console.log(`⚠️ Error fetching price for ${symbol}:`, error.message);
         
         // Update with demo data if API fails
         updateStockInWatchlist(symbol, {
@@ -1125,7 +1059,6 @@ async function fetchStockPrice(symbol, companyName) {
 }
 
 async function updateWatchlistPrices(watchlist) {
-    console.log('🔄 Updating prices for all watchlist stocks...');
     
     for (const stock of watchlist) {
         await fetchStockPrice(stock.symbol, stock.company_name);
@@ -1151,7 +1084,6 @@ function updateStockInWatchlist(symbol, priceData) {
             displayWatchlist(watchlist);
         }
     } catch (error) {
-        console.log('⚠️ Error updating stock in watchlist:', error.message);
     }
 }
 
@@ -1161,14 +1093,12 @@ let addingToWatchlist = new Set();
 async function addToWatchlist(symbol, companyName = null) {
     // Prevent multiple rapid calls for the same symbol
     if (addingToWatchlist.has(symbol)) {
-        console.log('⏸️ Already adding', symbol, 'to watchlist, skipping...');
         return;
     }
     
     addingToWatchlist.add(symbol);
     
     try {
-        console.log('📈 Adding symbol to browser watchlist:', symbol, 'Company:', companyName);
 
         // Check if already exists
         const watchlist = getBrowserWatchlist();
@@ -1184,7 +1114,6 @@ async function addToWatchlist(symbol, companyName = null) {
         showToast(`${symbol} added to watchlist`, 'success');
         
     } catch (error) {
-        console.error('❌ Error adding to watchlist:', error);
         showToast('Error adding to watchlist', 'error');
     } finally {
         // Always remove from the set when operation completes
@@ -1194,13 +1123,11 @@ async function addToWatchlist(symbol, companyName = null) {
 
 async function syncWatchlistAddition(symbol, companyName, retryCount = 0, maxRetries = 2) {
     try {
-        console.log(`🔄 Syncing ${symbol} addition, attempt ${retryCount + 1}/${maxRetries + 1}`);
         
         // Wake up backend first
         await wakeUpBackendForWatchlist();
         
         const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for backend sync');
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'POST',
@@ -1212,11 +1139,9 @@ async function syncWatchlistAddition(symbol, companyName, retryCount = 0, maxRet
             signal: AbortSignal.timeout(25000) // Increased to 25 second timeout
         });
 
-        console.log('📡 Backend sync response status:', response.status);
 
         if (response.ok) {
             const data = await response.json();
-            console.log('✅ Backend sync successful:', data.message);
             showToast(`${symbol} synced with backend`, 'success');
             // Refresh from backend to get latest data
             loadWatchlistWithRetry();
@@ -1225,43 +1150,35 @@ async function syncWatchlistAddition(symbol, companyName, retryCount = 0, maxRet
         } else if (response.status === 503 && retryCount < maxRetries) {
             // Backend sleeping, retry with exponential backoff
             const delay = Math.pow(2, retryCount) * 1000;
-            console.log(`⏳ Backend sleeping, retrying sync in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return await syncWatchlistAddition(symbol, companyName, retryCount + 1, maxRetries);
             
         } else {
-            console.log('⚠️ Backend sync failed, keeping local copy');
             return false;
         }
         
     } catch (error) {
         if (error.name === 'TimeoutError') {
-            console.log('⏰ Backend sync timeout');
         } else {
-            console.log('⚠️ Backend sync error:', error.message);
         }
         
         if (retryCount < maxRetries) {
             const delay = Math.pow(2, retryCount) * 1000;
-            console.log(`🔄 Retrying backend sync in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return await syncWatchlistAddition(symbol, companyName, retryCount + 1, maxRetries);
         }
         
-        console.log('📦 Backend sync failed, using local storage only');
         return false;
     }
 }
 
 async function removeFromWatchlist(symbol) {
     try {
-        console.log('🗑️ Removing from browser watchlist:', symbol);
         
         // Remove from browser storage
         removeFromBrowserWatchlist(symbol);
         
     } catch (error) {
-        console.error('❌ Error removing from watchlist:', error);
         showToast('Error removing from watchlist', 'error');
     }
 }
@@ -1280,9 +1197,7 @@ async function clearWatchlist() {
             saveBrowserWatchlist([]);
             displayWatchlist([]);
             showToast('Watchlist cleared successfully', 'success');
-            console.log('🗑️ Watchlist cleared from browser storage');
         } catch (error) {
-            console.error('Error clearing watchlist:', error);
             showToast('Error clearing watchlist', 'error');
         }
     }
@@ -1302,7 +1217,6 @@ function closeChartSection() {
 
 // Modify viewChart to highlight the selected stock and show symbol in chart header
 async function viewChart(symbol) {
-    console.log('🔍 viewChart called with symbol:', symbol);
     try {
         // Remove previous highlights
         document.querySelectorAll('.stock-card.selected, .watchlist-item.selected').forEach(el => {
@@ -1323,27 +1237,17 @@ async function viewChart(symbol) {
         const chartSelectedSymbol = document.getElementById('chartSelectedSymbol');
         if (chartSelectedSymbol) chartSelectedSymbol.textContent = symbol;
 
-        console.log('📡 Fetching chart data for:', symbol);
         const response = await fetch(`${API_BASE_URL}/api/chart/${symbol}`, {
             credentials: 'include'
         });
         const data = await response.json();
-        console.log('📊 Chart data received:', data);
 
         if (response.ok) {
-            console.log('✅ Chart data is valid, displaying chart...');
             displayChart(data, symbol);
-            console.log('📈 Chart displayed, showing chart section...');
             
             // Debug chart section visibility
-            console.log('🔍 Chart section element:', chartSection);
-            console.log('🔍 Chart section current display:', chartSection.style.display);
-            console.log('🔍 Chart section computed style:', window.getComputedStyle(chartSection).display);
             
             chartSection.style.display = 'block';
-            console.log('✅ Chart section display set to block');
-            console.log('🔍 Chart section new display:', chartSection.style.display);
-            console.log('🔍 Chart section computed style after:', window.getComputedStyle(chartSection).display);
             
             // Force the chart section to be visible and scroll to it
             chartSection.style.visibility = 'visible';
@@ -1356,38 +1260,28 @@ async function viewChart(symbol) {
             
             // Check if canvas exists
             const canvas = document.getElementById('stockChart');
-            console.log('🔍 Canvas element:', canvas);
             if (canvas) {
-                console.log('🔍 Canvas dimensions:', canvas.width, 'x', canvas.height);
-                console.log('🔍 Canvas style dimensions:', canvas.style.width, 'x', canvas.style.height);
             }
             
-            console.log('✅ Chart section should now be visible');
         } else {
-            console.error('❌ Chart data error:', data.error);
             showToast(data.error || 'Error loading chart data', 'error');
         }
     } catch (error) {
-        console.error('❌ Error in viewChart:', error);
         showToast('Error loading chart data', 'error');
     }
 }
 
 function displayChart(chartData, symbol) {
-    console.log('🎨 displayChart called with:', { chartData, symbol });
     
     const ctx = document.getElementById('stockChart').getContext('2d');
-    console.log('🔍 Canvas context:', ctx);
     
     // Destroy existing chart if it exists
     if (chart) {
-        console.log('🗑️ Destroying existing chart');
         chart.destroy();
     }
 
     const labels = chartData.map(item => item.date);
     const prices = chartData.map(item => item.price);
-    console.log('📊 Chart data processed:', { labels, prices });
 
     try {
         chart = new Chart(ctx, {
@@ -1447,9 +1341,7 @@ function displayChart(chartData, symbol) {
                 }
             }
         });
-        console.log('✅ Chart created successfully:', chart);
     } catch (error) {
-        console.error('❌ Error creating chart:', error);
     }
 }
 
@@ -1464,7 +1356,6 @@ async function updateMarketStatus() {
         // Find the market status element
         const marketStatusElement = document.getElementById('marketStatusIndicator');
         if (!marketStatusElement) {
-            console.warn('⚠️ Market status element not found');
             return;
         }
 
@@ -1480,7 +1371,6 @@ async function updateMarketStatus() {
             marketStatusElement.style.color = '#fff';
         }
     } catch (error) {
-        console.error('Error updating market status:', error);
     }
 }
 
@@ -1498,14 +1388,12 @@ async function loadMarketNews() {
             displayNewsError();
         }
     } catch (error) {
-        console.error('Error loading news:', error);
         displayNewsError();
     }
 }
 
 function displayNews(newsItems) {
     if (!newsContainer) {
-        console.warn('⚠️ newsContainer not found');
         return;
     }
     
@@ -1542,7 +1430,6 @@ function displayNews(newsItems) {
 
 function displayNewsError() {
     if (!newsContainer) {
-        console.warn('⚠️ newsContainer not found');
         return;
     }
     
@@ -1587,8 +1474,6 @@ function setLoadingState(isLoading) {
 
 function showToast(message, type = 'info') {
     if (!toastContainer) {
-        console.warn('⚠️ toastContainer not found, using console.log instead');
-        console.log(`[${type.toUpperCase()}] ${message}`);
         return;
     }
     
@@ -1616,8 +1501,6 @@ function showToast(message, type = 'info') {
             }
         }, 4000);
     } catch (error) {
-        console.error('Error showing toast:', error);
-        console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
 
@@ -1633,39 +1516,31 @@ function getToastIcon(type) {
 // Alert Management Functions
 async function loadAlerts() {
     // Alert system completely disabled for now
-    console.log('⏸️ Alert system disabled');
     return;
     
     try {
-        console.log('🔐 Loading alerts...');
 
         const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for alerts load');
 
         const response = await fetch(`${API_BASE_URL}/api/alerts`, {
             method: 'GET',
             headers: headers
         });
 
-        console.log('📡 Alerts GET response status:', response.status);
 
         if (response.status === 401) {
-            console.error('❌ Authentication failed for alerts');
             showToast('Session expired. Please log in again.', 'error');
             handleLogout();
             return;
         }
 
         const alerts = await response.json();
-        console.log('📄 Alerts data:', alerts);
 
         displayAlerts(alerts);
     } catch (error) {
         if (error.message === 'User not authenticated') {
-            console.log('⚠️ User not authenticated, cannot load alerts');
             displayAlerts([]);
         } else {
-            console.error('❌ Error loading alerts:', error);
             showToast('Error loading alerts. Please try again.', 'error');
         }
     }
@@ -1707,10 +1582,8 @@ async function createAlert() {
     }
 
     try {
-        console.log('📈 Creating alert for:', symbol, price, type);
 
         const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for alert creation');
 
         const response = await fetch(`${API_BASE_URL}/api/alerts`, {
             method: 'POST',
@@ -1722,7 +1595,6 @@ async function createAlert() {
             })
         });
 
-        console.log('📡 Alert POST response status:', response.status);
 
         if (response.ok) {
             showToast('Alert created successfully', 'success');
@@ -1730,19 +1602,16 @@ async function createAlert() {
             document.getElementById('alert-price').value = '';
             // loadAlerts(); // Disabled
         } else if (response.status === 401) {
-            console.error('❌ Authentication failed for alert creation');
             showToast('Session expired. Please log in again.', 'error');
             handleLogout();
         } else {
             const error = await response.json();
-            console.error('❌ Alert creation error:', error.error);
             showToast(error.error || 'Error creating alert', 'error');
         }
     } catch (error) {
         if (error.message === 'User not authenticated') {
             showToast('Please log in to create alerts', 'error');
         } else {
-            console.error('❌ Network error creating alert:', error);
             showToast('Network error. Please check your connection and try again.', 'error');
         }
     }
@@ -1750,35 +1619,29 @@ async function createAlert() {
 
 async function deleteAlert(symbol, index) {
     try {
-        console.log('🗑️ Deleting alert:', symbol, index);
 
         const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for alert deletion');
 
         const response = await fetch(`${API_BASE_URL}/api/alerts/${symbol}/${index}`, {
             method: 'DELETE',
             headers: headers
         });
 
-        console.log('📡 Alert DELETE response status:', response.status);
 
         if (response.ok) {
             showToast('Alert deleted successfully', 'success');
             // loadAlerts(); // Disabled
         } else if (response.status === 401) {
-            console.error('❌ Authentication failed for alert deletion');
             showToast('Session expired. Please log in again.', 'error');
             handleLogout();
         } else {
             const error = await response.json();
-            console.error('❌ Alert deletion error:', error.error);
             showToast(error.error || 'Error deleting alert', 'error');
         }
     } catch (error) {
         if (error.message === 'User not authenticated') {
             showToast('Please log in to delete alerts', 'error');
         } else {
-            console.error('❌ Error deleting alert:', error);
             showToast('Error deleting alert', 'error');
         }
     }
@@ -1798,8 +1661,6 @@ function showNotification(message, type = 'info') {
     
     // Check if notification container exists
     if (!notificationContainer) {
-        console.warn(' notificationContainer not found, using console.log instead');
-        console.log(`[${type.toUpperCase()}] ${message}`);
         return;
     }
     
@@ -1818,8 +1679,6 @@ function showNotification(message, type = 'info') {
             }
         }, 4000);
     } catch (error) {
-        console.error('Error showing notification:', error);
-        console.log(`[${type.toUpperCase()}] ${message}`);
     }
 }
 
@@ -1835,7 +1694,6 @@ function getNotificationIcon(type) {
 
 // Backend Keep-Alive Functions
 function startBackendKeepAlive() {
-    console.log('⚡ Starting backend keep-alive mechanism');
     
     // Make an initial request to wake up the backend
     wakeUpBackend();
@@ -1853,10 +1711,8 @@ async function wakeUpBackend() {
             cache: 'no-cache'
         });
         if (response.ok) {
-            console.log('⚡ Backend keep-alive successful');
         }
     } catch (error) {
-        console.log('⚡ Backend keep-alive failed:', error.message);
     }
 }
 
@@ -1866,23 +1722,18 @@ let currentAuthRequest = null; // Guard to prevent parallel auth requests
 
 async function checkAuthStatus() {
     try {
-        console.log('🔍 Checking Firebase Auth state...');
         
         if (window.firebaseAuth && !authListenerSetup) {
             authListenerSetup = true;
-            console.log('🔧 Setting up auth state listener...');
             
             // Wait for Firebase Auth state restoration with timeout
-            console.log('⏳ Waiting for Firebase Auth state restoration...');
             const authUser = await new Promise((resolve) => {
                 const timeout = setTimeout(() => {
-                    console.log('⏰ Auth state timeout, proceeding with current state');
                     resolve(window.firebaseAuth.currentUser);
                 }, 3000);
                 
                 const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
                     clearTimeout(timeout);
-                    console.log('🔍 Auth state changed:', user ? `User: ${user.uid}` : 'No user');
                     unsubscribe(); // Only resolve once
                     resolve(user);
                 });
@@ -1894,30 +1745,24 @@ async function checkAuthStatus() {
             // Set up ongoing listener for future auth state changes
             window.firebaseAuth.onAuthStateChanged(handleAuthStateChange);
         } else {
-            console.log('❌ Firebase Auth not available');
             showAuthForms();
         }
     } catch (error) {
-        console.error('❌ Error checking auth status:', error);
         showAuthForms();
     }
 }
 
 async function handleAuthStateChange(user) {
     if (user) {
-        console.log('✅ User is logged in with Firebase:', user.uid);
         
         // Prevent multiple parallel auth requests
         if (currentAuthRequest) {
-            console.log('⏳ Auth request already in progress, waiting...');
             await currentAuthRequest;
             return;
         }
         
-        console.log('🔗 Verifying with backend...');
         
         try {
-            console.log('🔑 Testing token-based authentication...');
             const testHeaders = await getAuthHeaders();
             
             currentAuthRequest = fetch(`${API_BASE_URL}/api/debug/auth`, {
@@ -1929,7 +1774,6 @@ async function handleAuthStateChange(user) {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('🔍 Debug auth response:', data);
                 
                 if (data.token_verification && data.token_verification.valid) {
                     const userData = {
@@ -1937,10 +1781,8 @@ async function handleAuthStateChange(user) {
                         id: data.token_verification.uid,
                         name: data.token_verification.email
                     };
-                    console.log('✅ Token-based authentication successful for:', userData.email);
                     showMainContent(userData);
                 } else {
-                    console.log('❌ Token verification failed:', data.token_verification);
                     if (window.firebaseAuth) {
                         await window.firebaseAuth.signOut();
                     }
@@ -1948,14 +1790,12 @@ async function handleAuthStateChange(user) {
                 }
             } else {
                 const errorText = await response.text();
-                console.log('❌ Token authentication failed:', response.status, errorText);
                 if (window.firebaseAuth) {
                     await window.firebaseAuth.signOut();
                 }
                 showAuthForms();
             }
         } catch (error) {
-            console.error('❌ Error with token authentication:', error);
             if (window.firebaseAuth) {
                 await window.firebaseAuth.signOut();
             }
@@ -1964,14 +1804,11 @@ async function handleAuthStateChange(user) {
             currentAuthRequest = null;
         }
     } else {
-        console.log('❌ No Firebase user logged in');
         showAuthForms();
     }
 }
 
 function showMainContent(user) {
-    console.log('🎯 showMainContent called with user:', user);
-    console.log('🔍 DEBUG: Checking for required DOM elements...');
     
     // Check if elements exist
     const landingContainer = document.querySelector('.landing-page');
@@ -1981,7 +1818,6 @@ function showMainContent(user) {
     const usernameWelcome = document.getElementById('username-welcome');
     
     if (!landingContainer || !authContainer || !mainContent || !usernameDisplay || !usernameWelcome) {
-        console.error('❌ Required elements not found:', {
             landingContainer: !!landingContainer,
             authContainer: !!authContainer,
             mainContent: !!mainContent,
@@ -1994,11 +1830,9 @@ function showMainContent(user) {
     // Hide auth container and landing container
     landingContainer.style.display = 'none';
     authContainer.style.display = 'none';
-    console.log('✅ Auth container and landing container hidden');
     
     // Show main content
     mainContent.style.display = 'block';
-    console.log('✅ Main content shown');
     
     // Update username display (footer)
     const displayName = user.name || user.email.split('@')[0];
@@ -2006,25 +1840,20 @@ function showMainContent(user) {
     // Update username welcome at the top
     usernameWelcome.textContent = `Welcome, ${displayName}!`;
     usernameWelcome.style.display = 'block';
-    console.log('✅ Username updated:', displayName);
     
     // Progressive loading: News first, then search, then intelligence
-    console.log('📰 Starting progressive loading...');
     showProgressiveLoadingIndicator();
     
     // 1. Load news first (since it's working well)
     loadMarketNews().then(() => {
-        console.log('✅ News loaded successfully');
         updateLoadingIndicator('Search functionality activating...', 1);
         
         // 2. Activate search functionality after news loads (immediate)
         activateSearchFunctionality();
-        console.log('✅ Search functionality activated immediately');
         updateLoadingIndicator('Market intelligence loading...', 2);
         
         // 3. Load intelligence section last (market intelligence)
         loadIntelligenceSection().then(() => {
-            console.log('✅ All sections loaded progressively');
             hideProgressiveLoadingIndicator();
         });
     });
@@ -2040,10 +1869,8 @@ function showMainContent(user) {
     // Load watchlist independently in background (non-blocking)
     setTimeout(() => {
         loadWatchlist().catch(error => {
-            console.log('⚠️ Background watchlist loading failed (non-blocking):', error.message);
         });
     }, 2000); // 2 second delay to ensure other features are ready
-    console.log('✅ Main content should now be visible');
 }
 
 // Progressive loading indicator functions
@@ -2087,7 +1914,6 @@ function hideProgressiveLoadingIndicator() {
 
 // Progressive loading functions
 function activateSearchFunctionality() {
-    console.log('🔍 Activating search functionality immediately...');
     
     try {
         // Ensure search input is enabled and visible
@@ -2098,7 +1924,6 @@ function activateSearchFunctionality() {
             searchInput.disabled = false;
             searchInput.placeholder = 'Search stocks...';
             searchInput.style.opacity = '1';
-            console.log('✅ Search input activated');
             
             // Add visual feedback that search is ready
             searchInput.style.borderColor = '#4CAF50';
@@ -2108,7 +1933,6 @@ function activateSearchFunctionality() {
         if (searchBtn) {
             searchBtn.disabled = false;
             searchBtn.style.opacity = '1';
-            console.log('✅ Search button activated');
             
             // Add visual feedback that button is ready
             searchBtn.style.backgroundColor = '#4CAF50';
@@ -2118,20 +1942,17 @@ function activateSearchFunctionality() {
         loadWatchlistIndependently();
         
     } catch (error) {
-        console.log('⚠️ Error activating search:', error);
     }
 }
 
 // Independent watchlist loading function
 function loadWatchlistIndependently() {
-    console.log('📊 Starting independent watchlist loading...');
     
     // Load watchlist in background without blocking other operations
     setTimeout(async () => {
         try {
             // Check if watchlist request is already in progress
             if (watchlistRequestInProgress) {
-                console.log('📊 Watchlist already loading, skipping duplicate request');
                 return;
             }
             
@@ -2140,13 +1961,11 @@ function loadWatchlistIndependently() {
             
             await loadWatchlist();
         } catch (error) {
-            console.log('⚠️ Independent watchlist loading failed (non-blocking):', error.message);
         }
     }, 3000); // Increased to 3 second delay to avoid conflicts
 }
 
 async function loadIntelligenceSection() {
-    console.log('🧠 Loading market intelligence section...');
     
     return new Promise((resolve) => {
         try {
@@ -2157,21 +1976,18 @@ async function loadIntelligenceSection() {
             const intelligenceSection = document.querySelector('.market-intelligence');
             if (intelligenceSection) {
                 intelligenceSection.style.opacity = '1';
-                console.log('✅ Market intelligence section activated');
             }
             
             // Resolve after a short delay
             setTimeout(resolve, 1000);
             
         } catch (error) {
-            console.log('⚠️ Error loading intelligence section:', error);
             resolve(); // Continue anyway
         }
     });
 }
 
 function showAuthForms() {
-    console.log('🎯 showAuthForms called');
     
     // Check if elements exist
     const landingContainer = document.querySelector('.landing-page');
@@ -2179,7 +1995,6 @@ function showAuthForms() {
     const mainContent = document.getElementById('main-content');
     
     if (!landingContainer || !authContainer || !mainContent) {
-        console.error('❌ Required elements not found:', {
             landingContainer: !!landingContainer,
             authContainer: !!authContainer,
             mainContent: !!mainContent
@@ -2190,15 +2005,12 @@ function showAuthForms() {
     // Show landing container and auth container
     landingContainer.style.display = 'block';
     authContainer.style.display = 'block';
-    console.log('✅ Landing container and auth container shown');
     
     // Hide main content
     mainContent.style.display = 'none';
-    console.log('✅ Main content hidden');
     
     // Reset to login form
     switchAuthTab('login');
-    console.log('✅ Auth forms should now be visible');
 }
 
 function toggleAuthForm(form) {
@@ -2239,21 +2051,14 @@ window.switchAuthTab = switchAuthTab;
 
 async function handleLogin(event) {
     event.preventDefault();
-    console.log('🔐 Login attempt started [NEW VERSION 2.1]');
-    console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
-    console.log('🔍 DEBUG: firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
-    console.log('🔍 DEBUG: Event object =', event);
-    console.log('🔍 DEBUG: This is the NEW DEBUGGING VERSION 2.1');
     
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const submitBtn = event.target.querySelector('.cta-button') || event.target.closest('form').querySelector('.cta-button');
     
-    console.log('🔍 DEBUG: Form values - email:', email, 'password length:', password.length);
     
     // Validate inputs
     if (!email || !password) {
-        console.error('❌ Missing email or password');
         showNotification('Please enter both email and password', 'error');
         return;
     }
@@ -2267,31 +2072,18 @@ async function handleLogin(event) {
     try {
         // Try Firebase Authentication first
         if (window.firebaseAuth) {
-            console.log('🔥 Using Firebase Authentication');
-            console.log('🔍 DEBUG: Attempting signInWithEmailAndPassword with email:', email);
             try {
-                console.log('🔍 DEBUG: Calling signInWithEmailAndPassword...');
 
                 // Use Firebase v9 compatibility mode API
                 const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
-                console.log('🔍 DEBUG: Firebase auth successful, userCredential:', userCredential);
 
                 const user = userCredential.user;
-                console.log('🔍 DEBUG: User object:', user);
-                console.log('🔍 DEBUG: Getting ID token...');
 
                 // Firebase v9: getIdToken(forceRefresh)
                 const idToken = await user.getIdToken(true);
-                console.log('🔍 DEBUG: ID token obtained, length:', idToken.length);
 
-                console.log('✅ Firebase Auth successful, token length:', idToken.length);
-                console.log('✅ User details:', { uid: user.uid, email: user.email, displayName: user.displayName });
-                console.log('🔗 Verifying with backend...');
                 
                 // Send the ID token to the backend for session creation
-                console.log('🔍 DEBUG: About to send request to backend...');
-                console.log('🔍 DEBUG: API_BASE_URL =', API_BASE_URL);
-                console.log('🔍 DEBUG: Request body =', JSON.stringify({ idToken }));
                 
                 const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                     method: 'POST',
@@ -2302,23 +2094,17 @@ async function handleLogin(event) {
                     credentials: 'include'
                 });
                 
-                console.log('🔍 DEBUG: Response received, status =', response.status);
 
                 const data = await response.json();
-                console.log('🔐 Backend response:', { status: response.status, data });
                 
                 if (response.ok) {
-                    console.log('✅ Backend accepted token, user data:', data.user);
                     showNotification('Login successful', 'success');
                     document.getElementById('login-email').value = '';
                     document.getElementById('login-password').value = '';
-                    console.log('🔄 Calling showMainContent...');
                     showMainContent(data.user);
                     watchlistData = [];
                     currentStock = null;
-                    console.log('✅ Login process completed successfully');
                 } else {
-                    console.error('❌ Backend rejected token:', data.error);
                     showNotification(data.error || 'Authentication failed', 'error');
                     if (window.firebaseAuth) {
                         await window.firebaseAuth.signOut(); // Sign out from Firebase if backend rejects
@@ -2326,10 +2112,6 @@ async function handleLogin(event) {
                 }
                 return;
             } catch (firebaseError) {
-                console.error('🔥 Firebase Auth failed:', firebaseError);
-                console.error('🔍 DEBUG: Firebase error code:', firebaseError.code);
-                console.error('🔍 DEBUG: Firebase error message:', firebaseError.message);
-                console.error('🔍 DEBUG: Full Firebase error:', firebaseError);
                 if (firebaseError.code === 'auth/user-not-found') {
                     showNotification('User not found. Please register first.', 'error');
                 } else if (firebaseError.code === 'auth/wrong-password') {
@@ -2344,12 +2126,8 @@ async function handleLogin(event) {
         }
         
         // No fallback authentication - Firebase is required
-        console.log('❌ Firebase not available - authentication failed');
-        console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
-        console.log('🔍 DEBUG: Reached fallback path - Firebase authentication bypassed');
         showNotification('Firebase authentication is required. Please check your internet connection and try again.', 'error');
     } catch (error) {
-        console.error('Error during login:', error);
         showNotification('Error during login', 'error');
     } finally {
         // Remove loading state
@@ -2362,9 +2140,6 @@ async function handleLogin(event) {
 
 async function handleRegister(event) {
     event.preventDefault();
-    console.log('📝 Register attempt started');
-    console.log('🔍 DEBUG: window.firebaseAuth =', window.firebaseAuth);
-    console.log('🔍 DEBUG: firebase object =', typeof firebase !== 'undefined' ? firebase : 'UNDEFINED');
     
     const name = document.getElementById('register-name').value;
     const email = document.getElementById('register-email').value;
@@ -2380,12 +2155,10 @@ async function handleRegister(event) {
     try {
         // Try Firebase Authentication first
         if (window.firebaseAuth) {
-            console.log('🔥 Using Firebase Authentication for registration');
             try {
                 const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
                 
-                console.log('✅ Firebase user created:', { uid: user.uid, email: user.email });
                 
                 // Update the user's display name
                 await user.updateProfile({
@@ -2393,8 +2166,6 @@ async function handleRegister(event) {
                 });
                 
                 const idToken = await user.getIdToken();
-                console.log('✅ Firebase registration successful, token length:', idToken.length);
-                console.log('🔗 Creating backend profile...');
                 
                 // Send user info to backend to create profile
                 const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
@@ -2407,7 +2178,6 @@ async function handleRegister(event) {
                 });
 
                 const data = await response.json();
-                console.log('📝 Backend registration response:', { status: response.status, data });
                 
                 if (response.ok) {
                     showNotification('Registration successful', 'success');
@@ -2418,19 +2188,15 @@ async function handleRegister(event) {
                     watchlistData = [];
                     currentStock = null;
                 } else {
-                    console.error('❌ Backend registration failed:', data.error);
                     showNotification(data.error || 'Registration failed', 'error');
                     // Delete the user from Firebase if backend registration fails
                     try {
                         await user.delete();
-                        console.log('🗑️ Cleaned up Firebase user after backend failure');
                     } catch (deleteError) {
-                        console.error('❌ Failed to cleanup Firebase user:', deleteError);
                     }
                 }
                 return;
             } catch (firebaseError) {
-                console.error('🔥 Firebase registration failed:', firebaseError);
                 if (firebaseError.code === 'auth/email-already-in-use') {
                     showNotification('Email already registered. Please try logging in.', 'error');
                 } else if (firebaseError.code === 'auth/weak-password') {
@@ -2445,10 +2211,8 @@ async function handleRegister(event) {
         }
         
         // No fallback registration - Firebase is required
-        console.log('❌ Firebase not available - registration failed');
         showNotification('Firebase authentication is required. Please check your internet connection and try again.', 'error');
     } catch (error) {
-        console.error('Error during registration:', error);
         showNotification('Error during registration', 'error');
     } finally {
         // Remove loading state
@@ -2465,7 +2229,6 @@ window.handleRegister = handleRegister;
 
 // Add event listeners for form submissions and tab buttons
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔧 Setting up form and tab event listeners...');
     
     // Form event listeners
     const loginForm = document.getElementById('login-form-element');
@@ -2473,24 +2236,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (loginForm) {
         loginForm.addEventListener('submit', function(event) {
-            console.log('🔐 Login form submitted via event listener');
             event.preventDefault();
             handleLogin(event);
         });
-        console.log('✅ Login form event listener attached');
     } else {
-        console.error('❌ Login form not found');
     }
     
     if (registerForm) {
         registerForm.addEventListener('submit', function(event) {
-            console.log('📝 Register form submitted via event listener');
             event.preventDefault();
             handleRegister(event);
         });
-        console.log('✅ Register form event listener attached');
     } else {
-        console.error('❌ Register form not found');
     }
     
     // Tab button event listeners
@@ -2499,33 +2256,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (loginTab) {
         loginTab.addEventListener('click', function(event) {
-            console.log('🔄 Login tab clicked via event listener');
             event.preventDefault();
             switchAuthTab('login');
         });
-        console.log('✅ Login tab event listener attached');
     } else {
-        console.error('❌ Login tab not found');
     }
     
     if (registerTab) {
         registerTab.addEventListener('click', function(event) {
-            console.log('🔄 Register tab clicked via event listener');
             event.preventDefault();
             switchAuthTab('register');
         });
-        console.log('✅ Register tab event listener attached');
     } else {
-        console.error('❌ Register tab not found');
     }
 });
 
 async function handleLogout() {
-    console.log('🚪 Logout attempt started');
     try {
         // Sign out from Firebase if authenticated
         if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            console.log('🔥 Signing out from Firebase');
             await window.firebaseAuth.signOut();
         }
         
@@ -2533,7 +2282,6 @@ async function handleLogout() {
         const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
             credentials: 'include'
         });
-        console.log('🚪 Logout response:', response.status);
         
         // Always treat logout as successful to clear frontend state
         showNotification('Logout successful', 'success');
@@ -2543,7 +2291,6 @@ async function handleLogout() {
         currentStock = null;
         
         // Force UI update
-        console.log('🔄 Switching to auth forms...');
         showAuthForms();
         
         // Clear any cached data
@@ -2571,10 +2318,8 @@ async function handleLogout() {
             `;
         }
         
-        console.log('✅ Logout completed, UI should be reset');
         
     } catch (error) {
-        console.error('Error during logout:', error);
         // Even if there's an error, still clear the UI
         showAuthForms();
         showNotification('Logout completed', 'info');
@@ -2940,7 +2685,6 @@ async function loadEarningsCalendar() {
 
         earningsContainer.innerHTML = earningsHTML;
     } catch (error) {
-        console.error('Error loading earnings:', error);
         earningsContainer.innerHTML = `
             <div class="error-state">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -3035,7 +2779,6 @@ async function getInsiderTrading() {
 
         insiderContainer.innerHTML = insiderHTML;
     } catch (error) {
-        console.error('Error loading insider trading:', error);
         insiderContainer.innerHTML = `
             <div class="error-state">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -3137,7 +2880,6 @@ async function getAnalystRatings() {
 
         analystContainer.innerHTML = analystHTML;
     } catch (error) {
-        console.error('Error loading analyst ratings:', error);
         analystContainer.innerHTML = `
             <div class="error-state">
                 <i class="fas fa-exclamation-triangle"></i>
@@ -3248,7 +2990,6 @@ async function getOptionsData() {
 
         optionsContainer.innerHTML = optionsHTML;
     } catch (error) {
-        console.error('Error loading options data:', error);
         optionsContainer.innerHTML = `
             <div class="error-state">
                 <i class="fas fa-exclamation-triangle"></i>
