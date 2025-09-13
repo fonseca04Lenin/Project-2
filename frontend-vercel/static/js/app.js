@@ -660,7 +660,7 @@ async function loadWatchlistWithRetry(retryCount = 0, maxRetries = 3) {
         const response = await fetch(`${API_BASE_URL}/api/watchlist?v=2.0&t=${timestamp}`, {
             method: 'GET',
             headers: headers,
-            signal: AbortSignal.timeout(10000) // 10 second timeout
+            signal: AbortSignal.timeout(30000) // Increased to 30 second timeout
         });
         
         console.log('📊 Watchlist response status:', response.status);
@@ -717,7 +717,7 @@ async function wakeUpBackendForWatchlist() {
         const response = await fetch(`${API_BASE_URL}/`, {
             method: 'GET',
             cache: 'no-cache',
-            signal: AbortSignal.timeout(5000)
+            signal: AbortSignal.timeout(15000) // Increased to 15 second timeout
         });
         
         if (response.ok) {
@@ -972,7 +972,7 @@ async function syncWatchlistAddition(symbol, companyName, retryCount = 0, maxRet
                 symbol: symbol,
                 company_name: companyName || symbol
             }),
-            signal: AbortSignal.timeout(8000) // 8 second timeout
+            signal: AbortSignal.timeout(25000) // Increased to 25 second timeout
         });
 
         console.log('📡 Backend sync response status:', response.status);
@@ -1917,19 +1917,20 @@ function loadWatchlistIndependently() {
     // Load watchlist in background without blocking other operations
     setTimeout(async () => {
         try {
-            // Warm up the backend before making watchlist request
-            console.log('🔥 Warming up backend for watchlist...');
-            await fetch(`${API_BASE_URL}/`, { method: 'GET', cache: 'no-cache' });
-            console.log('🔥 Backend warmed up, loading watchlist...');
+            // Check if watchlist request is already in progress
+            if (watchlistRequestInProgress) {
+                console.log('📊 Watchlist already loading, skipping duplicate request');
+                return;
+            }
             
-            // Small additional delay after warmup
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Small delay to let other initialization finish
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
             await loadWatchlistWithDeduplication();
         } catch (error) {
             console.log('⚠️ Independent watchlist loading failed (non-blocking):', error.message);
         }
-    }, 2000); // Increased to 2 second delay
+    }, 3000); // Increased to 3 second delay to avoid conflicts
 }
 
 async function loadIntelligenceSection() {
