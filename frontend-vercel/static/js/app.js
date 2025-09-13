@@ -1448,84 +1448,103 @@ async function checkAuthStatus() {
     try {
         console.log('🔍 Checking Firebase Auth state...');
         
-        // Check Firebase Auth state
         if (window.firebaseAuth && !authListenerSetup) {
-            authListenerSetup = true; // Set guard to prevent duplicate listeners
+            authListenerSetup = true;
             console.log('🔧 Setting up auth state listener...');
-            // Wait for Firebase Auth state to be determined
-            window.firebaseAuth.onAuthStateChanged(async (user) => {
-                if (user) {
-                    console.log('✅ User is logged in with Firebase:', user.uid);
-                    
-                    // Prevent multiple parallel auth requests for the same user
-                    if (currentAuthRequest) {
-                        console.log('⏳ Auth request already in progress, waiting...');
-                        await currentAuthRequest;
-                        return;
-                    }
-                    
-                    console.log('🔗 Verifying with backend...');
-                    
-                    try {
-                        // Test token-based authentication directly
-                        console.log('🔑 Testing token-based authentication...');
-                        const testHeaders = await getAuthHeaders();
-                        
-                        currentAuthRequest = fetch(`${API_BASE_URL}/api/debug/auth`, {
-                            method: 'GET',
-                            headers: testHeaders
-                        });
-
-                        const response = await currentAuthRequest;
-
-                        if (response.ok) {
-                            const data = await response.json();
-                            console.log('🔍 Debug auth response:', data);
-                            
-                            // Check if token verification was successful
-                            if (data.token_verification && data.token_verification.valid) {
-                                const userData = {
-                                    email: data.token_verification.email,
-                                    id: data.token_verification.uid,
-                                    name: data.token_verification.email // Use email as name fallback
-                                };
-                                console.log('✅ Token-based authentication successful for:', userData.email);
-                                showMainContent(userData);
-                            } else {
-                                console.log('❌ Token verification failed:', data.token_verification);
-                                if (window.firebaseAuth) {
-                                    await window.firebaseAuth.signOut();
-                                }
-                                showAuthForms();
-                            }
-                        } else {
-                            const errorText = await response.text();
-                            console.log('❌ Token authentication failed:', response.status, errorText);
-                            if (window.firebaseAuth) {
-                                await window.firebaseAuth.signOut();
-                            }
-                            showAuthForms();
-                        }
-                    } catch (error) {
-                        console.error('❌ Error with token authentication:', error);
-                        if (window.firebaseAuth) {
-                            await window.firebaseAuth.signOut();
-                        }
-                        showAuthForms();
-                    } finally {
-                        currentAuthRequest = null; // Clear the guard
-                    }
-                } else {
-                    console.log('❌ No Firebase user logged in');
-                    showAuthForms();
-                }
+            
+            // Wait for Firebase Auth state restoration with timeout
+            console.log('⏳ Waiting for Firebase Auth state restoration...');
+            const authUser = await new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                    console.log('⏰ Auth state timeout, proceeding with current state');
+                    resolve(window.firebaseAuth.currentUser);
+                }, 3000);
+                
+                const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
+                    clearTimeout(timeout);
+                    console.log('🔍 Auth state changed:', user ? `User: ${user.uid}` : 'No user');
+                    unsubscribe(); // Only resolve once
+                    resolve(user);
+                });
             });
+            
+            // Handle the initial auth state
+            await handleAuthStateChange(authUser);
+            
+            // Set up ongoing listener for future auth state changes
+            window.firebaseAuth.onAuthStateChanged(handleAuthStateChange);
         } else {
             console.log('❌ Firebase Auth not available');
             showAuthForms();
         }
     } catch (error) {
-        console.error('Error checking auth status:', error);
+        console.error('❌ Error checking auth status:', error);
+        showAuthForms();
+    }
+}
+
+async function handleAuthStateChange(user) {
+    if (user) {
+        console.log('✅ User is logged in with Firebase:', user.uid);
+        
+        // Prevent multiple parallel auth requests
+        if (currentAuthRequest) {
+            console.log('⏳ Auth request already in progress, waiting...');
+            await currentAuthRequest;
+            return;
+        }
+        
+        console.log('🔗 Verifying with backend...');
+        
+        try {
+            console.log('🔑 Testing token-based authentication...');
+            const testHeaders = await getAuthHeaders();
+            
+            currentAuthRequest = fetch(`${API_BASE_URL}/api/debug/auth`, {
+                method: 'GET',
+                headers: testHeaders
+            });
+
+            const response = await currentAuthRequest;
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('🔍 Debug auth response:', data);
+                
+                if (data.token_verification && data.token_verification.valid) {
+                    const userData = {
+                        email: data.token_verification.email,
+                        id: data.token_verification.uid,
+                        name: data.token_verification.email
+                    };
+                    console.log('✅ Token-based authentication successful for:', userData.email);
+                    showMainContent(userData);
+                } else {
+                    console.log('❌ Token verification failed:', data.token_verification);
+                    if (window.firebaseAuth) {
+                        await window.firebaseAuth.signOut();
+                    }
+                    showAuthForms();
+                }
+            } else {
+                const errorText = await response.text();
+                console.log('❌ Token authentication failed:', response.status, errorText);
+                if (window.firebaseAuth) {
+                    await window.firebaseAuth.signOut();
+                }
+                showAuthForms();
+            }
+        } catch (error) {
+            console.error('❌ Error with token authentication:', error);
+            if (window.firebaseAuth) {
+                await window.firebaseAuth.signOut();
+            }
+            showAuthForms();
+        } finally {
+            currentAuthRequest = null;
+        }
+    } else {
+        console.log('❌ No Firebase user logged in');
         showAuthForms();
     }
 }
