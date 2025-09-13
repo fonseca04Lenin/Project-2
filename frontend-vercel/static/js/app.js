@@ -1480,8 +1480,24 @@ async function checkAuthStatus() {
 
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('✅ Token-based authentication successful for:', data.data.user.email);
-                            showMainContent(data.data.user);
+                            console.log('🔍 Debug auth response:', data);
+                            
+                            // Check if token verification was successful
+                            if (data.token_verification && data.token_verification.valid) {
+                                const userData = {
+                                    email: data.token_verification.email,
+                                    id: data.token_verification.uid,
+                                    name: data.token_verification.email // Use email as name fallback
+                                };
+                                console.log('✅ Token-based authentication successful for:', userData.email);
+                                showMainContent(userData);
+                            } else {
+                                console.log('❌ Token verification failed:', data.token_verification);
+                                if (window.firebaseAuth) {
+                                    await window.firebaseAuth.signOut();
+                                }
+                                showAuthForms();
+                            }
                         } else {
                             const errorText = await response.text();
                             console.log('❌ Token authentication failed:', response.status, errorText);
