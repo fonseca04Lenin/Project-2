@@ -710,7 +710,7 @@ function displayWatchlist(stocks) {
     watchlistContainer.innerHTML = watchlistHTML;
 }
 
-// Enhanced authentication helper
+// Enhanced authentication helper with auth state waiting
 async function getAuthHeaders() {
     console.log('🔍 getAuthHeaders called');
     console.log('🔍 window.firebaseAuth exists:', !!window.firebaseAuth);
@@ -721,10 +721,29 @@ async function getAuthHeaders() {
         throw new Error('Firebase auth not initialized');
     }
 
+    // Wait for auth state if currentUser is null
     if (!window.firebaseAuth.currentUser) {
-        console.error('❌ User not authenticated - currentUser is null');
-        console.log('🔍 Firebase auth state:', window.firebaseAuth);
-        throw new Error('User not authenticated');
+        console.log('⏳ Current user is null, waiting for auth state...');
+        
+        // Wait up to 5 seconds for auth state to be determined
+        const authUser = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Auth state timeout - user not authenticated'));
+            }, 5000);
+
+            const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
+                clearTimeout(timeout);
+                unsubscribe();
+                resolve(user);
+            });
+        });
+
+        if (!authUser) {
+            console.error('❌ User not authenticated after waiting');
+            throw new Error('User not authenticated');
+        }
+
+        console.log('✅ Auth state determined, user found:', authUser.uid);
     }
 
     try {
