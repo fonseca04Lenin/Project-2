@@ -1732,11 +1732,21 @@ function loadWatchlistIndependently() {
     console.log('📊 Starting independent watchlist loading...');
     
     // Load watchlist in background without blocking other operations
-    setTimeout(() => {
-        loadWatchlistWithDeduplication().catch(error => {
+    setTimeout(async () => {
+        try {
+            // Warm up the backend before making watchlist request
+            console.log('🔥 Warming up backend for watchlist...');
+            await fetch(`${API_BASE_URL}/`, { method: 'GET', cache: 'no-cache' });
+            console.log('🔥 Backend warmed up, loading watchlist...');
+            
+            // Small additional delay after warmup
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await loadWatchlistWithDeduplication();
+        } catch (error) {
             console.log('⚠️ Independent watchlist loading failed (non-blocking):', error.message);
-        });
-    }, 1000); // 1 second delay to ensure search is ready first
+        }
+    }, 2000); // Increased to 2 second delay
 }
 
 async function loadIntelligenceSection() {
