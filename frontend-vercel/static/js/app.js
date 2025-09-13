@@ -625,17 +625,23 @@ async function loadWatchlistWithDeduplication() {
 }
 
 async function loadWatchlist() {
-    console.log('📊 Loading watchlist with robust retry mechanism...');
+    console.log('📊 Loading watchlist with backend-first approach...');
     
-    // Try to load from local storage first
-    const localWatchlist = getLocalWatchlist();
-    if (localWatchlist.length > 0) {
-        console.log('📦 Loading watchlist from local storage...');
-        displayWatchlist(localWatchlist);
+    // Try to load from backend first
+    const success = await loadWatchlistWithRetry();
+    
+    // If backend fails, try local cache as fallback
+    if (!success) {
+        const localWatchlist = getLocalWatchlist();
+        if (localWatchlist.length > 0) {
+            console.log('📦 Backend unavailable, using cached watchlist...');
+            displayWatchlist(localWatchlist);
+            showToast('Using cached watchlist (backend unavailable)', 'warning');
+        } else {
+            console.log('📭 No watchlist data available (backend down, no cache)');
+            displayWatchlist([]);
+        }
     }
-    
-    // Attempt to sync with backend with retries
-    await loadWatchlistWithRetry();
 }
 
 async function loadWatchlistWithRetry(retryCount = 0, maxRetries = 3) {
@@ -777,20 +783,40 @@ function displayWatchlist(stocks) {
 // Local Storage Functions for Watchlist
 function getLocalWatchlist() {
     try {
-        const stored = localStorage.getItem('watchlist');
-        return stored ? JSON.parse(stored) : [];
+        const stored = localStorage.getItem('watchlist_cache');
+        if (!stored) return [];
+        
+        const cacheData = JSON.parse(stored);
+        const now = Date.now();
+        
+        // Check if cache is expired
+        if (now - cacheData.timestamp > cacheData.expiresAfter) {
+            console.log('🗑️ Local watchlist cache expired, clearing...');
+            localStorage.removeItem('watchlist_cache');
+            return [];
+        }
+        
+        console.log('📦 Using cached watchlist (valid for ' + 
+                   Math.round((cacheData.expiresAfter - (now - cacheData.timestamp)) / 1000 / 60) + ' more minutes)');
+        return cacheData.watchlist || [];
     } catch (error) {
-        console.log('⚠️ Error reading local watchlist:', error.message);
+        console.log('⚠️ Error reading local watchlist cache:', error.message);
         return [];
     }
 }
 
 function saveLocalWatchlist(watchlist) {
     try {
-        localStorage.setItem('watchlist', JSON.stringify(watchlist));
-        console.log('💾 Watchlist saved to local storage');
+        // Save with timestamp for cache invalidation
+        const cacheData = {
+            watchlist: watchlist,
+            timestamp: Date.now(),
+            expiresAfter: 24 * 60 * 60 * 1000 // 24 hours
+        };
+        localStorage.setItem('watchlist_cache', JSON.stringify(cacheData));
+        console.log('💾 Watchlist cached locally (24h expiry)');
     } catch (error) {
-        console.log('⚠️ Error saving local watchlist:', error.message);
+        console.log('⚠️ Error caching watchlist:', error.message);
     }
 }
 
@@ -906,12 +932,19 @@ async function addToWatchlist(symbol, companyName = null) {
     try {
         console.log('📈 Adding symbol to watchlist:', symbol, 'Company:', companyName);
 
-        // Add to local storage immediately for responsive UX
-        addToLocalWatchlist(symbol, companyName);
-        showToast(`${symbol} added to watchlist`, 'success');
+        // Show optimistic UI immediately
+        showToast(`Adding ${symbol} to watchlist...`, 'info');
 
-        // Attempt to sync with backend (with retries and fallback)
-        await syncWatchlistAddition(symbol, companyName);
+        // Attempt to add to backend first (with retries)
+        const success = await syncWatchlistAddition(symbol, companyName);
+        
+        if (success) {
+            showToast(`${symbol} added to watchlist`, 'success');
+        } else {
+            // Fallback: add to local cache with warning
+            addToLocalWatchlist(symbol, companyName);
+            showToast(`${symbol} added locally (will sync when backend available)`, 'warning');
+        }
         
     } catch (error) {
         console.error('❌ Error adding to watchlist:', error);
