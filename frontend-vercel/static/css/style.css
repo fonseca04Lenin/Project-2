@@ -178,8 +178,8 @@ body {
 }
 
 .market-indicator {
-    background: linear-gradient(90deg, var(--primary-color), #00B01F);
-    color: white;
+    background: var(--primary-color);
+    color: var(--bg-primary);
     padding: 0.5rem 1.25rem;
     border-radius: 20px;
     font-size: 0.85rem;
@@ -397,9 +397,28 @@ body {
     border: 2px solid var(--border-color);
     border-radius: 1rem;
     padding: 1rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: all 0.4s ease;
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.1),
+        0 0 0 1px rgba(0, 217, 36, 0.05);
     backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.search-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 217, 36, 0.1), transparent);
+    transition: left 0.6s ease;
+}
+
+.search-box:focus-within::before {
+    left: 100%;
 }
 
 .search-box:focus-within {
@@ -633,34 +652,74 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 2px solid var(--border-color);
+    position: relative;
+}
+
+.section-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: var(--primary-color);
+    border-radius: 1px;
 }
 
 .section-header h2 {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    letter-spacing: -0.01em;
 }
 
 .section-header h2 i {
     color: var(--primary-color);
-    font-size: 1.25rem;
+    font-size: 1.3rem;
+    filter: drop-shadow(0 0 8px rgba(0, 217, 36, 0.3));
 }
 
 .clear-btn, .refresh-btn {
     background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(0, 217, 36, 0.2);
     color: var(--text-secondary);
-    padding: 0.5rem;
-    border-radius: 0.5rem;
+    padding: 0.6rem;
+    border-radius: 0.75rem;
     cursor: pointer;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.clear-btn::before, .refresh-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent, rgba(0, 217, 36, 0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.clear-btn:hover::before, .refresh-btn:hover::before {
+    opacity: 1;
+}
+
+.clear-btn:hover, .refresh-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 217, 36, 0.2);
 }
 
 .refresh-btn {
@@ -3539,7 +3598,18 @@ body {
     }
 }
 
-.brand-title {
+/* Dashboard brand title - clean green without gradient */
+.main-content .brand-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+    letter-spacing: -0.02em;
+    font-feature-settings: 'tnum' 1, 'cv01' 1;
+}
+
+/* Landing page brand title - keep gradient for landing */
+.landing-page .brand-title {
     font-size: 3rem;
     font-weight: 800;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--accent-color));
