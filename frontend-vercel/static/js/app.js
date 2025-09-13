@@ -35,6 +35,9 @@ function initializeApp() {
     checkAuthStatus();
     updateMarketStatus();
     
+    // Start backend keep-alive mechanism
+    startBackendKeepAlive();
+    
     // Set up event listeners
     if (searchBtn) {
         searchBtn.addEventListener('click', searchStock);
@@ -1437,6 +1440,33 @@ function getNotificationIcon(type) {
         case 'info': return 'info-circle';
         case 'warning': return 'exclamation-triangle';
         default: return 'info-circle';
+    }
+}
+
+// Backend Keep-Alive Functions
+function startBackendKeepAlive() {
+    console.log('⚡ Starting backend keep-alive mechanism');
+    
+    // Make an initial request to wake up the backend
+    wakeUpBackend();
+    
+    // Keep backend alive with periodic requests every 20 seconds
+    setInterval(() => {
+        wakeUpBackend();
+    }, 20000); // 20 seconds
+}
+
+async function wakeUpBackend() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/`, {
+            method: 'GET',
+            cache: 'no-cache'
+        });
+        if (response.ok) {
+            console.log('⚡ Backend keep-alive successful');
+        }
+    } catch (error) {
+        console.log('⚡ Backend keep-alive failed:', error.message);
     }
 }
 
