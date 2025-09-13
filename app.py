@@ -253,6 +253,117 @@ def test_watchlist_service():
         print(f"❌ WatchlistService test failed: {e}")
         return jsonify({'error': f'WatchlistService test failed: {str(e)}'}), 500
 
+@app.route('/api/debug/auth', methods=['GET', 'POST'])
+def debug_auth():
+    """Debug endpoint to test authentication headers"""
+    try:
+        auth_header = request.headers.get('Authorization')
+        user_id_header = request.headers.get('X-User-ID')
+        
+        debug_info = {
+            'headers_received': {
+                'Authorization': auth_header[:50] + '...' if auth_header and len(auth_header) > 50 else auth_header,
+                'X-User-ID': user_id_header,
+                'Content-Type': request.headers.get('Content-Type'),
+                'Origin': request.headers.get('Origin')
+            },
+            'authentication_flow': {
+                'has_auth_header': bool(auth_header),
+                'has_user_id_header': bool(user_id_header),
+                'auth_header_format_correct': bool(auth_header and auth_header.startswith('Bearer ')),
+                'current_user_authenticated': current_user.is_authenticated if current_user else False
+            }
+        }
+        
+        # Try to verify token if provided
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.replace('Bearer ', '')
+            debug_info['token_info'] = {
+                'token_length': len(token),
+                'token_starts_with': token[:20] + '...' if len(token) > 20 else token
+            }
+            
+            try:
+                decoded_token = FirebaseService.verify_token(token)
+                if decoded_token:
+                    debug_info['token_verification'] = {
+                        'valid': True,
+                        'uid': decoded_token.get('uid'),
+                        'email': decoded_token.get('email'),
+                        'uid_matches_header': decoded_token.get('uid') == user_id_header
+                    }
+                else:
+                    debug_info['token_verification'] = {
+                        'valid': False,
+                        'error': 'Token verification returned None'
+                    }
+            except Exception as e:
+                debug_info['token_verification'] = {
+                    'valid': False,
+                    'error': str(e)
+                }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({'error': f'Debug endpoint failed: {str(e)}'}), 500
+
+@app.route('/api/debug/test-watchlist')
+def debug_test_watchlist():
+    """Debug endpoint to test watchlist with a test user"""
+    try:
+        # Create a test user object
+        test_user_data = {
+            'uid': 'debug-test-user',
+            'name': 'Test User',
+            'email': 'test@example.com'
+        }
+        
+        from firebase_service import FirebaseUser
+        test_user = FirebaseUser(test_user_data)
+        
+        # Test getting watchlist
+        try:
+            watchlist = watchlist_service.get_watchlist(test_user.id, limit=5)
+            watchlist_test = {
+                'success': True,
+                'watchlist_count': len(watchlist),
+                'watchlist': watchlist[:3]  # Show first 3 items
+            }
+        except Exception as e:
+            watchlist_test = {
+                'success': False,
+                'error': str(e)
+            }
+        
+        # Test adding to watchlist
+        try:
+            add_result = watchlist_service.add_stock(
+                test_user.id,
+                'DEBUG',
+                'Debug Test Stock',
+                category='Test'
+            )
+            add_test = {
+                'success': add_result.get('success', False),
+                'message': add_result.get('message', 'No message'),
+                'result': add_result
+            }
+        except Exception as e:
+            add_test = {
+                'success': False,
+                'error': str(e)
+            }
+        
+        return jsonify({
+            'watchlist_service_test': watchlist_test,
+            'add_stock_test': add_test,
+            'firestore_available': watchlist_service.db is not None
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Debug test failed: {str(e)}'}), 500
+
 @app.route('/health')
 def health_check():
     """Quick health check endpoint"""
@@ -695,14 +806,36 @@ def authenticate_request():
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.replace('Bearer ', '')
             print(f"🔑 Token received, length: {len(token)}")
+            
+            # Check if user ID header is provided
+            if not user_id_header:
+                print("❌ Missing X-User-ID header")
+                with request_lock:
+                    active_requests[request_id] = None
+                return None
+            
             try:
                 # Verify Firebase token
                 decoded_token = FirebaseService.verify_token(token)
                 print(f"🔍 Token decoded: {decoded_token is not None}")
-                if decoded_token:
-                    print(f"✅ Token UID: {decoded_token.get('uid')}, Header UID: {user_id_header}")
-                if decoded_token and decoded_token.get('uid') == user_id_header:
-                    uid = decoded_token['uid']
+                
+                if not decoded_token:
+                    print("❌ Token verification failed - invalid token")
+                    with request_lock:
+                        active_requests[request_id] = None
+                    return None
+                
+                token_uid = decoded_token.get('uid')
+                print(f"✅ Token UID: {token_uid}, Header UID: {user_id_header}")
+                
+                if token_uid != user_id_header:
+                    print(f"❌ UID mismatch - Token: {token_uid}, Header: {user_id_header}")
+                    with request_lock:
+                        active_requests[request_id] = None
+                    return None
+                
+                if decoded_token and token_uid == user_id_header:
+                    uid = token_uid
                     # Create lightweight user object from token data (no Firestore call)
                     user_profile = {
                         'uid': uid,
