@@ -90,25 +90,94 @@ print(f"🔍 Firestore client available: {firestore_client is not None}")
 watchlist_service = get_watchlist_service(firestore_client)
 print("✅ WatchlistService initialized successfully")
 
-# Store connected users and their watchlists
-connected_users = {}
+# Store connected users and their watchlists with cleanup
+import weakref
+from collections import defaultdict
 
-# Request tracking to prevent memory leaks
-active_requests = {}
+connected_users = {}
+connection_timestamps = {}  # Track when users connected
+MAX_CONNECTIONS = 500  # Limit concurrent connections
+CONNECTION_TIMEOUT = 3600  # 1 hour timeout for inactive connections
+
+def cleanup_inactive_connections():
+    """Clean up inactive WebSocket connections"""
+    current_time = time.time()
+    to_remove = []
+    
+    for sid, timestamp in connection_timestamps.items():
+        if current_time - timestamp > CONNECTION_TIMEOUT:
+            to_remove.append(sid)
+    
+    for sid in to_remove:
+        if sid in connected_users:
+            del connected_users[sid]
+        if sid in connection_timestamps:
+            del connection_timestamps[sid]
+    
+    if to_remove:
+        print(f"🧹 Cleaned up {len(to_remove)} inactive WebSocket connections")
+
+def limit_connections():
+    """Ensure we don't exceed max connections"""
+    if len(connected_users) > MAX_CONNECTIONS:
+        # Remove oldest connections
+        sorted_connections = sorted(connection_timestamps.items(), key=lambda x: x[1])
+        to_remove = sorted_connections[:len(connected_users) - MAX_CONNECTIONS]
+        
+        for sid, _ in to_remove:
+            if sid in connected_users:
+                del connected_users[sid]
+            if sid in connection_timestamps:
+                del connection_timestamps[sid]
+        
+        print(f"🧹 Removed {len(to_remove)} old connections to stay under limit")
+
+# Improved request tracking with automatic cleanup
+from collections import OrderedDict
+import weakref
+
+active_requests = OrderedDict()  # Use OrderedDict for LRU behavior
 request_lock = threading.Lock()
+MAX_ACTIVE_REQUESTS = 1000  # Limit active requests
 
 def cleanup_request(request_id):
     """Clean up request tracking to prevent memory leaks"""
     with request_lock:
         active_requests.pop(request_id, None)
 
-# Rate limiting system
+def cleanup_old_requests():
+    """Clean up old requests to prevent memory buildup"""
+    with request_lock:
+        # Keep only the last MAX_ACTIVE_REQUESTS
+        while len(active_requests) > MAX_ACTIVE_REQUESTS:
+            active_requests.popitem(last=False)  # Remove oldest
+
+# Improved rate limiting system with memory management
 class RateLimiter:
     def __init__(self, max_requests=10, window_seconds=60):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.requests = defaultdict(list)
         self.lock = threading.Lock()
+        self.last_cleanup = time.time()
+        self.cleanup_interval = 300  # Clean up every 5 minutes
+    
+    def _cleanup_old_users(self):
+        """Remove users with no recent requests"""
+        now = time.time()
+        if now - self.last_cleanup < self.cleanup_interval:
+            return
+            
+        users_to_remove = []
+        for user_id, user_requests in self.requests.items():
+            if not user_requests or (now - max(user_requests)) > self.window_seconds * 2:
+                users_to_remove.append(user_id)
+        
+        for user_id in users_to_remove:
+            del self.requests[user_id]
+        
+        self.last_cleanup = now
+        print(f"🧹 Cleaned up {len(users_to_remove)} inactive rate limit entries")
     
     def is_allowed(self, user_id):
         with self.lock:
@@ -124,6 +193,10 @@ class RateLimiter:
             
             # Add current request
             user_requests.append(now)
+            
+            # Periodic cleanup
+            self._cleanup_old_users()
+            
             return True
 
 # Initialize rate limiter
@@ -190,6 +263,13 @@ def health_check():
 def handle_connect():
     print(f"Client connected: {request.sid}")
     try:
+        # Clean up and limit connections
+        cleanup_inactive_connections()
+        limit_connections()
+        
+        # Track this connection
+        connection_timestamps[request.sid] = time.time()
+        
         emit('connected', {'message': 'Connected to server'})
     except Exception as e:
         print(f"Error in connect handler: {e}")
@@ -197,8 +277,11 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f"Client disconnected: {request.sid}")
+    # Clean up connection tracking
     if request.sid in connected_users:
         del connected_users[request.sid]
+    if request.sid in connection_timestamps:
+        del connection_timestamps[request.sid]
 
 @socketio.on('join_user_room')
 def handle_join_user_room(data):
@@ -241,125 +324,184 @@ def handle_join_news_updates():
     except Exception as e:
         print(f"Error joining news updates: {e}")
 
-# Real-time stock price updates
+# Optimized real-time stock price updates with memory management
 def update_stock_prices():
-    """Background task to update stock prices - optimized for memory and rate limiting"""
-    print("🔄 Starting optimized price update task...")
+    """Memory-optimized background task to update stock prices"""
+    print("🔄 Starting memory-optimized price update task...")
+    
+    # Cache for stock data to reduce API calls
+    price_cache = {}
+    cache_expiry = {}
+    CACHE_DURATION = 60  # Cache for 60 seconds
     
     while True:
         try:
-            # Only run if there are connected users to avoid unnecessary API calls
+            # Clean up inactive connections first
+            cleanup_inactive_connections()
+            
+            # Only run if there are connected users
             if not connected_users:
                 print("⏸️ No connected users, skipping price updates")
-                time.sleep(60)  # Wait 1 minute if no users
+                time.sleep(60)
                 continue
             
             print(f"📊 Updating prices for {len(connected_users)} connected users...")
             
-            # Get all active users and their watchlists
-            for sid, user_id in connected_users.items():
+            # Collect unique symbols across all users to batch API calls
+            all_symbols = set()
+            user_watchlists = {}
+            
+            for sid, user_id in list(connected_users.items()):  # Use list() to avoid dict change during iteration
                 if user_id:
                     try:
-                        watchlist = watchlist_service.get_watchlist(user_id)
+                        # Use lightweight watchlist retrieval to avoid memory issues
+                        watchlist = watchlist_service.get_watchlist(user_id, limit=10)  # Limit to 10 stocks
                         if watchlist:
-                            updated_prices = []
-                            # Limit to max 10 stocks per user to prevent memory issues
-                            limited_watchlist = watchlist[:10]
-                            
-                            for item in limited_watchlist:
-                                try:
-                                    # Add delay between API calls to respect rate limits
-                                    time.sleep(0.5)  # 500ms delay between calls
-                                    
-                                    stock = Stock(item['symbol'], yahoo_finance_api)
-                                    stock.retrieve_data()
-                                    
-                                    # Calculate price change
-                                    price_change = 0
-                                    price_change_percent = 0
-                                    if 'last_price' in item:
-                                        price_change = stock.price - item['last_price']
-                                        price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
-                                    
-                                    updated_prices.append({
-                                        'symbol': item['symbol'],
-                                        'name': item.get('company_name', item.get('name', '')),
-                                        'price': stock.price,
-                                        'price_change': price_change,
-                                        'price_change_percent': price_change_percent,
-                                        'last_updated': datetime.now().isoformat(),
-                                        'category': item.get('category', 'General'),
-                                        'priority': item.get('priority', 'medium')
-                                    })
-                                    
-                                    # Check for triggered alerts (if alerts are enabled for this stock)
-                                    if item.get('alert_enabled', True):
-                                        triggered_alerts = FirebaseService.check_triggered_alerts(user_id, item['symbol'], stock.price)
-                                        if triggered_alerts:
-                                            socketio.emit('alert_triggered', {
-                                                'symbol': item['symbol'],
-                                                'alerts': triggered_alerts
-                                            }, room=f"user_{user_id}")
-                                    
-                                except Exception as e:
-                                    print(f"⚠️ Error updating {item['symbol']}: {e}")
-                                    # Skip this stock and continue
-                                    continue
-                            
-                            if updated_prices:
-                                socketio.emit('watchlist_updated', {
-                                    'prices': updated_prices
-                                }, room=f"watchlist_{user_id}")
-                                print(f"✅ Updated {len(updated_prices)} stocks for user {user_id}")
-                        
-                    except Exception as user_error:
-                        print(f"⚠️ Error processing user {user_id}: {user_error}")
+                            user_watchlists[user_id] = watchlist
+                            for item in watchlist:
+                                all_symbols.add(item['symbol'])
+                    except Exception as e:
+                        print(f"⚠️ Error getting watchlist for user {user_id}: {e}")
                         continue
             
-            # Update market status (less frequently)
+            # Update prices for unique symbols only (batch processing)
+            current_time = time.time()
+            updated_symbols = {}
+            
+            for symbol in list(all_symbols)[:20]:  # Limit to 20 symbols max per cycle
+                try:
+                    # Check cache first
+                    if (symbol in price_cache and 
+                        symbol in cache_expiry and 
+                        current_time < cache_expiry[symbol]):
+                        updated_symbols[symbol] = price_cache[symbol]
+                        continue
+                    
+                    # Add small delay to prevent rate limiting
+                    time.sleep(0.2)  # Reduced delay
+                    
+                    # Get fresh data
+                    stock = Stock(symbol, yahoo_finance_api)
+                    stock.retrieve_data()
+                    
+                    if stock.name and 'not found' not in stock.name.lower():
+                        stock_data = {
+                            'symbol': symbol,
+                            'name': stock.name,
+                            'price': stock.price,
+                            'last_updated': datetime.now().isoformat()
+                        }
+                        
+                        # Cache the result
+                        price_cache[symbol] = stock_data
+                        cache_expiry[symbol] = current_time + CACHE_DURATION
+                        updated_symbols[symbol] = stock_data
+                    
+                except Exception as e:
+                    print(f"⚠️ Error updating {symbol}: {e}")
+                    continue
+            
+            # Send updates to users
+            for user_id, watchlist in user_watchlists.items():
+                try:
+                    user_updates = []
+                    for item in watchlist:
+                        symbol = item['symbol']
+                        if symbol in updated_symbols:
+                            stock_data = updated_symbols[symbol]
+                            
+                            # Calculate price change
+                            price_change = 0
+                            price_change_percent = 0
+                            if 'last_price' in item:
+                                price_change = stock_data['price'] - item['last_price']
+                                price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
+                            
+                            user_updates.append({
+                                **stock_data,
+                                'price_change': price_change,
+                                'price_change_percent': price_change_percent,
+                                'category': item.get('category', 'General'),
+                                'priority': item.get('priority', 'medium')
+                            })
+                    
+                    if user_updates:
+                        socketio.emit('watchlist_updated', {
+                            'prices': user_updates
+                        }, room=f"watchlist_{user_id}")
+                        print(f"✅ Updated {len(user_updates)} stocks for user {user_id}")
+                        
+                except Exception as e:
+                    print(f"⚠️ Error sending updates to user {user_id}: {e}")
+                    continue
+            
+            # Clean up old cache entries
+            expired_keys = [k for k, v in cache_expiry.items() if current_time > v]
+            for key in expired_keys:
+                price_cache.pop(key, None)
+                cache_expiry.pop(key, None)
+            
+            if expired_keys:
+                print(f"🧹 Cleaned up {len(expired_keys)} expired cache entries")
+            
+            # Update market status less frequently
             try:
                 market_status = get_market_status()
                 socketio.emit('market_status_updated', market_status, room="market_updates")
-                print("📈 Market status updated")
             except Exception as market_error:
                 print(f"⚠️ Error updating market status: {market_error}")
             
-            # Increased sleep time to reduce API pressure
-            print("😴 Sleeping for 2 minutes before next update...")
-            time.sleep(120)  # Update every 2 minutes instead of 30 seconds
+            # Sleep before next update
+            print("😴 Sleeping for 90 seconds before next update...")
+            time.sleep(90)  # Reduced to 90 seconds
             
         except Exception as e:
             print(f"❌ Error in price update loop: {e}")
-            print("😴 Sleeping for 5 minutes after error...")
-            time.sleep(300)  # Wait 5 minutes on error
+            import gc
+            gc.collect()  # Force garbage collection on error
+            print("😴 Sleeping for 3 minutes after error...")
+            time.sleep(180)  # Reduced error sleep time
 
 # Start background task for price updates
 def start_price_updates():
     """Start the background price update task with proper memory management"""
-    # TEMPORARILY DISABLED to fix memory issues
-    print("⏸️ Price update background task temporarily disabled to fix memory issues")
-    print("📊 Real-time updates will be available on-demand instead")
+    print("🚀 Starting memory-optimized price update background task...")
     
-    # Add garbage collection to prevent memory leaks
+    # Add enhanced memory cleanup
     import gc
     def cleanup_memory():
-        """Periodic memory cleanup"""
+        """Enhanced periodic memory cleanup"""
         while True:
             time.sleep(300)  # Run every 5 minutes
             try:
-                gc.collect()  # Force garbage collection
-                print("🧹 Memory cleanup completed")
+                # Clean up inactive connections
+                cleanup_inactive_connections()
+                
+                # Force garbage collection
+                collected = gc.collect()
+                print(f"🧹 Memory cleanup completed, collected {collected} objects")
+                
+                # Optional: Print memory stats if available
+                try:
+                    import psutil
+                    process = psutil.Process()
+                    memory_mb = process.memory_info().rss / 1024 / 1024
+                    print(f"📊 Current memory usage: {memory_mb:.1f} MB")
+                except ImportError:
+                    pass  # psutil not available
+                    
             except Exception as e:
                 print(f"⚠️ Memory cleanup error: {e}")
     
+    # Start memory cleanup thread
     cleanup_thread = threading.Thread(target=cleanup_memory, daemon=True, name="MemoryCleanupThread")
     cleanup_thread.start()
     print("🧹 Memory cleanup thread started")
     
-    # TODO: Re-enable price updates once memory issues are fully resolved
-    # thread = threading.Thread(target=update_stock_prices, daemon=True, name="PriceUpdateThread")
-    # thread.start()
-    # print("🚀 Price update background thread started")
+    # Start price update thread (now re-enabled with memory optimizations)
+    price_thread = threading.Thread(target=update_stock_prices, daemon=True, name="PriceUpdateThread")
+    price_thread.start()
+    print("🚀 Memory-optimized price update background thread started")
 
 # Market status function
 def get_market_status():
@@ -528,6 +670,9 @@ def authenticate_request():
     """Lightweight authentication that avoids Firestore calls to prevent memory leaks"""
     request_id = id(request)
     
+    # Clean up old requests periodically
+    cleanup_old_requests()
+    
     # Check if this request is already being processed
     with request_lock:
         if request_id in active_requests:
@@ -576,13 +721,14 @@ def authenticate_request():
         return None
     
     finally:
-        # Clean up request tracking after a delay to prevent memory leaks
+        # Immediate cleanup for memory efficiency - no need for 30-second delay
+        # Use a shorter delay and ensure cleanup happens
         def delayed_cleanup():
-            time.sleep(30)  # Keep in memory for 30 seconds for potential reuse
+            time.sleep(5)  # Reduced from 30 to 5 seconds
             cleanup_request(request_id)
         
         # Start cleanup in background thread
-        threading.Thread(target=delayed_cleanup, daemon=True).start()
+        threading.Thread(target=delayed_cleanup, daemon=True, name=f"cleanup-{request_id}").start()
 
 @app.route('/api/watchlist', methods=['GET'])
 def get_watchlist_route():
@@ -599,14 +745,15 @@ def get_watchlist_route():
     try:
         print(f"🔍 GET watchlist request for user: {user.id}")
         
-        # ULTRA-LIGHTWEIGHT approach - return empty watchlist to prevent memory crashes
-        # This prevents Firestore operations that cause SIGKILL crashes
-        print("📋 Returning empty watchlist (lightweight mode)")
-        return jsonify([])
+        # Re-enabled with memory optimizations
+        watchlist = watchlist_service.get_watchlist(user.id, limit=25)  # Limit to 25 items
+        print(f"📋 Retrieved {len(watchlist)} items from watchlist")
+        return jsonify(watchlist)
             
     except Exception as e:
         print(f"❌ Error in get_watchlist_route: {e}")
-        return jsonify({'error': 'Failed to retrieve watchlist'}), 500
+        # Fallback to empty list on error
+        return jsonify([]), 500
 
 @app.route('/api/watchlist', methods=['POST'])
 def add_to_watchlist():
@@ -638,28 +785,25 @@ def add_to_watchlist():
     try:
         print(f"🔍 POST watchlist request - User: {user.id}, Symbol: {symbol}, Company: {company_name}")
         
-        # ULTRA-LIGHTWEIGHT approach - no Firestore operations to prevent memory crashes
-        # Create new stock item
-        new_stock = {
-            'symbol': symbol,
-            'company_name': company_name,
-            'category': category,
-            'priority': priority,
-            'notes': notes,
-            'target_price': target_price,
-            'stop_loss': stop_loss,
-            'alert_enabled': alert_enabled,
-            'added_at': datetime.now().isoformat()
-        }
+        # Re-enabled with proper watchlist service
+        result = watchlist_service.add_stock(
+            user.id,
+            symbol,
+            company_name,
+            category=category,
+            notes=notes,
+            priority=priority,
+            target_price=target_price,
+            stop_loss=stop_loss,
+            alert_enabled=alert_enabled
+        )
         
-        print(f"✅ Successfully prepared {symbol} for watchlist (lightweight mode)")
-        
-        # Return success immediately - frontend will handle display
-        return jsonify({
-            'success': True, 
-            'message': f'{symbol} added to watchlist', 
-            'item': new_stock
-        })
+        if result['success']:
+            print(f"✅ Successfully added {symbol} to watchlist")
+            return jsonify(result)
+        else:
+            print(f"⚠️ Failed to add {symbol}: {result['message']}")
+            return jsonify({'error': result['message']}), 400
     
     except Exception as e:
         print(f"⚠️ Error adding stock to watchlist: {e}")
@@ -1229,4 +1373,4 @@ if __name__ == '__main__':
     # Start the background price update task
     start_price_updates()
     
-    socketio.run(app, debug=Config.DEBUG, host='0.0.0.0', port=port) 
+    socketio.run(app, debug=Config.DEBUG, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True) 
