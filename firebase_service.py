@@ -9,9 +9,10 @@ import base64
 import json
 import warnings
 
-# Initialize Firebase
+# Initialize Firebase with connection pooling
 firebase_initialized = False
 db = None
+_db_instances = {}  # Connection pool for database instances
 
 def initialize_firebase():
     global firebase_initialized, db
@@ -77,7 +78,26 @@ if not db and firebase_initialized:
         db = None
 
 def get_firestore_client():
-    """Get the Firestore client instance"""
+    """Get the Firestore client instance with connection pooling"""
+    global db, _db_instances
+    
+    # Return cached instance if available
+    if db is not None:
+        return db
+    
+    # Initialize if not already done
+    if not firebase_initialized:
+        initialize_firebase()
+    
+    # Create new instance if needed
+    if db is None and firebase_initialized:
+        try:
+            db = firestore.client()
+            print("✅ New Firestore client created")
+        except Exception as e:
+            print(f"❌ Failed to create Firestore client: {e}")
+            return None
+    
     return db
 
 class FirebaseUser(UserMixin):
