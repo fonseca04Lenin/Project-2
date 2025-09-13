@@ -625,9 +625,26 @@ async function loadWatchlistWithDeduplication() {
 }
 
 async function loadWatchlist() {
-    console.log('📊 Loading watchlist (independent operation)...');
+    console.log('📊 Loading watchlist with robust retry mechanism...');
     
+    // Try to load from local storage first
+    const localWatchlist = getLocalWatchlist();
+    if (localWatchlist.length > 0) {
+        console.log('📦 Loading watchlist from local storage...');
+        displayWatchlist(localWatchlist);
+    }
+    
+    // Attempt to sync with backend with retries
+    await loadWatchlistWithRetry();
+}
+
+async function loadWatchlistWithRetry(retryCount = 0, maxRetries = 3) {
     try {
+        console.log(`🔄 Watchlist sync attempt ${retryCount + 1}/${maxRetries + 1}`);
+        
+        // Wake up backend first
+        await wakeUpBackendForWatchlist();
+        
         // Get authentication headers
         const headers = await getAuthHeaders();
         console.log('🔐 Auth headers prepared for watchlist load');
@@ -636,7 +653,8 @@ async function loadWatchlist() {
         const timestamp = new Date().getTime();
         const response = await fetch(`${API_BASE_URL}/api/watchlist?v=2.0&t=${timestamp}`, {
             method: 'GET',
-            headers: headers
+            headers: headers,
+            signal: AbortSignal.timeout(10000) // 10 second timeout
         });
         
         console.log('📊 Watchlist response status:', response.status);
@@ -645,21 +663,64 @@ async function loadWatchlist() {
             const data = await response.json();
             console.log('📊 Watchlist data received:', data);
             
+            // Save to local storage
+            saveLocalWatchlist(data.watchlist || []);
+            
             // Update watchlist display
             displayWatchlist(data.watchlist || []);
-            console.log('✅ Watchlist loaded successfully');
+            console.log('✅ Watchlist synced successfully with backend');
+            return true;
+            
+        } else if (response.status === 503 && retryCount < maxRetries) {
+            // Backend sleeping, retry with exponential backoff
+            const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+            console.log(`⏳ Backend sleeping (503), retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return await loadWatchlistWithRetry(retryCount + 1, maxRetries);
             
         } else if (response.status === 401) {
             console.log('⚠️ Watchlist: Authentication required');
-            // Don't show error, just silently fail for independent operation
+            return false;
         } else {
             console.log('⚠️ Watchlist: Error loading, status:', response.status);
-            // Don't show error, just silently fail for independent operation
+            return false;
         }
         
     } catch (error) {
-        console.log('⚠️ Watchlist: Error loading (independent operation):', error.message);
-        // Don't show error, just silently fail for independent operation
+        if (error.name === 'TimeoutError') {
+            console.log('⏰ Watchlist request timeout');
+        } else {
+            console.log('⚠️ Watchlist sync error:', error.message);
+        }
+        
+        if (retryCount < maxRetries) {
+            const delay = Math.pow(2, retryCount) * 1000;
+            console.log(`🔄 Retrying watchlist sync in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return await loadWatchlistWithRetry(retryCount + 1, maxRetries);
+        }
+        
+        console.log('📦 Using local watchlist data (backend unavailable)');
+        return false;
+    }
+}
+
+async function wakeUpBackendForWatchlist() {
+    try {
+        console.log('🚀 Waking up backend for watchlist...');
+        const response = await fetch(`${API_BASE_URL}/`, {
+            method: 'GET',
+            cache: 'no-cache',
+            signal: AbortSignal.timeout(5000)
+        });
+        
+        if (response.ok) {
+            console.log('✅ Backend awakened for watchlist');
+            // Additional delay to ensure full readiness
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    } catch (error) {
+        console.log('⚠️ Backend wake-up failed:', error.message);
     }
 }
 
@@ -711,6 +772,60 @@ function displayWatchlist(stocks) {
     }).join('');
 
     watchlistContainer.innerHTML = watchlistHTML;
+}
+
+// Local Storage Functions for Watchlist
+function getLocalWatchlist() {
+    try {
+        const stored = localStorage.getItem('watchlist');
+        return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+        console.log('⚠️ Error reading local watchlist:', error.message);
+        return [];
+    }
+}
+
+function saveLocalWatchlist(watchlist) {
+    try {
+        localStorage.setItem('watchlist', JSON.stringify(watchlist));
+        console.log('💾 Watchlist saved to local storage');
+    } catch (error) {
+        console.log('⚠️ Error saving local watchlist:', error.message);
+    }
+}
+
+function addToLocalWatchlist(symbol, companyName) {
+    try {
+        const watchlist = getLocalWatchlist();
+        const exists = watchlist.find(stock => stock.symbol === symbol);
+        
+        if (!exists) {
+            watchlist.push({
+                symbol: symbol,
+                company_name: companyName || symbol,
+                price: 'Loading...',
+                change: 'Loading...',
+                change_percent: 'Loading...'
+            });
+            saveLocalWatchlist(watchlist);
+            displayWatchlist(watchlist);
+            console.log(`💾 ${symbol} added to local watchlist`);
+        }
+    } catch (error) {
+        console.log('⚠️ Error adding to local watchlist:', error.message);
+    }
+}
+
+function removeFromLocalWatchlist(symbol) {
+    try {
+        const watchlist = getLocalWatchlist();
+        const filtered = watchlist.filter(stock => stock.symbol !== symbol);
+        saveLocalWatchlist(filtered);
+        displayWatchlist(filtered);
+        console.log(`💾 ${symbol} removed from local watchlist`);
+    } catch (error) {
+        console.log('⚠️ Error removing from local watchlist:', error.message);
+    }
 }
 
 // Enhanced authentication helper with auth state waiting
@@ -791,8 +906,31 @@ async function addToWatchlist(symbol, companyName = null) {
     try {
         console.log('📈 Adding symbol to watchlist:', symbol, 'Company:', companyName);
 
+        // Add to local storage immediately for responsive UX
+        addToLocalWatchlist(symbol, companyName);
+        showToast(`${symbol} added to watchlist`, 'success');
+
+        // Attempt to sync with backend (with retries and fallback)
+        await syncWatchlistAddition(symbol, companyName);
+        
+    } catch (error) {
+        console.error('❌ Error adding to watchlist:', error);
+        showToast('Added to local watchlist (will sync when backend available)', 'warning');
+    } finally {
+        // Always remove from the set when operation completes
+        addingToWatchlist.delete(symbol);
+    }
+}
+
+async function syncWatchlistAddition(symbol, companyName, retryCount = 0, maxRetries = 2) {
+    try {
+        console.log(`🔄 Syncing ${symbol} addition, attempt ${retryCount + 1}/${maxRetries + 1}`);
+        
+        // Wake up backend first
+        await wakeUpBackendForWatchlist();
+        
         const headers = await getAuthHeaders();
-        console.log('🔐 Auth headers prepared for user:', window.firebaseAuth.currentUser.uid);
+        console.log('🔐 Auth headers prepared for backend sync');
 
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'POST',
@@ -800,36 +938,48 @@ async function addToWatchlist(symbol, companyName = null) {
             body: JSON.stringify({ 
                 symbol: symbol,
                 company_name: companyName || symbol
-            })
+            }),
+            signal: AbortSignal.timeout(8000) // 8 second timeout
         });
 
-        console.log('📡 Watchlist POST response status:', response.status);
-
-        const data = await response.json();
-        console.log('📄 Watchlist response data:', data);
+        console.log('📡 Backend sync response status:', response.status);
 
         if (response.ok) {
-            showToast(data.message || `${symbol} added to watchlist`, 'success');
-            // Load watchlist independently after adding stock
-            setTimeout(() => {
-                loadWatchlistWithDeduplication().catch(error => {
-                    console.log('⚠️ Watchlist refresh after add failed (non-blocking):', error.message);
-                });
-            }, 500);
-        } else if (response.status === 401) {
-            console.error('❌ Authentication failed - redirecting to login');
-            showToast('Session expired. Please log in again.', 'error');
-            handleLogout();
+            const data = await response.json();
+            console.log('✅ Backend sync successful:', data.message);
+            showToast(`${symbol} synced with backend`, 'success');
+            // Refresh from backend to get latest data
+            loadWatchlistWithRetry();
+            return true;
+            
+        } else if (response.status === 503 && retryCount < maxRetries) {
+            // Backend sleeping, retry with exponential backoff
+            const delay = Math.pow(2, retryCount) * 1000;
+            console.log(`⏳ Backend sleeping, retrying sync in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return await syncWatchlistAddition(symbol, companyName, retryCount + 1, maxRetries);
+            
         } else {
-            console.error('❌ Watchlist error:', data.error);
-            showToast(data.error || 'Error adding to watchlist', 'error');
+            console.log('⚠️ Backend sync failed, keeping local copy');
+            return false;
         }
+        
     } catch (error) {
-        console.error('❌ Network error adding to watchlist:', error);
-        showToast('Network error. Please check your connection and try again.', 'error');
-    } finally {
-        // Always remove from the set when operation completes
-        addingToWatchlist.delete(symbol);
+        if (error.name === 'TimeoutError') {
+            console.log('⏰ Backend sync timeout');
+        } else {
+            console.log('⚠️ Backend sync error:', error.message);
+        }
+        
+        if (retryCount < maxRetries) {
+            const delay = Math.pow(2, retryCount) * 1000;
+            console.log(`🔄 Retrying backend sync in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return await syncWatchlistAddition(symbol, companyName, retryCount + 1, maxRetries);
+        }
+        
+        console.log('📦 Backend sync failed, using local storage only');
+        return false;
     }
 }
 
