@@ -2244,7 +2244,7 @@ body {
     font-size: 3.25rem;
     font-weight: 700;
     line-height: 1.15;
-    margin-bottom: var(--space-18);
+    margin-bottom: var(--space-6);
     color: var(--text-primary);
     letter-spacing: -0.03em;
 }
@@ -2258,8 +2258,8 @@ body {
     font-weight: 400;
     line-height: 1.65;
     color: var(--text-secondary);
-    margin-bottom: var(--space-18);
-    letter-spacing: -0.and ru01em;
+    margin-bottom: var(--space-8);
+    letter-spacing: -0.01em;
 }
 
 
@@ -2267,8 +2267,8 @@ body {
 .key-features {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
-    margin-bottom: var(--space-15);
+    gap: var(--space-4);
+    margin-bottom: var(--space-12);
 }
 
 .feature-point {
@@ -2338,6 +2338,7 @@ body {
     border: 1px solid var(--card-border);
     border-radius: var(--radius-xl);
     padding: var(--space-8);
+    min-height: 520px; /* Fixed height to prevent movement */
     width: 100%;
     max-width: 400px;
     backdrop-filter: blur(10px);
@@ -2398,12 +2399,27 @@ body {
 }
 
 /* Form Containers */
+.auth-tabs-container {
+    position: relative;
+    min-height: 400px; /* Fixed container height */
+}
+
 .auth-form-container {
     display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease-in-out;
 }
 
 .auth-form-container.active {
     display: block;
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: 0.1s;
 }
 
 .modern-form {
