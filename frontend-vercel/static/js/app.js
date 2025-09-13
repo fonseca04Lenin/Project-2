@@ -494,7 +494,126 @@ function updateMarketTicker() {
 
 
 
-// Search functionality
+// Popular stocks database for fast search (Portfolio Version)
+const POPULAR_STOCKS = [
+    { symbol: 'AAPL', name: 'Apple Inc.' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+    { symbol: 'MSFT', name: 'Microsoft Corporation' },
+    { symbol: 'AMZN', name: 'Amazon.com Inc.' },
+    { symbol: 'TSLA', name: 'Tesla Inc.' },
+    { symbol: 'META', name: 'Meta Platforms Inc.' },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+    { symbol: 'NFLX', name: 'Netflix Inc.' },
+    { symbol: 'AMD', name: 'Advanced Micro Devices Inc.' },
+    { symbol: 'INTC', name: 'Intel Corporation' },
+    { symbol: 'CRM', name: 'Salesforce Inc.' },
+    { symbol: 'ORCL', name: 'Oracle Corporation' },
+    { symbol: 'UBER', name: 'Uber Technologies Inc.' },
+    { symbol: 'LYFT', name: 'Lyft Inc.' },
+    { symbol: 'SNAP', name: 'Snap Inc.' },
+    { symbol: 'TWTR', name: 'Twitter Inc.' },
+    { symbol: 'PYPL', name: 'PayPal Holdings Inc.' },
+    { symbol: 'SQ', name: 'Block Inc.' },
+    { symbol: 'SHOP', name: 'Shopify Inc.' },
+    { symbol: 'ZM', name: 'Zoom Video Communications Inc.' },
+    { symbol: 'ROKU', name: 'Roku Inc.' },
+    { symbol: 'SPOT', name: 'Spotify Technology S.A.' },
+    { symbol: 'DIS', name: 'The Walt Disney Company' },
+    { symbol: 'BA', name: 'The Boeing Company' },
+    { symbol: 'JPM', name: 'JPMorgan Chase & Co.' },
+    { symbol: 'V', name: 'Visa Inc.' },
+    { symbol: 'MA', name: 'Mastercard Incorporated' },
+    { symbol: 'KO', name: 'The Coca-Cola Company' },
+    { symbol: 'PEP', name: 'PepsiCo Inc.' },
+    { symbol: 'WMT', name: 'Walmart Inc.' }
+];
+
+// Direct Yahoo Finance stock data fetch for fast search
+async function fetchStockDataDirect(symbol) {
+    try {
+        console.log(`⚡ Fetching direct data for ${symbol}...`);
+        
+        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`, {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const result = data?.chart?.result?.[0];
+        
+        if (!result) {
+            console.log(`⚠️ No data found for ${symbol}`);
+            return null;
+        }
+        
+        const meta = result.meta;
+        const currentPrice = meta.regularMarketPrice;
+        const previousClose = meta.previousClose;
+        const change = currentPrice - previousClose;
+        const changePercent = (change / previousClose) * 100;
+        
+        const stockData = {
+            symbol: symbol,
+            companyName: meta.longName || meta.shortName || symbol,
+            price: currentPrice,
+            change: change,
+            changePercent: changePercent,
+            volume: meta.regularMarketVolume,
+            marketCap: meta.marketCap,
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+            fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+            currency: meta.currency || 'USD'
+        };
+        
+        console.log(`✅ Direct fetch successful for ${symbol}:`, stockData);
+        return stockData;
+        
+    } catch (error) {
+        console.log(`⚠️ Direct fetch failed for ${symbol}:`, error.message);
+        
+        // Return demo data as fallback
+        return {
+            symbol: symbol,
+            companyName: symbol + ' Corporation',
+            price: 150.00 + Math.random() * 100,
+            change: (Math.random() - 0.5) * 10,
+            changePercent: (Math.random() - 0.5) * 5,
+            volume: Math.floor(Math.random() * 1000000),
+            marketCap: Math.floor(Math.random() * 1000000000000),
+            fiftyTwoWeekHigh: 200.00,
+            fiftyTwoWeekLow: 100.00,
+            currency: 'USD'
+        };
+    }
+}
+
+// Wake up backend for faster search
+async function wakeUpBackend() {
+    try {
+        console.log('⏰ Waking up backend for search...');
+        const response = await fetch(`${API_BASE_URL}/api/health`, {
+            method: 'GET',
+            credentials: 'include',
+            signal: AbortSignal.timeout(5000) // 5 second timeout for wake-up
+        });
+        
+        if (response.ok) {
+            console.log('✅ Backend is awake and ready');
+        } else {
+            console.log('⚠️ Backend wake-up returned non-OK status');
+        }
+    } catch (error) {
+        console.log('⚠️ Backend wake-up failed:', error.message);
+    }
+}
+
+// Optimized search with backend + fast suggestions
 async function searchStock() {
     const query = searchInput.value.trim();
     if (!query) {
@@ -502,58 +621,90 @@ async function searchStock() {
         return;
     }
     setLoadingState(true);
+    
     try {
-        // Check for suggestions
+        console.log('🔍 Optimized search for:', query);
+        
+        // Step 1: Wake up backend proactively for faster response
+        const wakeUpPromise = wakeUpBackend();
+        
+        // Step 2: Fast client-side suggestions while backend wakes up
+        let symbol = query.toUpperCase();
         let suggestions = [];
-        if (window.mainSearchSuggestions && window.mainSearchSuggestions.length > 0) {
-            suggestions = window.mainSearchSuggestions;
+        
+        // Check our local popular stocks database first for instant feedback
+        const directMatch = POPULAR_STOCKS.find(stock => stock.symbol === symbol);
+        if (directMatch) {
+            console.log('✅ Found in popular stocks:', directMatch.symbol, directMatch.name);
+            symbol = directMatch.symbol;
         } else {
-                    // Fetch suggestions if not already loaded
-        const companyResponse = await fetch(`${API_BASE_URL}/api/search/companies?q=${encodeURIComponent(query)}`, {
-            credentials: 'include'
-        });
+            // Search by company name (partial matching)
+            const nameMatch = POPULAR_STOCKS.find(stock => 
+                stock.name.toLowerCase().includes(query.toLowerCase()) ||
+                stock.symbol.toLowerCase().includes(query.toLowerCase())
+            );
+            if (nameMatch) {
+                symbol = nameMatch.symbol;
+                console.log('✅ Name match in popular stocks:', symbol, nameMatch.name);
+                searchInput.value = symbol; // Update search box with symbol
+            }
+        }
+        
+        // Step 3: Wait for backend to be ready, then search
+        await wakeUpPromise;
+        console.log('🔥 Backend ready, searching for:', symbol);
+        
+        // Try backend suggestions first for comprehensive results
+        try {
+            const companyResponse = await fetch(`${API_BASE_URL}/api/search/companies?q=${encodeURIComponent(query)}`, {
+                credentials: 'include',
+                signal: AbortSignal.timeout(8000) // 8 second timeout
+            });
+            
             if (companyResponse.ok) {
                 const companyData = await companyResponse.json();
                 if (companyData.results && companyData.results.length > 0) {
                     suggestions = companyData.results;
+                    // Use first suggestion if query isn't already a symbol
+                    if (!/^[A-Z]{1,5}$/.test(query.toUpperCase()) && suggestions.length > 0) {
+                        symbol = suggestions[0].symbol;
+                        searchInput.value = symbol;
+                        console.log('✅ Using backend suggestion:', symbol);
+                    }
                 }
             }
+        } catch (suggestionError) {
+            console.log('⚠️ Backend suggestions failed, using local match:', suggestionError.message);
+            // Continue with local match
         }
-        // If query is not a symbol and suggestions exist, use the first suggestion
-        if (suggestions.length > 0 && !/^[A-Z]{1,5}$/.test(query.toUpperCase())) {
-            searchInput.value = suggestions[0].symbol;
-            document.getElementById('mainSearchSuggestions').style.display = 'none';
-        } else if (suggestions.length === 0 && !/^[A-Z]{1,5}$/.test(query.toUpperCase())) {
-            showToast('Stock not found', 'error');
-            document.getElementById('mainSearchSuggestions').style.display = 'none';
-            stockResults.style.display = 'none';
-            setLoadingState(false);
-            return;
-        }
-        // Search by symbol
-        const symbol = searchInput.value.trim().toUpperCase();
+        
+        // Step 4: Get detailed stock data from backend
         const response = await fetch(`${API_BASE_URL}/api/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             credentials: 'include',
-            body: JSON.stringify({ symbol })
+            body: JSON.stringify({ symbol }),
+            signal: AbortSignal.timeout(12000) // 12 second timeout
         });
-        const data = await response.json();
+        
         if (response.ok) {
+            const data = await response.json();
             currentStock = data;
             displayStockResult(data);
             stockResults.style.display = 'block';
+            console.log('✅ Backend search completed successfully');
+            
             if (data.triggeredAlerts && data.triggeredAlerts.length > 0) {
                 data.triggeredAlerts.forEach(alert => {
                     const message = `Alert triggered for ${symbol}: Price ${alert.alert_type} $${alert.target_price}`;
                     showNotification(message, 'warning');
                 });
-                // loadAlerts(); // Alerts still disabled
             }
         } else {
-            showToast(data.error || 'Stock not found', 'error');
+            const errorData = await response.json();
+            showToast(errorData.error || 'Stock not found', 'error');
             stockResults.style.display = 'none';
         }
     } catch (error) {
@@ -1880,6 +2031,11 @@ function showMainContent(user) {
     
     // Load other non-critical data in background
     updateMarketStatus();
+    
+    // Prewarm backend for faster search responses
+    setTimeout(() => {
+        wakeUpBackend();
+    }, 1000); // Wake up backend early
     
     // Load watchlist independently in background (non-blocking)
     setTimeout(() => {
