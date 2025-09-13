@@ -1480,8 +1480,8 @@ async function checkAuthStatus() {
 
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('✅ Token-based authentication successful for:', data.user.email);
-                            showMainContent(data.user);
+                            console.log('✅ Token-based authentication successful for:', data.data.user.email);
+                            showMainContent(data.data.user);
                         } else {
                             const errorText = await response.text();
                             console.log('❌ Token authentication failed:', response.status, errorText);
