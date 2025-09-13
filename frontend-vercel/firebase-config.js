@@ -13,47 +13,39 @@ const firebaseConfig = {
 
 // Initialize Firebase with error handling
 try {
-    console.log('🔥 Initializing Firebase v9...');
 
     // Initialize Firebase App
     const app = firebase.initializeApp(firebaseConfig);
-    console.log('✅ Firebase App initialized');
 
     // Initialize Firebase Auth
     const auth = firebase.auth();
-    console.log('✅ Firebase Auth initialized');
 
     // Set persistence to browser local storage for better reliability
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
         .then(() => {
-            console.log('✅ Firebase persistence set to LOCAL');
+            // Persistence set successfully
         })
         .catch((error) => {
-            console.warn('⚠️ Could not set persistence:', error);
+            // Could not set persistence
         });
 
     // Enhanced auth state listener
     auth.onAuthStateChanged((user) => {
         if (user) {
-            console.log('🔥 Firebase user signed in:', user.uid);
-            console.log('📧 User email:', user.email);
-            console.log('🏷️ User display name:', user.displayName);
+            // User signed in
         } else {
-            console.log('🔥 Firebase user signed out');
+            // User signed out
         }
     }, (error) => {
-        console.error('❌ Firebase auth state error:', error);
+        // Auth state error
     });
 
     // Make auth globally available
     window.firebaseAuth = auth;
     window.firebaseApp = app;
 
-    console.log('✅ Firebase v9 with compat mode initialized successfully');
 
 } catch (error) {
-    console.error('❌ Firebase initialization failed:', error);
-    console.error('❌ Error details:', error.message);
 
     // Fallback: Set null values to prevent undefined errors
     window.firebaseAuth = null;
@@ -63,8 +55,6 @@ try {
     setTimeout(() => {
         if (document.readyState === 'complete' && typeof showNotification === 'function') {
             showNotification('Firebase authentication unavailable. Please refresh the page.', 'error');
-        } else {
-            console.error('Firebase authentication unavailable. Please refresh the page.');
         }
     }, 1000);
 }
