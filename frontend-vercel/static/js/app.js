@@ -2042,9 +2042,19 @@ async function handleLogin(event) {
     const submitBtn = event.target.querySelector('.cta-button') || event.target.closest('form').querySelector('.cta-button');
     
     
-    // Validate inputs
+    // Enhanced input validation
     if (!email || !password) {
-        showNotification('Please enter both email and password', 'error');
+        showNotification('📝 Please enter both email and password to continue', 'error');
+        return;
+    }
+
+    if (!email.includes('@')) {
+        showNotification('❌ Please enter a valid email address', 'error');
+        return;
+    }
+
+    if (password.length < 6) {
+        showNotification('🔒 Password must be at least 6 characters long', 'error');
         return;
     }
     
@@ -2097,14 +2107,32 @@ async function handleLogin(event) {
                 }
                 return;
             } catch (firebaseError) {
-                if (firebaseError.code === 'auth/user-not-found') {
-                    showNotification('User not found. Please register first.', 'error');
-                } else if (firebaseError.code === 'auth/wrong-password') {
-                    showNotification('Incorrect password. Please try again.', 'error');
-                } else if (firebaseError.code === 'auth/too-many-requests') {
-                    showNotification('Too many failed attempts. Please try again later.', 'error');
-                } else {
-                    showNotification(firebaseError.message || 'Authentication failed', 'error');
+                // Enhanced error handling with specific user-friendly messages
+                switch (firebaseError.code) {
+                    case 'auth/user-not-found':
+                        showNotification('❌ No account found with this email address. Please check your email or create a new account.', 'error');
+                        break;
+                    case 'auth/wrong-password':
+                        showNotification('❌ Incorrect password. Please check your password and try again.', 'error');
+                        break;
+                    case 'auth/invalid-email':
+                        showNotification('❌ Please enter a valid email address.', 'error');
+                        break;
+                    case 'auth/user-disabled':
+                        showNotification('❌ This account has been disabled. Please contact support.', 'error');
+                        break;
+                    case 'auth/too-many-requests':
+                        showNotification('⚠️ Too many failed login attempts. Please wait a few minutes and try again.', 'error');
+                        break;
+                    case 'auth/network-request-failed':
+                        showNotification('❌ Network error. Please check your internet connection and try again.', 'error');
+                        break;
+                    case 'auth/invalid-credential':
+                        showNotification('❌ Invalid login credentials. Please check your email and password.', 'error');
+                        break;
+                    default:
+                        showNotification(`❌ Login failed: ${firebaseError.message || 'Please try again.'}`, 'error');
+                        break;
                 }
                 return;
             }
@@ -2126,11 +2154,32 @@ async function handleLogin(event) {
 async function handleRegister(event) {
     event.preventDefault();
     
-    const name = document.getElementById('register-name').value;
-    const email = document.getElementById('register-email').value;
+    const name = document.getElementById('register-name').value.trim();
+    const email = document.getElementById('register-email').value.trim();
     const password = document.getElementById('register-password').value;
     const submitBtn = event.target.querySelector('.cta-button') || event.target.closest('form').querySelector('.cta-button');
-    
+
+    // Enhanced registration input validation
+    if (!name || !email || !password) {
+        showNotification('📝 Please fill in all required fields', 'error');
+        return;
+    }
+
+    if (name.length < 2) {
+        showNotification('👤 Please enter your full name (at least 2 characters)', 'error');
+        return;
+    }
+
+    if (!email.includes('@') || !email.includes('.')) {
+        showNotification('❌ Please enter a valid email address', 'error');
+        return;
+    }
+
+    if (password.length < 6) {
+        showNotification('🔒 Password must be at least 6 characters long', 'error');
+        return;
+    }
+
     // Add loading state
     if (submitBtn) {
         submitBtn.classList.add('loading');
@@ -2182,14 +2231,26 @@ async function handleRegister(event) {
                 }
                 return;
             } catch (firebaseError) {
-                if (firebaseError.code === 'auth/email-already-in-use') {
-                    showNotification('Email already registered. Please try logging in.', 'error');
-                } else if (firebaseError.code === 'auth/weak-password') {
-                    showNotification('Password should be at least 6 characters.', 'error');
-                } else if (firebaseError.code === 'auth/invalid-email') {
-                    showNotification('Invalid email address.', 'error');
-                } else {
-                    showNotification(firebaseError.message || 'Registration failed', 'error');
+                // Enhanced registration error handling with specific user-friendly messages
+                switch (firebaseError.code) {
+                    case 'auth/email-already-in-use':
+                        showNotification('⚠️ This email is already registered. Please try logging in instead.', 'error');
+                        break;
+                    case 'auth/weak-password':
+                        showNotification('🔒 Password is too weak. Please use at least 6 characters with a mix of letters, numbers, and symbols.', 'error');
+                        break;
+                    case 'auth/invalid-email':
+                        showNotification('❌ Please enter a valid email address.', 'error');
+                        break;
+                    case 'auth/operation-not-allowed':
+                        showNotification('❌ Email registration is not enabled. Please contact support.', 'error');
+                        break;
+                    case 'auth/network-request-failed':
+                        showNotification('❌ Network error. Please check your internet connection and try again.', 'error');
+                        break;
+                    default:
+                        showNotification(`❌ Registration failed: ${firebaseError.message || 'Please try again.'}`, 'error');
+                        break;
                 }
                 return;
             }
