@@ -2128,7 +2128,8 @@ async function handleLogin(event) {
                         showNotification('❌ Network error. Please check your internet connection and try again.', 'error');
                         break;
                     case 'auth/invalid-credential':
-                        showNotification('❌ Invalid login credentials. Please check your email and password.', 'error');
+                    case 'auth/invalid-login-credentials':
+                        showNotification('❌ Incorrect email or password. Please double-check your login details and try again.', 'error');
                         break;
                     default:
                         showNotification(`❌ Login failed: ${firebaseError.message || 'Please try again.'}`, 'error');
