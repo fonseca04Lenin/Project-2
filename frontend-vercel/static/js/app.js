@@ -1000,11 +1000,6 @@ async function getAuthHeaders() {
             'X-User-ID': window.firebaseAuth.currentUser.uid
         };
 
-            hasAuth: !!headers.Authorization,
-            userId: headers['X-User-ID'],
-            tokenPrefix: headers.Authorization?.substring(0, 20) + '...'
-        });
-
         return headers;
     } catch (error) {
         throw new Error('Failed to get authentication token');
@@ -1818,12 +1813,6 @@ function showMainContent(user) {
     const usernameWelcome = document.getElementById('username-welcome');
     
     if (!landingContainer || !authContainer || !mainContent || !usernameDisplay || !usernameWelcome) {
-            landingContainer: !!landingContainer,
-            authContainer: !!authContainer,
-            mainContent: !!mainContent,
-            usernameDisplay: !!usernameDisplay,
-            usernameWelcome: !!usernameWelcome
-        });
         return;
     }
     
@@ -1995,10 +1984,6 @@ function showAuthForms() {
     const mainContent = document.getElementById('main-content');
     
     if (!landingContainer || !authContainer || !mainContent) {
-            landingContainer: !!landingContainer,
-            authContainer: !!authContainer,
-            mainContent: !!mainContent
-        });
         return;
     }
     
