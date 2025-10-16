@@ -199,6 +199,7 @@ class AIAdvisorChat {
         try {
             const token = await this.getAuthToken();
             console.log('🔑 Got auth token, length:', token ? token.length : 0);
+            console.log('👤 Current user UID:', this.currentUser.uid);
             
             const requestBody = { message };
             console.log('📦 Request body:', requestBody);
@@ -207,7 +208,8 @@ class AIAdvisorChat {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-ID': this.currentUser.uid
                 },
                 body: JSON.stringify(requestBody)
             });
@@ -253,7 +255,8 @@ class AIAdvisorChat {
             
             const response = await fetch(`${this.apiBaseUrl}/api/chat/history`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-ID': this.currentUser.uid
                 }
             });
             
@@ -448,7 +451,20 @@ class AIAdvisorChat {
     async testAPIConnection() {
         try {
             console.log('🧪 Testing API connection...');
-            const response = await fetch(`${this.apiBaseUrl}/api/chat/status`);
+            
+            if (!this.currentUser) {
+                this.showError('Please log in first to test API connection');
+                return false;
+            }
+            
+            const token = await this.getAuthToken();
+            const response = await fetch(`${this.apiBaseUrl}/api/chat/status`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-ID': this.currentUser.uid
+                }
+            });
+            
             console.log('🌐 Status response:', response.status, response.statusText);
             
             if (response.ok) {
@@ -457,7 +473,8 @@ class AIAdvisorChat {
                 this.showSuccess('✅ API connection successful');
                 return true;
             } else {
-                console.error('❌ API Status Error:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('❌ API Status Error:', response.status, response.statusText, errorText);
                 this.showError(`API Error: ${response.status} ${response.statusText}`);
                 return false;
             }
