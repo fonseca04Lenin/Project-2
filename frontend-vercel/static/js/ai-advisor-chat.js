@@ -458,26 +458,49 @@ class AIAdvisorChat {
             }
             
             const token = await this.getAuthToken();
-            const response = await fetch(`${this.apiBaseUrl}/api/chat/status`, {
+            
+            // First test basic API connection
+            const statusResponse = await fetch(`${this.apiBaseUrl}/api/chat/status`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'X-User-ID': this.currentUser.uid
                 }
             });
             
-            console.log('🌐 Status response:', response.status, response.statusText);
+            console.log('🌐 Status response:', statusResponse.status, statusResponse.statusText);
             
-            if (response.ok) {
-                const data = await response.json();
-                console.log('✅ API Status:', data);
-                this.showSuccess('✅ API connection successful');
-                return true;
-            } else {
-                const errorText = await response.text();
-                console.error('❌ API Status Error:', response.status, response.statusText, errorText);
-                this.showError(`API Error: ${response.status} ${response.statusText}`);
+            if (!statusResponse.ok) {
+                const errorText = await statusResponse.text();
+                console.error('❌ API Status Error:', statusResponse.status, statusResponse.statusText, errorText);
+                this.showError(`API Error: ${statusResponse.status} ${statusResponse.statusText}`);
                 return false;
             }
+            
+            const statusData = await statusResponse.json();
+            console.log('✅ API Status:', statusData);
+            
+            // Now test Groq API specifically
+            const groqResponse = await fetch(`${this.apiBaseUrl}/api/chat/test-groq`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-ID': this.currentUser.uid
+                }
+            });
+            
+            console.log('🧠 Groq test response:', groqResponse.status, groqResponse.statusText);
+            
+            if (groqResponse.ok) {
+                const groqData = await groqResponse.json();
+                console.log('✅ Groq API Test:', groqData);
+                this.showSuccess('✅ API & Groq connection successful!');
+                return true;
+            } else {
+                const errorText = await groqResponse.text();
+                console.error('❌ Groq API Test Error:', groqResponse.status, groqResponse.statusText, errorText);
+                this.showError(`Groq API Error: ${groqResponse.status} ${groqResponse.statusText}`);
+                return false;
+            }
+            
         } catch (error) {
             console.error('❌ API Connection Test Failed:', error);
             this.showError(`Connection failed: ${error.message}`);
