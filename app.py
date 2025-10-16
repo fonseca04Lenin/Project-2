@@ -1631,6 +1631,54 @@ def chat_status():
             'error': 'Could not get chat status'
         }), 500
 
+@app.route('/api/chat/test-groq', methods=['GET'])
+def test_groq_api():
+    """Test Groq API directly"""
+    try:
+        # Authenticate user
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Import chat service
+        from chat_service import chat_service
+        
+        if not chat_service.groq_client:
+            return jsonify({
+                'success': False,
+                'error': 'Groq client not initialized - API key may be missing',
+                'groq_available': False
+            })
+        
+        # Test a simple API call
+        response = chat_service.groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "user", "content": "Say 'Hello, Groq API is working!'"}
+            ],
+            max_tokens=50
+        )
+        
+        result = response.choices[0].message.content
+        
+        return jsonify({
+            'success': True,
+            'groq_available': True,
+            'test_response': result,
+            'message': 'Groq API is working correctly'
+        })
+        
+    except Exception as e:
+        print(f"❌ Groq test error: {e}")
+        import traceback
+        print(f"❌ Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'groq_available': False,
+            'message': 'Groq API test failed'
+        }), 500
+
 # WebSocket event for real-time chat
 @socketio.on('chat_message')
 def handle_chat_message(data):
