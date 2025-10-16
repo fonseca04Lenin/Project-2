@@ -1539,9 +1539,11 @@ def chat_endpoint():
             
     except Exception as e:
         print(f"❌ Chat endpoint error: {e}")
+        import traceback
+        print(f"❌ Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'error': 'Internal server error',
+            'error': f'Internal server error: {str(e)}',
             'response': 'I\'m sorry, I encountered an error. Please try again.'
         }), 500
 
