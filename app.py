@@ -1496,6 +1496,177 @@ def get_options_data(symbol):
     except Exception as e:
         return jsonify({'error': f'Could not fetch options data for {symbol}'}), 500
 
+# =============================================================================
+# AI CHATBOT ENDPOINTS
+# =============================================================================
+
+@app.route('/api/chat', methods=['POST'])
+def chat_endpoint():
+    """Main chat endpoint for AI stock advisor"""
+    try:
+        # Authenticate user
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Get request data
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        message = data['message'].strip()
+        if not message:
+            return jsonify({'error': 'Message cannot be empty'}), 400
+        
+        # Import chat service (lazy import to avoid circular dependencies)
+        from chat_service import chat_service
+        
+        # Process message
+        result = chat_service.process_message(user['uid'], message)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'response': result['response'],
+                'timestamp': result['timestamp']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Unknown error'),
+                'response': result.get('response', 'I encountered an error. Please try again.')
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Chat endpoint error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'response': 'I\'m sorry, I encountered an error. Please try again.'
+        }), 500
+
+@app.route('/api/chat/history', methods=['GET'])
+def get_chat_history():
+    """Get user's chat conversation history"""
+    try:
+        # Authenticate user
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Import chat service
+        from chat_service import chat_service
+        
+        # Get conversation history
+        history = chat_service._get_conversation_history(user['uid'], limit=50)
+        
+        return jsonify({
+            'success': True,
+            'history': history
+        })
+        
+    except Exception as e:
+        print(f"❌ Chat history error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Could not retrieve chat history'
+        }), 500
+
+@app.route('/api/chat/clear', methods=['DELETE'])
+def clear_chat_history():
+    """Clear user's chat conversation history"""
+    try:
+        # Authenticate user
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Clear conversation history from Firestore
+        firestore_client = get_firestore_client()
+        chat_ref = firestore_client.collection('chat_conversations').document(user['uid'])
+        chat_ref.delete()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Chat history cleared successfully'
+        })
+        
+    except Exception as e:
+        print(f"❌ Clear chat history error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Could not clear chat history'
+        }), 500
+
+@app.route('/api/chat/status', methods=['GET'])
+def chat_status():
+    """Get chat service status and user rate limit info"""
+    try:
+        # Authenticate user
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Import chat service
+        from chat_service import chat_service
+        
+        # Check rate limit status
+        can_send = chat_service._check_rate_limit(user['uid'])
+        
+        return jsonify({
+            'success': True,
+            'status': 'available' if chat_service.groq_client else 'unavailable',
+            'rate_limit': {
+                'can_send': can_send,
+                'max_requests_per_hour': chat_service.max_requests_per_hour
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Chat status error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Could not get chat status'
+        }), 500
+
+# WebSocket event for real-time chat
+@socketio.on('chat_message')
+def handle_chat_message(data):
+    """Handle real-time chat messages via WebSocket"""
+    try:
+        # Get user from session
+        user_id = data.get('user_id')
+        message = data.get('message')
+        
+        if not user_id or not message:
+            emit('chat_error', {'error': 'Invalid message data'})
+            return
+        
+        # Import chat service
+        from chat_service import chat_service
+        
+        # Process message
+        result = chat_service.process_message(user_id, message)
+        
+        if result['success']:
+            emit('chat_response', {
+                'success': True,
+                'response': result['response'],
+                'timestamp': result['timestamp']
+            })
+        else:
+            emit('chat_error', {
+                'error': result.get('error', 'Unknown error'),
+                'response': result.get('response', 'I encountered an error. Please try again.')
+            })
+            
+    except Exception as e:
+        print(f"❌ WebSocket chat error: {e}")
+        emit('chat_error', {
+            'error': 'Internal server error',
+            'response': 'I\'m sorry, I encountered an error. Please try again.'
+        })
+
 if __name__ == '__main__':
     port = Config.PORT
     print("\n🚀 Starting Stock Watchlist App...")
