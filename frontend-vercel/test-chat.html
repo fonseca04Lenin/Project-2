@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Test - Stock Watchlist Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/style.css?v=2.0">
+    <link rel="stylesheet" href="static/css/chat.css?v=1.0">
+    
+    <!-- Firebase SDK v9 with Compat Mode -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Test Header -->
+        <div style="padding: 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--card-border);">
+            <h1 style="color: var(--text-primary); margin: 0;">🤖 AI Chatbot Test Page</h1>
+            <p style="color: var(--text-secondary); margin: 8px 0 0 0;">Test the AI Stock Advisor functionality</p>
+        </div>
+        
+        <!-- Auth Status -->
+        <div id="authStatus" style="padding: 20px; background: var(--bg-primary);">
+            <h3 style="color: var(--text-primary);">Authentication Status</h3>
+            <p id="authText" style="color: var(--text-secondary);">Checking...</p>
+            <button id="loginBtn" style="display: none; background: var(--primary-color); color: var(--text-inverse); border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                Login to Test Chat
+            </button>
+        </div>
+        
+        <!-- Chat Instructions -->
+        <div style="padding: 20px; background: var(--bg-secondary);">
+            <h3 style="color: var(--text-primary);">How to Test</h3>
+            <ol style="color: var(--text-secondary); line-height: 1.6;">
+                <li>Click the robot icon in the bottom-right corner</li>
+                <li>Try these sample questions:</li>
+                <ul style="margin: 10px 0;">
+                    <li>"What's the current price of AAPL?"</li>
+                    <li>"How is my watchlist performing?"</li>
+                    <li>"Should I buy more Tesla stock?"</li>
+                    <li>"Compare Apple vs Microsoft"</li>
+                </ul>
+                <li>The AI will access real-time stock data and provide personalized advice</li>
+            </ol>
+        </div>
+        
+        <!-- API Status -->
+        <div style="padding: 20px; background: var(--bg-primary);">
+            <h3 style="color: var(--text-primary);">API Status</h3>
+            <p id="apiStatus" style="color: var(--text-secondary);">Checking...</p>
+            <button id="testApiBtn" style="background: var(--primary-color); color: var(--text-inverse); border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 10px;">
+                Test API Connection
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js?v=2.2"></script>
+    <script src="static/js/chat.js?v=1.0"></script>
+    
+    <script>
+        // Test page functionality
+        const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com';
+        
+        // Check authentication status
+        function checkAuthStatus() {
+            firebase.auth().onAuthStateChanged((user) => {
+                const authText = document.getElementById('authText');
+                const loginBtn = document.getElementById('loginBtn');
+                
+                if (user) {
+                    authText.textContent = `✅ Logged in as: ${user.email}`;
+                    authText.style.color = 'var(--success-color)';
+                    loginBtn.style.display = 'none';
+                    
+                    // Update global currentUser for chat
+                    window.currentUser = user;
+                } else {
+                    authText.textContent = '❌ Not logged in';
+                    authText.style.color = 'var(--error-color)';
+                    loginBtn.style.display = 'block';
+                    
+                    // Remove global currentUser
+                    window.currentUser = null;
+                }
+            });
+        }
+        
+        // Test API connection
+        async function testAPI() {
+            const statusEl = document.getElementById('apiStatus');
+            const btn = document.getElementById('testApiBtn');
+            
+            statusEl.textContent = 'Testing API connection...';
+            statusEl.style.color = 'var(--warning-color)';
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/chat/status`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusEl.textContent = '✅ API is responding correctly';
+                    statusEl.style.color = 'var(--success-color)';
+                } else {
+                    statusEl.textContent = `❌ API Error: ${data.error || 'Unknown error'}`;
+                    statusEl.style.color = 'var(--error-color)';
+                }
+            } catch (error) {
+                statusEl.textContent = `❌ Connection failed: ${error.message}`;
+                statusEl.style.color = 'var(--error-color)';
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'Test API Connection';
+        }
+        
+        // Login function
+        function login() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            firebase.auth().signInWithPopup(provider).catch(error => {
+                console.error('Login error:', error);
+                document.getElementById('authText').textContent = `Login failed: ${error.message}`;
+                document.getElementById('authText').style.color = 'var(--error-color)';
+            });
+        }
+        
+        // Initialize test page
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuthStatus();
+            testAPI();
+            
+            document.getElementById('loginBtn').addEventListener('click', login);
+            document.getElementById('testApiBtn').addEventListener('click', testAPI);
+        });
+    </script>
+</body>
+</html>
