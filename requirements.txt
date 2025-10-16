@@ -7,4 +7,5 @@ requests==2.31.0
 python-dotenv==1.0.0
 gunicorn>=20.1.0
 eventlet>=0.33.3
-yfinance>=0.2.36 
+yfinance>=0.2.36
+groq>=0.4.1 
