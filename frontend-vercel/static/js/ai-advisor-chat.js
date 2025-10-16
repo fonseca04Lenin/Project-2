@@ -1,22 +1,20 @@
 /**
- * AI Chatbot Frontend Integration
- * Handles chat interface, API communication, and real-time messaging
+ * AI Investment Advisor Chat - Integrated Section
+ * Handles the AI chat functionality within the main app section
  */
 
-class StockChatbot {
+class AIAdvisorChat {
     constructor() {
-        this.isOpen = false;
-        this.isTyping = false;
         this.currentUser = null;
         this.messageHistory = [];
+        this.isTyping = false;
         this.rateLimitInfo = null;
         
         // DOM Elements
-        this.chatWidget = null;
-        this.chatToggleBtn = null;
         this.chatMessages = null;
         this.chatInput = null;
         this.chatSendBtn = null;
+        this.statusBadge = null;
         this.typingIndicator = null;
         
         // API Configuration
@@ -26,72 +24,38 @@ class StockChatbot {
     }
     
     init() {
-        this.createChatInterface();
+        this.waitForElements();
         this.setupEventListeners();
         this.checkAuthStatus();
-        this.loadChatHistory();
     }
     
-    createChatInterface() {
-        // Create chat toggle button
-        this.chatToggleBtn = document.createElement('button');
-        this.chatToggleBtn.className = 'chat-toggle-btn';
-        this.chatToggleBtn.innerHTML = '<i class="fas fa-robot"></i>';
-        this.chatToggleBtn.title = 'Ask AI about stocks';
-        document.body.appendChild(this.chatToggleBtn);
+    waitForElements() {
+        // Wait for DOM elements to be available
+        const checkElements = () => {
+            this.chatMessages = document.getElementById('aiChatMessages');
+            this.chatInput = document.getElementById('aiChatInput');
+            this.chatSendBtn = document.getElementById('aiChatSendBtn');
+            this.statusBadge = document.getElementById('aiStatusBadge');
+            
+            if (this.chatMessages && this.chatInput && this.chatSendBtn && this.statusBadge) {
+                this.setupChatFunctionality();
+                this.loadChatHistory();
+            } else {
+                setTimeout(checkElements, 100);
+            }
+        };
         
-        // Create chat widget
-        this.chatWidget = document.createElement('div');
-        this.chatWidget.className = 'chat-widget';
-        this.chatWidget.innerHTML = `
-            <div class="chat-header">
-                <h3>
-                    <span class="ai-icon">🤖</span>
-                    AI Stock Advisor
-                </h3>
-                <button class="chat-close-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="chat-messages" id="chatMessages">
-                <div class="chat-welcome">
-                    <h4>👋 Hi! I'm your AI Stock Advisor</h4>
-                    <p>Ask me about stocks, your watchlist, or get investment advice. I have access to real-time market data!</p>
-                </div>
-            </div>
-            <div class="chat-quick-actions">
-                <button class="chat-quick-action" data-message="How is my watchlist performing?">📊 Watchlist Performance</button>
-                <button class="chat-quick-action" data-message="What's the current price of AAPL?">💰 Stock Price</button>
-                <button class="chat-quick-action" data-message="Should I buy more Apple stock?">💡 Investment Advice</button>
-                <button class="chat-quick-action" data-message="Compare Apple vs Microsoft">⚖️ Compare Stocks</button>
-            </div>
-            <div class="chat-input-container">
-                <div class="chat-input-wrapper">
-                    <textarea class="chat-input" placeholder="Ask me about stocks..." rows="1"></textarea>
-                    <button class="chat-send-btn" id="chatSendBtn">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(this.chatWidget);
-        
-        // Get references to elements
-        this.chatMessages = this.chatWidget.querySelector('#chatMessages');
-        this.chatInput = this.chatWidget.querySelector('.chat-input');
-        this.chatSendBtn = this.chatWidget.querySelector('#chatSendBtn');
+        checkElements();
+    }
+    
+    setupChatFunctionality() {
+        // Create typing indicator
         this.typingIndicator = this.createTypingIndicator();
-    }
-    
-    setupEventListeners() {
-        // Toggle chat
-        this.chatToggleBtn.addEventListener('click', () => this.toggleChat());
         
-        // Close chat
-        this.chatWidget.querySelector('.chat-close-btn').addEventListener('click', () => this.closeChat());
-        
-        // Send message
-        this.chatSendBtn.addEventListener('click', () => this.sendMessage());
+        // Auto-resize textarea
+        this.chatInput.addEventListener('input', () => {
+            this.autoResizeTextarea();
+        });
         
         // Send on Enter (but allow Shift+Enter for new lines)
         this.chatInput.addEventListener('keydown', (e) => {
@@ -100,74 +64,57 @@ class StockChatbot {
                 this.sendMessage();
             }
         });
-        
-        // Auto-resize textarea
-        this.chatInput.addEventListener('input', () => {
-            this.autoResizeTextarea();
-        });
-        
-        // Quick action buttons
-        this.chatWidget.querySelectorAll('.chat-quick-action').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const message = e.target.getAttribute('data-message');
-                this.chatInput.value = message;
-                this.sendMessage();
-            });
-        });
-        
-        // Close on outside click
+    }
+    
+    setupEventListeners() {
+        // Send message button
         document.addEventListener('click', (e) => {
-            if (this.isOpen && !this.chatWidget.contains(e.target) && !this.chatToggleBtn.contains(e.target)) {
-                this.closeChat();
+            if (e.target && e.target.id === 'aiChatSendBtn') {
+                this.sendMessage();
+            }
+        });
+        
+        // Quick suggestion buttons
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('suggestion-btn')) {
+                const message = e.target.getAttribute('data-message');
+                if (this.chatInput) {
+                    this.chatInput.value = message;
+                    this.sendMessage();
+                }
             }
         });
     }
     
     checkAuthStatus() {
-        // Check if user is authenticated (using existing auth system)
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            this.currentUser = currentUser;
-            this.updateChatStatus('online');
-        } else {
-            this.updateChatStatus('offline');
+        // Monitor auth state changes
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            firebase.auth().onAuthStateChanged((user) => {
+                this.currentUser = user;
+                this.updateStatus(user ? 'online' : 'offline');
+                
+                if (user && this.chatMessages) {
+                    this.loadChatHistory();
+                }
+            });
         }
     }
     
-    toggleChat() {
-        if (this.isOpen) {
-            this.closeChat();
-        } else {
-            this.openChat();
-        }
-    }
-    
-    openChat() {
-        this.isOpen = true;
-        this.chatWidget.classList.add('open');
-        this.chatToggleBtn.classList.add('chat-open');
-        this.chatToggleBtn.innerHTML = '<i class="fas fa-times"></i>';
+    updateStatus(status) {
+        if (!this.statusBadge) return;
         
-        // Focus input after animation
-        setTimeout(() => {
-            this.chatInput.focus();
-        }, 300);
+        const statusDot = this.statusBadge.querySelector('.status-dot');
+        const statusText = this.statusBadge.querySelector('.status-text');
         
-        // Load chat history if not already loaded
-        if (this.messageHistory.length === 0) {
-            this.loadChatHistory();
+        if (status === 'online') {
+            statusDot.classList.remove('offline');
+            statusText.textContent = 'Online';
+            this.statusBadge.style.opacity = '1';
+        } else {
+            statusDot.classList.add('offline');
+            statusText.textContent = 'Offline';
+            this.statusBadge.style.opacity = '0.7';
         }
-    }
-    
-    closeChat() {
-        this.isOpen = false;
-        this.chatWidget.classList.remove('open');
-        this.chatToggleBtn.classList.remove('chat-open');
-        this.chatToggleBtn.innerHTML = '<i class="fas fa-robot"></i>';
-    }
-    
-    autoResizeTextarea() {
-        this.chatInput.style.height = 'auto';
-        this.chatInput.style.height = Math.min(this.chatInput.scrollHeight, 100) + 'px';
     }
     
     async sendMessage() {
@@ -252,6 +199,8 @@ class StockChatbot {
     }
     
     async loadChatHistory() {
+        if (!this.currentUser || !this.chatMessages) return;
+        
         try {
             const token = await this.getAuthToken();
             
@@ -274,11 +223,14 @@ class StockChatbot {
     }
     
     renderChatHistory() {
-        // Clear welcome message
-        const welcome = this.chatMessages.querySelector('.chat-welcome');
+        // Hide welcome message
+        const welcome = this.chatMessages.querySelector('.ai-welcome-message');
         if (welcome) {
-            welcome.remove();
+            welcome.style.display = 'none';
         }
+        
+        // Add class to indicate we have messages
+        this.chatMessages.classList.add('has-messages');
         
         // Add historical messages
         this.messageHistory.forEach(msg => {
@@ -290,38 +242,44 @@ class StockChatbot {
     }
     
     addMessage(content, sender, animate = true) {
+        // Hide welcome message on first message
+        if (this.messageHistory.length === 0 && sender === 'user') {
+            const welcome = this.chatMessages.querySelector('.ai-welcome-message');
+            if (welcome) {
+                welcome.style.display = 'none';
+            }
+            this.chatMessages.classList.add('has-messages');
+        }
+        
         const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${sender}`;
+        messageDiv.className = `ai-chat-message ${sender}`;
         
         const avatar = sender === 'user' ? 
             (this.currentUser?.email?.charAt(0).toUpperCase() || 'U') : 
             '🤖';
         
         messageDiv.innerHTML = `
-            <div class="chat-message-avatar">${avatar}</div>
-            <div class="chat-message-content">${this.formatMessage(content)}</div>
+            <div class="ai-chat-message-avatar">${avatar}</div>
+            <div class="ai-chat-message-content">${this.formatMessage(content)}</div>
         `;
         
-        // Add to chat if not animating (for history)
-        if (!animate) {
-            this.chatMessages.appendChild(messageDiv);
-            return;
-        }
-        
-        // Animate new messages
+        // Add to chat
         this.chatMessages.appendChild(messageDiv);
-        this.scrollToBottom();
         
-        // Store in history
-        this.messageHistory.push({
-            role: sender,
-            content: content,
-            timestamp: new Date().toISOString()
-        });
+        if (animate) {
+            this.scrollToBottom();
+            
+            // Store in history
+            this.messageHistory.push({
+                role: sender,
+                content: content,
+                timestamp: new Date().toISOString()
+            });
+        }
     }
     
     formatMessage(content) {
-        // Format message with basic markdown-like styling
+        // Format message with basic styling
         return content
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -332,13 +290,13 @@ class StockChatbot {
     
     createTypingIndicator() {
         const indicator = document.createElement('div');
-        indicator.className = 'typing-indicator';
+        indicator.className = 'ai-typing-indicator';
         indicator.innerHTML = `
-            <div class="chat-message-avatar">🤖</div>
-            <div class="typing-dots">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
+            <div class="ai-chat-message-avatar">🤖</div>
+            <div class="ai-typing-dots">
+                <div class="ai-typing-dot"></div>
+                <div class="ai-typing-dot"></div>
+                <div class="ai-typing-dot"></div>
             </div>
         `;
         return indicator;
@@ -359,7 +317,7 @@ class StockChatbot {
     
     showError(message) {
         const errorDiv = document.createElement('div');
-        errorDiv.className = 'chat-error';
+        errorDiv.className = 'ai-chat-error';
         errorDiv.textContent = message;
         this.chatMessages.appendChild(errorDiv);
         this.scrollToBottom();
@@ -374,7 +332,7 @@ class StockChatbot {
     
     showSuccess(message) {
         const successDiv = document.createElement('div');
-        successDiv.className = 'chat-success';
+        successDiv.className = 'ai-chat-success';
         successDiv.textContent = message;
         this.chatMessages.appendChild(successDiv);
         this.scrollToBottom();
@@ -396,25 +354,9 @@ class StockChatbot {
         }
     }
     
-    updateChatStatus(status) {
-        // Update chat header with status
-        const header = this.chatWidget.querySelector('.chat-header h3');
-        const statusSpan = header.querySelector('.chat-status') || document.createElement('span');
-        
-        if (!header.querySelector('.chat-status')) {
-            statusSpan.className = `chat-status ${status}`;
-            statusSpan.innerHTML = `
-                <span class="chat-status-dot"></span>
-                ${status === 'online' ? 'Online' : 'Offline'}
-            `;
-            header.appendChild(statusSpan);
-        } else {
-            statusSpan.className = `chat-status ${status}`;
-            statusSpan.innerHTML = `
-                <span class="chat-status-dot"></span>
-                ${status === 'online' ? 'Online' : 'Offline'}
-            `;
-        }
+    autoResizeTextarea() {
+        this.chatInput.style.height = 'auto';
+        this.chatInput.style.height = Math.min(this.chatInput.scrollHeight, 100) + 'px';
     }
     
     scrollToBottom() {
@@ -428,7 +370,7 @@ class StockChatbot {
         return this.currentUser !== null;
     }
     
-    // Public method to show chat notification
+    // Public method to show notification
     showNotification(message) {
         if (this.isAvailable()) {
             this.showSuccess(message);
@@ -436,15 +378,15 @@ class StockChatbot {
     }
 }
 
-// Initialize chat when DOM is loaded
+// Initialize AI Advisor Chat when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Wait for main app to initialize
     setTimeout(() => {
-        window.stockChatbot = new StockChatbot();
+        window.aiAdvisorChat = new AIAdvisorChat();
     }, 1000);
 });
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = StockChatbot;
+    module.exports = AIAdvisorChat;
 }
