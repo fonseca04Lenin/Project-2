@@ -346,8 +346,11 @@ class ChatService:
     def process_message(self, user_id: str, message: str) -> Dict[str, Any]:
         """Process a user message and return AI response"""
         try:
+            logger.info(f"Processing message from user {user_id}: {message}")
+            
             # Check rate limit
             if not self._check_rate_limit(user_id):
+                logger.warning(f"Rate limit exceeded for user {user_id}")
                 return {
                     "success": False,
                     "error": "Rate limit exceeded. Please wait before sending another message.",
@@ -356,10 +359,11 @@ class ChatService:
             
             # Check if Groq client is available
             if not self.groq_client:
+                logger.error("Groq client not initialized - API key may be missing")
                 return {
                     "success": False,
-                    "error": "AI service unavailable",
-                    "response": "I'm currently unavailable. Please try again later."
+                    "error": "AI service unavailable - API key not configured",
+                    "response": "I'm currently unavailable. The AI service needs to be configured. Please try again later."
                 }
             
             # Get user context
@@ -396,6 +400,7 @@ Remember: Always use functions to get real-time data when discussing specific st
             ]
             
             # Call Groq API with function calling
+            logger.info("Calling Groq API...")
             response = self.groq_client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=messages,
@@ -404,6 +409,7 @@ Remember: Always use functions to get real-time data when discussing specific st
                 temperature=0.7,
                 max_tokens=1000
             )
+            logger.info("Groq API call successful")
             
             # Process response
             ai_message = response.choices[0].message
@@ -454,11 +460,11 @@ Remember: Always use functions to get real-time data when discussing specific st
             }
             
         except Exception as e:
-            logger.error(f"Error processing message: {e}")
+            logger.error(f"Error processing message: {e}", exc_info=True)
             return {
                 "success": False,
                 "error": str(e),
-                "response": "I'm sorry, I encountered an error processing your message. Please try again."
+                "response": f"I'm sorry, I encountered an error processing your message: {str(e)}. Please try again."
             }
 
 # Global chat service instance
