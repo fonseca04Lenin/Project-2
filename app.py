@@ -1522,7 +1522,7 @@ def chat_endpoint():
         from chat_service import chat_service
         
         # Process message
-        result = chat_service.process_message(user['uid'], message)
+        result = chat_service.process_message(user.uid, message)
         
         if result['success']:
             return jsonify({
@@ -1560,7 +1560,7 @@ def get_chat_history():
         from chat_service import chat_service
         
         # Get conversation history
-        history = chat_service._get_conversation_history(user['uid'], limit=50)
+        history = chat_service._get_conversation_history(user.uid, limit=50)
         
         return jsonify({
             'success': True,
@@ -1585,7 +1585,7 @@ def clear_chat_history():
         
         # Clear conversation history from Firestore
         firestore_client = get_firestore_client()
-        chat_ref = firestore_client.collection('chat_conversations').document(user['uid'])
+        chat_ref = firestore_client.collection('chat_conversations').document(user.uid)
         chat_ref.delete()
         
         return jsonify({
@@ -1613,7 +1613,7 @@ def chat_status():
         from chat_service import chat_service
         
         # Check rate limit status
-        can_send = chat_service._check_rate_limit(user['uid'])
+        can_send = chat_service._check_rate_limit(user.uid)
         
         return jsonify({
             'success': True,
