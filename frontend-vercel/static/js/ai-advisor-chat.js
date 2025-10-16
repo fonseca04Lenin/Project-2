@@ -20,6 +20,9 @@ class AIAdvisorChat {
         // API Configuration
         this.apiBaseUrl = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com';
         
+        // Debug logging
+        console.log('🤖 AI Advisor Chat initialized with API:', this.apiBaseUrl);
+        
         this.init();
     }
     
@@ -84,19 +87,32 @@ class AIAdvisorChat {
                 }
             }
         });
+        
+        // Test API button
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'testApiBtn') {
+                this.testAPIConnection();
+            }
+        });
     }
     
     checkAuthStatus() {
         // Monitor auth state changes
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged((user) => {
+                console.log('🔐 Auth state changed:', user ? `Logged in as ${user.email}` : 'Logged out');
                 this.currentUser = user;
                 this.updateStatus(user ? 'online' : 'offline');
                 
                 if (user && this.chatMessages) {
                     this.loadChatHistory();
+                } else if (!user) {
+                    this.showConnectionStatus('Please log in to use the AI advisor');
                 }
             });
+        } else {
+            console.error('❌ Firebase not available');
+            this.updateStatus('offline');
         }
     }
     
@@ -121,11 +137,15 @@ class AIAdvisorChat {
         const message = this.chatInput.value.trim();
         if (!message || this.isTyping) return;
         
+        console.log('📤 Sending message:', message);
+        
         // Check authentication
         if (!this.currentUser) {
             this.showError('Please log in to use the AI advisor');
             return;
         }
+        
+        console.log('✅ User authenticated:', this.currentUser.email);
         
         // Check rate limit
         if (this.rateLimitInfo && !this.rateLimitInfo.can_send) {
@@ -145,13 +165,15 @@ class AIAdvisorChat {
         this.showTypingIndicator();
         
         try {
+            console.log('🔄 Calling chat API...');
             // Send message to backend
             const response = await this.callChatAPI(message);
+            console.log('📥 API Response:', response);
             
             // Remove typing indicator
             this.hideTypingIndicator();
             
-            if (response.success) {
+            if (response && response.success) {
                 // Add AI response to chat
                 this.addMessage(response.response, 'ai');
                 
@@ -160,42 +182,67 @@ class AIAdvisorChat {
                     this.rateLimitInfo = response.rate_limit;
                 }
             } else {
-                this.showError(response.error || 'Failed to get response from AI');
+                const errorMsg = response?.error || response?.response || 'Failed to get response from AI';
+                console.error('❌ API Error:', errorMsg);
+                this.showError(errorMsg);
             }
         } catch (error) {
-            console.error('Chat API error:', error);
+            console.error('❌ Chat API error:', error);
             this.hideTypingIndicator();
-            this.showError('Failed to connect to AI service. Please try again.');
+            this.showError(`Failed to connect to AI service: ${error.message}`);
         }
         
         this.setSendButtonState(false);
     }
     
     async callChatAPI(message) {
-        const token = await this.getAuthToken();
-        
-        const response = await fetch(`${this.apiBaseUrl}/api/chat`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ message })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        try {
+            const token = await this.getAuthToken();
+            console.log('🔑 Got auth token, length:', token ? token.length : 0);
+            
+            const requestBody = { message };
+            console.log('📦 Request body:', requestBody);
+            
+            const response = await fetch(`${this.apiBaseUrl}/api/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            console.log('🌐 Response status:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ HTTP Error Response:', errorText);
+                throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+            }
+            
+            const data = await response.json();
+            console.log('✅ Parsed response data:', data);
+            return data;
+        } catch (error) {
+            console.error('❌ CallChatAPI Error:', error);
+            throw error;
         }
-        
-        return await response.json();
     }
     
     async getAuthToken() {
-        // Get Firebase auth token
-        if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
-            return await firebase.auth().currentUser.getIdToken();
+        try {
+            // Get Firebase auth token
+            if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+                const token = await firebase.auth().currentUser.getIdToken();
+                console.log('🔑 Auth token obtained successfully');
+                return token;
+            }
+            console.error('❌ No current user in Firebase auth');
+            throw new Error('No authentication token available - user not logged in');
+        } catch (error) {
+            console.error('❌ Error getting auth token:', error);
+            throw error;
         }
-        throw new Error('No authentication token available');
     }
     
     async loadChatHistory() {
@@ -345,6 +392,26 @@ class AIAdvisorChat {
         }, 3000);
     }
     
+    showConnectionStatus(message) {
+        if (!this.chatMessages) return;
+        
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'ai-chat-connection-status';
+        statusDiv.innerHTML = `
+            <div class="connection-icon">🔗</div>
+            <div class="connection-message">${message}</div>
+        `;
+        this.chatMessages.appendChild(statusDiv);
+        this.scrollToBottom();
+        
+        // Remove status after 5 seconds
+        setTimeout(() => {
+            if (statusDiv.parentNode) {
+                statusDiv.parentNode.removeChild(statusDiv);
+            }
+        }, 5000);
+    }
+    
     setSendButtonState(disabled) {
         this.chatSendBtn.disabled = disabled;
         if (disabled) {
@@ -374,6 +441,30 @@ class AIAdvisorChat {
     showNotification(message) {
         if (this.isAvailable()) {
             this.showSuccess(message);
+        }
+    }
+    
+    // Test API connection
+    async testAPIConnection() {
+        try {
+            console.log('🧪 Testing API connection...');
+            const response = await fetch(`${this.apiBaseUrl}/api/chat/status`);
+            console.log('🌐 Status response:', response.status, response.statusText);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ API Status:', data);
+                this.showSuccess('✅ API connection successful');
+                return true;
+            } else {
+                console.error('❌ API Status Error:', response.status, response.statusText);
+                this.showError(`API Error: ${response.status} ${response.statusText}`);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ API Connection Test Failed:', error);
+            this.showError(`Connection failed: ${error.message}`);
+            return false;
         }
     }
 }
