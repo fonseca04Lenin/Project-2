@@ -1,12 +1,14 @@
-/* AI Investment Advisor Chat Styles - Integrated Section Design */
+/* AI Investment Advisor Chat Styles - Enhanced Design */
 
 /* AI Advisor Section Styling */
 .ai-advisor-section {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 16px;
+    border-radius: 20px;
     margin-bottom: 24px;
     overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(20px);
 }
 
 .ai-advisor-section .section-header {
@@ -44,6 +46,26 @@
     font-weight: 500;
 }
 
+.test-api-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-inverse);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.test-api-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
 .status-dot {
     width: 8px;
     height: 8px;
@@ -61,8 +83,9 @@
 .ai-advisor-chat-container {
     display: flex;
     flex-direction: column;
-    height: 500px;
+    height: 600px;
     background: var(--bg-primary);
+    position: relative;
 }
 
 /* Chat Messages Area */
@@ -92,24 +115,27 @@
 .ai-welcome-message {
     display: flex;
     gap: 16px;
-    padding: 20px;
-    background: var(--bg-surface);
+    padding: 24px;
+    background: linear-gradient(135deg, var(--bg-surface), var(--card-bg));
     border: 1px solid var(--card-border);
-    border-radius: 12px;
+    border-radius: 16px;
     animation: slideInUp 0.5s ease-out;
+    box-shadow: var(--shadow-sm);
 }
 
 .ai-avatar {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-inverse);
-    font-size: 20px;
+    font-size: 22px;
     flex-shrink: 0;
+    box-shadow: var(--shadow-md);
+    animation: pulse 2s infinite;
 }
 
 .welcome-content h4 {
@@ -136,20 +162,44 @@
 .suggestion-btn {
     background: var(--bg-elevated);
     border: 1px solid var(--card-border);
-    border-radius: 20px;
-    padding: 8px 16px;
+    border-radius: 24px;
+    padding: 10px 18px;
     font-size: 12px;
+    font-weight: 500;
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
+    position: relative;
+    overflow: hidden;
 }
 
 .suggestion-btn:hover {
     background: var(--primary-color);
     color: var(--text-inverse);
     border-color: var(--primary-color);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.suggestion-btn:active {
+    transform: translateY(0);
+    transition: all 0.1s;
+}
+
+.suggestion-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.suggestion-btn:hover::before {
+    left: 100%;
 }
 
 /* Chat Messages */
@@ -332,21 +382,48 @@
 .ai-chat-error {
     background: var(--error-color);
     color: var(--text-inverse);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
     margin: 8px 0;
     animation: slideInUp 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .ai-chat-success {
     background: var(--success-color);
     color: var(--text-inverse);
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
     margin: 8px 0;
     animation: slideInUp 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-chat-connection-status {
+    background: var(--warning-color);
+    color: var(--text-inverse);
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    margin: 8px 0;
+    animation: slideInUp 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.connection-icon {
+    font-size: 16px;
+}
+
+.connection-message {
+    flex: 1;
 }
 
 /* Mobile Responsive */
