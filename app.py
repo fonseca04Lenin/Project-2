@@ -376,11 +376,6 @@ def debug_test_watchlist():
     except Exception as e:
         return jsonify({'error': f'Debug test failed: {str(e)}'}), 500
 
-@app.route('/health')
-def health_check():
-    """Quick health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
