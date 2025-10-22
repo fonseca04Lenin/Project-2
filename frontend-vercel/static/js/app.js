@@ -753,24 +753,29 @@ async function loadWatchlistWithDeduplication() {
 
 async function loadWatchlist() {
     try {
+        console.log('🔄 Loading watchlist...');
         const user = firebase.auth().currentUser;
         if (!user) {
+            console.log('❌ No user logged in, showing empty watchlist');
             // User not logged in, show empty watchlist
             displayWatchlist([]);
             return;
         }
 
+        console.log('✅ User logged in, loading from Firebase...');
         // Load from Firebase
         const watchlist = await loadWatchlistFromFirebase();
+        console.log('📊 Loaded watchlist from Firebase:', watchlist);
         displayWatchlist(watchlist);
         
         // Also update prices for all stocks
         if (watchlist.length > 0) {
+            console.log('💰 Updating prices for', watchlist.length, 'stocks');
             updateWatchlistPrices();
         }
 
     } catch (error) {
-        console.error('Error loading watchlist:', error);
+        console.error('❌ Error loading watchlist:', error);
         displayWatchlist([]);
     }
 }
@@ -914,12 +919,16 @@ function displayWatchlist(stocks) {
 // Firebase Watchlist Functions
 async function loadWatchlistFromFirebase() {
     try {
+        console.log('🔥 Loading watchlist from Firebase...');
         const user = firebase.auth().currentUser;
         if (!user) {
+            console.log('❌ No user for Firebase watchlist load');
             return [];
         }
 
         const token = await user.getIdToken();
+        console.log('🔑 Got Firebase token, length:', token.length);
+        
         const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
             method: 'GET',
             headers: {
@@ -929,15 +938,19 @@ async function loadWatchlistFromFirebase() {
             }
         });
 
+        console.log('🌐 Firebase API response status:', response.status);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('✅ Firebase API response data:', data);
             return data.watchlist || [];
         } else {
-            console.error('Failed to load watchlist:', response.status);
+            const errorText = await response.text();
+            console.error('❌ Firebase API error:', response.status, errorText);
             return [];
         }
     } catch (error) {
-        console.error('Error loading watchlist from Firebase:', error);
+        console.error('❌ Error loading watchlist from Firebase:', error);
         return [];
     }
 }
@@ -1224,8 +1237,11 @@ function updateStockInWatchlist(symbol, priceData) {
 let addingToWatchlist = new Set();
 
 async function addToWatchlist(symbol, companyName = null) {
+    console.log('➕ Adding to watchlist:', symbol, companyName);
+    
     // Prevent multiple rapid calls for the same symbol
     if (addingToWatchlist.has(symbol)) {
+        console.log('⚠️ Already adding', symbol, 'to watchlist, skipping');
         return;
     }
     
@@ -1235,32 +1251,40 @@ async function addToWatchlist(symbol, companyName = null) {
         // Check if user is authenticated
         const user = firebase.auth().currentUser;
         if (!user) {
+            console.log('❌ No user logged in');
             showToast('Please log in to add stocks to your watchlist', 'warning');
             return;
         }
 
+        console.log('✅ User authenticated:', user.email);
+        
         // Check if already exists by loading current watchlist
         const currentWatchlist = await loadWatchlistFromFirebase();
+        console.log('📊 Current watchlist:', currentWatchlist);
         const exists = currentWatchlist.find(stock => stock.symbol === symbol);
         
         if (exists) {
+            console.log('⚠️ Stock already exists in watchlist');
             showToast(`${symbol} is already in your watchlist`, 'warning');
             return;
         }
 
+        console.log('🔄 Adding to Firebase backend...');
         // Add to Firebase backend
         const success = await addToFirebaseWatchlist(symbol, companyName);
         
         if (success) {
+            console.log('✅ Successfully added to Firebase');
             showToast(`${symbol} added to watchlist`, 'success');
             // Reload watchlist to show the new addition
             await loadWatchlist();
         } else {
+            console.log('❌ Failed to add to Firebase');
             showToast('Error adding to watchlist', 'error');
         }
         
     } catch (error) {
-        console.error('Error adding to watchlist:', error);
+        console.error('❌ Error adding to watchlist:', error);
         showToast('Error adding to watchlist', 'error');
     } finally {
         // Always remove from the set when operation completes
