@@ -989,7 +989,18 @@ async function loadWatchlistFromFirebase() {
         if (response.ok) {
             const data = await response.json();
             console.log('✅ Firebase API response data:', data);
-            return data.watchlist || [];
+            
+            // Handle both array and object responses
+            if (Array.isArray(data)) {
+                console.log('📊 Data is array, returning directly:', data);
+                return data;
+            } else if (data.watchlist) {
+                console.log('📊 Data has watchlist property:', data.watchlist);
+                return data.watchlist;
+            } else {
+                console.log('📊 Data is object but no watchlist property, returning empty array');
+                return [];
+            }
         } else {
             const errorText = await response.text();
             console.error('❌ Firebase API error:', response.status, errorText);
