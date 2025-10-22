@@ -752,16 +752,25 @@ async function loadWatchlistWithDeduplication() {
 }
 
 async function loadWatchlist() {
-    
-    // Load watchlist from local storage
-    const watchlist = getBrowserWatchlist();
-    
-    if (watchlist.length > 0) {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            // User not logged in, show empty watchlist
+            displayWatchlist([]);
+            return;
+        }
+
+        // Load from Firebase
+        const watchlist = await loadWatchlistFromFirebase();
         displayWatchlist(watchlist);
         
-        // Fetch live prices for stored stocks
-        await updateWatchlistPrices(watchlist);
-    } else {
+        // Also update prices for all stocks
+        if (watchlist.length > 0) {
+            updateWatchlistPrices();
+        }
+
+    } catch (error) {
+        console.error('Error loading watchlist:', error);
         displayWatchlist([]);
     }
 }
@@ -900,6 +909,89 @@ function displayWatchlist(stocks) {
     }).join('');
 
     watchlistContainer.innerHTML = watchlistHTML;
+}
+
+// Firebase Watchlist Functions
+async function loadWatchlistFromFirebase() {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            return [];
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'X-User-ID': user.uid,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.watchlist || [];
+        } else {
+            console.error('Failed to load watchlist:', response.status);
+            return [];
+        }
+    } catch (error) {
+        console.error('Error loading watchlist from Firebase:', error);
+        return [];
+    }
+}
+
+async function addToFirebaseWatchlist(symbol, companyName) {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            return false;
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'X-User-ID': user.uid,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                symbol: symbol,
+                company_name: companyName || symbol
+            })
+        });
+
+        return response.ok;
+    } catch (error) {
+        console.error('Error adding to Firebase watchlist:', error);
+        return false;
+    }
+}
+
+async function removeFromFirebaseWatchlist(symbol) {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            return false;
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'X-User-ID': user.uid,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        return response.ok;
+    } catch (error) {
+        console.error('Error removing from Firebase watchlist:', error);
+        return false;
+    }
 }
 
 // Browser Storage Functions for Watchlist (Portfolio Version)
@@ -1094,21 +1186,35 @@ async function addToWatchlist(symbol, companyName = null) {
     addingToWatchlist.add(symbol);
     
     try {
+        // Check if user is authenticated
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            showToast('Please log in to add stocks to your watchlist', 'warning');
+            return;
+        }
 
-        // Check if already exists
-        const watchlist = getBrowserWatchlist();
-        const exists = watchlist.find(stock => stock.symbol === symbol);
+        // Check if already exists by loading current watchlist
+        const currentWatchlist = await loadWatchlistFromFirebase();
+        const exists = currentWatchlist.find(stock => stock.symbol === symbol);
         
         if (exists) {
             showToast(`${symbol} is already in your watchlist`, 'warning');
             return;
         }
 
-        // Add to browser storage
-        addToBrowserWatchlist(symbol, companyName);
-        showToast(`${symbol} added to watchlist`, 'success');
+        // Add to Firebase backend
+        const success = await addToFirebaseWatchlist(symbol, companyName);
+        
+        if (success) {
+            showToast(`${symbol} added to watchlist`, 'success');
+            // Reload watchlist to show the new addition
+            await loadWatchlist();
+        } else {
+            showToast('Error adding to watchlist', 'error');
+        }
         
     } catch (error) {
+        console.error('Error adding to watchlist:', error);
         showToast('Error adding to watchlist', 'error');
     } finally {
         // Always remove from the set when operation completes
@@ -1169,11 +1275,25 @@ async function syncWatchlistAddition(symbol, companyName, retryCount = 0, maxRet
 
 async function removeFromWatchlist(symbol) {
     try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            showToast('Please log in to manage your watchlist', 'warning');
+            return;
+        }
+
+        // Remove from Firebase backend
+        const success = await removeFromFirebaseWatchlist(symbol);
         
-        // Remove from browser storage
-        removeFromBrowserWatchlist(symbol);
+        if (success) {
+            showToast(`${symbol} removed from watchlist`, 'success');
+            // Reload watchlist to reflect the change
+            await loadWatchlist();
+        } else {
+            showToast('Error removing from watchlist', 'error');
+        }
         
     } catch (error) {
+        console.error('Error removing from watchlist:', error);
         showToast('Error removing from watchlist', 'error');
     }
 }
