@@ -125,7 +125,6 @@
         function login() {
             const provider = new firebase.auth.GoogleAuthProvider();
             firebase.auth().signInWithPopup(provider).catch(error => {
-                console.error('Login error:', error);
                 document.getElementById('authText').textContent = `Login failed: ${error.message}`;
                 document.getElementById('authText').style.color = 'var(--error-color)';
             });
