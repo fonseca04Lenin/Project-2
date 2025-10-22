@@ -1,5 +1,4 @@
 // Global variables
-console.log('🚀 App.js loaded - Version 20250122-004 FORCE REFRESH - CRITICAL DEBUG ACTIVE');
 let watchlistData = [];
 let currentStock = null;
 let chart = null; // Add chart variable declaration
@@ -738,18 +737,15 @@ let watchlistRequestPromise = null;
 async function loadWatchlistWithDeduplication() {
     // If request already in progress, return the existing promise
     if (watchlistRequestInProgress && watchlistRequestPromise) {
-        console.log('⏸️ Watchlist request already in progress, skipping duplicate call');
         return watchlistRequestPromise;
     }
 
     // Set flag and create new promise
     watchlistRequestInProgress = true;
-    console.log('🚀 Starting new watchlist request');
     watchlistRequestPromise = loadWatchlist();
 
     try {
         const result = await watchlistRequestPromise;
-        console.log('✅ Watchlist request completed successfully');
         return result;
     } finally {
         watchlistRequestInProgress = false;
@@ -759,20 +755,15 @@ async function loadWatchlistWithDeduplication() {
 
 async function loadWatchlist() {
     try {
-        console.log('🔄 Loading watchlist...');
         const user = firebase.auth().currentUser;
         if (!user) {
-            console.log('❌ No user logged in, showing empty watchlist');
             // User not logged in, show empty watchlist
             displayWatchlist([]);
             return;
         }
 
-        console.log('✅ User logged in, loading from Firebase...');
         // Load from Firebase with integrated price fetching
         const watchlist = await loadWatchlistFromFirebase();
-        console.log('🐛 DEBUG: watchlist type:', typeof watchlist, 'isArray:', Array.isArray(watchlist));
-        console.log('📊 Loaded watchlist from Firebase with prices:', watchlist);
         displayWatchlist(watchlist);
 
         // No need for separate price update - prices are already fetched above
@@ -855,12 +846,10 @@ async function wakeUpBackendForWatchlist() {
 }
 
 function displayWatchlist(stocks) {
-    console.log('📊 Displaying watchlist with', stocks.length, 'stocks');
 
     if (stocks.length === 0) {
         // Only show empty state if we're sure there are no stocks
         // and not if this is a race condition clearing
-        console.log('📊 Showing empty watchlist state');
         watchlistContainer.innerHTML = `
             <div class="empty-state" id="emptyWatchlist">
                 <i class="fas fa-star-o"></i>
@@ -927,15 +916,12 @@ function displayWatchlist(stocks) {
 // Firebase Watchlist Functions
 async function loadWatchlistFromFirebase() {
     try {
-        console.log('🔥 FIXED VERSION 005 - Loading watchlist from Firebase...');
         const user = firebase.auth().currentUser;
         if (!user) {
-            console.log('❌ No user for Firebase watchlist load');
             return [];
         }
 
         const token = await user.getIdToken();
-        console.log('🔑 Got Firebase token, length:', token.length);
 
         // Add cache busting
         const timestamp = Date.now();
@@ -948,32 +934,25 @@ async function loadWatchlistFromFirebase() {
             }
         });
 
-        console.log('🌐 Firebase API response status:', response.status);
 
         if (response.ok) {
             const data = await response.json();
 
             // CRITICAL FIX - Version 005 - FORCE RETURN DATA
-            console.log('🔥 VERSION 005 FIXED - Data received:', data);
-            console.log('🔥 Data type:', typeof data, 'IsArray:', Array.isArray(data));
 
             // FORCE the data to be processed correctly
             let stocksData = [];
             if (Array.isArray(data) && data.length > 0) {
-                console.log('🔥 PROCESSING ARRAY DATA with', data.length, 'items');
                 stocksData = data;
             } else if (data && data.watchlist && Array.isArray(data.watchlist)) {
-                console.log('🔥 PROCESSING NESTED WATCHLIST DATA');
                 stocksData = data.watchlist;
             } else {
-                console.log('🔥 NO VALID DATA FOUND');
                 return [];
             }
 
             // Process and fetch prices for each stock using the same API as search
             const processedStocks = await Promise.all(stocksData.map(async (item) => {
                 const symbol = item.symbol || item.id;
-                console.log('🔥 Processing stock:', symbol);
 
                 // Use the same /api/search endpoint as search functionality for consistent data
                 let stockData = {
@@ -1002,12 +981,9 @@ async function loadWatchlistFromFirebase() {
                             priceChange: searchData.priceChange || 0,
                             priceChangePercent: searchData.priceChangePercent || 0
                         };
-                        console.log('✅ Got search data for', symbol, ':', stockData);
                     } else {
-                        console.log('❌ Search API failed for', symbol, searchResponse.status);
                     }
                 } catch (error) {
-                    console.log('❌ Failed to get search data for', symbol, error);
                 }
 
                 return {
@@ -1021,7 +997,6 @@ async function loadWatchlistFromFirebase() {
                 };
             }));
 
-            console.log('🔥 VERSION 005 - RETURNING PROCESSED STOCKS:', processedStocks.length);
             return processedStocks;
         } else {
             const errorText = await response.text();
@@ -1281,12 +1256,10 @@ async function updateWatchlistPrices() {
 
         // Prevent multiple price updates running simultaneously
         if (window.updatingPrices) {
-            console.log('⏸️ Price update already in progress, skipping...');
             return;
         }
 
         window.updatingPrices = true;
-        console.log('💰 Starting price update process...');
 
         // Load current watchlist from Firebase
         const watchlist = await loadWatchlistFromFirebase();
@@ -1303,7 +1276,6 @@ async function updateWatchlistPrices() {
         const updatedWatchlist = await loadWatchlistFromFirebase();
         displayWatchlist(updatedWatchlist);
 
-        console.log('✅ Price update completed');
 
     } catch (error) {
         console.error('Error updating watchlist prices:', error);
@@ -1336,11 +1308,9 @@ function updateStockInWatchlist(symbol, priceData) {
 let addingToWatchlist = new Set();
 
 async function addToWatchlist(symbol, companyName = null) {
-    console.log('➕ Adding to watchlist:', symbol, companyName);
     
     // Prevent multiple rapid calls for the same symbol
     if (addingToWatchlist.has(symbol)) {
-        console.log('⚠️ Already adding', symbol, 'to watchlist, skipping');
         return;
     }
     
@@ -1350,35 +1320,28 @@ async function addToWatchlist(symbol, companyName = null) {
         // Check if user is authenticated
         const user = firebase.auth().currentUser;
         if (!user) {
-            console.log('❌ No user logged in');
             showToast('Please log in to add stocks to your watchlist', 'warning');
             return;
         }
 
-        console.log('✅ User authenticated:', user.email);
         
         // Check if already exists by loading current watchlist
         const currentWatchlist = await loadWatchlistFromFirebase();
-        console.log('📊 Current watchlist:', currentWatchlist);
         const exists = currentWatchlist.find(stock => stock.symbol === symbol);
         
         if (exists) {
-            console.log('⚠️ Stock already exists in watchlist');
             showToast(`${symbol} is already in your watchlist`, 'warning');
             return;
         }
 
-        console.log('🔄 Adding to Firebase backend...');
         // Add to Firebase backend
         const success = await addToFirebaseWatchlist(symbol, companyName);
         
         if (success) {
-            console.log('✅ Successfully added to Firebase');
             showToast(`${symbol} added to watchlist`, 'success');
             // Reload watchlist to show the new addition
             await loadWatchlistWithDeduplication();
         } else {
-            console.log('❌ Failed to add to Firebase');
             showToast('Error adding to watchlist', 'error');
         }
         
@@ -2072,7 +2035,6 @@ function saveRememberMePreference(remember) {
 
 async function handleAuthStateChange(user) {
     if (user) {
-        console.log('🔐 User authenticated:', user.email);
         
         // Show main content immediately without waiting for backend verification
         const userData = {
@@ -2085,16 +2047,13 @@ async function handleAuthStateChange(user) {
         
         // Verify with backend in background (non-blocking)
         verifyWithBackend(user).catch(error => {
-            console.log('⚠️ Backend verification failed, but keeping user logged in:', error);
         });
         
     } else {
         // Only show auth forms if user shouldn't stay logged in
         if (!shouldStayLoggedIn()) {
-            console.log('🔐 User logged out');
             showAuthForms();
         } else {
-            console.log('🔐 User logged out but should stay logged in - keeping session');
         }
     }
 }
@@ -2109,11 +2068,9 @@ async function verifyWithBackend(user) {
         });
 
         if (!response.ok) {
-            console.log('⚠️ Backend verification failed, but keeping user logged in');
         }
         
     } catch (error) {
-        console.log('⚠️ Backend verification error, but keeping user logged in:', error);
     }
 }
 
@@ -3400,7 +3357,6 @@ const livePricing = {
 
 // Initialize live pricing system
 function initializeLivePricing() {
-    console.log('🚀 Initializing Live Pricing System...');
 
     // Set up page visibility detection
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -3428,7 +3384,6 @@ function initializeLivePricing() {
 function startLivePricing() {
     if (livePricing.isActive) return;
 
-    console.log('▶️ Starting live pricing updates...');
     livePricing.isActive = true;
 
     // Adjust frequency based on market hours
@@ -3444,14 +3399,12 @@ function startLivePricing() {
     // Add live indicators to UI
     addLiveIndicators();
 
-    console.log(`✅ Live pricing started (${frequency/1000}s intervals)`);
 }
 
 // Stop live pricing updates
 function stopLivePricing() {
     if (!livePricing.isActive) return;
 
-    console.log('⏹️ Stopping live pricing updates...');
     livePricing.isActive = false;
 
     if (livePricing.interval) {
@@ -3462,19 +3415,16 @@ function stopLivePricing() {
     // Remove live indicators
     removeLiveIndicators();
 
-    console.log('✅ Live pricing stopped');
 }
 
 // Handle page visibility changes
 function handleVisibilityChange() {
     if (document.hidden) {
-        console.log('📱 Page hidden - pausing live updates');
         if (livePricing.isActive) {
             stopLivePricing();
             livePricing.visibilityEnabled = false;
         }
     } else {
-        console.log('📱 Page visible - resuming live updates');
         if (!livePricing.isActive && livePricing.visibilityEnabled !== false) {
             const user = firebase.auth().currentUser;
             if (user) {
@@ -3490,11 +3440,9 @@ async function updateLivePrices() {
     try {
         const visibleStocks = getVisibleStocks();
         if (visibleStocks.length === 0) {
-            console.log('📊 No visible stocks to update');
             return;
         }
 
-        console.log(`🔄 Updating ${visibleStocks.length} visible stocks...`);
 
         // Update each stock with error handling
         const updatePromises = visibleStocks.map(async (stockInfo) => {
@@ -3510,7 +3458,6 @@ async function updateLivePrices() {
         livePricing.lastUpdate = new Date();
         updateLiveIndicators();
 
-        console.log('✅ Live price update completed');
 
     } catch (error) {
         console.error('❌ Live pricing update failed:', error);
@@ -3649,7 +3596,6 @@ async function animatePriceChange(symbol, oldPrice, newPrice, type) {
     const isIncrease = newPrice > oldPrice;
     const flashColor = isIncrease ? '#10B981' : '#EF4444'; // Green for increase, red for decrease
 
-    console.log(`💫 Animating ${symbol}: $${oldPrice.toFixed(2)} → $${newPrice.toFixed(2)} (${isIncrease ? '↗️' : '↘️'})`);
 
     // Find the price element to animate
     let priceElement = null;
@@ -3811,13 +3757,11 @@ function updateMarketHours() {
 
     livePricing.marketHours.isOpen = isWeekday && isDuringMarketHours;
 
-    console.log(`📊 Market Status: ${livePricing.marketHours.isOpen ? 'OPEN' : 'CLOSED'} (${easternTime.toLocaleTimeString()} EST)`);
 
     // Adjust update frequency if market status changed
     if (livePricing.isActive) {
         const newFrequency = livePricing.marketHours.isOpen ? 15000 : 60000;
         if (newFrequency !== livePricing.updateFrequency) {
-            console.log(`🔄 Adjusting update frequency: ${newFrequency/1000}s`);
             livePricing.updateFrequency = newFrequency;
 
             // Restart with new frequency

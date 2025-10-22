@@ -21,7 +21,6 @@ class AIAdvisorChat {
         this.apiBaseUrl = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
         
         // Debug logging
-        console.log('🤖 AI Advisor Chat initialized with API:', this.apiBaseUrl);
         
         this.init();
     }
@@ -100,7 +99,6 @@ class AIAdvisorChat {
         // Monitor auth state changes
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged((user) => {
-                console.log('🔐 Auth state changed:', user ? `Logged in as ${user.email}` : 'Logged out');
                 this.currentUser = user;
                 this.updateStatus(user ? 'online' : 'offline');
                 
@@ -137,7 +135,6 @@ class AIAdvisorChat {
         const message = this.chatInput.value.trim();
         if (!message || this.isTyping) return;
         
-        console.log('📤 Sending message:', message);
         
         // Check authentication
         if (!this.currentUser) {
@@ -145,7 +142,6 @@ class AIAdvisorChat {
             return;
         }
         
-        console.log('✅ User authenticated:', this.currentUser.email);
         
         // Check rate limit
         if (this.rateLimitInfo && !this.rateLimitInfo.can_send) {
@@ -165,10 +161,8 @@ class AIAdvisorChat {
         this.showTypingIndicator();
         
         try {
-            console.log('🔄 Calling chat API...');
             // Send message to backend
             const response = await this.callChatAPI(message);
-            console.log('📥 API Response:', response);
             
             // Remove typing indicator
             this.hideTypingIndicator();
@@ -198,11 +192,8 @@ class AIAdvisorChat {
     async callChatAPI(message) {
         try {
             const token = await this.getAuthToken();
-            console.log('🔑 Got auth token, length:', token ? token.length : 0);
-            console.log('👤 Current user UID:', this.currentUser.uid);
             
             const requestBody = { message };
-            console.log('📦 Request body:', requestBody);
             
             const response = await fetch(`${this.apiBaseUrl}/api/chat`, {
                 method: 'POST',
@@ -214,7 +205,6 @@ class AIAdvisorChat {
                 body: JSON.stringify(requestBody)
             });
             
-            console.log('🌐 Response status:', response.status, response.statusText);
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -223,7 +213,6 @@ class AIAdvisorChat {
             }
             
             const data = await response.json();
-            console.log('✅ Parsed response data:', data);
             return data;
         } catch (error) {
             console.error('❌ CallChatAPI Error:', error);
@@ -236,7 +225,6 @@ class AIAdvisorChat {
             // Get Firebase auth token
             if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
                 const token = await firebase.auth().currentUser.getIdToken();
-                console.log('🔑 Auth token obtained successfully');
                 return token;
             }
             console.error('❌ No current user in Firebase auth');
@@ -268,7 +256,6 @@ class AIAdvisorChat {
                 }
             }
         } catch (error) {
-            console.log('Could not load chat history:', error);
         }
     }
     
@@ -450,7 +437,6 @@ class AIAdvisorChat {
     // Test API connection
     async testAPIConnection() {
         try {
-            console.log('🧪 Testing API connection...');
             
             if (!this.currentUser) {
                 this.showError('Please log in first to test API connection');
@@ -467,7 +453,6 @@ class AIAdvisorChat {
                 }
             });
             
-            console.log('🌐 Status response:', statusResponse.status, statusResponse.statusText);
             
             if (!statusResponse.ok) {
                 const errorText = await statusResponse.text();
@@ -477,7 +462,6 @@ class AIAdvisorChat {
             }
             
             const statusData = await statusResponse.json();
-            console.log('✅ API Status:', statusData);
             
             // Now test Groq API specifically
             const groqResponse = await fetch(`${this.apiBaseUrl}/api/chat/test-groq`, {
@@ -487,11 +471,9 @@ class AIAdvisorChat {
                 }
             });
             
-            console.log('🧠 Groq test response:', groqResponse.status, groqResponse.statusText);
             
             if (groqResponse.ok) {
                 const groqData = await groqResponse.json();
-                console.log('✅ Groq API Test:', groqData);
                 this.showSuccess('✅ API & Groq connection successful!');
                 return true;
             } else {
