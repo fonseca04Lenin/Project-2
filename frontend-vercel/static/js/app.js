@@ -1,5 +1,5 @@
 // Global variables
-console.log('🚀 App.js loaded - Version 20250122-001 with debugging enabled');
+console.log('🚀 App.js loaded - Version 20250122-002 with FIXED parsing');
 let watchlistData = [];
 let currentStock = null;
 let chart = null; // Add chart variable declaration
@@ -989,10 +989,12 @@ async function loadWatchlistFromFirebase() {
         if (response.ok) {
             const data = await response.json();
             console.log('✅ Firebase API response data:', data);
+            console.log('🔍 DEBUG: About to parse data, type:', typeof data, 'isArray:', Array.isArray(data));
             
             // Handle both array and object responses
             if (Array.isArray(data)) {
                 console.log('📊 Data is array, returning directly:', data);
+                console.log('🎯 SUCCESS: Returning array with', data.length, 'items');
                 return data;
             } else if (data.watchlist) {
                 console.log('📊 Data has watchlist property:', data.watchlist);
