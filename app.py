@@ -1501,6 +1501,32 @@ def get_options_data(symbol):
         return jsonify({'error': f'Could not fetch options data for {symbol}'}), 500
 
 # =============================================================================
+# BASIC ENDPOINTS
+# =============================================================================
+
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint for basic connectivity test"""
+    return jsonify({
+        'message': 'Stock Watchlist Pro API',
+        'status': 'running',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api', methods=['GET'])
+def api_root():
+    """API root endpoint"""
+    return jsonify({
+        'message': 'Stock Watchlist Pro API',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/api/health',
+            'chat': '/api/chat',
+            'watchlist': '/api/watchlist'
+        }
+    })
+
+# =============================================================================
 # HEALTH CHECK ENDPOINT
 # =============================================================================
 
@@ -1508,22 +1534,33 @@ def get_options_data(symbol):
 def health_check():
     """Health check endpoint for Railway"""
     try:
+        print("🏥 Health check requested")
+        
         # Test Firebase connection
         firestore_client = get_firestore_client()
+        print("✅ Firebase connection OK")
         
         # Test Groq API
         from chat_service import chat_service
         groq_status = chat_service.groq_client is not None
+        print(f"✅ Groq API status: {groq_status}")
         
-        return jsonify({
+        response_data = {
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'services': {
                 'firebase': True,
                 'groq_api': groq_status
             }
-        }), 200
+        }
+        
+        print(f"🏥 Health check response: {response_data}")
+        return jsonify(response_data), 200
+        
     except Exception as e:
+        print(f"❌ Health check failed: {e}")
+        import traceback
+        print(f"❌ Health check traceback: {traceback.format_exc()}")
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
