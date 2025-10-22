@@ -9,25 +9,36 @@ const WatchlistComponent = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log('🔍 React useEffect triggered - setting up watchlist');
+        
         // Load watchlist from API
         loadWatchlistFromAPI();
         
         // Listen for authentication state changes
-        const unsubscribe = window.firebase && window.firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-                // User logged in, reload watchlist
-                loadWatchlistFromAPI();
-            } else {
-                // User logged out, clear watchlist
-                setWatchlistData([]);
-                setLoading(false);
-            }
-        });
-        
-        // Cleanup listener on unmount
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
+        if (window.firebase && window.firebase.auth()) {
+            console.log('🔍 Setting up Firebase auth listener');
+            const unsubscribe = window.firebase.auth().onAuthStateChanged((user) => {
+                console.log('🔍 Auth state changed:', user ? `User: ${user.email}` : 'No user');
+                if (user) {
+                    // User logged in, reload watchlist
+                    console.log('🔍 User logged in, reloading watchlist');
+                    loadWatchlistFromAPI();
+                } else {
+                    // User logged out, clear watchlist
+                    console.log('🔍 User logged out, clearing watchlist');
+                    setWatchlistData([]);
+                    setLoading(false);
+                }
+            });
+            
+            // Cleanup listener on unmount
+            return () => {
+                console.log('🔍 Cleaning up auth listener');
+                if (unsubscribe) unsubscribe();
+            };
+        } else {
+            console.log('🔍 Firebase not available, no auth listener set up');
+        }
     }, []);
 
     const loadWatchlistFromAPI = async () => {
@@ -405,11 +416,18 @@ const WatchlistComponent = () => {
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔍 DOM loaded, looking for watchlist elements...');
+    
     // Find the watchlist container
     const watchlistContainer = document.getElementById('watchlistContainer');
     const watchlistSection = document.querySelector('.watchlist-section');
     
+    console.log('🔍 Watchlist container found:', !!watchlistContainer);
+    console.log('🔍 Watchlist section found:', !!watchlistSection);
+    
     if (watchlistContainer && watchlistSection) {
+        console.log('🔍 Creating React container...');
+        
         // Create a new container for React
         const reactContainer = document.createElement('div');
         reactContainer.id = 'react-watchlist-root';
@@ -417,13 +435,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Replace the existing watchlist container with React container
         watchlistSection.replaceChild(reactContainer, watchlistContainer);
         
+        console.log('🔍 Rendering React component...');
+        
         // Render React component
         const root = ReactDOM.createRoot(reactContainer);
         root.render(React.createElement(WatchlistComponent));
         
         console.log('✅ React Watchlist component loaded successfully');
+        
+        // Check Firebase auth state immediately
+        if (window.firebase && window.firebase.auth()) {
+            const currentUser = window.firebase.auth().currentUser;
+            console.log('🔍 Current Firebase user:', currentUser ? currentUser.email : 'Not logged in');
+        } else {
+            console.log('🔍 Firebase not available yet');
+        }
     } else {
         console.warn('⚠️ Watchlist container not found, React component not loaded');
+        console.log('Available elements:', {
+            watchlistContainer: !!watchlistContainer,
+            watchlistSection: !!watchlistSection,
+            allSections: document.querySelectorAll('section').length
+        });
     }
 });
 
