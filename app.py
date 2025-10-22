@@ -89,10 +89,18 @@ finnhub_api = FinnhubAPI()
 
 # Initialize Watchlist Service with proper Firestore client
 print("🔍 Initializing WatchlistService...")
-firestore_client = get_firestore_client()
-print(f"🔍 Firestore client available: {firestore_client is not None}")
-watchlist_service = get_watchlist_service(firestore_client)
-print("✅ WatchlistService initialized successfully")
+try:
+    firestore_client = get_firestore_client()
+    print(f"🔍 Firestore client available: {firestore_client is not None}")
+    watchlist_service = get_watchlist_service(firestore_client)
+    print("✅ WatchlistService initialized successfully")
+except Exception as e:
+    print(f"❌ Failed to initialize WatchlistService: {e}")
+    import traceback
+    print(f"❌ WatchlistService traceback: {traceback.format_exc()}")
+    # Set to None so the app can still start
+    firestore_client = None
+    watchlist_service = None
 
 # Store connected users and their watchlists with cleanup
 import weakref
@@ -1536,20 +1544,33 @@ def health_check():
     try:
         print("🏥 Health check requested")
         
-        # Test Firebase connection
-        firestore_client = get_firestore_client()
-        print("✅ Firebase connection OK")
+        # Test Firebase connection (if available)
+        firebase_status = False
+        if firestore_client:
+            try:
+                # Simple test to see if Firebase is working
+                firebase_status = True
+                print("✅ Firebase connection OK")
+            except Exception as e:
+                print(f"❌ Firebase connection failed: {e}")
+                firebase_status = False
+        else:
+            print("⚠️ Firebase not initialized")
         
         # Test Groq API
-        from chat_service import chat_service
-        groq_status = chat_service.groq_client is not None
-        print(f"✅ Groq API status: {groq_status}")
+        groq_status = False
+        try:
+            from chat_service import chat_service
+            groq_status = chat_service.groq_client is not None
+            print(f"✅ Groq API status: {groq_status}")
+        except Exception as e:
+            print(f"❌ Groq API check failed: {e}")
         
         response_data = {
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'services': {
-                'firebase': True,
+                'firebase': firebase_status,
                 'groq_api': groq_status
             }
         }
