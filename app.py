@@ -46,6 +46,7 @@ vercel_domains = [
 allowed_origins.extend(vercel_domains)
 
 print(f"🌐 CORS allowed origins: {allowed_origins}")
+print(f"🚀 Railway deployment - CORS configured for Vercel frontend")
 
 # Enable CORS with specific auth-friendly settings
 CORS(app,
