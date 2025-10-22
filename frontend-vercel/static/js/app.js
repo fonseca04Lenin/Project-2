@@ -1145,12 +1145,58 @@ async function fetchStockPrice(symbol, companyName) {
     }
 }
 
-async function updateWatchlistPrices(watchlist) {
-    
-    for (const stock of watchlist) {
-        await fetchStockPrice(stock.symbol, stock.company_name);
-        // Add small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 200));
+async function fetchStockPriceFromBackend(symbol) {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            return null;
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch(`${API_BASE_URL}/api/stock/${symbol}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'X-User-ID': user.uid,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        } else {
+            console.error('Failed to fetch stock price from backend:', response.status);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error fetching stock price from backend:', error);
+        return null;
+    }
+}
+
+async function updateWatchlistPrices() {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            return;
+        }
+
+        // Load current watchlist from Firebase
+        const watchlist = await loadWatchlistFromFirebase();
+        
+        // Update prices for each stock using backend
+        for (const stock of watchlist) {
+            await fetchStockPriceFromBackend(stock.symbol);
+            // Add small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
+        // Reload watchlist to show updated prices
+        await loadWatchlist();
+        
+    } catch (error) {
+        console.error('Error updating watchlist prices:', error);
     }
 }
 
@@ -1299,22 +1345,44 @@ async function removeFromWatchlist(symbol) {
 }
 
 async function clearWatchlist() {
-    const watchlist = getBrowserWatchlist();
-    
-    if (watchlist.length === 0) {
-        showToast('Watchlist is already empty', 'info');
-        return;
-    }
-
-    if (confirm('Are you sure you want to clear your entire watchlist?')) {
-        try {
-            // Clear browser storage
-            saveBrowserWatchlist([]);
-            displayWatchlist([]);
-            showToast('Watchlist cleared successfully', 'success');
-        } catch (error) {
-            showToast('Error clearing watchlist', 'error');
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            showToast('Please log in to manage your watchlist', 'warning');
+            return;
         }
+
+        // Check if watchlist is empty
+        const currentWatchlist = await loadWatchlistFromFirebase();
+        if (currentWatchlist.length === 0) {
+            showToast('Watchlist is already empty', 'info');
+            return;
+        }
+
+        if (confirm('Are you sure you want to clear your entire watchlist?')) {
+            // Clear from Firebase backend
+            const token = await user.getIdToken();
+            const response = await fetch(`${API_BASE_URL}/api/watchlist/clear`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-ID': user.uid,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                showToast('Watchlist cleared successfully', 'success');
+                // Reload watchlist to show empty state
+                await loadWatchlist();
+            } else {
+                showToast('Error clearing watchlist', 'error');
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error clearing watchlist:', error);
+        showToast('Error clearing watchlist', 'error');
     }
 }
 
