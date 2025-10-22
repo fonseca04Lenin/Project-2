@@ -42,12 +42,17 @@ const WatchlistComponent = () => {
                 const token = await user.getIdToken();
                 
                 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
-                console.log('🌐 Fetching from:', `${API_BASE_URL}/api/watchlist`);
                 
-                const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
+                // Add cache busting like the original code
+                const timestamp = Date.now();
+                const url = `${API_BASE_URL}/api/watchlist?t=${timestamp}`;
+                console.log('🌐 Fetching from:', url);
+                
+                const response = await fetch(url, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,
+                        'X-User-ID': user.uid,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -56,8 +61,71 @@ const WatchlistComponent = () => {
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('📊 Watchlist data received:', data);
-                    setWatchlistData(data.watchlist || []);
+                    console.log('📊 Raw watchlist data received:', data);
+                    
+                    // Process data like the original code
+                    let stocksData = [];
+                    if (Array.isArray(data) && data.length > 0) {
+                        stocksData = data;
+                    } else if (data && data.watchlist && Array.isArray(data.watchlist)) {
+                        stocksData = data.watchlist;
+                    } else {
+                        console.log('📊 No stocks data found, setting empty array');
+                        setWatchlistData([]);
+                        return;
+                    }
+                    
+                    console.log('📊 Processing stocks:', stocksData.length, 'items');
+                    
+                    // Process and fetch prices for each stock using the same API as search
+                    const processedStocks = await Promise.all(stocksData.map(async (item) => {
+                        const symbol = item.symbol || item.id;
+                        
+                        // Use the same /api/search endpoint as search functionality for consistent data
+                        let stockData = {
+                            symbol: symbol,
+                            name: item.company_name || symbol,
+                            price: 0,
+                            priceChange: 0,
+                            priceChangePercent: 0
+                        };
+                        
+                        try {
+                            const searchResponse = await fetch(`${API_BASE_URL}/api/search`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ symbol: symbol })
+                            });
+                            
+                            if (searchResponse.ok) {
+                                const searchData = await searchResponse.json();
+                                stockData = {
+                                    symbol: searchData.symbol || symbol,
+                                    name: searchData.name || item.company_name || symbol,
+                                    price: searchData.price || 0,
+                                    priceChange: searchData.priceChange || 0,
+                                    priceChangePercent: searchData.priceChangePercent || 0
+                                };
+                            }
+                        } catch (error) {
+                            console.log('⚠️ Error fetching price for', symbol, error);
+                        }
+                        
+                        return {
+                            symbol: stockData.symbol,
+                            company_name: stockData.name,
+                            price: stockData.price,
+                            change: stockData.priceChange,
+                            change_percent: stockData.priceChangePercent,
+                            ...item,
+                            last_updated: new Date().toISOString()
+                        };
+                    }));
+                    
+                    console.log('📊 Processed stocks:', processedStocks);
+                    setWatchlistData(processedStocks);
                 } else {
                     console.error('❌ API failed with status:', response.status);
                     const errorText = await response.text();
