@@ -24,6 +24,10 @@ allowed_origins = [
     "http://127.0.0.1:3000",  # Local development alternative
     "http://localhost:5000",  # Local Flask dev
     "http://localhost:8000",  # Local Flask dev on port 8000
+    "http://localhost:8080",  # Local frontend server
+    "http://127.0.0.1:8080",  # Local frontend server alternative
+    "file://",  # Local file serving
+    "null",  # For local file origins
     "https://stock-watchlist-frontend.vercel.app",  # Main Vercel deployment
 ]
 
@@ -55,8 +59,8 @@ CORS(app,
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 
-# Session configuration for cross-origin setup (Vercel frontend + Heroku backend)
-is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('HEROKU_APP_NAME') is not None
+# Session configuration for cross-origin setup (Vercel frontend + Railway backend)
+is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RAILWAY_ENVIRONMENT') is not None
 app.config['SESSION_COOKIE_SECURE'] = True  # Always secure in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requests
@@ -1495,6 +1499,36 @@ def get_options_data(symbol):
         return jsonify(options_data)
     except Exception as e:
         return jsonify({'error': f'Could not fetch options data for {symbol}'}), 500
+
+# =============================================================================
+# HEALTH CHECK ENDPOINT
+# =============================================================================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for Railway"""
+    try:
+        # Test Firebase connection
+        firestore_client = get_firestore_client()
+        
+        # Test Groq API
+        from chat_service import chat_service
+        groq_status = chat_service.groq_client is not None
+        
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'services': {
+                'firebase': True,
+                'groq_api': groq_status
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 # =============================================================================
 # AI CHATBOT ENDPOINTS
