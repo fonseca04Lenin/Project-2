@@ -1,49 +1,28 @@
 // Global variables
-console.log('🚀 App.js loaded - Version 20250122-002 with FIXED parsing');
+console.log('🚀 App.js loaded - Version 20250122-003 with STREAMLINED loading');
 let watchlistData = [];
 let currentStock = null;
 let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
 
-// Test function for watchlist debugging
+// Simple test function for watchlist debugging (only when button clicked)
 async function testWatchlistFunctionality() {
     console.log('🧪 Testing watchlist functionality...');
-    
+
     try {
-        // Test 1: Check if user is authenticated
         const user = firebase.auth().currentUser;
         if (!user) {
-            console.log('❌ Test failed: No user logged in');
             showToast('Please log in first to test watchlist', 'error');
             return;
         }
-        
-        console.log('✅ Test 1 passed: User authenticated:', user.email);
-        
-        // Test 2: Try to load watchlist from Firebase
-        console.log('🔄 Test 2: Loading watchlist from Firebase...');
+
         const watchlist = await loadWatchlistFromFirebase();
-        console.log('✅ Test 2 passed: Loaded watchlist:', watchlist);
-        
-        // Test 3: Try to add a test stock
-        console.log('🔄 Test 3: Adding test stock AAPL...');
-        const success = await addToFirebaseWatchlist('AAPL', 'Apple Inc.');
-        if (success) {
-            console.log('✅ Test 3 passed: Successfully added AAPL to Firebase');
-        } else {
-            console.log('❌ Test 3 failed: Could not add AAPL to Firebase');
-        }
-        
-        // Test 4: Reload watchlist
-        console.log('🔄 Test 4: Reloading watchlist...');
-        await loadWatchlist();
-        console.log('✅ Test 4 passed: Watchlist reloaded');
-        
-        showToast('Watchlist test completed - check console for results', 'success');
-        
+        console.log('Watchlist loaded:', watchlist);
+        showToast(`Watchlist test completed: ${watchlist.length} items found`, 'success');
+
     } catch (error) {
         console.error('❌ Watchlist test failed:', error);
-        showToast('Watchlist test failed - check console for details', 'error');
+        showToast('Watchlist test failed', 'error');
     }
 }
 
@@ -781,15 +760,18 @@ let watchlistRequestPromise = null;
 async function loadWatchlistWithDeduplication() {
     // If request already in progress, return the existing promise
     if (watchlistRequestInProgress && watchlistRequestPromise) {
+        console.log('⏸️ Watchlist request already in progress, skipping duplicate call');
         return watchlistRequestPromise;
     }
-    
+
     // Set flag and create new promise
     watchlistRequestInProgress = true;
+    console.log('🚀 Starting new watchlist request');
     watchlistRequestPromise = loadWatchlist();
-    
+
     try {
         const result = await watchlistRequestPromise;
+        console.log('✅ Watchlist request completed successfully');
         return result;
     } finally {
         watchlistRequestInProgress = false;
@@ -814,8 +796,8 @@ async function loadWatchlist() {
         console.log('📊 Loaded watchlist from Firebase:', watchlist);
         displayWatchlist(watchlist);
         
-        // Also update prices for all stocks
-        if (watchlist.length > 0) {
+        // Also update prices for all stocks (only if not already updating to prevent loops)
+        if (watchlist.length > 0 && !window.updatingPrices) {
             console.log('💰 Updating prices for', watchlist.length, 'stocks');
             updateWatchlistPrices();
         }
@@ -898,7 +880,12 @@ async function wakeUpBackendForWatchlist() {
 }
 
 function displayWatchlist(stocks) {
+    console.log('📊 Displaying watchlist with', stocks.length, 'stocks');
+
     if (stocks.length === 0) {
+        // Only show empty state if we're sure there are no stocks
+        // and not if this is a race condition clearing
+        console.log('📊 Showing empty watchlist state');
         watchlistContainer.innerHTML = `
             <div class="empty-state" id="emptyWatchlist">
                 <i class="fas fa-star-o"></i>
@@ -988,19 +975,24 @@ async function loadWatchlistFromFirebase() {
         
         if (response.ok) {
             const data = await response.json();
-            console.log('✅ Firebase API response data:', data);
-            console.log('🔍 DEBUG: About to parse data, type:', typeof data, 'isArray:', Array.isArray(data));
-            
-            // Handle both array and object responses
+
+            // CRITICAL DEBUG - Version 003 - Let's see what's really happening
+            console.log('🔥 FIXED VERSION 003 PARSING - Data received:', data);
+            console.log('🔥 Data type:', typeof data, 'IsArray:', Array.isArray(data));
+
             if (Array.isArray(data)) {
-                console.log('📊 Data is array, returning directly:', data);
-                console.log('🎯 SUCCESS: Returning array with', data.length, 'items');
-                return data;
-            } else if (data.watchlist) {
-                console.log('📊 Data has watchlist property:', data.watchlist);
-                return data.watchlist;
+                console.log('🔥 SUCCESS PATH: Data is array with', data.length, 'items');
+                console.log('🔥 Sample item:', data[0]);
+                const result = data.map(item => ({
+                    symbol: item.symbol || item.id,
+                    company_name: item.company_name,
+                    ...item
+                }));
+                console.log('🔥 RETURNING RESULT:', result.length, 'items');
+                return result;
             } else {
-                console.log('📊 Data is object but no watchlist property, returning empty array');
+                console.log('🔥 FALLBACK: Not an array, type:', typeof data);
+                console.log('🔥 Keys:', Object.keys(data || {}));
                 return [];
             }
         } else {
@@ -1254,21 +1246,36 @@ async function updateWatchlistPrices() {
             return;
         }
 
+        // Prevent multiple price updates running simultaneously
+        if (window.updatingPrices) {
+            console.log('⏸️ Price update already in progress, skipping...');
+            return;
+        }
+
+        window.updatingPrices = true;
+        console.log('💰 Starting price update process...');
+
         // Load current watchlist from Firebase
         const watchlist = await loadWatchlistFromFirebase();
-        
+
         // Update prices for each stock using backend
         for (const stock of watchlist) {
             await fetchStockPriceFromBackend(stock.symbol);
             // Add small delay to avoid rate limiting
             await new Promise(resolve => setTimeout(resolve, 200));
         }
-        
-        // Reload watchlist to show updated prices
-        await loadWatchlist();
-        
+
+        // Display updated watchlist directly instead of calling loadWatchlist() again
+        // This prevents the race condition that causes stocks to disappear
+        const updatedWatchlist = await loadWatchlistFromFirebase();
+        displayWatchlist(updatedWatchlist);
+
+        console.log('✅ Price update completed');
+
     } catch (error) {
         console.error('Error updating watchlist prices:', error);
+    } finally {
+        window.updatingPrices = false;
     }
 }
 
@@ -1336,7 +1343,7 @@ async function addToWatchlist(symbol, companyName = null) {
             console.log('✅ Successfully added to Firebase');
             showToast(`${symbol} added to watchlist`, 'success');
             // Reload watchlist to show the new addition
-            await loadWatchlist();
+            await loadWatchlistWithDeduplication();
         } else {
             console.log('❌ Failed to add to Firebase');
             showToast('Error adding to watchlist', 'error');
@@ -1416,7 +1423,7 @@ async function removeFromWatchlist(symbol) {
         if (success) {
             showToast(`${symbol} removed from watchlist`, 'success');
             // Reload watchlist to reflect the change
-            await loadWatchlist();
+            await loadWatchlistWithDeduplication();
         } else {
             showToast('Error removing from watchlist', 'error');
         }
@@ -1457,7 +1464,7 @@ async function clearWatchlist() {
             if (response.ok) {
                 showToast('Watchlist cleared successfully', 'success');
                 // Reload watchlist to show empty state
-                await loadWatchlist();
+                await loadWatchlistWithDeduplication();
             } else {
                 showToast('Error clearing watchlist', 'error');
             }
@@ -2131,7 +2138,7 @@ function showMainContent(user) {
     
     // Load watchlist independently in background (non-blocking)
     setTimeout(() => {
-        loadWatchlist().catch(error => {
+        loadWatchlistWithDeduplication().catch(error => {
         });
     }, 2000); // 2 second delay to ensure other features are ready
 }
@@ -2201,8 +2208,7 @@ function activateSearchFunctionality() {
             searchBtn.style.backgroundColor = '#4CAF50';
         }
         
-        // Load watchlist independently (non-blocking)
-        loadWatchlistIndependently();
+        // Watchlist loading is handled by showMainContent - no need for duplicate call
         
     } catch (error) {
     }
@@ -2221,8 +2227,8 @@ function loadWatchlistIndependently() {
             
             // Small delay to let other initialization finish
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            await loadWatchlist();
+
+            await loadWatchlistWithDeduplication();
         } catch (error) {
         }
     }, 3000); // Increased to 3 second delay to avoid conflicts
