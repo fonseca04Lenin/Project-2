@@ -1,9 +1,9 @@
 // Configuration file for Stock Watchlist Pro Frontend
-// Backend now deployed on Heroku
+// Backend now deployed on Railway
 
 const CONFIG = {
-    // Backend API base URL - Updated to use Heroku backend
-    API_BASE_URL: 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com',
+    // Backend API base URL - Railway deployment
+    API_BASE_URL: 'https://stock-watchlist-backend-production.up.railway.app',
     
     // App settings
     APP_NAME: 'Stock Watchlist Pro',

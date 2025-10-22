@@ -18,7 +18,7 @@ class AIAdvisorChat {
         this.typingIndicator = null;
         
         // API Configuration
-        this.apiBaseUrl = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://stock-watchlist-backend-8bea295dd646.herokuapp.com';
+        this.apiBaseUrl = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://stock-watchlist-backend-production.up.railway.app';
         
         // Debug logging
         console.log('🤖 AI Advisor Chat initialized with API:', this.apiBaseUrl);
