@@ -17,8 +17,6 @@ const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const stockResults = document.getElementById('stockResults');
 const stockCard = document.getElementById('stockCard');
-const watchlistContainer = document.getElementById('watchlistContainer');
-const clearWatchlistBtn = document.getElementById('clearWatchlistBtn');
 const refreshNewsBtn = document.getElementById('refreshNewsBtn');
 const newsContainer = document.getElementById('newsContainer');
 const toastContainer = document.getElementById('toastContainer');
@@ -40,9 +38,6 @@ function initializeApp() {
     // Set up event listeners
     if (searchBtn) {
         searchBtn.addEventListener('click', searchStock);
-    }
-    if (clearWatchlistBtn) {
-        clearWatchlistBtn.addEventListener('click', clearWatchlist);
     }
     if (refreshNewsBtn) {
         refreshNewsBtn.addEventListener('click', loadMarketNews);
@@ -729,10 +724,6 @@ function displayStockResult(stock) {
     `;
 }
 
-//Watchlist functionality - Reactivated with independent operation
-// Global request tracking to prevent concurrent requests
-let watchlistRequestInProgress = false;
-let watchlistRequestPromise = null;
 
 async function loadWatchlistWithDeduplication() {
     // If request already in progress, return the existing promise
@@ -1340,7 +1331,7 @@ async function addToWatchlist(symbol, companyName = null) {
         if (success) {
             showToast(`${symbol} added to watchlist`, 'success');
             // Reload watchlist to show the new addition
-            await loadWatchlistWithDeduplication();
+            // React component will handle this
         } else {
             showToast('Error adding to watchlist', 'error');
         }
@@ -1419,7 +1410,7 @@ async function removeFromWatchlist(symbol) {
         if (success) {
             showToast(`${symbol} removed from watchlist`, 'success');
             // Reload watchlist to reflect the change
-            await loadWatchlistWithDeduplication();
+            // React component will handle this
         } else {
             showToast('Error removing from watchlist', 'error');
         }
@@ -1460,7 +1451,7 @@ async function clearWatchlist() {
             if (response.ok) {
                 showToast('Watchlist cleared successfully', 'success');
                 // Reload watchlist to show empty state
-                await loadWatchlistWithDeduplication();
+                // React component will handle this
             } else {
                 showToast('Error clearing watchlist', 'error');
             }
@@ -2126,11 +2117,6 @@ function showMainContent(user) {
         wakeUpBackend();
     }, 1000); // Wake up backend early
     
-    // Load watchlist independently in background (non-blocking)
-    setTimeout(() => {
-        loadWatchlistWithDeduplication().catch(error => {
-        });
-    }, 2000); // 2 second delay to ensure other features are ready
 }
 
 // Progressive loading indicator functions
@@ -2204,25 +2190,6 @@ function activateSearchFunctionality() {
     }
 }
 
-// Independent watchlist loading function
-function loadWatchlistIndependently() {
-    
-    // Load watchlist in background without blocking other operations
-    setTimeout(async () => {
-        try {
-            // Check if watchlist request is already in progress
-            if (watchlistRequestInProgress) {
-                return;
-            }
-            
-            // Small delay to let other initialization finish
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            await loadWatchlistWithDeduplication();
-        } catch (error) {
-        }
-    }, 3000); // Increased to 3 second delay to avoid conflicts
-}
 
 async function loadIntelligenceSection() {
     
