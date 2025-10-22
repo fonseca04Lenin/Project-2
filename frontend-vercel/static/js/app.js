@@ -3399,4 +3399,463 @@ function initializeMarketIntelligence() {
     if (window.firebaseAuth && window.firebaseAuth.currentUser) {
         loadEarningsCalendar();
     }
-} 
+}
+
+// =============================================================================
+// 🚀 LIVE PRICING SYSTEM - Real-time price updates with animations
+// =============================================================================
+
+// Live pricing state management
+const livePricing = {
+    isActive: false,
+    interval: null,
+    updateFrequency: 15000, // 15 seconds default
+    lastUpdate: null,
+    priceCache: new Map(),
+    visibilityEnabled: true,
+    marketHours: {
+        isOpen: false,
+        nextOpen: null,
+        nextClose: null
+    }
+};
+
+// Initialize live pricing system
+function initializeLivePricing() {
+    console.log('🚀 Initializing Live Pricing System...');
+
+    // Set up page visibility detection
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Check market hours on initialization
+    updateMarketHours();
+
+    // Start live pricing if user is authenticated
+    const user = firebase.auth().currentUser;
+    if (user) {
+        startLivePricing();
+    }
+
+    // Listen for auth state changes
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user && !livePricing.isActive) {
+            startLivePricing();
+        } else if (!user && livePricing.isActive) {
+            stopLivePricing();
+        }
+    });
+}
+
+// Start live pricing updates
+function startLivePricing() {
+    if (livePricing.isActive) return;
+
+    console.log('▶️ Starting live pricing updates...');
+    livePricing.isActive = true;
+
+    // Adjust frequency based on market hours
+    const frequency = livePricing.marketHours.isOpen ? 15000 : 60000; // 15s during market hours, 1min after hours
+    livePricing.updateFrequency = frequency;
+
+    // Initial update
+    updateLivePrices();
+
+    // Set up interval
+    livePricing.interval = setInterval(updateLivePrices, frequency);
+
+    // Add live indicators to UI
+    addLiveIndicators();
+
+    console.log(`✅ Live pricing started (${frequency/1000}s intervals)`);
+}
+
+// Stop live pricing updates
+function stopLivePricing() {
+    if (!livePricing.isActive) return;
+
+    console.log('⏹️ Stopping live pricing updates...');
+    livePricing.isActive = false;
+
+    if (livePricing.interval) {
+        clearInterval(livePricing.interval);
+        livePricing.interval = null;
+    }
+
+    // Remove live indicators
+    removeLiveIndicators();
+
+    console.log('✅ Live pricing stopped');
+}
+
+// Handle page visibility changes
+function handleVisibilityChange() {
+    if (document.hidden) {
+        console.log('📱 Page hidden - pausing live updates');
+        if (livePricing.isActive) {
+            stopLivePricing();
+            livePricing.visibilityEnabled = false;
+        }
+    } else {
+        console.log('📱 Page visible - resuming live updates');
+        if (!livePricing.isActive && livePricing.visibilityEnabled !== false) {
+            const user = firebase.auth().currentUser;
+            if (user) {
+                startLivePricing();
+            }
+        }
+        livePricing.visibilityEnabled = true;
+    }
+}
+
+// Main live price update function
+async function updateLivePrices() {
+    try {
+        const visibleStocks = getVisibleStocks();
+        if (visibleStocks.length === 0) {
+            console.log('📊 No visible stocks to update');
+            return;
+        }
+
+        console.log(`🔄 Updating ${visibleStocks.length} visible stocks...`);
+
+        // Update each stock with error handling
+        const updatePromises = visibleStocks.map(async (stockInfo) => {
+            try {
+                await updateSingleStockPrice(stockInfo.symbol, stockInfo.type);
+            } catch (error) {
+                console.error(`❌ Failed to update ${stockInfo.symbol}:`, error);
+            }
+        });
+
+        await Promise.all(updatePromises);
+
+        livePricing.lastUpdate = new Date();
+        updateLiveIndicators();
+
+        console.log('✅ Live price update completed');
+
+    } catch (error) {
+        console.error('❌ Live pricing update failed:', error);
+    }
+}
+
+// Get list of currently visible stocks
+function getVisibleStocks() {
+    const stocks = [];
+
+    // Add watchlist stocks
+    const watchlistItems = document.querySelectorAll('.watchlist-item');
+    watchlistItems.forEach(item => {
+        const symbolElement = item.querySelector('.watchlist-item-symbol');
+        if (symbolElement) {
+            stocks.push({
+                symbol: symbolElement.textContent,
+                type: 'watchlist',
+                element: item
+            });
+        }
+    });
+
+    // Add current search result
+    const searchResult = document.querySelector('#stockCard .stock-symbol');
+    if (searchResult && stockResults.style.display !== 'none') {
+        stocks.push({
+            symbol: searchResult.textContent,
+            type: 'search',
+            element: document.getElementById('stockCard')
+        });
+    }
+
+    return stocks;
+}
+
+// Update single stock price with animation
+async function updateSingleStockPrice(symbol, type) {
+    try {
+        // Fetch fresh price data using same API as search
+        const response = await fetch(`${API_BASE_URL}/api/search`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ symbol: symbol })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+
+        const stockData = await response.json();
+        const newPrice = stockData.price;
+        const priceChange = stockData.priceChange;
+        const priceChangePercent = stockData.priceChangePercent;
+
+        // Get cached price for comparison
+        const cachedPrice = livePricing.priceCache.get(symbol);
+
+        // Update cache
+        livePricing.priceCache.set(symbol, newPrice);
+
+        // Animate price change if price is different
+        if (cachedPrice !== undefined && Math.abs(cachedPrice - newPrice) > 0.01) {
+            await animatePriceChange(symbol, cachedPrice, newPrice, type);
+        }
+
+        // Update the DOM elements
+        updatePriceInDOM(symbol, newPrice, priceChange, priceChangePercent, type);
+
+    } catch (error) {
+        console.error(`❌ Failed to update price for ${symbol}:`, error);
+    }
+}
+
+// Update price in DOM elements
+function updatePriceInDOM(symbol, price, change, changePercent, type) {
+    if (type === 'watchlist') {
+        const watchlistItem = Array.from(document.querySelectorAll('.watchlist-item')).find(item => {
+            const symbolEl = item.querySelector('.watchlist-item-symbol');
+            return symbolEl && symbolEl.textContent === symbol;
+        });
+
+        if (watchlistItem) {
+            const priceElement = watchlistItem.querySelector('.watchlist-item-price');
+            const perfElement = watchlistItem.querySelector('.watchlist-item-performance');
+
+            if (priceElement) {
+                priceElement.textContent = `$${price.toFixed(2)}`;
+            }
+
+            if (perfElement && changePercent !== undefined) {
+                const perfClass = changePercent > 0 ? 'watchlist-perf-up' :
+                                changePercent < 0 ? 'watchlist-perf-down' : 'watchlist-perf-flat';
+                const perfText = changePercent === 0 ? 'No change' :
+                               `${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}% today`;
+
+                perfElement.className = `watchlist-item-performance ${perfClass}`;
+                perfElement.textContent = perfText;
+
+                // Update price element class too
+                if (priceElement) {
+                    priceElement.className = `watchlist-item-price ${perfClass}`;
+                }
+            }
+        }
+    } else if (type === 'search') {
+        const stockCard = document.getElementById('stockCard');
+        if (stockCard) {
+            const priceElement = stockCard.querySelector('.current-price');
+            const changeElement = stockCard.querySelector('.price-change');
+
+            if (priceElement) {
+                priceElement.textContent = `$${price.toFixed(2)}`;
+            }
+
+            if (changeElement && change !== undefined && changePercent !== undefined) {
+                const changeClass = change >= 0 ? 'positive' : 'negative';
+                const changeIcon = change >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down';
+                const changeSign = change >= 0 ? '+' : '';
+
+                changeElement.className = `price-change ${changeClass}`;
+                changeElement.innerHTML = `
+                    <i class="${changeIcon}"></i>
+                    ${changeSign}$${Math.abs(change).toFixed(2)}
+                    (${changeSign}${changePercent.toFixed(2)}%)
+                `;
+            }
+        }
+    }
+}
+
+// Animate price changes with visual effects
+async function animatePriceChange(symbol, oldPrice, newPrice, type) {
+    const isIncrease = newPrice > oldPrice;
+    const flashColor = isIncrease ? '#10B981' : '#EF4444'; // Green for increase, red for decrease
+
+    console.log(`💫 Animating ${symbol}: $${oldPrice.toFixed(2)} → $${newPrice.toFixed(2)} (${isIncrease ? '↗️' : '↘️'})`);
+
+    // Find the price element to animate
+    let priceElement = null;
+
+    if (type === 'watchlist') {
+        const watchlistItem = Array.from(document.querySelectorAll('.watchlist-item')).find(item => {
+            const symbolEl = item.querySelector('.watchlist-item-symbol');
+            return symbolEl && symbolEl.textContent === symbol;
+        });
+        priceElement = watchlistItem?.querySelector('.watchlist-item-price');
+    } else if (type === 'search') {
+        priceElement = document.querySelector('#stockCard .current-price');
+    }
+
+    if (!priceElement) return;
+
+    // Add flash animation class
+    priceElement.style.transition = 'all 0.3s ease';
+    priceElement.style.backgroundColor = flashColor;
+    priceElement.style.color = 'white';
+    priceElement.style.transform = 'scale(1.05)';
+
+    // Animate number counting from old to new price
+    await animateNumber(priceElement, oldPrice, newPrice, 800);
+
+    // Remove flash effect
+    setTimeout(() => {
+        priceElement.style.backgroundColor = '';
+        priceElement.style.color = '';
+        priceElement.style.transform = '';
+    }, 600);
+
+    // Show notification for significant changes (>1%)
+    const changePercent = Math.abs((newPrice - oldPrice) / oldPrice * 100);
+    if (changePercent > 1) {
+        const direction = isIncrease ? 'up' : 'down';
+        const arrow = isIncrease ? '📈' : '📉';
+        showNotification(
+            `${arrow} ${symbol} moved ${direction} ${changePercent.toFixed(2)}% to $${newPrice.toFixed(2)}`,
+            isIncrease ? 'success' : 'info'
+        );
+    }
+}
+
+// Animate number counting from old value to new value
+function animateNumber(element, startValue, endValue, duration) {
+    return new Promise(resolve => {
+        const startTime = performance.now();
+        const startVal = parseFloat(startValue);
+        const endVal = parseFloat(endValue);
+        const change = endVal - startVal;
+
+        function updateNumber(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Use easing function for smooth animation
+            const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+            const currentValue = startVal + (change * easeProgress);
+
+            element.textContent = `$${currentValue.toFixed(2)}`;
+
+            if (progress < 1) {
+                requestAnimationFrame(updateNumber);
+            } else {
+                element.textContent = `$${endVal.toFixed(2)}`;
+                resolve();
+            }
+        }
+
+        requestAnimationFrame(updateNumber);
+    });
+}
+
+// Add live indicators to the UI
+function addLiveIndicators() {
+    // Add live indicator to watchlist header
+    const watchlistHeader = document.querySelector('#watchlistContainer').previousElementSibling;
+    if (watchlistHeader && !watchlistHeader.querySelector('.live-indicator')) {
+        const liveIndicator = document.createElement('div');
+        liveIndicator.className = 'live-indicator';
+        liveIndicator.innerHTML = `
+            <span class="live-dot"></span>
+            <span class="live-text">LIVE</span>
+            <span class="live-update-time">Just updated</span>
+        `;
+        watchlistHeader.style.display = 'flex';
+        watchlistHeader.style.justifyContent = 'space-between';
+        watchlistHeader.style.alignItems = 'center';
+        watchlistHeader.appendChild(liveIndicator);
+    }
+
+    // Add live indicator to search results
+    const stockCard = document.getElementById('stockCard');
+    if (stockCard && !stockCard.querySelector('.live-indicator-search')) {
+        const liveIndicator = document.createElement('div');
+        liveIndicator.className = 'live-indicator-search';
+        liveIndicator.innerHTML = `
+            <span class="live-dot"></span>
+            <span>LIVE</span>
+        `;
+
+        const stockHeader = stockCard.querySelector('.stock-header');
+        if (stockHeader) {
+            stockHeader.appendChild(liveIndicator);
+        }
+    }
+}
+
+// Remove live indicators from UI
+function removeLiveIndicators() {
+    document.querySelectorAll('.live-indicator, .live-indicator-search').forEach(indicator => {
+        indicator.remove();
+    });
+}
+
+// Update live indicator timestamps
+function updateLiveIndicators() {
+    const timeString = livePricing.lastUpdate ?
+        `Updated ${formatTimeAgo(livePricing.lastUpdate)}` :
+        'Just updated';
+
+    document.querySelectorAll('.live-update-time').forEach(timeEl => {
+        timeEl.textContent = timeString;
+    });
+}
+
+// Format time ago string
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSecs = Math.floor(diffMs / 1000);
+
+    if (diffSecs < 10) return 'just now';
+    if (diffSecs < 60) return `${diffSecs}s ago`;
+
+    const diffMins = Math.floor(diffSecs / 60);
+    if (diffMins < 60) return `${diffMins}m ago`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    return `${diffHours}h ago`;
+}
+
+// Market hours detection and management
+function updateMarketHours() {
+    const now = new Date();
+    const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+    const day = easternTime.getDay(); // 0 = Sunday, 6 = Saturday
+    const hour = easternTime.getHours();
+    const minute = easternTime.getMinutes();
+    const currentTime = hour * 60 + minute; // Convert to minutes for easier comparison
+
+    // Market hours: Monday-Friday 9:30 AM - 4:00 PM EST
+    const marketOpen = 9 * 60 + 30; // 9:30 AM
+    const marketClose = 16 * 60; // 4:00 PM
+
+    const isWeekday = day >= 1 && day <= 5;
+    const isDuringMarketHours = currentTime >= marketOpen && currentTime < marketClose;
+
+    livePricing.marketHours.isOpen = isWeekday && isDuringMarketHours;
+
+    console.log(`📊 Market Status: ${livePricing.marketHours.isOpen ? 'OPEN' : 'CLOSED'} (${easternTime.toLocaleTimeString()} EST)`);
+
+    // Adjust update frequency if market status changed
+    if (livePricing.isActive) {
+        const newFrequency = livePricing.marketHours.isOpen ? 15000 : 60000;
+        if (newFrequency !== livePricing.updateFrequency) {
+            console.log(`🔄 Adjusting update frequency: ${newFrequency/1000}s`);
+            livePricing.updateFrequency = newFrequency;
+
+            // Restart with new frequency
+            clearInterval(livePricing.interval);
+            livePricing.interval = setInterval(updateLivePrices, newFrequency);
+        }
+    }
+}
+
+// Initialize live pricing system when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for Firebase to initialize
+    setTimeout(() => {
+        initializeLivePricing();
+    }, 2000);
+});
+
+// Update market hours every hour
+setInterval(updateMarketHours, 3600000); // 1 hour 
