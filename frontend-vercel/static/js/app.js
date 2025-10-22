@@ -5,6 +5,51 @@ let currentStock = null;
 let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
 
+// Test function for watchlist debugging
+async function testWatchlistFunctionality() {
+    console.log('🧪 Testing watchlist functionality...');
+    
+    try {
+        // Test 1: Check if user is authenticated
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            console.log('❌ Test failed: No user logged in');
+            showToast('Please log in first to test watchlist', 'error');
+            return;
+        }
+        
+        console.log('✅ Test 1 passed: User authenticated:', user.email);
+        
+        // Test 2: Try to load watchlist from Firebase
+        console.log('🔄 Test 2: Loading watchlist from Firebase...');
+        const watchlist = await loadWatchlistFromFirebase();
+        console.log('✅ Test 2 passed: Loaded watchlist:', watchlist);
+        
+        // Test 3: Try to add a test stock
+        console.log('🔄 Test 3: Adding test stock AAPL...');
+        const success = await addToFirebaseWatchlist('AAPL', 'Apple Inc.');
+        if (success) {
+            console.log('✅ Test 3 passed: Successfully added AAPL to Firebase');
+        } else {
+            console.log('❌ Test 3 failed: Could not add AAPL to Firebase');
+        }
+        
+        // Test 4: Reload watchlist
+        console.log('🔄 Test 4: Reloading watchlist...');
+        await loadWatchlist();
+        console.log('✅ Test 4 passed: Watchlist reloaded');
+        
+        showToast('Watchlist test completed - check console for results', 'success');
+        
+    } catch (error) {
+        console.error('❌ Watchlist test failed:', error);
+        showToast('Watchlist test failed - check console for details', 'error');
+    }
+}
+
+// Make test function globally available
+window.testWatchlistFunctionality = testWatchlistFunctionality;
+
 // Backend API base URL - Get from config file
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
 
