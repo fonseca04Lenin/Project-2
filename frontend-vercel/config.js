@@ -3,7 +3,7 @@
 
 const CONFIG = {
     // Backend API base URL - Railway deployment
-    API_BASE_URL: 'https://stock-watchlist-backend-production.up.railway.app',
+    API_BASE_URL: 'https://linkl-web-production-2e2e.up.railway.app',
     
     // App settings
     APP_NAME: 'Stock Watchlist Pro',
