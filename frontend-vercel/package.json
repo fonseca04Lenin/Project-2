@@ -18,5 +18,10 @@
   "license": "MIT",
   "devDependencies": {
     "vercel": "^32.0.0"
+  },
+  "dependencies": {
+    "@babel/standalone": "^7.28.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }
