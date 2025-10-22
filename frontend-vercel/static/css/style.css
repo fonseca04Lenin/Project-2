@@ -4619,3 +4619,101 @@ body {
         left: 100%;
     }
 }
+
+/* =============================================================================
+   🎨 IMPROVED WATCHLIST HEADER - Clean layout without debug clutter
+   ============================================================================= */
+
+/* Clean watchlist actions container */
+.watchlist-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+/* Subtle clear button styling */
+.clear-watchlist-btn {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #EF4444;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+}
+
+.clear-watchlist-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    opacity: 1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+.clear-watchlist-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+/* Section header improvements */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.section-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #FFFFFF;
+}
+
+.section-header h2 i {
+    color: #10B981;
+    font-size: 1.25rem;
+}
+
+/* Remove old button styles that might conflict */
+.test-btn,
+.clear-btn,
+.watchlist-controls {
+    display: none !important;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .clear-watchlist-btn {
+        padding: 6px 8px;
+        min-width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+    }
+
+    .section-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .section-header h2 i {
+        font-size: 1.1rem;
+    }
+}
