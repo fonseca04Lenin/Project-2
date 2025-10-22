@@ -793,6 +793,7 @@ async function loadWatchlist() {
         console.log('✅ User logged in, loading from Firebase...');
         // Load from Firebase
         const watchlist = await loadWatchlistFromFirebase();
+        console.log('🐛 DEBUG: watchlist type:', typeof watchlist, 'isArray:', Array.isArray(watchlist));
         console.log('📊 Loaded watchlist from Firebase:', watchlist);
         displayWatchlist(watchlist);
         
@@ -976,19 +977,22 @@ async function loadWatchlistFromFirebase() {
         if (response.ok) {
             const data = await response.json();
 
-            // CRITICAL DEBUG - Version 003 - Let's see what's really happening
-            console.log('🔥 FIXED VERSION 003 PARSING - Data received:', data);
+            // CRITICAL DEBUG - Version 004 - Enhanced debugging
+            console.log('✅ Firebase API response data:', data);
             console.log('🔥 Data type:', typeof data, 'IsArray:', Array.isArray(data));
 
             if (Array.isArray(data)) {
                 console.log('🔥 SUCCESS PATH: Data is array with', data.length, 'items');
-                console.log('🔥 Sample item:', data[0]);
+                if (data.length > 0) {
+                    console.log('🔥 Sample item:', data[0]);
+                }
                 const result = data.map(item => ({
                     symbol: item.symbol || item.id,
                     company_name: item.company_name,
                     ...item
                 }));
-                console.log('🔥 RETURNING RESULT:', result.length, 'items');
+                console.log('🔥 MAPPED RESULT:', result);
+                console.log('🔥 RETURNING RESULT with length:', result.length);
                 return result;
             } else {
                 console.log('🔥 FALLBACK: Not an array, type:', typeof data);
