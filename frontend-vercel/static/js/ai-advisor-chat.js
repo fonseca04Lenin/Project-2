@@ -18,7 +18,7 @@ class AIAdvisorChat {
         this.typingIndicator = null;
         
         // API Configuration
-        this.apiBaseUrl = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://linkl-web-production-2e2e.up.railway.app';
+        this.apiBaseUrl = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
         
         // Debug logging
         console.log('🤖 AI Advisor Chat initialized with API:', this.apiBaseUrl);
