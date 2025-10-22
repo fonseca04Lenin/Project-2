@@ -1220,18 +1220,23 @@ async function fetchStockPriceFromBackend(symbol) {
             return null;
         }
 
-        const token = await user.getIdToken();
-        const response = await fetch(`${API_BASE_URL}/api/stock/${symbol}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'X-User-ID': user.uid,
-                'Content-Type': 'application/json'
-            }
+        // Use the working /api/company endpoint instead of /api/stock
+        const response = await fetch(`${API_BASE_URL}/api/company/${symbol}`, {
+            method: 'GET'
         });
 
         if (response.ok) {
             const data = await response.json();
+            // Transform the company data to match expected price data format
+            if (data.price) {
+                updateStockInWatchlist(symbol, {
+                    price: data.price.toFixed(2),
+                    change: '0.00', // Company endpoint doesn't provide change data
+                    change_percent: '0.00',
+                    company_name: data.name || symbol,
+                    last_updated: new Date().toISOString()
+                });
+            }
             return data;
         } else {
             console.error('Failed to fetch stock price from backend:', response.status);
