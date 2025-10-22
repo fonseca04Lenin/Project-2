@@ -791,17 +791,13 @@ async function loadWatchlist() {
         }
 
         console.log('✅ User logged in, loading from Firebase...');
-        // Load from Firebase
+        // Load from Firebase with integrated price fetching
         const watchlist = await loadWatchlistFromFirebase();
         console.log('🐛 DEBUG: watchlist type:', typeof watchlist, 'isArray:', Array.isArray(watchlist));
-        console.log('📊 Loaded watchlist from Firebase:', watchlist);
+        console.log('📊 Loaded watchlist from Firebase with prices:', watchlist);
         displayWatchlist(watchlist);
-        
-        // Also update prices for all stocks (only if not already updating to prevent loops)
-        if (watchlist.length > 0 && !window.updatingPrices) {
-            console.log('💰 Updating prices for', watchlist.length, 'stocks');
-            updateWatchlistPrices();
-        }
+
+        // No need for separate price update - prices are already fetched above
 
     } catch (error) {
         console.error('❌ Error loading watchlist:', error);
@@ -953,7 +949,7 @@ function displayWatchlist(stocks) {
 // Firebase Watchlist Functions
 async function loadWatchlistFromFirebase() {
     try {
-        console.log('🔥 Loading watchlist from Firebase...');
+        console.log('🔥 FIXED VERSION 005 - Loading watchlist from Firebase...');
         const user = firebase.auth().currentUser;
         if (!user) {
             console.log('❌ No user for Firebase watchlist load');
@@ -962,8 +958,10 @@ async function loadWatchlistFromFirebase() {
 
         const token = await user.getIdToken();
         console.log('🔑 Got Firebase token, length:', token.length);
-        
-        const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
+
+        // Add cache busting
+        const timestamp = Date.now();
+        const response = await fetch(`${API_BASE_URL}/api/watchlist?t=${timestamp}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -973,32 +971,59 @@ async function loadWatchlistFromFirebase() {
         });
 
         console.log('🌐 Firebase API response status:', response.status);
-        
+
         if (response.ok) {
             const data = await response.json();
 
-            // CRITICAL DEBUG - Version 004 - Enhanced debugging
-            console.log('✅ Firebase API response data:', data);
+            // CRITICAL FIX - Version 005 - FORCE RETURN DATA
+            console.log('🔥 VERSION 005 FIXED - Data received:', data);
             console.log('🔥 Data type:', typeof data, 'IsArray:', Array.isArray(data));
 
-            if (Array.isArray(data)) {
-                console.log('🔥 SUCCESS PATH: Data is array with', data.length, 'items');
-                if (data.length > 0) {
-                    console.log('🔥 Sample item:', data[0]);
-                }
-                const result = data.map(item => ({
-                    symbol: item.symbol || item.id,
-                    company_name: item.company_name,
-                    ...item
-                }));
-                console.log('🔥 MAPPED RESULT:', result);
-                console.log('🔥 RETURNING RESULT with length:', result.length);
-                return result;
+            // FORCE the data to be processed correctly
+            let stocksData = [];
+            if (Array.isArray(data) && data.length > 0) {
+                console.log('🔥 PROCESSING ARRAY DATA with', data.length, 'items');
+                stocksData = data;
+            } else if (data && data.watchlist && Array.isArray(data.watchlist)) {
+                console.log('🔥 PROCESSING NESTED WATCHLIST DATA');
+                stocksData = data.watchlist;
             } else {
-                console.log('🔥 FALLBACK: Not an array, type:', typeof data);
-                console.log('🔥 Keys:', Object.keys(data || {}));
+                console.log('🔥 NO VALID DATA FOUND');
                 return [];
             }
+
+            // Process and fetch prices for each stock in parallel
+            const processedStocks = await Promise.all(stocksData.map(async (item) => {
+                const symbol = item.symbol || item.id;
+                console.log('🔥 Processing stock:', symbol);
+
+                // Fetch current price
+                let currentPrice = 'Loading...';
+                try {
+                    const priceResponse = await fetch(`${API_BASE_URL}/api/company/${symbol}`);
+                    if (priceResponse.ok) {
+                        const priceData = await priceResponse.json();
+                        currentPrice = priceData.price ? `$${priceData.price.toFixed(2)}` : '$0.00';
+                        console.log('✅ Got price for', symbol, ':', currentPrice);
+                    }
+                } catch (error) {
+                    console.log('❌ Failed to get price for', symbol, error);
+                    currentPrice = '$0.00';
+                }
+
+                return {
+                    symbol: symbol,
+                    company_name: item.company_name || symbol,
+                    price: currentPrice,
+                    change: '0.00',
+                    change_percent: '0.00',
+                    ...item,
+                    last_updated: new Date().toISOString()
+                };
+            }));
+
+            console.log('🔥 VERSION 005 - RETURNING PROCESSED STOCKS:', processedStocks.length);
+            return processedStocks;
         } else {
             const errorText = await response.text();
             console.error('❌ Firebase API error:', response.status, errorText);
