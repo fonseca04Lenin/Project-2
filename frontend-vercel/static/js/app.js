@@ -1935,59 +1935,62 @@ async function checkAuthStatus() {
     }
 }
 
+// Authentication persistence helper
+function shouldStayLoggedIn() {
+    // Check if user has opted for persistent login
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    return rememberMe;
+}
+
+// Save remember me preference
+function saveRememberMePreference(remember) {
+    localStorage.setItem('rememberMe', remember.toString());
+}
+
 async function handleAuthStateChange(user) {
     if (user) {
+        console.log('🔐 User authenticated:', user.email);
         
-        // Prevent multiple parallel auth requests
-        if (currentAuthRequest) {
-            await currentAuthRequest;
-            return;
-        }
+        // Show main content immediately without waiting for backend verification
+        const userData = {
+            email: user.email,
+            id: user.uid,
+            name: user.displayName || user.email.split('@')[0]
+        };
         
+        showMainContent(userData);
         
-        try {
-            const testHeaders = await getAuthHeaders();
-            
-            currentAuthRequest = fetch(`${API_BASE_URL}/api/debug/auth`, {
-                method: 'GET',
-                headers: testHeaders
-            });
-
-            const response = await currentAuthRequest;
-
-            if (response.ok) {
-                const data = await response.json();
-                
-                if (data.token_verification && data.token_verification.valid) {
-                    const userData = {
-                        email: data.token_verification.email,
-                        id: data.token_verification.uid,
-                        name: data.token_verification.email
-                    };
-                    showMainContent(userData);
-                } else {
-                    if (window.firebaseAuth) {
-                        await window.firebaseAuth.signOut();
-                    }
-                    showAuthForms();
-                }
-            } else {
-                const errorText = await response.text();
-                if (window.firebaseAuth) {
-                    await window.firebaseAuth.signOut();
-                }
-                showAuthForms();
-            }
-        } catch (error) {
-            if (window.firebaseAuth) {
-                await window.firebaseAuth.signOut();
-            }
-            showAuthForms();
-        } finally {
-            currentAuthRequest = null;
-        }
+        // Verify with backend in background (non-blocking)
+        verifyWithBackend(user).catch(error => {
+            console.log('⚠️ Backend verification failed, but keeping user logged in:', error);
+        });
+        
     } else {
-        showAuthForms();
+        // Only show auth forms if user shouldn't stay logged in
+        if (!shouldStayLoggedIn()) {
+            console.log('🔐 User logged out');
+            showAuthForms();
+        } else {
+            console.log('🔐 User logged out but should stay logged in - keeping session');
+        }
+    }
+}
+
+async function verifyWithBackend(user) {
+    try {
+        const testHeaders = await getAuthHeaders();
+        
+        const response = await fetch(`${API_BASE_URL}/api/debug/auth`, {
+            method: 'GET',
+            headers: testHeaders
+        });
+
+        if (!response.ok) {
+            console.log('⚠️ Backend verification failed, but keeping user logged in');
+        }
+        
+    } catch (error) {
+        console.log('⚠️ Backend verification error, but keeping user logged in:', error);
     }
 }
 
@@ -2227,6 +2230,7 @@ async function handleLogin(event) {
     
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+    const rememberMe = document.getElementById('remember-me') ? document.getElementById('remember-me').checked : false;
     const submitBtn = event.target.querySelector('.cta-button') || event.target.closest('form').querySelector('.cta-button');
     
     
@@ -2256,6 +2260,15 @@ async function handleLogin(event) {
         // Try Firebase Authentication first
         if (window.firebaseAuth) {
             try {
+                // Set persistence based on remember me checkbox
+                const persistence = rememberMe ? 
+                    firebase.auth.Auth.Persistence.LOCAL : 
+                    firebase.auth.Auth.Persistence.SESSION;
+                
+                await window.firebaseAuth.setPersistence(persistence);
+                
+                // Save remember me preference
+                saveRememberMePreference(rememberMe);
 
                 // Use Firebase v9 compatibility mode API
                 const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
