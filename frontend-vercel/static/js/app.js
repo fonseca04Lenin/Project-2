@@ -1,5 +1,5 @@
 // Global variables
-console.log('🚀 App.js loaded - Version 20250122-003 with STREAMLINED loading');
+console.log('🚀 App.js loaded - Version 20250122-004 FORCE REFRESH - CRITICAL DEBUG ACTIVE');
 let watchlistData = [];
 let currentStock = null;
 let chart = null; // Add chart variable declaration
