@@ -5,29 +5,7 @@ let currentStock = null;
 let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
 
-// Simple test function for watchlist debugging (only when button clicked)
-async function testWatchlistFunctionality() {
-    console.log('🧪 Testing watchlist functionality...');
-
-    try {
-        const user = firebase.auth().currentUser;
-        if (!user) {
-            showToast('Please log in first to test watchlist', 'error');
-            return;
-        }
-
-        const watchlist = await loadWatchlistFromFirebase();
-        console.log('Watchlist loaded:', watchlist);
-        showToast(`Watchlist test completed: ${watchlist.length} items found`, 'success');
-
-    } catch (error) {
-        console.error('❌ Watchlist test failed:', error);
-        showToast('Watchlist test failed', 'error');
-    }
-}
-
-// Make test function globally available
-window.testWatchlistFunctionality = testWatchlistFunctionality;
+// Debug function removed - cleaner production code
 
 // Backend API base URL - Get from config file
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
