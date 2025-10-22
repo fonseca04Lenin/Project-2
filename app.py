@@ -696,6 +696,59 @@ def search_stock():
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
+@app.route('/api/stock/<symbol>', methods=['GET'])
+@require_auth
+def get_stock_data(symbol):
+    """Get current stock data for a specific symbol (used by watchlist price updates)"""
+    symbol = symbol.upper()
+
+    if not symbol:
+        return jsonify({'error': 'Please provide a stock symbol'}), 400
+
+    try:
+        stock = Stock(symbol, yahoo_finance_api)
+        stock.retrieve_data()
+
+        if stock.name and 'not found' not in stock.name.lower():
+            # Get last month's price for change calculation
+            last_month_date = datetime.now() - timedelta(days=30)
+            start_date = last_month_date.strftime("%Y-%m-%d")
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            historical_data = yahoo_finance_api.get_historical_data(symbol, start_date, end_date)
+
+            last_month_price = 0.0
+            if historical_data and len(historical_data) > 0:
+                last_month_price = historical_data[0]['close']
+
+            price_change = stock.price - last_month_price if last_month_price > 0 else 0
+            price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
+
+            # Check for triggered alerts
+            alerts_data = []
+            if current_user.is_authenticated:
+                triggered_alerts = FirebaseService.check_triggered_alerts(current_user.id, symbol, stock.price)
+                alerts_data = [{
+                    'target_price': float(alert['target_price']),
+                    'alert_type': alert['alert_type']
+                } for alert in triggered_alerts]
+
+            return jsonify({
+                'symbol': stock.symbol,
+                'name': stock.name,
+                'price': stock.price,
+                'lastMonthPrice': last_month_price,
+                'priceChange': price_change,
+                'priceChangePercent': price_change_percent,
+                'triggeredAlerts': alerts_data,
+                'last_updated': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+
+    except Exception as e:
+        print(f"Error fetching stock data for {symbol}: {e}")
+        return jsonify({'error': 'Failed to fetch stock data'}), 500
+
 @app.route('/api/search/stocks', methods=['GET'])
 def search_stocks():
     """Search stocks by name or symbol with caching and rate limiting protection"""
