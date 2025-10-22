@@ -1793,9 +1793,26 @@ if __name__ == '__main__':
     print("\n🚀 Starting Stock Watchlist App...")
     print("🔥 Using Firebase for authentication and data storage")
     print("⚡ Starting real-time price updates...")
-    print(f"🌐 Server running on port: {port}\n")
+    print(f"🌐 Server running on port: {port}")
+    print(f"🔧 Debug mode: {Config.DEBUG}")
+    print(f"🔑 Firebase project: {Config.FIREBASE_PROJECT_ID}")
+    print(f"🌍 Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}\n")
     
-    # Start the background price update task
-    start_price_updates()
-    
-    socketio.run(app, debug=Config.DEBUG, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True) 
+    try:
+        # Skip background tasks for Railway deployment initially
+        if os.environ.get('RAILWAY_ENVIRONMENT'):
+            print("🚂 Railway environment detected - skipping background tasks")
+        else:
+            # Start the background price update task
+            print("📊 Starting price update task...")
+            start_price_updates()
+            print("✅ Price update task started")
+        
+        print("🌐 Starting Flask server...")
+        socketio.run(app, debug=Config.DEBUG, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+        
+    except Exception as e:
+        print(f"❌ Failed to start server: {e}")
+        import traceback
+        print(f"❌ Startup traceback: {traceback.format_exc()}")
+        raise 
