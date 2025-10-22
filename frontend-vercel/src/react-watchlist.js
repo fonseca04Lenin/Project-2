@@ -11,18 +11,39 @@ const WatchlistComponent = () => {
     useEffect(() => {
         // Load watchlist from API
         loadWatchlistFromAPI();
+        
+        // Listen for authentication state changes
+        const unsubscribe = window.firebase && window.firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                // User logged in, reload watchlist
+                loadWatchlistFromAPI();
+            } else {
+                // User logged out, clear watchlist
+                setWatchlistData([]);
+                setLoading(false);
+            }
+        });
+        
+        // Cleanup listener on unmount
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     const loadWatchlistFromAPI = async () => {
         try {
             setLoading(true);
+            console.log('🔄 Loading watchlist from API...');
             
             // Check if user is authenticated
             if (window.firebase && window.firebase.auth().currentUser) {
                 const user = window.firebase.auth().currentUser;
+                console.log('✅ User authenticated:', user.email);
                 const token = await user.getIdToken();
                 
                 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
+                console.log('🌐 Fetching from:', `${API_BASE_URL}/api/watchlist`);
+                
                 const response = await fetch(`${API_BASE_URL}/api/watchlist`, {
                     method: 'GET',
                     headers: {
@@ -31,19 +52,26 @@ const WatchlistComponent = () => {
                     }
                 });
                 
+                console.log('📡 API Response status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('📊 Watchlist data received:', data);
                     setWatchlistData(data.watchlist || []);
                 } else {
+                    console.error('❌ API failed with status:', response.status);
+                    const errorText = await response.text();
+                    console.error('❌ API error:', errorText);
                     // If API fails, show empty state
                     setWatchlistData([]);
                 }
             } else {
+                console.log('❌ User not authenticated');
                 // User not authenticated, show empty state
                 setWatchlistData([]);
             }
         } catch (error) {
-            console.error('Error loading watchlist:', error);
+            console.error('💥 Error loading watchlist:', error);
             // Show empty state on error
             setWatchlistData([]);
         } finally {
@@ -336,9 +364,21 @@ window.WatchlistComponent = WatchlistComponent;
 
 // Export refresh function for integration with existing app
 window.refreshWatchlist = () => {
+    console.log('🔄 Manual watchlist refresh triggered');
     const watchlistRoot = document.getElementById('react-watchlist-root');
     if (watchlistRoot) {
         const root = ReactDOM.createRoot(watchlistRoot);
         root.render(React.createElement(WatchlistComponent));
+    }
+};
+
+// Export function to manually reload watchlist data
+window.reloadWatchlistData = () => {
+    console.log('🔄 Manual watchlist data reload triggered');
+    // Find the React component instance and trigger reload
+    const watchlistRoot = document.getElementById('react-watchlist-root');
+    if (watchlistRoot && watchlistRoot._reactInternalFiber) {
+        // This is a bit hacky but works for manual refresh
+        window.refreshWatchlist();
     }
 };
