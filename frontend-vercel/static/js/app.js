@@ -5,7 +5,7 @@ let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
 
 // Backend API base URL - Get from config file
-const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://linkl-web-production-2e2e.up.railway.app';
+const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
 
 // Force cache busting - deployment timestamp: 2025-09-12-03:25
 const DEPLOYMENT_VERSION = '2.4.0-' + Date.now();
