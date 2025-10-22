@@ -992,31 +992,52 @@ async function loadWatchlistFromFirebase() {
                 return [];
             }
 
-            // Process and fetch prices for each stock in parallel
+            // Process and fetch prices for each stock using the same API as search
             const processedStocks = await Promise.all(stocksData.map(async (item) => {
                 const symbol = item.symbol || item.id;
                 console.log('🔥 Processing stock:', symbol);
 
-                // Fetch current price
-                let currentPrice = 'Loading...';
+                // Use the same /api/search endpoint as search functionality for consistent data
+                let stockData = {
+                    symbol: symbol,
+                    name: item.company_name || symbol,
+                    price: 0,
+                    priceChange: 0,
+                    priceChangePercent: 0
+                };
+
                 try {
-                    const priceResponse = await fetch(`${API_BASE_URL}/api/company/${symbol}`);
-                    if (priceResponse.ok) {
-                        const priceData = await priceResponse.json();
-                        currentPrice = priceData.price ? `$${priceData.price.toFixed(2)}` : '$0.00';
-                        console.log('✅ Got price for', symbol, ':', currentPrice);
+                    const searchResponse = await fetch(`${API_BASE_URL}/api/search`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ symbol: symbol })
+                    });
+
+                    if (searchResponse.ok) {
+                        const searchData = await searchResponse.json();
+                        stockData = {
+                            symbol: searchData.symbol || symbol,
+                            name: searchData.name || item.company_name || symbol,
+                            price: searchData.price || 0,
+                            priceChange: searchData.priceChange || 0,
+                            priceChangePercent: searchData.priceChangePercent || 0
+                        };
+                        console.log('✅ Got search data for', symbol, ':', stockData);
+                    } else {
+                        console.log('❌ Search API failed for', symbol, searchResponse.status);
                     }
                 } catch (error) {
-                    console.log('❌ Failed to get price for', symbol, error);
-                    currentPrice = '$0.00';
+                    console.log('❌ Failed to get search data for', symbol, error);
                 }
 
                 return {
-                    symbol: symbol,
-                    company_name: item.company_name || symbol,
-                    price: currentPrice,
-                    change: '0.00',
-                    change_percent: '0.00',
+                    symbol: stockData.symbol,
+                    company_name: stockData.name,
+                    price: stockData.price,
+                    change: stockData.priceChange,
+                    change_percent: stockData.priceChangePercent,
                     ...item,
                     last_updated: new Date().toISOString()
                 };
