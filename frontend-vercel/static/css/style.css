@@ -615,11 +615,13 @@ body {
     border-color: var(--primary-color);
 }
 
-/* Content Grid */
+/* Content Grid - Match image proportions exactly */
 .content-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: 2fr 1fr; /* Watchlist takes 2/3, News takes 1/3 */
     gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .watchlist-section, .chart-section, .news-section {
@@ -630,7 +632,7 @@ body {
     border: 1px solid var(--border-color);
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-height: 400px;
+    min-height: 500px; /* Increased height to match image */
 }
 
 .watchlist-section:hover, .chart-section:hover, .news-section:hover {
@@ -639,8 +641,15 @@ body {
     border-color: var(--primary-color);
 }
 
-.chart-section[style*="display: block"] {
-    grid-column: 1 / -1;
+/* News section specific styling to match image proportions */
+.news-section {
+    min-height: 500px; /* Match watchlist height */
+    overflow-y: auto; /* Allow scrolling if content is too long */
+}
+
+.news-section .news-container {
+    max-height: 400px; /* Limit height to match image */
+    overflow-y: auto;
 }
 
 /* Add a more general rule for when chart section is visible */
@@ -908,8 +917,8 @@ body {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 1rem;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
+    padding: 1.25rem; /* Slightly reduced padding to match image */
+    margin-bottom: 0.75rem; /* Reduced margin to match image spacing */
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
 }
@@ -924,7 +933,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem; /* Reduced margin to match image */
 }
 
 .watchlist-item h4 {
@@ -949,9 +958,9 @@ body {
 }
 
 .watchlist-item-performance {
-    font-size: 0.95em;
+    font-size: 0.9em; /* Slightly smaller to match image */
     margin-top: 2px;
-    margin-bottom: 6px;
+    margin-bottom: 8px; /* Increased margin to match image spacing */
     font-weight: 500;
     letter-spacing: 0.01em;
 }
@@ -1094,8 +1103,16 @@ body {
     }
 
     .content-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* Stack on mobile */
         gap: 1.5rem;
+    }
+    
+    .news-section {
+        min-height: 300px; /* Reduced height on mobile */
+    }
+    
+    .news-section .news-container {
+        max-height: 250px; /* Reduced height on mobile */
     }
 
     .search-box {
@@ -4717,3 +4734,47 @@ body {
         font-size: 1.1rem;
     }
 }
+
+/* New Watchlist Design Classes */
+.flex { display: flex; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+.space-y-4 > * + * { margin-top: 1rem; }
+.p-4 { padding: 1rem; }
+.rounded-lg { border-radius: 0.5rem; }
+.bg-secondary\/50 { background-color: rgba(44, 44, 46, 0.5); }
+.border { border: 1px solid var(--border-color); }
+.border-border { border-color: var(--border-color); }
+.hover\:border-primary\/50:hover { border-color: rgba(0, 217, 36, 0.5); }
+.transition-colors { transition: border-color 0.3s ease; }
+.mb-3 { margin-bottom: 0.75rem; }
+.font-semibold { font-weight: 600; }
+.text-lg { font-size: 1.125rem; }
+.text-2xl { font-size: 1.5rem; }
+.text-sm { font-size: 0.875rem; }
+.text-foreground { color: var(--text-primary); }
+.text-muted-foreground { color: var(--text-muted); }
+.text-primary { color: var(--primary-color); }
+.text-right { text-align: right; }
+.font-bold { font-weight: 700; }
+.badge { 
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+.bg-primary { background-color: var(--primary-color); color: white; }
+.bg-destructive { background-color: var(--error-color); color: white; }
+.btn-outline { 
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+.btn-sm { padding: 0.5rem 0.75rem; font-size: 0.875rem; }
+.flex-1 { flex: 1; }
+.mr-2 { margin-right: 0.5rem; }
+.text-destructive { color: var(--error-color); }
