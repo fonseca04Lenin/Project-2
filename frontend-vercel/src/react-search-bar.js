@@ -3,6 +3,35 @@
  * Converts the vanilla JS search bar to React while maintaining all functionality
  */
 
+console.log('🚀 React Search Bar script starting to load...');
+
+// Test if we can access React
+try {
+    const { useState, useEffect, useRef } = React;
+    console.log('✅ React destructuring successful');
+} catch (error) {
+    console.error('❌ React not available:', error);
+    // Create immediate fallback
+    setTimeout(() => {
+        console.log('🔧 Creating immediate fallback due to React error');
+        const searchSection = document.querySelector('.search-section');
+        if (searchSection) {
+            searchSection.innerHTML = `
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" placeholder="Search stocks... (e.g., AAPL, Tesla, Microsoft)" class="search-input">
+                        <button class="search-btn">
+                            <span class="btn-text">Search</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            console.log('✅ Immediate fallback search bar created');
+        }
+    }, 100);
+}
+
 const { useState, useEffect, useRef } = React;
 
 // Popular stocks database for instant suggestions
@@ -297,8 +326,15 @@ function initializeReactSearchBar() {
 
 // Initialize when DOM is ready
 console.log('🔍 React Search Bar script loaded, attempting initialization...');
+console.log('🔍 Document ready state:', document.readyState);
 console.log('🔍 React available:', typeof React !== 'undefined');
 console.log('🔍 ReactDOM available:', typeof ReactDOM !== 'undefined');
+console.log('🔍 Search section exists:', !!document.querySelector('.search-section'));
+console.log('🔍 All sections:', document.querySelectorAll('section').length);
+
+// Force immediate creation of search bar
+console.log('🔧 FORCING immediate search bar creation...');
+createFallbackSearchBar();
 
 if (document.readyState === 'loading') {
     console.log('🔍 Document still loading, waiting for DOMContentLoaded...');
@@ -321,10 +357,20 @@ function createFallbackSearchBar() {
     console.log('🔧 Creating fallback search bar...');
     
     const searchSection = document.querySelector('.search-section');
+    console.log('🔧 Search section found:', !!searchSection);
+    
     if (!searchSection) {
         console.error('❌ No search section found for fallback');
+        console.log('🔧 Available elements:', {
+            sections: document.querySelectorAll('section').length,
+            searchSections: document.querySelectorAll('.search-section').length,
+            main: !!document.querySelector('main'),
+            container: !!document.querySelector('.container')
+        });
         return;
     }
+    
+    console.log('🔧 Search section innerHTML before:', searchSection.innerHTML);
     
     searchSection.innerHTML = `
         <div class="search-container">
@@ -339,27 +385,41 @@ function createFallbackSearchBar() {
         </div>
     `;
     
+    console.log('🔧 Search section innerHTML after:', searchSection.innerHTML);
+    
     // Add basic functionality
     const searchInput = document.getElementById('fallbackSearchInput');
     const searchBtn = document.getElementById('fallbackSearchBtn');
     
+    console.log('🔧 Search input found:', !!searchInput);
+    console.log('🔧 Search button found:', !!searchBtn);
+    
     if (searchInput && searchBtn) {
         searchBtn.addEventListener('click', () => {
             const query = searchInput.value.trim();
+            console.log('🔧 Fallback search clicked for:', query);
             if (query) {
-                console.log('Fallback search for:', query);
-                // Basic search functionality
-                window.location.href = `#search=${encodeURIComponent(query)}`;
+                // Try to use existing search functionality
+                if (window.searchStock) {
+                    console.log('🔧 Using existing searchStock function');
+                    window.searchStock();
+                } else {
+                    console.log('🔧 No existing search function, showing alert');
+                    alert(`Searching for: ${query}`);
+                }
             }
         });
         
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                console.log('🔧 Enter key pressed');
                 searchBtn.click();
             }
         });
         
-        console.log('✅ Fallback search bar created');
+        console.log('✅ Fallback search bar created and functional');
+    } else {
+        console.error('❌ Failed to find search input or button after creation');
     }
 }
 
