@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/css/style.css?v=2.1-seamless-auth">
     <link rel="stylesheet" href="static/css/react-ai-chat.css?v=1.0">
-    <link rel="stylesheet" href="static/css/react-market-intelligence.css?v=1.0">
     
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -363,9 +362,75 @@
                                 <!-- React AI Chat Component will render here -->
                             </div>
 
-                            <!-- Market Intelligence Section - React Component -->
-                            <div id="market-intelligence-root">
-                                <!-- React Market Intelligence Component will render here -->
+                            <!-- Market Intelligence Section -->
+                            <div class="market-intelligence-container">
+                                <h2>
+                                    <i class="fas fa-brain"></i>
+                                    Market Intelligence
+                                </h2>
+                                <div class="intelligence-tabs">
+                                    <button class="tab-btn active" onclick="showIntelligenceTab('earnings')">Earnings Calendar</button>
+                                    <button class="tab-btn" onclick="showIntelligenceTab('insider')">Insider Trading</button>
+                                    <button class="tab-btn" onclick="showIntelligenceTab('analyst')">Analyst Ratings</button>
+                                    <button class="tab-btn" onclick="showIntelligenceTab('options')">Options Data</button>
+                                </div>
+                                <div class="intelligence-content">
+                                    <!-- Earnings Calendar Tab -->
+                                    <div id="earnings-tab" class="tab-content active">
+                                        <h3>Upcoming Earnings</h3>
+                                        <div id="earningsList" class="earnings-list">
+                                            <div class="loading-state">
+                                                <i class="fas fa-spinner fa-spin"></i>
+                                                <p>Loading earnings data...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Insider Trading Tab -->
+                                    <div id="insider-tab" class="tab-content">
+                                        <h3>Insider Trading</h3>
+                                        <div class="insider-search">
+                                            <input type="text" id="insider-symbol" placeholder="Enter stock symbol">
+                                            <button onclick="getInsiderTrading()">Search</button>
+                                        </div>
+                                        <div id="insiderList" class="insider-list">
+                                            <div class="empty-state">
+                                                <i class="fas fa-user-secret"></i>
+                                                <p>Search for insider trading data</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Analyst Ratings Tab -->
+                                    <div id="analyst-tab" class="tab-content">
+                                        <h3>Analyst Ratings</h3>
+                                        <div class="analyst-search">
+                                            <input type="text" id="analyst-symbol" placeholder="Enter stock symbol">
+                                            <button onclick="getAnalystRatings()">Search</button>
+                                        </div>
+                                        <div id="analystList" class="analyst-list">
+                                            <div class="empty-state">
+                                                <i class="fas fa-chart-bar"></i>
+                                                <p>Search for analyst ratings</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Options Data Tab -->
+                                    <div id="options-tab" class="tab-content">
+                                        <h3>Options Data</h3>
+                                        <div class="options-search">
+                                            <input type="text" id="options-symbol" placeholder="Enter stock symbol">
+                                            <button onclick="getOptionsData()">Search</button>
+                                        </div>
+                                        <div id="optionsList" class="options-list">
+                                            <div class="empty-state">
+                                                <i class="fas fa-chart-area"></i>
+                                                <p>Search for options data</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -439,7 +504,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel" src="src/react-watchlist.js?v=20250122-SEARCH-BAR-FIX"></script>
     <script type="text/babel" src="src/react-ai-chat.js?v=1.0"></script>
-    <script type="text/babel" src="src/react-market-intelligence.js?v=1.0"></script>
     <script src="src/vanilla-search-bar.js?v=20250122-SEARCH-BAR-FIX"></script>
 </body>
 </html> 
