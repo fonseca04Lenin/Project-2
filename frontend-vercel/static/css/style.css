@@ -635,9 +635,11 @@ body {
     min-height: 500px; /* Fixed height for both watchlist and news */
 }
 
-/* Watchlist section specific height control */
+/* Watchlist section specific height control - allow expansion */
 .watchlist-section {
-    max-height: 500px; /* Prevent expansion beyond this height */
+    height: auto; /* Allow natural expansion */
+    min-height: 500px; /* Minimum height */
+    max-height: none; /* Remove max-height restriction */
 }
 
 .watchlist-section:hover, .chart-section:hover, .news-section:hover {
@@ -646,10 +648,11 @@ body {
     border-color: var(--primary-color);
 }
 
-/* Watchlist container scrolling - match news container height */
+/* Watchlist container scrolling - limit content area for scrolling */
 .watchlist-section .watchlist-container {
-    max-height: 500px; /* Match news container height */
+    max-height: 400px; /* Limit content area to enable scrolling */
     overflow-y: auto; /* Enable scrolling for more than 3 stocks */
+    padding-right: 8px; /* Add space for scrollbar */
 }
 
 /* Custom scrollbar styling for watchlist section to match news section */
