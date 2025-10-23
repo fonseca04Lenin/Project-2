@@ -63,11 +63,9 @@ const MarketIntelligence = () => {
                 setInsiderData([]);
             } else {
                 console.error('Failed to load insider trading data');
-                setInsiderData([]);
             }
         } catch (error) {
             console.error('Error loading insider trading data:', error);
-            setInsiderData([]);
         } finally {
             setLoading(false);
         }
@@ -90,11 +88,9 @@ const MarketIntelligence = () => {
                 setAnalystData(null);
             } else {
                 console.error('Failed to load analyst ratings');
-                setAnalystData(null);
             }
         } catch (error) {
             console.error('Error loading analyst ratings:', error);
-            setAnalystData(null);
         } finally {
             setLoading(false);
         }
@@ -117,11 +113,9 @@ const MarketIntelligence = () => {
                 setOptionsData([]);
             } else {
                 console.error('Failed to load options data');
-                setOptionsData([]);
             }
         } catch (error) {
             console.error('Error loading options data:', error);
-            setOptionsData([]);
         } finally {
             setLoading(false);
         }
@@ -470,7 +464,7 @@ const MarketIntelligence = () => {
                                 </div>
                                 
                                 <div className="analyst-ratings">
-                                    {analystData.analysts && analystData.analysts.map((rating, index) => (
+                                    {analystData.ratings.map((rating, index) => (
                                         <div key={index} className="analyst-card">
                                             <div className="analyst-firm">
                                                 <strong>{rating.firm}</strong>
@@ -549,75 +543,34 @@ const MarketIntelligence = () => {
                                 <i className="fas fa-spinner fa-spin"></i>
                                 <p>Loading options data...</p>
                             </div>
-                        ) : optionsData && (optionsData.call_options || optionsData.put_options) ? (
-                            <div className="options-content">
-                                <div className="options-summary">
-                                    <h4>Options Data for {searchSymbols.options}</h4>
-                                    <div className="current-price">
-                                        <i className="fas fa-dollar-sign"></i>
-                                        Current Price: ${optionsData.current_price}
-                                    </div>
-                                    <div className="expiration-dates">
-                                        <i className="fas fa-calendar"></i>
-                                        Expirations: {optionsData.expiration_dates ? optionsData.expiration_dates.join(', ') : 'N/A'}
-                                    </div>
-                                </div>
-                                
-                                {/* Call Options */}
-                                {optionsData.call_options && optionsData.call_options.length > 0 && (
-                                    <div className="options-section">
-                                        <div className="options-expiration">
-                                            <i className="fas fa-arrow-up"></i> Call Options
+                        ) : optionsData.length > 0 ? (
+                            <div className="options-list">
+                                {optionsData.map((option, index) => (
+                                    <div key={index} className="options-card">
+                                        <div className="options-header">
+                                            <div className="options-strike">
+                                                <strong>${option.strike_price}</strong>
+                                            </div>
+                                            <div className={`options-type ${option.option_type.toLowerCase()}`}>
+                                                {option.option_type}
+                                            </div>
                                         </div>
-                                        <div className="options-strikes">
-                                            {optionsData.call_options.map((option, index) => (
-                                                <div key={index} className="strike-item call-option">
-                                                    <div className="strike-price">${option.strike}</div>
-                                                    <div className="strike-bid">
-                                                        <i className="fas fa-hand-holding-usd"></i> Bid: ${option.bid}
-                                                    </div>
-                                                    <div className="strike-ask">
-                                                        <i className="fas fa-tag"></i> Ask: ${option.ask}
-                                                    </div>
-                                                    <div className="strike-volume">
-                                                        <i className="fas fa-chart-bar"></i> Volume: {option.volume}
-                                                    </div>
-                                                    <div className="strike-interest">
-                                                        <i className="fas fa-eye"></i> OI: {option.open_interest}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                        <div className="options-details">
+                                            <div className="options-expiry">
+                                                <i className="fas fa-calendar"></i>
+                                                <span>{new Date(option.expiry_date).toLocaleDateString()}</span>
+                                            </div>
+                                            <div className="options-volume">
+                                                <i className="fas fa-chart-bar"></i>
+                                                <span>{formatNumber(option.volume)}</span>
+                                            </div>
+                                            <div className="options-open-interest">
+                                                <i className="fas fa-eye"></i>
+                                                <span>{formatNumber(option.open_interest)}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
-                                
-                                {/* Put Options */}
-                                {optionsData.put_options && optionsData.put_options.length > 0 && (
-                                    <div className="options-section">
-                                        <div className="options-expiration">
-                                            <i className="fas fa-arrow-down"></i> Put Options
-                                        </div>
-                                        <div className="options-strikes">
-                                            {optionsData.put_options.map((option, index) => (
-                                                <div key={index} className="strike-item put-option">
-                                                    <div className="strike-price">${option.strike}</div>
-                                                    <div className="strike-bid">
-                                                        <i className="fas fa-hand-holding-usd"></i> Bid: ${option.bid}
-                                                    </div>
-                                                    <div className="strike-ask">
-                                                        <i className="fas fa-tag"></i> Ask: ${option.ask}
-                                                    </div>
-                                                    <div className="strike-volume">
-                                                        <i className="fas fa-chart-bar"></i> Volume: {option.volume}
-                                                    </div>
-                                                    <div className="strike-interest">
-                                                        <i className="fas fa-eye"></i> OI: {option.open_interest}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                ))}
                             </div>
                         ) : searchSymbols.options ? (
                             <div className="empty-state">
