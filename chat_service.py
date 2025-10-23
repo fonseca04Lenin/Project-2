@@ -534,15 +534,22 @@ Remember: Always use functions to get real-time data when discussing specific st
             
             # Call Groq API with function calling
             logger.info("Calling Groq API...")
-            response = self.groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=messages,
-                tools=[{"type": "function", "function": func} for func in self._get_available_functions()],
-                tool_choice="auto",
-                temperature=0.7,
-                max_tokens=1000
-            )
-            logger.info("Groq API call successful")
+            try:
+                response = self.groq_client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=messages,
+                    tools=[{"type": "function", "function": func} for func in self._get_available_functions()],
+                    tool_choice="auto",
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+                logger.info("Groq API call successful")
+            except Exception as e:
+                logger.error(f"Groq API call failed: {e}")
+                return {
+                    "success": False,
+                    "error": f"I'm having trouble connecting to my AI service right now. Please try again in a moment. Error: {str(e)}"
+                }
             
             # Process response
             ai_message = response.choices[0].message
@@ -551,18 +558,41 @@ Remember: Always use functions to get real-time data when discussing specific st
             if ai_message.tool_calls:
                 function_results = []
                 for tool_call in ai_message.tool_calls:
-                    function_name = tool_call.function.name
-                    function_args = json.loads(tool_call.function.arguments)
-                    
-                    # Execute the function
-                    result = self._execute_function(function_name, function_args, user_id)
-                    # Serialize datetime objects in result
-                    serialized_result = serialize_datetime(result)
-                    function_results.append({
-                        "tool_call_id": tool_call.id,
-                        "function_name": function_name,
-                        "result": serialized_result
-                    })
+                    try:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
+                        
+                        # Execute the function
+                        result = self._execute_function(function_name, function_args, user_id)
+                        # Serialize datetime objects in result
+                        serialized_result = serialize_datetime(result)
+                        function_results.append({
+                            "tool_call_id": tool_call.id,
+                            "function_name": function_name,
+                            "result": serialized_result
+                        })
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse function arguments: {e}")
+                        logger.error(f"Raw arguments: {tool_call.function.arguments}")
+                        # Add error result
+                        function_results.append({
+                            "tool_call_id": tool_call.id,
+                            "function_name": tool_call.function.name,
+                            "result": {
+                                "success": False,
+                                "error": f"Failed to parse function arguments: {str(e)}"
+                            }
+                        })
+                    except Exception as e:
+                        logger.error(f"Error executing function {tool_call.function.name}: {e}")
+                        function_results.append({
+                            "tool_call_id": tool_call.id,
+                            "function_name": tool_call.function.name,
+                            "result": {
+                                "success": False,
+                                "error": f"Function execution failed: {str(e)}"
+                            }
+                        })
                 
                 # Get final response with function results
                 messages.append(ai_message)
@@ -574,14 +604,17 @@ Remember: Always use functions to get real-time data when discussing specific st
                     })
                 
                 # Get final AI response
-                final_response = self.groq_client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=messages,
-                    temperature=0.7,
-                    max_tokens=1000
-                )
-                
-                ai_response = final_response.choices[0].message.content
+                try:
+                    final_response = self.groq_client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=1000
+                    )
+                    ai_response = final_response.choices[0].message.content
+                except Exception as e:
+                    logger.error(f"Failed to get final AI response: {e}")
+                    ai_response = "I encountered an error while processing your request. Please try again."
             else:
                 ai_response = ai_message.content
             
