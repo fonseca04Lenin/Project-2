@@ -751,9 +751,13 @@ def search_stock():
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
 @app.route('/api/stock/<symbol>', methods=['GET'])
-@require_auth
 def get_stock_data(symbol):
     """Get current stock data for a specific symbol (used by watchlist price updates)"""
+    # Authenticate user
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    
     symbol = symbol.upper()
 
     if not symbol:
@@ -779,8 +783,8 @@ def get_stock_data(symbol):
 
             # Check for triggered alerts
             alerts_data = []
-            if current_user.is_authenticated:
-                triggered_alerts = FirebaseService.check_triggered_alerts(current_user.id, symbol, stock.price)
+            if user:
+                triggered_alerts = FirebaseService.check_triggered_alerts(user.id, symbol, stock.price)
                 alerts_data = [{
                     'target_price': float(alert['target_price']),
                     'alert_type': alert['alert_type']
