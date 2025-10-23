@@ -1946,22 +1946,10 @@ function showMainContent(user) {
     usernameWelcome.textContent = `Welcome, ${displayName}!`;
     usernameWelcome.style.display = 'block';
     
-    // Progressive loading: News first, then search, then intelligence
-    showProgressiveLoadingIndicator();
-    
-    // 1. Load news first (since it's working well)
-    loadMarketNews().then(() => {
-        updateLoadingIndicator('Search functionality activating...', 1);
-        
-        // 2. Activate search functionality after news loads (immediate)
-        activateSearchFunctionality();
-        updateLoadingIndicator('Market intelligence loading...', 2);
-        
-        // 3. Load intelligence section last (market intelligence)
-        loadIntelligenceSection().then(() => {
-            hideProgressiveLoadingIndicator();
-        });
-    });
+    // Load data without showing loading indicators
+    loadMarketNews();
+    activateSearchFunctionality();
+    loadIntelligenceSection();
     
     // Load other non-critical data in background
     updateMarketStatus();
@@ -1973,44 +1961,6 @@ function showMainContent(user) {
     
 }
 
-// Progressive loading indicator functions
-function showProgressiveLoadingIndicator() {
-    // Create or show loading indicator
-    let indicator = document.getElementById('progressive-loading');
-    if (!indicator) {
-        indicator = document.createElement('div');
-        indicator.id = 'progressive-loading';
-        indicator.innerHTML = `
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                        background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; 
-                        z-index: 9999; text-align: center; min-width: 300px;">
-                <div style="margin-bottom: 10px;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-                </div>
-                <div id="loading-message">Loading news...</div>
-                <div style="margin-top: 10px; font-size: 12px; opacity: 0.7;">
-                    Step <span id="loading-step">1</span> of 3
-                </div>
-            </div>
-        `;
-        document.body.appendChild(indicator);
-    }
-    indicator.style.display = 'block';
-}
-
-function updateLoadingIndicator(message, step) {
-    const messageEl = document.getElementById('loading-message');
-    const stepEl = document.getElementById('loading-step');
-    if (messageEl) messageEl.textContent = message;
-    if (stepEl) stepEl.textContent = step;
-}
-
-function hideProgressiveLoadingIndicator() {
-    const indicator = document.getElementById('progressive-loading');
-    if (indicator) {
-        indicator.style.display = 'none';
-    }
-}
 
 // Progressive loading functions
 function activateSearchFunctionality() {
@@ -2046,25 +1996,18 @@ function activateSearchFunctionality() {
 
 
 async function loadIntelligenceSection() {
-    
-    return new Promise((resolve) => {
-        try {
-            // Initialize market intelligence features
-            initializeMarketIntelligence();
-            
-            // Show intelligence section with loading indicator
-            const intelligenceSection = document.querySelector('.market-intelligence');
-            if (intelligenceSection) {
-                intelligenceSection.style.opacity = '1';
-            }
-            
-            // Resolve after a short delay
-            setTimeout(resolve, 1000);
-            
-        } catch (error) {
-            resolve(); // Continue anyway
+    try {
+        // Initialize market intelligence features
+        initializeMarketIntelligence();
+        
+        // Show intelligence section
+        const intelligenceSection = document.querySelector('.market-intelligence');
+        if (intelligenceSection) {
+            intelligenceSection.style.opacity = '1';
         }
-    });
+    } catch (error) {
+        console.log('Intelligence section load error:', error);
+    }
 }
 
 function showAuthForms() {
