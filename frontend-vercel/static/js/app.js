@@ -41,39 +41,13 @@ function initializeApp() {
     // Initialize market intelligence search functionality
     initializeMarketIntelligenceSearch();
     
-    // Update market status every minute
-    setInterval(updateMarketStatus, 60000);
-    updateMarketStatusIndicator();
-    setInterval(updateMarketStatusIndicator, 60000);
+    // Update market status every minute - now handled by React header component
+    // setInterval(updateMarketStatus, 60000);
+    // updateMarketStatusIndicator();
+    // setInterval(updateMarketStatusIndicator, 60000);
 }
 
-function updateMarketStatusIndicator() {
-    const indicator = document.getElementById('marketStatusIndicator');
-    if (!indicator) return;
-    fetch('/api/market-status')
-        .then(res => res.json())
-        .then(data => {
-            if (data.isOpen) {
-                indicator.textContent = 'Market Open';
-                indicator.style.background = '#22c55e'; // green
-                indicator.style.color = '#fff';
-            } else {
-                indicator.textContent = 'Market Closed';
-                indicator.style.background = '#64748b'; // gray
-                indicator.style.color = '#fff';
-            }
-            indicator.style.padding = '0.25em 0.75em';
-            indicator.style.borderRadius = '1em';
-            indicator.style.marginLeft = '1em';
-            indicator.style.fontSize = '1rem';
-            indicator.style.fontWeight = '600';
-        })
-        .catch(() => {
-            indicator.textContent = 'Status Unavailable';
-            indicator.style.background = '#f87171'; // red
-            indicator.style.color = '#fff';
-        });
-}
+// Market status functions moved to React header component
 
 // Initialize market intelligence search functionality
 function initializeMarketIntelligenceSearch() {
@@ -1952,7 +1926,7 @@ function showMainContent(user) {
     loadIntelligenceSection();
     
     // Load other non-critical data in background
-    updateMarketStatus();
+    // updateMarketStatus(); // Now handled by React header component
     
     // Prewarm backend for faster search responses
     setTimeout(() => {
