@@ -5,31 +5,28 @@
 
 console.log('🚀 React Search Bar script starting to load...');
 
+// Wait for React to be available
+function waitForReact() {
+    return new Promise((resolve) => {
+        if (typeof React !== 'undefined' && typeof ReactDOM !== 'undefined') {
+            resolve();
+        } else {
+            setTimeout(() => waitForReact().then(resolve), 100);
+        }
+    });
+}
+
 // Test if we can access React
 try {
     const { useState, useEffect, useRef } = React;
     console.log('✅ React destructuring successful');
 } catch (error) {
     console.error('❌ React not available:', error);
-    // Create immediate fallback
-    setTimeout(() => {
-        console.log('🔧 Creating immediate fallback due to React error');
-        const searchSection = document.querySelector('.search-section');
-        if (searchSection) {
-            searchSection.innerHTML = `
-                <div class="search-container">
-                    <div class="search-box">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" placeholder="Search stocks... (e.g., AAPL, Tesla, Microsoft)" class="search-input">
-                        <button class="search-btn">
-                            <span class="btn-text">Search</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-            console.log('✅ Immediate fallback search bar created');
-        }
-    }, 100);
+    // Wait for React to load
+    waitForReact().then(() => {
+        console.log('✅ React loaded, proceeding with initialization');
+        initializeReactSearchBar();
+    });
 }
 
 const { useState, useEffect, useRef } = React;
@@ -332,25 +329,48 @@ console.log('🔍 ReactDOM available:', typeof ReactDOM !== 'undefined');
 console.log('🔍 Search section exists:', !!document.querySelector('.search-section'));
 console.log('🔍 All sections:', document.querySelectorAll('section').length);
 
-// Force immediate creation of search bar
-console.log('🔧 FORCING immediate search bar creation...');
-createFallbackSearchBar();
-
-if (document.readyState === 'loading') {
-    console.log('🔍 Document still loading, waiting for DOMContentLoaded...');
-    document.addEventListener('DOMContentLoaded', initializeReactSearchBar);
-} else {
-    console.log('🔍 Document already loaded, initializing immediately...');
+// Wait for React and DOM to be ready
+async function initializeWhenReady() {
+    // Wait for React
+    await waitForReact();
+    
+    // Wait for DOM
+    if (document.readyState === 'loading') {
+        await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+    }
+    
+    console.log('🔍 Both React and DOM ready, initializing...');
     initializeReactSearchBar();
 }
 
-// Fallback initialization
+// Start initialization
+initializeWhenReady().catch(error => {
+    console.error('❌ Error during initialization:', error);
+    createFallbackSearchBar();
+});
+
+// Fallback initialization attempts
 setTimeout(() => {
     if (!document.querySelector('.search-section .search-container')) {
         console.log('🔍 Fallback initialization attempt...');
         initializeReactSearchBar();
     }
 }, 1000);
+
+setTimeout(() => {
+    if (!document.querySelector('.search-section .search-container')) {
+        console.log('🔍 Second fallback initialization attempt...');
+        initializeReactSearchBar();
+    }
+}, 3000);
+
+// Final fallback - create basic search bar if React still hasn't rendered after 5 seconds
+setTimeout(() => {
+    if (!document.querySelector('.search-section .search-container')) {
+        console.log('🔧 React failed, creating fallback search bar...');
+        createFallbackSearchBar();
+    }
+}, 5000);
 
 // Fallback: Create basic search bar if React fails
 function createFallbackSearchBar() {
