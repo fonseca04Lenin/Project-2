@@ -166,7 +166,8 @@ const ModernHeader = () => {
 const headerContainer = document.getElementById('header-root');
 if (headerContainer) {
     console.log('Rendering Modern Header React component...');
-    ReactDOM.render(<ModernHeader />, headerContainer);
+    const root = ReactDOM.createRoot(headerContainer);
+    root.render(<ModernHeader />);
 } else {
     console.error('Header container not found!');
 }

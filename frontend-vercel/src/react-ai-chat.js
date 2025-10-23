@@ -287,5 +287,6 @@ const AIAdvisorChat = () => {
 // Render the component
 const aiChatContainer = document.getElementById('ai-advisor-chat-root');
 if (aiChatContainer) {
-    ReactDOM.render(<AIAdvisorChat />, aiChatContainer);
+    const root = ReactDOM.createRoot(aiChatContainer);
+    root.render(<AIAdvisorChat />);
 }
