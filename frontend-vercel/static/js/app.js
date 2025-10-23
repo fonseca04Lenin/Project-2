@@ -13,8 +13,6 @@ const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-p
 const DEPLOYMENT_VERSION = '2.4.0-' + Date.now();
 
 // DOM elements
-const searchInput = document.getElementById('searchInput');
-const searchBtn = document.getElementById('searchBtn');
 const stockResults = document.getElementById('stockResults');
 const stockCard = document.getElementById('stockCard');
 const refreshNewsBtn = document.getElementById('refreshNewsBtn');
@@ -36,23 +34,8 @@ function initializeApp() {
     startBackendKeepAlive();
     
     // Set up event listeners
-    if (searchBtn) {
-        searchBtn.addEventListener('click', searchStock);
-    }
     if (refreshNewsBtn) {
         refreshNewsBtn.addEventListener('click', loadMarketNews);
-    }
-    
-    // Set up search input event listener for Enter key
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchStock();
-            }
-        });
-        
-        // Add company name search suggestions
-        setupMainSearchSuggestions();
     }
     
     // Initialize market intelligence search functionality
@@ -220,91 +203,9 @@ function displaySearchSuggestions(container, suggestions, inputElement) {
     container.style.display = 'block';
 }
 
-// Setup main search suggestions for company names
-function setupMainSearchSuggestions() {
-    if (!searchInput) return;
-    
-    // Add search suggestions container
-    const suggestionsContainer = document.createElement('div');
-    suggestionsContainer.className = 'search-suggestions main-search-suggestions';
-    suggestionsContainer.style.display = 'none';
-    searchInput.parentNode.appendChild(suggestionsContainer);
-    
-    // Add loading state to input
-    const loadingSpinner = document.createElement('div');
-    loadingSpinner.className = 'search-loading main-search-loading';
-    loadingSpinner.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    loadingSpinner.style.display = 'none';
-    searchInput.parentNode.appendChild(loadingSpinner);
-    
-    // Add event listeners
-    searchInput.addEventListener('input', function() {
-        const query = this.value.trim();
-        
-        // Clear previous timeout
-        if (searchTimeout) {
-            clearTimeout(searchTimeout);
-        }
-        
-        // Hide suggestions if query is too short
-        if (query.length < 2) {
-            suggestionsContainer.style.display = 'none';
-            return;
-        }
-        
-        // Show loading spinner
-        loadingSpinner.style.display = 'block';
-        
-        // Debounce search
-        searchTimeout = setTimeout(async () => {
-            try {
-                const response = await fetch(`/api/search/companies?q=${encodeURIComponent(query)}`);
-                const data = await response.json();
-                
-                if (data.results && data.results.length > 0) {
-                    displayMainSearchSuggestions(suggestionsContainer, data.results, searchInput);
-                } else {
-                    suggestionsContainer.style.display = 'none';
-                }
-            } catch (error) {
-            } finally {
-                loadingSpinner.style.display = 'none';
-            }
-        }, 300);
-    });
-    
-    // Handle click outside to close suggestions
-    document.addEventListener('click', function(e) {
-        if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-            suggestionsContainer.style.display = 'none';
-        }
-    });
-}
+// Search functionality moved to React component
 
-// Display main search suggestions
-function displayMainSearchSuggestions(container, suggestions, inputElement) {
-    container.innerHTML = '';
-    
-    suggestions.forEach(suggestion => {
-        const suggestionItem = document.createElement('div');
-        suggestionItem.className = 'suggestion-item main-suggestion-item';
-        suggestionItem.innerHTML = `
-            <div class="suggestion-symbol">${suggestion.symbol}</div>
-            <div class="suggestion-name">${suggestion.display_name || suggestion.name}</div>
-        `;
-        
-        suggestionItem.addEventListener('click', function() {
-            inputElement.value = suggestion.symbol;
-            container.style.display = 'none';
-            // Trigger the main search
-            searchStock();
-        });
-        
-        container.appendChild(suggestionItem);
-    });
-    
-    container.style.display = 'block';
-}
+// Search functionality moved to React component
 
 // Make functions globally available
 window.showIntelligenceTab = showIntelligenceTab;
@@ -595,100 +496,7 @@ async function wakeUpBackend() {
     }
 }
 
-// Optimized search with backend + fast suggestions
-async function searchStock() {
-    const query = searchInput.value.trim();
-    if (!query) {
-        showToast('Please enter a stock symbol or company name', 'error');
-        return;
-    }
-    setLoadingState(true);
-    
-    try {
-        
-        // Step 1: Wake up backend proactively for faster response
-        const wakeUpPromise = wakeUpBackend();
-        
-        // Step 2: Fast client-side suggestions while backend wakes up
-        let symbol = query.toUpperCase();
-        let suggestions = [];
-        
-        // Check our local popular stocks database first for instant feedback
-        const directMatch = POPULAR_STOCKS.find(stock => stock.symbol === symbol);
-        if (directMatch) {
-            symbol = directMatch.symbol;
-        } else {
-            // Search by company name (partial matching)
-            const nameMatch = POPULAR_STOCKS.find(stock => 
-                stock.name.toLowerCase().includes(query.toLowerCase()) ||
-                stock.symbol.toLowerCase().includes(query.toLowerCase())
-            );
-            if (nameMatch) {
-                symbol = nameMatch.symbol;
-                searchInput.value = symbol; // Update search box with symbol
-            }
-        }
-        
-        // Step 3: Wait for backend to be ready, then search
-        await wakeUpPromise;
-        
-        // Try backend suggestions first for comprehensive results
-        try {
-            const companyResponse = await fetch(`${API_BASE_URL}/api/search/companies?q=${encodeURIComponent(query)}`, {
-                credentials: 'include',
-                signal: AbortSignal.timeout(8000) // 8 second timeout
-            });
-            
-            if (companyResponse.ok) {
-                const companyData = await companyResponse.json();
-                if (companyData.results && companyData.results.length > 0) {
-                    suggestions = companyData.results;
-                    // Use first suggestion if query isn't already a symbol
-                    if (!/^[A-Z]{1,5}$/.test(query.toUpperCase()) && suggestions.length > 0) {
-                        symbol = suggestions[0].symbol;
-                        searchInput.value = symbol;
-                    }
-                }
-            }
-        } catch (suggestionError) {
-            // Continue with local match
-        }
-        
-        // Step 4: Get detailed stock data from backend
-        const response = await fetch(`${API_BASE_URL}/api/search`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ symbol }),
-            signal: AbortSignal.timeout(12000) // 12 second timeout
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            currentStock = data;
-            displayStockResult(data);
-            stockResults.style.display = 'block';
-            
-            if (data.triggeredAlerts && data.triggeredAlerts.length > 0) {
-                data.triggeredAlerts.forEach(alert => {
-                    const message = `Alert triggered for ${symbol}: Price ${alert.alert_type} $${alert.target_price}`;
-                    showNotification(message, 'warning');
-                });
-            }
-        } else {
-            const errorData = await response.json();
-            showToast(errorData.error || 'Stock not found', 'error');
-            stockResults.style.display = 'none';
-        }
-    } catch (error) {
-        showToast('Error searching stock. Please try again.', 'error');
-        stockResults.style.display = 'none';
-    } finally {
-        setLoadingState(false);
-    }
-}
+// Search functionality moved to React component
 
 // Display search results
 function displayStockResult(stock) {
@@ -1722,21 +1530,7 @@ function formatDate(dateString) {
     }
 }
 
-// Utility functions
-function setLoadingState(isLoading) {
-    const btnText = searchBtn.querySelector('.btn-text');
-    const btnLoading = searchBtn.querySelector('.btn-loading');
-
-    if (isLoading) {
-        btnText.style.display = 'none';
-        btnLoading.style.display = 'inline-block';
-        searchBtn.disabled = true;
-    } else {
-        btnText.style.display = 'inline-block';
-        btnLoading.style.display = 'none';
-        searchBtn.disabled = false;
-    }
-}
+// Search functionality moved to React component
 
 function showToast(message, type = 'info') {
     if (!toastContainer) {
