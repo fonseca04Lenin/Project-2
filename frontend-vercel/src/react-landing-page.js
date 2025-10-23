@@ -50,6 +50,15 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
     setError("");
   };
 
+  // Determine backend URL based on environment
+  const getBackendUrl = () => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:5000';
+    } else {
+      return 'https://web-production-2e2e.up.railway.app';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -86,7 +95,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         // Get ID token and send to backend
         const idToken = await userCredential.user.getIdToken();
         
-        const response = await fetch('http://localhost:5000/api/auth/register', {
+        const response = await fetch(`${getBackendUrl()}/api/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -126,7 +135,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         // Get ID token and send to backend
         const idToken = await userCredential.user.getIdToken();
         
-        const response = await fetch('http://localhost:5000/api/auth/login', {
+        const response = await fetch(`${getBackendUrl()}/api/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
