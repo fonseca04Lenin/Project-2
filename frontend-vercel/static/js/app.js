@@ -1330,8 +1330,10 @@ async function addToWatchlist(symbol, companyName = null) {
         
         if (success) {
             showToast(`${symbol} added to watchlist`, 'success');
-            // Reload watchlist to show the new addition
-            // React component will handle this
+            // Notify React component to refresh
+            window.dispatchEvent(new CustomEvent('watchlistChanged', { 
+                detail: { action: 'add', symbol, companyName } 
+            }));
         } else {
             showToast('Error adding to watchlist', 'error');
         }
@@ -1409,8 +1411,10 @@ async function removeFromWatchlist(symbol) {
         
         if (success) {
             showToast(`${symbol} removed from watchlist`, 'success');
-            // Reload watchlist to reflect the change
-            // React component will handle this
+            // Notify React component to refresh
+            window.dispatchEvent(new CustomEvent('watchlistChanged', { 
+                detail: { action: 'remove', symbol } 
+            }));
         } else {
             showToast('Error removing from watchlist', 'error');
         }
@@ -1450,8 +1454,10 @@ async function clearWatchlist() {
 
             if (response.ok) {
                 showToast('Watchlist cleared successfully', 'success');
-                // Reload watchlist to show empty state
-                // React component will handle this
+                // Notify React component to refresh
+                window.dispatchEvent(new CustomEvent('watchlistChanged', { 
+                    detail: { action: 'clear' } 
+                }));
             } else {
                 showToast('Error clearing watchlist', 'error');
             }
