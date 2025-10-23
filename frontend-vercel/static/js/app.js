@@ -1889,22 +1889,17 @@ function showMainContent(user) {
     console.log('📱 Showing main content for user:', user.name);
     
     // Check if elements exist
-    const landingContainer = document.querySelector('.landing-page');
-    const authContainer = document.getElementById('auth-container');
+    const marketpulseRoot = document.getElementById('marketpulse-root');
     const mainContent = document.getElementById('main-content');
     const usernameDisplay = document.getElementById('username-display');
     
-    if (!landingContainer || !authContainer || !mainContent || !usernameDisplay) {
+    if (!marketpulseRoot || !mainContent || !usernameDisplay) {
         console.error('❌ Required elements not found for main content');
         return;
     }
     
-    // Hide auth container and landing container with smooth transition
-    landingContainer.classList.add('hidden');
-    setTimeout(() => {
-        landingContainer.style.display = 'none';
-        authContainer.style.display = 'none';
-    }, 300);
+    // Hide React landing page
+    marketpulseRoot.style.display = 'none';
     
     // Show main content with smooth transition
     mainContent.style.display = 'block';
@@ -1985,21 +1980,16 @@ function showAuthForms() {
     console.log('🔐 Showing auth forms');
     
     // Check if elements exist
-    const landingContainer = document.querySelector('.landing-page');
-    const authContainer = document.getElementById('auth-container');
+    const marketpulseRoot = document.getElementById('marketpulse-root');
     const mainContent = document.getElementById('main-content');
     
-    if (!landingContainer || !authContainer || !mainContent) {
+    if (!marketpulseRoot || !mainContent) {
         console.error('❌ Required elements not found for auth forms');
         return;
     }
     
-    // Show landing container and auth container with smooth transition
-    landingContainer.style.display = 'block';
-    authContainer.style.display = 'block';
-    setTimeout(() => {
-        landingContainer.classList.remove('hidden');
-    }, 50);
+    // Show React landing page
+    marketpulseRoot.style.display = 'block';
     
     // Hide main content with smooth transition
     mainContent.classList.add('hidden');
