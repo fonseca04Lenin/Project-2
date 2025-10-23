@@ -454,69 +454,113 @@
     font-size: 14px;
 }
 
-/* Options List */
-.options-list {
+/* Options Content */
+.options-content {
     display: grid;
-    gap: 16px;
+    gap: 24px;
 }
 
-.options-card {
+.options-summary {
     background: var(--bg-surface);
     border: 1px solid var(--card-border);
     border-radius: 16px;
     padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.options-summary h4 {
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    grid-column: 1 / -1;
+}
+
+.current-price, .expiration-dates {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.current-price i, .expiration-dates i {
+    color: var(--primary-color);
+}
+
+.options-section {
+    background: var(--bg-surface);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.options-expiration {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.options-expiration i {
+    font-size: 14px;
+}
+
+.options-strikes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.strike-item {
+    background: var(--bg-primary);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px;
     transition: all 0.3s ease;
     animation: slideInUp 0.3s ease-out;
 }
 
-.options-card:hover {
+.strike-item:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
     border-color: var(--primary-color);
 }
 
-.options-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+.strike-item.call-option {
+    border-left: 4px solid var(--success-color);
 }
 
-.options-strike strong {
+.strike-item.put-option {
+    border-left: 4px solid var(--error-color);
+}
+
+.strike-price {
     color: var(--text-primary);
     font-size: 18px;
-}
-
-.options-type {
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
     font-weight: 600;
-    text-transform: uppercase;
+    margin-bottom: 8px;
 }
 
-.options-type.call {
-    background: var(--success-color);
-    color: var(--text-inverse);
-}
-
-.options-type.put {
-    background: var(--error-color);
-    color: var(--text-inverse);
-}
-
-.options-details {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 12px;
-}
-
-.options-details > div {
+.strike-bid, .strike-ask, .strike-volume, .strike-interest {
     display: flex;
     align-items: center;
     gap: 6px;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.strike-bid i, .strike-ask i, .strike-volume i, .strike-interest i {
+    color: var(--text-muted);
+    font-size: 10px;
 }
 
 /* Loading and Empty States */
