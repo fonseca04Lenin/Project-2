@@ -72,17 +72,24 @@ class ChatService:
     def _get_user_context(self, user_id: str) -> Dict[str, Any]:
         """Get user's watchlist and conversation context"""
         try:
+            logger.info(f"🔍 Getting user context for user: {user_id}")
+            
             # Import watchlist service to get current watchlist data
             from watchlist_service import WatchlistService
             watchlist_service = WatchlistService(self.firestore_client)
             
+            logger.info(f"🔍 WatchlistService initialized, Firestore client: {watchlist_service.db is not None}")
+            
             # Get user's current watchlist using the watchlist service
             watchlist_items = watchlist_service.get_watchlist(user_id, limit=10)
+            logger.info(f"🔍 Retrieved {len(watchlist_items)} raw watchlist items from Firestore")
+            
             watchlist_data = []
             
             # Process watchlist items with current prices
             for item in watchlist_items:
                 try:
+                    logger.info(f"🔍 Processing watchlist item: {item.get('symbol', 'Unknown')}")
                     # Get current stock price and info
                     stock_info = self.stock_api.get_stock_info(item['symbol'])
                     watchlist_data.append({
@@ -116,7 +123,8 @@ class ChatService:
             # Get recent conversation history (last 3 messages)
             chat_history = self._get_conversation_history(user_id, limit=3)
             
-            logger.info(f"Retrieved {len(watchlist_data)} watchlist items for user {user_id}")
+            logger.info(f"✅ Retrieved {len(watchlist_data)} watchlist items for user {user_id}")
+            logger.info(f"🔍 Watchlist data: {watchlist_data}")
             
             return {
                 'watchlist': watchlist_data,
@@ -124,7 +132,9 @@ class ChatService:
                 'user_id': user_id
             }
         except Exception as e:
-            logger.error(f"Failed to get user context: {e}")
+            logger.error(f"❌ Failed to get user context: {e}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
             return {'watchlist': [], 'recent_conversation': [], 'user_id': user_id}
     
     def _get_conversation_history(self, user_id: str, limit: int = 3) -> List[Dict]:
