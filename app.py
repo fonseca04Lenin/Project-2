@@ -400,6 +400,37 @@ def debug_chatbot_watchlist(user_id):
             'traceback': traceback.format_exc()
         }), 500
 
+@app.route('/api/debug/current-user-watchlist')
+def debug_current_user_watchlist():
+    """Debug endpoint to test current user's watchlist access"""
+    try:
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Test both watchlist service and chatbot access
+        watchlist_service_result = watchlist_service.get_watchlist(user.id, limit=10)
+        
+        from chat_service import chat_service
+        chatbot_context = chat_service._get_user_context(user.id)
+        
+        return jsonify({
+            'user_id': user.id,
+            'user_email': user.email,
+            'watchlist_service_count': len(watchlist_service_result),
+            'watchlist_service_data': watchlist_service_result[:3],  # First 3 items
+            'chatbot_context_count': len(chatbot_context.get('watchlist', [])),
+            'chatbot_context_data': chatbot_context.get('watchlist', [])[:3],  # First 3 items
+            'firestore_client_available': chat_service.firestore_client is not None
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': f'Current user watchlist debug failed: {str(e)}',
+            'traceback': traceback.format_exc()
+        }), 500
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
