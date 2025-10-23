@@ -35,7 +35,7 @@ try {
 const { useState, useEffect, useRef } = React;
 
 // Popular stocks database for instant suggestions
-const POPULAR_STOCKS = [
+const SEARCH_POPULAR_STOCKS = [
     { symbol: 'AAPL', name: 'Apple Inc.' },
     { symbol: 'GOOGL', name: 'Alphabet Inc.' },
     { symbol: 'MSFT', name: 'Microsoft Corporation' },
@@ -93,12 +93,12 @@ function SearchBarComponent() {
             let suggestions = [];
             
             // Check our local popular stocks database first for instant feedback
-            const directMatch = POPULAR_STOCKS.find(stock => stock.symbol === symbol);
+            const directMatch = SEARCH_POPULAR_STOCKS.find(stock => stock.symbol === symbol);
             if (directMatch) {
                 symbol = directMatch.symbol;
             } else {
                 // Search by company name (partial matching)
-                const nameMatch = POPULAR_STOCKS.find(stock => 
+                const nameMatch = SEARCH_POPULAR_STOCKS.find(stock => 
                     stock.name.toLowerCase().includes(trimmedQuery.toLowerCase()) ||
                     stock.symbol.toLowerCase().includes(trimmedQuery.toLowerCase())
                 );
