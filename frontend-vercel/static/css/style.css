@@ -632,7 +632,8 @@ body {
     border: 1px solid var(--border-color);
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-height: 500px; /* Increased height to match image */
+    min-height: 500px; /* Fixed height for both watchlist and news */
+    max-height: 500px; /* Prevent expansion beyond this height */
 }
 
 .watchlist-section:hover, .chart-section:hover, .news-section:hover {
@@ -641,58 +642,32 @@ body {
     border-color: var(--primary-color);
 }
 
-/* Watchlist section with fixed height and scrolling */
-.watchlist-section {
-    min-height: 500px; /* Fixed height to match image */
-    max-height: 500px; /* Prevent expansion beyond this height */
-    overflow-y: auto; /* Allow scrolling when content exceeds height */
-}
-
+/* Watchlist container scrolling for more than 3 stocks */
 .watchlist-section .watchlist-container {
     max-height: 400px; /* Limit content area height */
     overflow-y: auto; /* Enable scrolling for more than 3 stocks */
 }
 
-/* News section specific styling to match watchlist proportions */
-.news-section {
-    min-height: 500px; /* Match watchlist height exactly */
-    max-height: 500px; /* Prevent expansion beyond this height */
-    overflow-y: auto; /* Allow scrolling if content is too long */
-}
-
-.news-section .news-container {
-    max-height: 400px; /* Match watchlist content area height */
-    overflow-y: auto;
-}
-
-/* Custom scrollbar styling for both watchlist and news sections */
+/* Custom scrollbar styling for watchlist section only */
 .watchlist-section::-webkit-scrollbar,
-.news-section::-webkit-scrollbar,
-.watchlist-container::-webkit-scrollbar,
-.news-container::-webkit-scrollbar {
+.watchlist-container::-webkit-scrollbar {
     width: 8px;
 }
 
 .watchlist-section::-webkit-scrollbar-track,
-.news-section::-webkit-scrollbar-track,
-.watchlist-container::-webkit-scrollbar-track,
-.news-container::-webkit-scrollbar-track {
+.watchlist-container::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
 }
 
 .watchlist-section::-webkit-scrollbar-thumb,
-.news-section::-webkit-scrollbar-thumb,
-.watchlist-container::-webkit-scrollbar-thumb,
-.news-container::-webkit-scrollbar-thumb {
+.watchlist-container::-webkit-scrollbar-thumb {
     background: var(--primary-color);
     border-radius: 4px;
 }
 
 .watchlist-section::-webkit-scrollbar-thumb:hover,
-.news-section::-webkit-scrollbar-thumb:hover,
-.watchlist-container::-webkit-scrollbar-thumb:hover,
-.news-container::-webkit-scrollbar-thumb:hover {
+.watchlist-container::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 217, 36, 0.8);
 }
 
