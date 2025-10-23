@@ -113,13 +113,32 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
           throw new Error(result.error || 'Registration failed');
         }
 
-        // Success - close dialog and let Firebase auth state change handle the transition
+        // Success - close dialog and trigger main app authentication
         console.log('Registration successful, closing dialog...');
         onOpenChange(false);
         
         // Clear form
         setFormData({ name: '', email: '', password: '' });
         setError('');
+        
+        // Trigger main app authentication state change
+        setTimeout(() => {
+          if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+            console.log('🔄 Triggering main app auth state change for registration');
+            
+            // Method 1: Call function directly if available
+            if (typeof window.handleAuthStateChange === 'function') {
+              window.handleAuthStateChange(window.firebaseAuth.currentUser);
+            }
+            
+            // Method 2: Dispatch custom event
+            const authEvent = new CustomEvent('userAuthenticated', {
+              detail: { user: window.firebaseAuth.currentUser }
+            });
+            window.dispatchEvent(authEvent);
+            console.log('📡 Dispatched userAuthenticated event');
+          }
+        }, 100);
         
       } else {
         // Validate form data
@@ -155,13 +174,32 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
           throw new Error(result.error || 'Login failed');
         }
 
-        // Success - close dialog and let Firebase auth state change handle the transition
+        // Success - close dialog and trigger main app authentication
         console.log('Login successful, closing dialog...');
         onOpenChange(false);
         
         // Clear form
         setFormData({ name: '', email: '', password: '' });
         setError('');
+        
+        // Trigger main app authentication state change
+        setTimeout(() => {
+          if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+            console.log('🔄 Triggering main app auth state change for login');
+            
+            // Method 1: Call function directly if available
+            if (typeof window.handleAuthStateChange === 'function') {
+              window.handleAuthStateChange(window.firebaseAuth.currentUser);
+            }
+            
+            // Method 2: Dispatch custom event
+            const authEvent = new CustomEvent('userAuthenticated', {
+              detail: { user: window.firebaseAuth.currentUser }
+            });
+            window.dispatchEvent(authEvent);
+            console.log('📡 Dispatched userAuthenticated event');
+          }
+        }, 100);
       }
     } catch (error) {
       console.error('Auth error:', error);
