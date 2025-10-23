@@ -1782,36 +1782,70 @@ async function wakeUpBackend() {
 // Auth Functions
 let authListenerSetup = false; // Guard to prevent multiple listeners
 let currentAuthRequest = null; // Guard to prevent parallel auth requests
+let authStateChecked = false; // Track if auth state has been checked
+let loadingScreenHidden = false; // Track if loading screen has been hidden
 
 async function checkAuthStatus() {
     try {
+        // Show loading screen initially
+        showLoadingScreen();
         
         if (window.firebaseAuth && !authListenerSetup) {
             authListenerSetup = true;
             
-            // Wait for Firebase Auth state restoration with timeout
+            // Wait for initial auth state with longer timeout for better reliability
             const authUser = await new Promise((resolve) => {
                 const timeout = setTimeout(() => {
+                    console.log('⏰ Auth state timeout, resolving with current user');
                     resolve(window.firebaseAuth.currentUser);
-                }, 3000);
+                }, 5000); // Increased timeout to 5 seconds
                 
                 const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
                     clearTimeout(timeout);
                     unsubscribe(); // Only resolve once
+                    console.log('🔐 Auth state resolved:', user ? 'User authenticated' : 'No user');
                     resolve(user);
                 });
             });
             
             // Handle the initial auth state
             await handleAuthStateChange(authUser);
+            authStateChecked = true;
             
             // Set up ongoing listener for future auth state changes
             window.firebaseAuth.onAuthStateChanged(handleAuthStateChange);
         } else {
-            showAuthForms();
+            console.log('❌ Firebase auth not available, showing auth forms');
+            await handleAuthStateChange(null);
+            authStateChecked = true;
         }
     } catch (error) {
-        showAuthForms();
+        console.error('❌ Auth check error:', error);
+        await handleAuthStateChange(null);
+        authStateChecked = true;
+    }
+}
+
+// Loading Screen Functions
+function showLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen && !loadingScreenHidden) {
+        loadingScreen.style.display = 'flex';
+        loadingScreen.classList.remove('hidden');
+    }
+}
+
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen && !loadingScreenHidden) {
+        loadingScreenHidden = true;
+        loadingScreen.classList.add('hidden');
+        // Remove from DOM after animation completes
+        setTimeout(() => {
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+        }, 500);
     }
 }
 
@@ -1828,8 +1862,9 @@ function saveRememberMePreference(remember) {
 }
 
 async function handleAuthStateChange(user) {
+    console.log('🔄 Handling auth state change:', user ? `User: ${user.email}` : 'No user');
+    
     if (user) {
-        
         // Show main content immediately without waiting for backend verification
         const userData = {
             email: user.email,
@@ -1837,17 +1872,25 @@ async function handleAuthStateChange(user) {
             name: user.displayName || user.email.split('@')[0]
         };
         
+        // Hide loading screen and show main content
+        hideLoadingScreen();
         showMainContent(userData);
         
         // Verify with backend in background (non-blocking)
         verifyWithBackend(user).catch(error => {
+            console.log('⚠️ Backend verification failed:', error);
         });
         
     } else {
+        // Hide loading screen and show auth forms
+        hideLoadingScreen();
+        
         // Only show auth forms if user shouldn't stay logged in
         if (!shouldStayLoggedIn()) {
             showAuthForms();
         } else {
+            console.log('🔒 User should stay logged in, but no user found');
+            showAuthForms();
         }
     }
 }
@@ -1869,6 +1912,7 @@ async function verifyWithBackend(user) {
 }
 
 function showMainContent(user) {
+    console.log('📱 Showing main content for user:', user.name);
     
     // Check if elements exist
     const landingContainer = document.querySelector('.landing-page');
@@ -1878,15 +1922,22 @@ function showMainContent(user) {
     const usernameWelcome = document.getElementById('username-welcome');
     
     if (!landingContainer || !authContainer || !mainContent || !usernameDisplay || !usernameWelcome) {
+        console.error('❌ Required elements not found for main content');
         return;
     }
     
-    // Hide auth container and landing container
-    landingContainer.style.display = 'none';
-    authContainer.style.display = 'none';
+    // Hide auth container and landing container with smooth transition
+    landingContainer.classList.add('hidden');
+    setTimeout(() => {
+        landingContainer.style.display = 'none';
+        authContainer.style.display = 'none';
+    }, 300);
     
-    // Show main content
+    // Show main content with smooth transition
     mainContent.style.display = 'block';
+    setTimeout(() => {
+        mainContent.classList.remove('hidden');
+    }, 50);
     
     // Update username display (footer)
     const displayName = user.name || user.email.split('@')[0];
@@ -2017,6 +2068,7 @@ async function loadIntelligenceSection() {
 }
 
 function showAuthForms() {
+    console.log('🔐 Showing auth forms');
     
     // Check if elements exist
     const landingContainer = document.querySelector('.landing-page');
@@ -2024,15 +2076,22 @@ function showAuthForms() {
     const mainContent = document.getElementById('main-content');
     
     if (!landingContainer || !authContainer || !mainContent) {
+        console.error('❌ Required elements not found for auth forms');
         return;
     }
     
-    // Show landing container and auth container
+    // Show landing container and auth container with smooth transition
     landingContainer.style.display = 'block';
     authContainer.style.display = 'block';
+    setTimeout(() => {
+        landingContainer.classList.remove('hidden');
+    }, 50);
     
-    // Hide main content
-    mainContent.style.display = 'none';
+    // Hide main content with smooth transition
+    mainContent.classList.add('hidden');
+    setTimeout(() => {
+        mainContent.style.display = 'none';
+    }, 300);
     
     // Reset to login form
     switchAuthTab('login');
@@ -2387,7 +2446,7 @@ async function handleLogout() {
         watchlistData = [];
         currentStock = null;
         
-        // Force UI update
+        // Force UI update with smooth transition
         showAuthForms();
         
         // Clear any cached data

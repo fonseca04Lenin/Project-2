@@ -7,7 +7,7 @@
     <!-- Cache busting: v2.1 - Fix multiple auth listeners causing slowdowns -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/css/style.css?v=2.0">
+    <link rel="stylesheet" href="static/css/style.css?v=2.1-seamless-auth">
     <link rel="stylesheet" href="static/css/ai-advisor-chat.css?v=1.0">
     
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
@@ -17,11 +17,26 @@
 </head>
 <body>
     <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-container">
+                <div class="loading-spinner">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                </div>
+                <div class="loading-text">
+                    <h2>Watchlist Pro</h2>
+                    <p>Loading your experience...</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Notification Container -->
         <div id="notificationContainer" class="notification-container"></div>
         
         <!-- Modern Landing Page -->
-        <div class="landing-page">
+        <div class="landing-page" style="display: none;">
             <!-- Navigation -->
             <nav class="navbar">
                 <div class="nav-container">
@@ -254,7 +269,7 @@
         </div>
 
         <!-- Main App Content (hidden until authenticated) -->
-        <div id="main-content" class="main-content" style="display: none;">
+        <div id="main-content" class="main-content hidden" style="display: none;">
             <header class="modern-header">
                 <div class="header-container">
                     <div class="header-left">
@@ -532,7 +547,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js?v=2.2"></script>
-    <script src="static/js/app.js?v=20250122-SEARCH-BAR-FIX&t=1761181421312"></script>
+    <script src="static/js/app.js?v=20250122-SEAMLESS-AUTH&t=1761181421312"></script>
     <script src="static/js/ai-advisor-chat.js?v=1.0"></script>
     
     <!-- React Integration -->
