@@ -72,35 +72,51 @@ class ChatService:
     def _get_user_context(self, user_id: str) -> Dict[str, Any]:
         """Get user's watchlist and conversation context"""
         try:
-            # Get user's watchlist
-            watchlist_doc = self.firestore_client.collection('users').document(user_id).get()
+            # Import watchlist service to get current watchlist data
+            from watchlist_service import WatchlistService
+            watchlist_service = WatchlistService(self.firestore_client)
+            
+            # Get user's current watchlist using the watchlist service
+            watchlist_items = watchlist_service.get_watchlist(user_id, limit=10)
             watchlist_data = []
             
-            if watchlist_doc.exists:
-                user_data = watchlist_doc.to_dict()
-                watchlist = user_data.get('watchlist', [])
-                
-                # Get current prices for watchlist items
-                for item in watchlist[:10]:  # Limit to 10 items for context
-                    try:
-                        stock_info = self.stock_api.get_stock_info(item['symbol'])
-                        watchlist_data.append({
-                            'symbol': item['symbol'],
-                            'name': stock_info.get('name', ''),
-                            'current_price': stock_info.get('current_price', 0),
-                            'change_percent': stock_info.get('change_percent', 0)
-                        })
-                    except Exception as e:
-                        logger.warning(f"Failed to get price for {item['symbol']}: {e}")
-                        watchlist_data.append({
-                            'symbol': item['symbol'],
-                            'name': item.get('name', ''),
-                            'current_price': 0,
-                            'change_percent': 0
-                        })
+            # Process watchlist items with current prices
+            for item in watchlist_items:
+                try:
+                    # Get current stock price and info
+                    stock_info = self.stock_api.get_stock_info(item['symbol'])
+                    watchlist_data.append({
+                        'symbol': item['symbol'],
+                        'name': item.get('company_name', stock_info.get('name', '')),
+                        'current_price': stock_info.get('current_price', 0),
+                        'change_percent': stock_info.get('change_percent', 0),
+                        'category': item.get('category', 'General'),
+                        'priority': item.get('priority', 'medium'),
+                        'notes': item.get('notes', ''),
+                        'target_price': item.get('target_price'),
+                        'stop_loss': item.get('stop_loss'),
+                        'added_at': item.get('added_at', '')
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to get price for {item['symbol']}: {e}")
+                    # Fallback to basic info without current price
+                    watchlist_data.append({
+                        'symbol': item['symbol'],
+                        'name': item.get('company_name', ''),
+                        'current_price': 0,
+                        'change_percent': 0,
+                        'category': item.get('category', 'General'),
+                        'priority': item.get('priority', 'medium'),
+                        'notes': item.get('notes', ''),
+                        'target_price': item.get('target_price'),
+                        'stop_loss': item.get('stop_loss'),
+                        'added_at': item.get('added_at', '')
+                    })
             
             # Get recent conversation history (last 3 messages)
             chat_history = self._get_conversation_history(user_id, limit=3)
+            
+            logger.info(f"Retrieved {len(watchlist_data)} watchlist items for user {user_id}")
             
             return {
                 'watchlist': watchlist_data,
@@ -197,6 +213,20 @@ class ChatService:
                 }
             },
             {
+                "name": "get_watchlist_details",
+                "description": "Get detailed information about all stocks in the user's watchlist",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "user_id": {
+                            "type": "string",
+                            "description": "User ID to get watchlist for"
+                        }
+                    },
+                    "required": ["user_id"]
+                }
+            },
+            {
                 "name": "get_market_news",
                 "description": "Get relevant market news for specific stocks",
                 "parameters": {
@@ -286,6 +316,47 @@ class ChatService:
                     "success": True,
                     "data": analysis,
                     "message": f"Analyzed {len(watchlist)} stocks in watchlist"
+                }
+            
+            elif function_name == "get_watchlist_details":
+                # Get comprehensive watchlist information
+                context = self._get_user_context(user_id)
+                watchlist = context.get('watchlist', [])
+                
+                if not watchlist:
+                    return {
+                        "success": True,
+                        "data": {"message": "No stocks in watchlist"},
+                        "message": "User has no stocks in watchlist"
+                    }
+                
+                # Organize watchlist by categories and priorities
+                categories = {}
+                priorities = {'high': [], 'medium': [], 'low': []}
+                
+                for stock in watchlist:
+                    category = stock.get('category', 'General')
+                    priority = stock.get('priority', 'medium')
+                    
+                    if category not in categories:
+                        categories[category] = []
+                    categories[category].append(stock)
+                    priorities[priority].append(stock)
+                
+                details = {
+                    "total_stocks": len(watchlist),
+                    "by_category": categories,
+                    "by_priority": priorities,
+                    "stocks_with_targets": [s for s in watchlist if s.get('target_price')],
+                    "stocks_with_stop_loss": [s for s in watchlist if s.get('stop_loss')],
+                    "stocks_with_notes": [s for s in watchlist if s.get('notes')],
+                    "full_watchlist": watchlist
+                }
+                
+                return {
+                    "success": True,
+                    "data": details,
+                    "message": f"Retrieved detailed information for {len(watchlist)} stocks"
                 }
             
             elif function_name == "get_market_news":
@@ -388,6 +459,7 @@ Guidelines:
 Available functions:
 - get_stock_price: Get current stock price and info
 - analyze_watchlist: Analyze user's watchlist performance  
+- get_watchlist_details: Get comprehensive watchlist information
 - get_market_news: Get news for specific stocks
 - compare_stocks: Compare multiple stocks
 
