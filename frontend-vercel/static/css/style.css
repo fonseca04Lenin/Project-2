@@ -392,40 +392,41 @@ body {
 
 /* React Search Bar - Exact Image Layout */
 .search-container {
-    background: var(--card-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 1rem;
-    padding: 1rem;
-    transition: all 0.4s ease;
+    background: #2D2D2D;
+    border: 1px solid #404040;
+    border-radius: 12px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
     box-shadow: 
-        0 4px 20px rgba(0, 0, 0, 0.1),
-        0 0 0 1px rgba(0, 217, 36, 0.05);
+        0 4px 20px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(0, 217, 36, 0.1);
     backdrop-filter: blur(10px);
     position: relative;
     overflow: hidden;
     max-width: 700px;
     margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-.search-container::before {
+.search-container::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(0, 217, 36, 0.1), transparent);
-    transition: left 0.6s ease;
-}
-
-.search-container:focus-within::before {
-    left: 100%;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0, 217, 36, 0.6), transparent);
+    opacity: 0.7;
 }
 
 .search-container:focus-within {
-    border-color: var(--primary-color);
-    box-shadow: 0 8px 30px rgba(74, 222, 128, 0.2);
-    transform: translateY(-2px);
+    border-color: rgba(0, 217, 36, 0.5);
+    box-shadow: 
+        0 4px 20px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(0, 217, 36, 0.3),
+        0 0 20px rgba(0, 217, 36, 0.2);
 }
 
 .search-box {
@@ -434,52 +435,55 @@ body {
     background: transparent;
     border: none;
     padding: 0;
-    gap: 0.75rem;
-}
-
-.search-btn {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    border: none;
-    padding: 0.75rem 2rem;
-    border-radius: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1rem;
-    margin-left: auto;
-}
-
-.search-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(74, 222, 128, 0.4);
-}
-
-.search-btn:active {
-    transform: translateY(0);
+    gap: 12px;
+    flex: 1;
 }
 
 .search-icon {
-    color: var(--text-muted);
-    margin-right: 1rem;
-    font-size: 1.2rem;
+    color: #B0B0B0;
+    font-size: 16px;
+    margin-right: 8px;
 }
 
 .search-input {
     flex: 1;
     border: none;
     background: transparent;
-    font-size: 1.1rem;
-    color: var(--text-primary);
+    font-size: 16px;
+    color: #FFFFFF;
     outline: none;
-    padding: 0.5rem 0;
+    padding: 8px 0;
+    font-family: inherit;
 }
 
 .search-input::placeholder {
-    color: var(--text-muted);
+    color: #B0B0B0;
+}
+
+.search-btn {
+    background: linear-gradient(135deg, #00D924, #00B81F);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    box-shadow: 0 2px 8px rgba(0, 217, 36, 0.3);
+}
+
+.search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 217, 36, 0.4);
+}
+
+.search-btn:active {
+    transform: translateY(0);
 }
 
 .btn-loading {
@@ -493,6 +497,8 @@ body {
 .search-btn.loading .btn-loading {
     display: inline-block;
 }
+
+/* Old duplicate CSS removed - using new React styles above */
 
 /* Old vanilla search bar CSS removed - using React version only */
 
