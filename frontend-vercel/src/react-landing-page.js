@@ -113,9 +113,13 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
           throw new Error(result.error || 'Registration failed');
         }
 
-        // Success - redirect to main app
-        console.log('Registration successful, redirecting...');
-        window.location.reload();
+        // Success - close dialog and let Firebase auth state change handle the transition
+        console.log('Registration successful, closing dialog...');
+        onOpenChange(false);
+        
+        // Clear form
+        setFormData({ name: '', email: '', password: '' });
+        setError('');
         
       } else {
         // Validate form data
@@ -151,9 +155,13 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
           throw new Error(result.error || 'Login failed');
         }
 
-        // Success - redirect to main app
-        console.log('Login successful, redirecting...');
-        window.location.reload();
+        // Success - close dialog and let Firebase auth state change handle the transition
+        console.log('Login successful, closing dialog...');
+        onOpenChange(false);
+        
+        // Clear form
+        setFormData({ name: '', email: '', password: '' });
+        setError('');
       }
     } catch (error) {
       console.error('Auth error:', error);
@@ -372,6 +380,23 @@ function HeroSection() {
 
 // Main Landing Page Component
 function StockWatchlistLandingPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    if (window.firebaseAuth) {
+      const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
+        setIsAuthenticated(!!user);
+      });
+      
+      return () => unsubscribe();
+    }
+  }, []);
+
+  // Don't render landing page if user is authenticated
+  if (isAuthenticated) {
+    return null;
+  }
   return (
     <div className="stock-watchlist-landing">
       <LandingHeader />
