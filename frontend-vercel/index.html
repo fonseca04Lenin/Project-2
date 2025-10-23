@@ -270,32 +270,10 @@
 
         <!-- Main App Content (hidden until authenticated) -->
         <div id="main-content" class="main-content hidden" style="display: none;">
-            <header class="modern-header">
-                <div class="header-container">
-                    <div class="header-left">
-                        <div class="app-brand">
-                            <i class="fas fa-chart-line brand-icon"></i>
-                            <h1 class="brand-title">Watchlist Pro</h1>
-                        </div>
-                    </div>
-                    
-                    <div class="header-center">
-                        <div class="market-status-display">
-                            <span id="marketStatusIndicator" class="market-indicator">Loading...</span>
-                        </div>
-                    </div>
-                    
-                    <div class="header-right">
-                        <div class="user-profile">
-                            <div id="username-welcome" class="user-welcome">Welcome, User!</div>
-                            <button onclick="handleLogout()" class="modern-logout-btn">
-                                <i class="fas fa-sign-out-alt"></i>
-                                <span>Logout</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            <!-- React Header Component -->
+            <div id="header-root">
+                <!-- React Header Component will render here -->
+            </div>
 
             <!-- Main Content -->
             <main class="main">
@@ -504,6 +482,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel" src="src/react-watchlist.js?v=20250122-SEARCH-BAR-FIX"></script>
     <script type="text/babel" src="src/react-ai-chat.js?v=1.0"></script>
+    <script type="text/babel" src="src/react-header.js?v=1.0"></script>
     <script src="src/vanilla-search-bar.js?v=20250122-SEARCH-BAR-FIX"></script>
 </body>
 </html> 
