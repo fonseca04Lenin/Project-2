@@ -1788,6 +1788,14 @@ async function checkAuthStatus() {
             
             // Set up ongoing listener for future auth state changes
             window.firebaseAuth.onAuthStateChanged(handleAuthStateChange);
+            
+            // Listen for custom authentication events from React components
+            window.addEventListener('userAuthenticated', (event) => {
+                console.log('📡 Received userAuthenticated event:', event.detail.user.email);
+                if (event.detail && event.detail.user) {
+                    handleAuthStateChange(event.detail.user);
+                }
+            });
         } else {
             console.log('❌ Firebase auth not available, showing auth forms');
             await handleAuthStateChange(null);
@@ -1835,7 +1843,8 @@ function saveRememberMePreference(remember) {
     localStorage.setItem('rememberMe', remember.toString());
 }
 
-async function handleAuthStateChange(user) {
+// Make function globally accessible
+window.handleAuthStateChange = async function handleAuthStateChange(user) {
     console.log('🔄 Handling auth state change:', user ? `User: ${user.email}` : 'No user');
     
     if (user) {
