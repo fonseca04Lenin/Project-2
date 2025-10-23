@@ -310,7 +310,6 @@ const MarketIntelligence = () => {
                     <div className="tab-content">
                         <div className="content-header">
                             <h3>Insider Trading</h3>
-                            <p className="content-subtitle">Search for insider trading data by stock symbol</p>
                         </div>
                         
                         <div className="search-container">
@@ -318,7 +317,7 @@ const MarketIntelligence = () => {
                                 <input
                                     type="text"
                                     className="search-input"
-                                    placeholder="Enter stock symbol (e.g., AAPL)"
+                                    placeholder="Enter stock symbol"
                                     value={searchSymbols.insider}
                                     onChange={(e) => handleSearchChange('insider', e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && handleSearch('insider')}
@@ -396,7 +395,6 @@ const MarketIntelligence = () => {
                             <div className="empty-state">
                                 <i className="fas fa-user-secret"></i>
                                 <p>Search for insider trading data</p>
-                                <small>Enter a stock symbol above to get started</small>
                             </div>
                         )}
                     </div>
@@ -407,7 +405,6 @@ const MarketIntelligence = () => {
                     <div className="tab-content">
                         <div className="content-header">
                             <h3>Analyst Ratings</h3>
-                            <p className="content-subtitle">Search for analyst ratings and price targets by stock symbol</p>
                         </div>
                         
                         <div className="search-container">
@@ -415,7 +412,7 @@ const MarketIntelligence = () => {
                                 <input
                                     type="text"
                                     className="search-input"
-                                    placeholder="Enter stock symbol (e.g., AAPL)"
+                                    placeholder="Enter stock symbol"
                                     value={searchSymbols.analyst}
                                     onChange={(e) => handleSearchChange('analyst', e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && handleSearch('analyst')}
@@ -501,7 +498,6 @@ const MarketIntelligence = () => {
                             <div className="empty-state">
                                 <i className="fas fa-chart-bar"></i>
                                 <p>Search for analyst ratings</p>
-                                <small>Enter a stock symbol above to get started</small>
                             </div>
                         )}
                     </div>
@@ -512,7 +508,6 @@ const MarketIntelligence = () => {
                     <div className="tab-content">
                         <div className="content-header">
                             <h3>Options Data</h3>
-                            <p className="content-subtitle">Search for options data including calls and puts by stock symbol</p>
                         </div>
                         
                         <div className="search-container">
@@ -520,7 +515,7 @@ const MarketIntelligence = () => {
                                 <input
                                     type="text"
                                     className="search-input"
-                                    placeholder="Enter stock symbol (e.g., AAPL)"
+                                    placeholder="Enter stock symbol"
                                     value={searchSymbols.options}
                                     onChange={(e) => handleSearchChange('options', e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && handleSearch('options')}
@@ -634,7 +629,6 @@ const MarketIntelligence = () => {
                             <div className="empty-state">
                                 <i className="fas fa-chart-area"></i>
                                 <p>Search for options data</p>
-                                <small>Enter a stock symbol above to get started</small>
                             </div>
                         )}
                     </div>
@@ -647,25 +641,5 @@ const MarketIntelligence = () => {
 // Render the component
 const marketIntelligenceContainer = document.getElementById('market-intelligence-root');
 if (marketIntelligenceContainer) {
-    console.log('Rendering Market Intelligence React component...');
     ReactDOM.render(<MarketIntelligence />, marketIntelligenceContainer);
-} else {
-    console.error('Market Intelligence container not found!');
-    // Show fallback if container not found
-    const fallback = document.getElementById('market-intelligence-fallback');
-    if (fallback) {
-        fallback.style.display = 'block';
-    }
 }
-
-// Fallback: Show basic HTML if React fails to load
-setTimeout(() => {
-    const container = document.getElementById('market-intelligence-root');
-    if (container && container.children.length === 1) {
-        console.log('React component may have failed to load, showing fallback...');
-        const fallback = document.getElementById('market-intelligence-fallback');
-        if (fallback) {
-            fallback.style.display = 'block';
-        }
-    }
-}, 3000);
