@@ -1893,18 +1893,29 @@ function showMainContent(user) {
     const mainContent = document.getElementById('main-content');
     const usernameDisplay = document.getElementById('username-display');
     
+    console.log('🔍 Element check:', {
+        marketpulseRoot: !!marketpulseRoot,
+        mainContent: !!mainContent,
+        usernameDisplay: !!usernameDisplay
+    });
+    
     if (!marketpulseRoot || !mainContent || !usernameDisplay) {
         console.error('❌ Required elements not found for main content');
         return;
     }
     
+    console.log('✅ All elements found, proceeding with transition');
+    
     // Hide React landing page
     marketpulseRoot.style.display = 'none';
+    console.log('🚫 Hidden React landing page');
     
     // Show main content with smooth transition
     mainContent.style.display = 'block';
+    console.log('👁️ Showing main content');
     setTimeout(() => {
         mainContent.classList.remove('hidden');
+        console.log('✨ Main content transition complete');
     }, 50);
     
     // Update username display (footer)
