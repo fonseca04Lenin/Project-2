@@ -221,45 +221,43 @@ function SearchBarComponent() {
         };
     }, []);
 
-    return React.createElement('div', { className: 'search-section' },
-        React.createElement('div', { className: 'search-container' },
-            React.createElement('div', { className: 'search-box' },
-                React.createElement('i', { className: 'fas fa-search search-icon' }),
-                React.createElement('input', {
-                    ref: inputRef,
-                    type: 'text',
-                    value: query,
-                    onChange: handleInputChange,
-                    onKeyPress: handleKeyPress,
-                    placeholder: 'Search stocks... (e.g., AAPL, Tesla, Microsoft)',
-                    className: 'search-input'
-                }),
-                React.createElement('button', {
-                    onClick: searchStock,
-                    disabled: isLoading,
-                    className: `search-btn ${isLoading ? 'loading' : ''}`
-                },
-                    React.createElement('span', { className: 'btn-text' }, 'Search'),
-                    React.createElement('i', { 
-                        className: 'fas fa-spinner fa-spin btn-loading',
-                        style: { display: isLoading ? 'inline-block' : 'none' }
-                    })
-                )
-            ),
-            // Suggestions dropdown
-            showSuggestions && suggestions.length > 0 && React.createElement('div', {
-                ref: suggestionsRef,
-                className: 'search-suggestions main-search-suggestions'
+    return React.createElement('div', { className: 'search-container' },
+        React.createElement('div', { className: 'search-box' },
+            React.createElement('i', { className: 'fas fa-search search-icon' }),
+            React.createElement('input', {
+                ref: inputRef,
+                type: 'text',
+                value: query,
+                onChange: handleInputChange,
+                onKeyPress: handleKeyPress,
+                placeholder: 'Search stocks... (e.g., AAPL, Tesla, Microsoft)',
+                className: 'search-input'
+            }),
+            React.createElement('button', {
+                onClick: searchStock,
+                disabled: isLoading,
+                className: `search-btn ${isLoading ? 'loading' : ''}`
             },
-                suggestions.map((suggestion, index) =>
-                    React.createElement('div', {
-                        key: index,
-                        className: 'suggestion-item',
-                        onClick: () => handleSuggestionClick(suggestion)
-                    },
-                        React.createElement('div', { className: 'suggestion-symbol' }, suggestion.symbol),
-                        React.createElement('div', { className: 'suggestion-name' }, suggestion.name)
-                    )
+                React.createElement('span', { className: 'btn-text' }, 'Search'),
+                React.createElement('i', { 
+                    className: 'fas fa-spinner fa-spin btn-loading',
+                    style: { display: isLoading ? 'inline-block' : 'none' }
+                })
+            )
+        ),
+        // Suggestions dropdown
+        showSuggestions && suggestions.length > 0 && React.createElement('div', {
+            ref: suggestionsRef,
+            className: 'search-suggestions main-search-suggestions'
+        },
+            suggestions.map((suggestion, index) =>
+                React.createElement('div', {
+                    key: index,
+                    className: 'suggestion-item',
+                    onClick: () => handleSuggestionClick(suggestion)
+                },
+                    React.createElement('div', { className: 'suggestion-symbol' }, suggestion.symbol),
+                    React.createElement('div', { className: 'suggestion-name' }, suggestion.name)
                 )
             )
         )
@@ -271,18 +269,28 @@ function initializeReactSearchBar() {
     console.log('🔍 Initializing React Search Bar...');
     
     const searchSection = document.querySelector('.search-section');
+    console.log('🔍 Search section element:', searchSection);
     
     if (searchSection) {
         console.log('🔍 Search section found, replacing with React component...');
         
-        // Create React root
-        const root = ReactDOM.createRoot(searchSection);
-        root.render(React.createElement(SearchBarComponent));
+        // Clear the existing content
+        searchSection.innerHTML = '';
         
-        console.log('✅ React Search Bar component loaded successfully');
-        return true;
+        try {
+            // Create React root
+            const root = ReactDOM.createRoot(searchSection);
+            root.render(React.createElement(SearchBarComponent));
+            
+            console.log('✅ React Search Bar component loaded successfully');
+            return true;
+        } catch (error) {
+            console.error('❌ Error rendering React Search Bar:', error);
+            return false;
+        }
     } else {
         console.warn('⚠️ Search section not found, React Search Bar not loaded');
+        console.log('Available sections:', document.querySelectorAll('section'));
         return false;
     }
 }
@@ -299,7 +307,7 @@ if (document.readyState === 'loading') {
 
 // Fallback initialization
 setTimeout(() => {
-    if (!document.querySelector('.search-section .search-box')) {
+    if (!document.querySelector('.search-section .search-container')) {
         console.log('🔍 Fallback initialization attempt...');
         initializeReactSearchBar();
     }
