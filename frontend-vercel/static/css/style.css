@@ -646,9 +646,9 @@ body {
     border-color: var(--primary-color);
 }
 
-/* Watchlist container scrolling for more than 3 stocks */
+/* Watchlist container scrolling - match news container height */
 .watchlist-section .watchlist-container {
-    max-height: 400px; /* Limit content area height */
+    max-height: 500px; /* Match news container height */
     overflow-y: auto; /* Enable scrolling for more than 3 stocks */
 }
 
