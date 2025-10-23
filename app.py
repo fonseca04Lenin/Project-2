@@ -26,6 +26,8 @@ allowed_origins = [
     "http://localhost:8000",  # Local Flask dev on port 8000
     "http://localhost:8080",  # Local frontend server
     "http://127.0.0.1:8080",  # Local frontend server alternative
+    "http://localhost:8081",  # Local frontend server (current)
+    "http://127.0.0.1:8081",  # Local frontend server alternative (current)
     "file://",  # Local file serving
     "null",  # For local file origins
     "https://stock-watchlist-frontend.vercel.app",  # Main Vercel deployment
