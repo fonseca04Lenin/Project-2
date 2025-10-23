@@ -418,27 +418,16 @@ const WatchlistComponent = () => {
 function initializeReactWatchlist() {
     console.log('🔍 Initializing React watchlist...');
     
-    // Find the watchlist container
-    const watchlistContainer = document.getElementById('watchlistContainer');
-    const watchlistSection = document.querySelector('.watchlist-section');
+    // Find the React root element
+    const reactRootElement = document.getElementById('react-watchlist-root');
     
-    console.log('🔍 Watchlist container found:', !!watchlistContainer);
-    console.log('🔍 Watchlist section found:', !!watchlistSection);
+    console.log('🔍 React root element found:', !!reactRootElement);
     
-    if (watchlistContainer && watchlistSection) {
-        console.log('🔍 Creating React container...');
+    if (reactRootElement) {
+        console.log('🔍 Rendering React component into root element...');
         
-        // Create a new container for React
-        const reactContainer = document.createElement('div');
-        reactContainer.id = 'react-watchlist-root';
-        
-        // Replace the existing watchlist container with React container
-        watchlistSection.replaceChild(reactContainer, watchlistContainer);
-        
-        console.log('🔍 Rendering React component...');
-        
-        // Render React component
-        const root = ReactDOM.createRoot(reactContainer);
+        // Render React component directly into the root element
+        const root = ReactDOM.createRoot(reactRootElement);
         root.render(React.createElement(WatchlistComponent));
         
         console.log('✅ React Watchlist component loaded successfully');
@@ -453,11 +442,9 @@ function initializeReactWatchlist() {
         
         return true;
     } else {
-        console.warn('⚠️ Watchlist container not found, React component not loaded');
+        console.warn('⚠️ React root element not found, React component not loaded');
         console.log('Available elements:', {
-            watchlistContainer: !!watchlistContainer,
-            watchlistSection: !!watchlistSection,
-            allSections: document.querySelectorAll('section').length,
+            reactRootElement: !!reactRootElement,
             allDivs: document.querySelectorAll('div').length
         });
         return false;
