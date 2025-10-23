@@ -1893,9 +1893,8 @@ function showMainContent(user) {
     const authContainer = document.getElementById('auth-container');
     const mainContent = document.getElementById('main-content');
     const usernameDisplay = document.getElementById('username-display');
-    const usernameWelcome = document.getElementById('username-welcome');
     
-    if (!landingContainer || !authContainer || !mainContent || !usernameDisplay || !usernameWelcome) {
+    if (!landingContainer || !authContainer || !mainContent || !usernameDisplay) {
         console.error('❌ Required elements not found for main content');
         return;
     }
@@ -1916,9 +1915,7 @@ function showMainContent(user) {
     // Update username display (footer)
     const displayName = user.name || user.email.split('@')[0];
     usernameDisplay.textContent = `Welcome, ${displayName}!`;
-    // Update username welcome at the top
-    usernameWelcome.textContent = `Welcome, ${displayName}!`;
-    usernameWelcome.style.display = 'block';
+    // Username welcome in header is now handled by React header component
     
     // Load data without showing loading indicators
     loadMarketNews();
