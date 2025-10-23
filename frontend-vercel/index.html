@@ -8,7 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/css/style.css?v=2.1-seamless-auth">
-    <link rel="stylesheet" href="static/css/ai-advisor-chat.css?v=1.0">
+    <link rel="stylesheet" href="static/css/react-ai-chat.css?v=1.0">
     
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -357,61 +357,10 @@
                                 </div>
                             </section>
 
-                            <!-- AI Investment Advisor Section -->
-                            <section class="ai-advisor-section">
-                                <div class="section-header">
-                                    <h2>
-                                        <i class="fas fa-robot"></i>
-                                        AI Investment Advisor
-                                    </h2>
-                                    <div class="ai-status-badge" id="aiStatusBadge">
-                                        <span class="status-dot"></span>
-                                        <span class="status-text">Online</span>
-                                        <button class="test-api-btn" id="testApiBtn" title="Test API Connection">🧪</button>
-                                    </div>
-                                </div>
-                                <div class="ai-advisor-chat-container">
-                                    <div class="ai-chat-messages" id="aiChatMessages">
-                                        <div class="ai-welcome-message">
-                                            <div class="ai-avatar">
-                                                <i class="fas fa-robot"></i>
-                                            </div>
-                                            <div class="welcome-content">
-                                                <h4>👋 Hi! I'm your AI Investment Advisor</h4>
-                                                <p>Ask me about stocks, your watchlist performance, or get personalized investment advice. I have access to real-time market data!</p>
-                                                <div class="quick-suggestions">
-                                                    <button class="suggestion-btn" data-message="How is my watchlist performing?">
-                                                        📊 Watchlist Performance
-                                                    </button>
-                                                    <button class="suggestion-btn" data-message="What's the current price of AAPL?">
-                                                        💰 Stock Price
-                                                    </button>
-                                                    <button class="suggestion-btn" data-message="Should I buy more Apple stock?">
-                                                        💡 Investment Advice
-                                                    </button>
-                                                    <button class="suggestion-btn" data-message="Compare Apple vs Microsoft">
-                                                        ⚖️ Compare Stocks
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="ai-chat-input-container">
-                                        <div class="ai-chat-input-wrapper">
-                                            <textarea class="ai-chat-input" id="aiChatInput" placeholder="Ask me about stocks, your portfolio, or get investment advice..." rows="1"></textarea>
-                                            <button class="ai-chat-send-btn" id="aiChatSendBtn">
-                                                <i class="fas fa-paper-plane"></i>
-                                            </button>
-                                        </div>
-                                        <div class="ai-chat-footer">
-                                            <small class="ai-disclaimer">
-                                                <i class="fas fa-info-circle"></i>
-                                                This is general information, not personalized financial advice. Please consult with a financial advisor before making investment decisions.
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
+                            <!-- AI Investment Advisor Section - React Component -->
+                            <div id="ai-advisor-chat-root">
+                                <!-- React AI Chat Component will render here -->
+                            </div>
 
                             <!-- Market Intelligence Section -->
                             <div class="market-intelligence-container">
@@ -548,13 +497,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js?v=2.2"></script>
     <script src="static/js/app.js?v=20250122-SEAMLESS-AUTH&t=1761181421312"></script>
-    <script src="static/js/ai-advisor-chat.js?v=1.0"></script>
     
     <!-- React Integration -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel" src="src/react-watchlist.js?v=20250122-SEARCH-BAR-FIX"></script>
+    <script type="text/babel" src="src/react-ai-chat.js?v=1.0"></script>
     <script src="src/vanilla-search-bar.js?v=20250122-SEARCH-BAR-FIX"></script>
 </body>
 </html> 
