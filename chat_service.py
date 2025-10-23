@@ -74,26 +74,51 @@ class ChatService:
         try:
             logger.info(f"🔍 Getting user context for user: {user_id}")
             
-            # Import watchlist service to get current watchlist data
+            # Use the same approach as the working API endpoint
             from watchlist_service import WatchlistService
             watchlist_service = WatchlistService(self.firestore_client)
             
             logger.info(f"🔍 WatchlistService initialized, Firestore client: {watchlist_service.db is not None}")
             
-            # Get user's current watchlist using the watchlist service
+            # Get user's current watchlist using the watchlist service (same as API)
             watchlist_items = watchlist_service.get_watchlist(user_id, limit=10)
             logger.info(f"🔍 Retrieved {len(watchlist_items)} raw watchlist items from Firestore")
+            
+            # Debug: Log the raw data structure
+            if watchlist_items:
+                logger.info(f"🔍 Sample watchlist item structure: {watchlist_items[0]}")
+            else:
+                logger.warning(f"⚠️ No watchlist items found for user {user_id}")
+                # Try alternative user ID formats
+                logger.info(f"🔍 Trying alternative user ID formats...")
+                
+                # Try with Firebase UID format (if user_id is email)
+                if '@' in user_id:
+                    logger.info(f"🔍 User ID contains @, might be email format")
+                    # The user_id might be the email, but we need the Firebase UID
+                    # Let's try to get the user document directly
+                    try:
+                        user_doc = self.firestore_client.collection('users').document(user_id).get()
+                        if user_doc.exists:
+                            logger.info(f"🔍 Found user document with email as ID")
+                            # Try getting watchlist with this ID
+                            watchlist_items = watchlist_service.get_watchlist(user_id, limit=10)
+                            logger.info(f"🔍 Retry retrieved {len(watchlist_items)} items")
+                    except Exception as e:
+                        logger.error(f"❌ Error trying alternative user ID: {e}")
             
             watchlist_data = []
             
             # Process watchlist items with current prices
             for item in watchlist_items:
                 try:
-                    logger.info(f"🔍 Processing watchlist item: {item.get('symbol', 'Unknown')}")
+                    symbol = item.get('symbol') or item.get('id', '')  # Handle both 'symbol' and 'id' fields
+                    logger.info(f"🔍 Processing watchlist item: {symbol}")
+                    
                     # Get current stock price and info
-                    stock_info = self.stock_api.get_stock_info(item['symbol'])
+                    stock_info = self.stock_api.get_stock_info(symbol)
                     watchlist_data.append({
-                        'symbol': item['symbol'],
+                        'symbol': symbol,
                         'name': item.get('company_name', stock_info.get('name', '')),
                         'current_price': stock_info.get('current_price', 0),
                         'change_percent': stock_info.get('change_percent', 0),
@@ -105,10 +130,11 @@ class ChatService:
                         'added_at': item.get('added_at', '')
                     })
                 except Exception as e:
-                    logger.warning(f"Failed to get price for {item['symbol']}: {e}")
+                    logger.warning(f"Failed to get price for {item.get('symbol', item.get('id', 'Unknown'))}: {e}")
                     # Fallback to basic info without current price
+                    symbol = item.get('symbol') or item.get('id', '')
                     watchlist_data.append({
-                        'symbol': item['symbol'],
+                        'symbol': symbol,
                         'name': item.get('company_name', ''),
                         'current_price': 0,
                         'change_percent': 0,
