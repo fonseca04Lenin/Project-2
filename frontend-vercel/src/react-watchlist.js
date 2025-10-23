@@ -15,9 +15,10 @@ const WatchlistComponent = () => {
         loadWatchlistFromAPI();
         
         // Listen for authentication state changes
+        let authUnsubscribe = null;
         if (window.firebase && window.firebase.auth()) {
             console.log('🔍 Setting up Firebase auth listener');
-            const unsubscribe = window.firebase.auth().onAuthStateChanged((user) => {
+            authUnsubscribe = window.firebase.auth().onAuthStateChanged((user) => {
                 console.log('🔍 Auth state changed:', user ? `User: ${user.email}` : 'No user');
                 if (user) {
                     // User logged in, reload watchlist
@@ -30,15 +31,36 @@ const WatchlistComponent = () => {
                     setLoading(false);
                 }
             });
-            
-            // Cleanup listener on unmount
-            return () => {
-                console.log('🔍 Cleaning up auth listener');
-                if (unsubscribe) unsubscribe();
-            };
         } else {
             console.log('🔍 Firebase not available, no auth listener set up');
         }
+        
+        // Listen for watchlist changes from main app
+        const handleWatchlistChange = (event) => {
+            console.log('🔍 Watchlist change event received:', event.detail);
+            const { action, symbol, companyName } = event.detail;
+            
+            if (action === 'add') {
+                console.log('🔍 Stock added, reloading watchlist');
+                loadWatchlistFromAPI();
+            } else if (action === 'remove') {
+                console.log('🔍 Stock removed, reloading watchlist');
+                loadWatchlistFromAPI();
+            } else if (action === 'clear') {
+                console.log('🔍 Watchlist cleared, reloading watchlist');
+                loadWatchlistFromAPI();
+            }
+        };
+        
+        window.addEventListener('watchlistChanged', handleWatchlistChange);
+        console.log('🔍 Added watchlist change event listener');
+        
+        // Cleanup listeners on unmount
+        return () => {
+            console.log('🔍 Cleaning up listeners');
+            if (authUnsubscribe) authUnsubscribe();
+            window.removeEventListener('watchlistChanged', handleWatchlistChange);
+        };
     }, []);
 
     const loadWatchlistFromAPI = async () => {
