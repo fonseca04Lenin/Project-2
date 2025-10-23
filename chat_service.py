@@ -17,6 +17,17 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def serialize_datetime(obj):
+    """Helper function to serialize datetime objects for JSON"""
+    if hasattr(obj, 'isoformat'):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: serialize_datetime(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_datetime(item) for item in obj]
+    else:
+        return obj
+
 class ChatService:
     def __init__(self):
         """Initialize the chat service with Groq API and Firebase"""
@@ -172,7 +183,18 @@ class ChatService:
             if chat_doc.exists:
                 chat_data = chat_doc.to_dict()
                 messages = chat_data.get('messages', [])
-                return messages[-limit:] if messages else []
+                
+                # Convert Firestore datetime objects to ISO strings
+                serialized_messages = []
+                for message in messages[-limit:] if messages else []:
+                    serialized_message = {
+                        'role': message.get('role'),
+                        'content': message.get('content'),
+                        'timestamp': message.get('timestamp', datetime.now().isoformat())
+                    }
+                    serialized_messages.append(serialized_message)
+                
+                return serialized_messages
             return []
         except Exception as e:
             logger.error(f"Failed to get conversation history: {e}")
@@ -476,13 +498,16 @@ class ChatService:
             # Get user context
             context = self._get_user_context(user_id)
             
+            # Serialize context to handle any datetime objects
+            serialized_context = serialize_datetime(context)
+            
             # Prepare system prompt
             system_prompt = f"""You are an AI stock advisor for Stock Watchlist Pro. You help users with investment advice, portfolio analysis, and market insights.
 
 User Context:
 - User ID: {user_id}
-- Watchlist: {json.dumps(context['watchlist'], indent=2)}
-- Recent conversation: {json.dumps(context['recent_conversation'], indent=2)}
+- Watchlist: {json.dumps(serialized_context['watchlist'], indent=2)}
+- Recent conversation: {json.dumps(serialized_context['recent_conversation'], indent=2)}
 
 Guidelines:
 1. Provide helpful, accurate financial advice based on real-time data
@@ -531,10 +556,12 @@ Remember: Always use functions to get real-time data when discussing specific st
                     
                     # Execute the function
                     result = self._execute_function(function_name, function_args, user_id)
+                    # Serialize datetime objects in result
+                    serialized_result = serialize_datetime(result)
                     function_results.append({
                         "tool_call_id": tool_call.id,
                         "function_name": function_name,
-                        "result": result
+                        "result": serialized_result
                     })
                 
                 # Get final response with function results
@@ -543,7 +570,7 @@ Remember: Always use functions to get real-time data when discussing specific st
                     messages.append({
                         "role": "tool",
                         "tool_call_id": result["tool_call_id"],
-                        "content": json.dumps(result["result"])
+                        "content": json.dumps(result["result"], default=str)
                     })
                 
                 # Get final AI response
