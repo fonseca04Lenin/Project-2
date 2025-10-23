@@ -633,6 +633,10 @@ body {
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     min-height: 500px; /* Fixed height for both watchlist and news */
+}
+
+/* Watchlist section specific height control */
+.watchlist-section {
     max-height: 500px; /* Prevent expansion beyond this height */
 }
 
@@ -648,7 +652,7 @@ body {
     overflow-y: auto; /* Enable scrolling for more than 3 stocks */
 }
 
-/* Custom scrollbar styling for watchlist section only */
+/* Custom scrollbar styling for watchlist section to match news section */
 .watchlist-section::-webkit-scrollbar,
 .watchlist-container::-webkit-scrollbar {
     width: 8px;
@@ -656,19 +660,19 @@ body {
 
 .watchlist-section::-webkit-scrollbar-track,
 .watchlist-container::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
 }
 
 .watchlist-section::-webkit-scrollbar-thumb,
 .watchlist-container::-webkit-scrollbar-thumb {
-    background: var(--primary-color);
+    background: var(--gradient-primary);
     border-radius: 4px;
 }
 
 .watchlist-section::-webkit-scrollbar-thumb:hover,
 .watchlist-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 217, 36, 0.8);
+    background: var(--gradient-secondary);
 }
 
 /* Add a more general rule for when chart section is visible */
