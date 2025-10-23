@@ -377,6 +377,29 @@ def debug_test_watchlist():
     except Exception as e:
         return jsonify({'error': f'Debug test failed: {str(e)}'}), 500
 
+@app.route('/api/debug/chatbot-watchlist/<user_id>')
+def debug_chatbot_watchlist(user_id):
+    """Debug endpoint to test chatbot's watchlist access for a specific user"""
+    try:
+        from chat_service import chat_service
+        
+        # Test chatbot's user context method
+        context = chat_service._get_user_context(user_id)
+        
+        return jsonify({
+            'user_id': user_id,
+            'context': context,
+            'watchlist_count': len(context.get('watchlist', [])),
+            'firestore_client_available': chat_service.firestore_client is not None
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': f'Chatbot watchlist debug failed: {str(e)}',
+            'traceback': traceback.format_exc()
+        }), 500
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
