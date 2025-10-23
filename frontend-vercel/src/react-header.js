@@ -107,36 +107,45 @@ const ModernHeader = () => {
                     </div>
                 </div>
                 
-                {/* Center Section - Market Status */}
-                <div className="header-center">
-                    <div className="market-status-display">
-                        <span 
-                            className="market-indicator"
-                            style={{
-                                background: marketStatus.indicatorColor,
-                                color: '#fff',
-                                padding: '0.5rem 1.25rem',
-                                borderRadius: '20px',
-                                fontSize: '0.85rem',
-                                fontWeight: '600',
-                                letterSpacing: '0.5px',
-                                textTransform: 'uppercase',
-                                boxShadow: marketStatus.isOpen ? '0 2px 12px rgba(34, 197, 94, 0.25)' : '0 2px 12px rgba(239, 68, 68, 0.25)',
-                                border: marketStatus.isOpen ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-                                transition: 'all 0.3s ease'
-                            }}
-                        >
-                            {marketStatus.status}
-                        </span>
-                    </div>
-                </div>
-                
-                {/* Right Section - User Profile */}
+                {/* Right Section - Market Status, Welcome, and Logout */}
                 <div className="header-right">
                     <div className="user-profile">
+                        {/* Market Status */}
+                        <div className="market-status-display">
+                            <span 
+                                className="market-indicator"
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    color: '#fff',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '20px',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '500',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}
+                            >
+                                <span 
+                                    style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        borderRadius: '50%',
+                                        background: marketStatus.isOpen ? '#22c55e' : '#ef4444',
+                                        display: 'inline-block'
+                                    }}
+                                ></span>
+                                {marketStatus.isOpen ? 'Market Open' : 'Market Closed'}
+                            </span>
+                        </div>
+                        
+                        {/* Welcome Message */}
                         <div className="user-welcome">
                             Welcome, {userName}!
                         </div>
+                        
+                        {/* Logout Button */}
                         <button 
                             onClick={handleLogout}
                             className="modern-logout-btn"
