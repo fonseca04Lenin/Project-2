@@ -380,23 +380,6 @@ function HeroSection() {
 
 // Main Landing Page Component
 function StockWatchlistLandingPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    // Check if user is already authenticated
-    if (window.firebaseAuth) {
-      const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
-        setIsAuthenticated(!!user);
-      });
-      
-      return () => unsubscribe();
-    }
-  }, []);
-
-  // Don't render landing page if user is authenticated
-  if (isAuthenticated) {
-    return null;
-  }
   return (
     <div className="stock-watchlist-landing">
       <LandingHeader />
