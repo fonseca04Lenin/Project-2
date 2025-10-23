@@ -1848,7 +1848,11 @@ async function handleAuthStateChange(user) {
         
         // Hide loading screen and show main content
         hideLoadingScreen();
-        showMainContent(userData);
+        
+        // Add small delay to ensure DOM is ready
+        setTimeout(() => {
+            showMainContent(userData);
+        }, 100);
         
         // Verify with backend in background (non-blocking)
         verifyWithBackend(user).catch(error => {
@@ -1899,8 +1903,16 @@ function showMainContent(user) {
         usernameDisplay: !!usernameDisplay
     });
     
-    if (!marketpulseRoot || !mainContent || !usernameDisplay) {
-        console.error('❌ Required elements not found for main content');
+    if (!marketpulseRoot) {
+        console.error('❌ marketpulse-root element not found');
+        return;
+    }
+    if (!mainContent) {
+        console.error('❌ main-content element not found');
+        return;
+    }
+    if (!usernameDisplay) {
+        console.error('❌ username-display element not found');
         return;
     }
     
