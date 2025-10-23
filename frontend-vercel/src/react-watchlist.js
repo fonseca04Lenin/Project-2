@@ -414,9 +414,9 @@ const WatchlistComponent = () => {
     );
 };
 
-// Wait for DOM to be ready
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔍 DOM loaded, looking for watchlist elements...');
+// Function to initialize React component
+function initializeReactWatchlist() {
+    console.log('🔍 Initializing React watchlist...');
     
     // Find the watchlist container
     const watchlistContainer = document.getElementById('watchlistContainer');
@@ -450,15 +450,37 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             console.log('🔍 Firebase not available yet');
         }
+        
+        return true;
     } else {
         console.warn('⚠️ Watchlist container not found, React component not loaded');
         console.log('Available elements:', {
             watchlistContainer: !!watchlistContainer,
             watchlistSection: !!watchlistSection,
-            allSections: document.querySelectorAll('section').length
+            allSections: document.querySelectorAll('section').length,
+            allDivs: document.querySelectorAll('div').length
         });
+        return false;
     }
-});
+}
+
+// Try to initialize immediately
+console.log('🔍 Script loaded, attempting immediate initialization...');
+if (document.readyState === 'loading') {
+    console.log('🔍 Document still loading, waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', initializeReactWatchlist);
+} else {
+    console.log('🔍 Document already loaded, initializing immediately...');
+    initializeReactWatchlist();
+}
+
+// Fallback: try again after a short delay
+setTimeout(() => {
+    console.log('🔍 Fallback initialization attempt...');
+    if (!document.getElementById('react-watchlist-root')) {
+        initializeReactWatchlist();
+    }
+}, 1000);
 
 // Export for potential use in other parts of the app
 window.WatchlistComponent = WatchlistComponent;
