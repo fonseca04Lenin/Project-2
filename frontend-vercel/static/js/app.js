@@ -530,6 +530,9 @@ function displayStockResult(stock) {
             </button>
         </div>
     `;
+    
+    // Show the stock results section
+    stockResults.style.display = 'block';
 }
 
 
