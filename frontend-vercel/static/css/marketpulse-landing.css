@@ -1,0 +1,706 @@
+/* Stock Watchlist Pro Landing Page Styles */
+/* Dark theme with sophisticated design using app's signature green */
+
+:root {
+  --green-accent: #00D924;
+  --green-accent-foreground: #000000;
+  --background: #000000;
+  --foreground: #ffffff;
+  --foreground-muted: #a0a0a0;
+  --border: #333333;
+  --border-light: #1a1a1a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Landing Header */
+.landing-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.landing-header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-header-left {
+  display: flex;
+  align-items: center;
+}
+
+.landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.landing-brand-icon {
+  font-size: 1.5rem;
+  color: var(--green-accent);
+}
+
+.landing-brand-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+}
+
+.landing-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.landing-nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.landing-nav-link {
+  color: var(--foreground-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.landing-nav-link:hover {
+  color: var(--green-accent);
+}
+
+.stock-watchlist-landing {
+  min-height: 100vh;
+  background-color: var(--background);
+  position: relative;
+}
+
+.stock-watchlist-hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  padding-top: 6rem; /* Account for fixed header */
+}
+
+.stock-watchlist-container {
+  max-width: 1200px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+/* Dynamic animations and effects */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.stock-watchlist-title {
+  font-size: clamp(4rem, 12vw, 9rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+  color: var(--foreground);
+  text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+  animation: fadeInUp 1s ease-out;
+}
+
+.stock-watchlist-subtitle {
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  margin-bottom: 2rem;
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+  animation: fadeInUp 1s ease-out 0.2s both;
+}
+
+.stock-watchlist-description {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 0 auto 3rem auto;
+  max-width: 800px;
+  color: var(--foreground-muted);
+  font-family: 'Inter', sans-serif;
+  animation: fadeInUp 1s ease-out 0.4s both;
+}
+
+.stock-watchlist-highlight {
+  color: var(--green-accent);
+  font-weight: 600;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.stock-watchlist-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 4rem;
+  animation: fadeInUp 1s ease-out 0.6s both;
+}
+
+.stock-watchlist-btn {
+  padding: 0.75rem 2.5rem;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  height: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stock-watchlist-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.stock-watchlist-btn:hover::before {
+  left: 100%;
+}
+
+.stock-watchlist-btn-primary {
+  background-color: var(--green-accent);
+  color: var(--green-accent-foreground);
+  box-shadow: 0 4px 15px rgba(0, 217, 36, 0.3);
+}
+
+.stock-watchlist-btn-primary:hover {
+  background-color: rgba(0, 217, 36, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 217, 36, 0.4);
+}
+
+.stock-watchlist-btn-secondary {
+  background-color: transparent;
+  color: var(--foreground);
+  border: 2px solid var(--foreground);
+}
+
+.stock-watchlist-btn-secondary:hover {
+  background-color: var(--foreground);
+  color: var(--background);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.1);
+}
+
+.stock-watchlist-footer {
+  margin-top: 6rem;
+  animation: fadeInUp 1s ease-out 0.8s both;
+}
+
+.stock-watchlist-tagline {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Auth Dialog Styles */
+.auth-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.auth-dialog {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  min-height: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  z-index: 1001;
+}
+
+.auth-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 0 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 0;
+}
+
+.auth-dialog-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.auth-dialog-close {
+  background: none;
+  border: none;
+  color: var(--foreground-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+}
+
+.auth-dialog-close:hover {
+  color: var(--foreground);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.auth-dialog-close {
+  background: none;
+  border: none;
+  color: var(--foreground-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-dialog-close:hover {
+  color: var(--foreground);
+}
+
+.auth-dialog-tabs {
+  display: flex;
+  margin: 1.5rem 1.5rem 0 1.5rem;
+  gap: 1rem;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--foreground-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.auth-tab.active {
+  color: var(--green-accent);
+  border-color: var(--green-accent);
+  background-color: rgba(0, 217, 36, 0.1);
+  font-weight: 600;
+}
+
+.auth-tab:hover:not(.active) {
+  color: var(--foreground);
+  border-color: var(--foreground-muted);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.auth-form {
+  padding: 1.5rem;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 300px;
+  position: relative;
+  z-index: 10;
+}
+
+.auth-field {
+  margin-bottom: 1.5rem;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative;
+  z-index: 10;
+}
+
+.auth-field label {
+  display: block !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  margin-bottom: 0.5rem;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.auth-field input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative;
+  z-index: 10;
+}
+
+.auth-field input:focus {
+  outline: none;
+  border-color: var(--green-accent);
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px rgba(0, 217, 36, 0.1);
+}
+
+.auth-field input::placeholder {
+  color: var(--foreground-muted);
+  opacity: 0.7;
+}
+
+.auth-field-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.forgot-password-link {
+  color: var(--green-accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.forgot-password-link:hover {
+  color: rgba(0, 217, 36, 0.8);
+  text-decoration: underline;
+}
+
+.auth-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: var(--green-accent);
+  color: var(--green-accent-foreground);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 15px rgba(0, 217, 36, 0.3);
+  margin-top: 1rem;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background-color: rgba(0, 217, 36, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 217, 36, 0.4);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-spinner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.auth-dialog-footer {
+  padding: 1.5rem;
+  text-align: center;
+  border-top: 1px solid var(--border-light);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.auth-switch-text {
+  color: var(--foreground-muted);
+  font-size: 0.875rem;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.auth-switch-link {
+  background: none;
+  border: none;
+  color: var(--green-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.auth-switch-link:hover {
+  color: rgba(0, 217, 36, 0.8);
+  text-decoration: underline;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (min-width: 640px) {
+  .stock-watchlist-actions {
+    flex-direction: row;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-header-container {
+    padding: 1rem;
+  }
+  
+  .landing-nav {
+    gap: 1rem;
+  }
+  
+  .landing-nav-link {
+    font-size: 0.75rem;
+  }
+  
+  .stock-watchlist-hero {
+    padding: 1rem;
+    padding-top: 5rem;
+  }
+  
+  .stock-watchlist-title {
+    margin-bottom: 1.5rem;
+  }
+  
+  .stock-watchlist-subtitle {
+    margin-bottom: 1.5rem;
+  }
+  
+  .stock-watchlist-description {
+    margin-bottom: 2rem;
+  }
+  
+  .stock-watchlist-actions {
+    margin-bottom: 3rem;
+  }
+  
+  .stock-watchlist-footer {
+    margin-top: 4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-header-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .landing-nav {
+    gap: 0.5rem;
+  }
+  
+  .landing-nav-link {
+    font-size: 0.7rem;
+  }
+  
+  .stock-watchlist-hero {
+    padding-top: 7rem;
+  }
+}
+
+/* Hide the old landing page when React landing page is active */
+.stock-watchlist-landing ~ .landing-page {
+  display: none !important;
+}
+
+.stock-watchlist-landing ~ #main-content {
+  display: none !important;
+}
+
+/* Ensure Stock Watchlist Pro landing page takes precedence */
+.stock-watchlist-landing {
+  position: relative;
+  z-index: 1;
+}
+
+/* Override any conflicting styles from main CSS */
+.stock-watchlist-landing * {
+  box-sizing: border-box;
+}
+
+/* Loading screen styles */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-container {
+  text-align: center;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.spinner-ring {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top: 3px solid var(--green-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 5px;
+}
+
+.loading-text h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 0.5rem;
+}
+
+.loading-text p {
+  color: var(--foreground-muted);
+  font-size: 0.875rem;
+}
+
+/* Notification container */
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  pointer-events: none;
+}
