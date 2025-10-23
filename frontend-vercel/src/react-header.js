@@ -6,8 +6,8 @@ const { useState, useEffect } = React;
 const ModernHeader = () => {
     const [marketStatus, setMarketStatus] = useState({
         isOpen: false,
-        status: 'Loading...',
-        indicatorColor: '#22c55e'
+        status: 'MARKET IS CLOSED',
+        indicatorColor: '#ef4444'
     });
     const [userName, setUserName] = useState('Investor');
     const [isLoading, setIsLoading] = useState(true);
@@ -41,15 +41,15 @@ const ModernHeader = () => {
 
             setMarketStatus({
                 isOpen: data.isOpen,
-                status: data.status,
+                status: data.isOpen ? 'MARKET IS OPEN' : 'MARKET IS CLOSED',
                 indicatorColor: data.isOpen ? '#22c55e' : '#ef4444'
             });
         } catch (error) {
             console.error('Error fetching market status:', error);
             setMarketStatus({
                 isOpen: false,
-                status: 'Market Closed',
-                indicatorColor: '#64748b'
+                status: 'MARKET IS CLOSED',
+                indicatorColor: '#ef4444'
             });
         }
     };
@@ -115,8 +115,15 @@ const ModernHeader = () => {
                             style={{
                                 background: marketStatus.indicatorColor,
                                 color: '#fff',
-                                padding: '0.25em 0.75em',
-                                borderRadius: '1em'
+                                padding: '0.5rem 1.25rem',
+                                borderRadius: '20px',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                letterSpacing: '0.5px',
+                                textTransform: 'uppercase',
+                                boxShadow: marketStatus.isOpen ? '0 2px 12px rgba(34, 197, 94, 0.25)' : '0 2px 12px rgba(239, 68, 68, 0.25)',
+                                border: marketStatus.isOpen ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                                transition: 'all 0.3s ease'
                             }}
                         >
                             {marketStatus.status}
