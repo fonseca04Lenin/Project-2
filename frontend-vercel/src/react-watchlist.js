@@ -182,6 +182,8 @@ const WatchlistComponent = () => {
 
     const handleRemoveStock = async (symbol) => {
         try {
+            console.log('🗑️ Removing stock:', symbol);
+            
             // Optimistically update UI
             setWatchlistData(prev => prev.filter(stock => stock.symbol !== symbol));
             
@@ -191,22 +193,29 @@ const WatchlistComponent = () => {
                 const token = await user.getIdToken();
                 
                 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
+                console.log('🌐 Calling DELETE API for:', symbol);
+                
                 const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${token}`,
+                        'X-User-ID': user.uid,  // ← This was missing!
                         'Content-Type': 'application/json'
                     }
                 });
                 
+                console.log('📡 DELETE API response status:', response.status);
+                
                 if (!response.ok) {
+                    console.error('❌ Failed to remove stock from backend, reverting UI');
                     // If API call fails, revert the UI change
                     loadWatchlistFromAPI();
-                    console.error('Failed to remove stock from backend');
+                } else {
+                    console.log('✅ Stock successfully removed from backend');
                 }
             }
         } catch (error) {
-            console.error('Error removing stock:', error);
+            console.error('💥 Error removing stock:', error);
             // Revert UI change on error
             loadWatchlistFromAPI();
         }
@@ -240,6 +249,7 @@ const WatchlistComponent = () => {
                             method: 'DELETE',
                             headers: {
                                 'Authorization': `Bearer ${token}`,
+                                'X-User-ID': user.uid,  // ← This was missing!
                                 'Content-Type': 'application/json'
                             }
                         });
