@@ -641,15 +641,59 @@ body {
     border-color: var(--primary-color);
 }
 
-/* News section specific styling to match image proportions */
+/* Watchlist section with fixed height and scrolling */
+.watchlist-section {
+    min-height: 500px; /* Fixed height to match image */
+    max-height: 500px; /* Prevent expansion beyond this height */
+    overflow-y: auto; /* Allow scrolling when content exceeds height */
+}
+
+.watchlist-section .watchlist-container {
+    max-height: 400px; /* Limit content area height */
+    overflow-y: auto; /* Enable scrolling for more than 3 stocks */
+}
+
+/* News section specific styling to match watchlist proportions */
 .news-section {
-    min-height: 500px; /* Match watchlist height */
+    min-height: 500px; /* Match watchlist height exactly */
+    max-height: 500px; /* Prevent expansion beyond this height */
     overflow-y: auto; /* Allow scrolling if content is too long */
 }
 
 .news-section .news-container {
-    max-height: 400px; /* Limit height to match image */
+    max-height: 400px; /* Match watchlist content area height */
     overflow-y: auto;
+}
+
+/* Custom scrollbar styling for both watchlist and news sections */
+.watchlist-section::-webkit-scrollbar,
+.news-section::-webkit-scrollbar,
+.watchlist-container::-webkit-scrollbar,
+.news-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.watchlist-section::-webkit-scrollbar-track,
+.news-section::-webkit-scrollbar-track,
+.watchlist-container::-webkit-scrollbar-track,
+.news-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.watchlist-section::-webkit-scrollbar-thumb,
+.news-section::-webkit-scrollbar-thumb,
+.watchlist-container::-webkit-scrollbar-thumb,
+.news-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.watchlist-section::-webkit-scrollbar-thumb:hover,
+.news-section::-webkit-scrollbar-thumb:hover,
+.watchlist-container::-webkit-scrollbar-thumb:hover,
+.news-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 217, 36, 0.8);
 }
 
 /* Add a more general rule for when chart section is visible */
