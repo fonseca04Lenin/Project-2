@@ -297,6 +297,9 @@ function initializeReactSearchBar() {
 
 // Initialize when DOM is ready
 console.log('🔍 React Search Bar script loaded, attempting initialization...');
+console.log('🔍 React available:', typeof React !== 'undefined');
+console.log('🔍 ReactDOM available:', typeof ReactDOM !== 'undefined');
+
 if (document.readyState === 'loading') {
     console.log('🔍 Document still loading, waiting for DOMContentLoaded...');
     document.addEventListener('DOMContentLoaded', initializeReactSearchBar);
@@ -312,3 +315,58 @@ setTimeout(() => {
         initializeReactSearchBar();
     }
 }, 1000);
+
+// Fallback: Create basic search bar if React fails
+function createFallbackSearchBar() {
+    console.log('🔧 Creating fallback search bar...');
+    
+    const searchSection = document.querySelector('.search-section');
+    if (!searchSection) {
+        console.error('❌ No search section found for fallback');
+        return;
+    }
+    
+    searchSection.innerHTML = `
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="fallbackSearchInput" placeholder="Search stocks... (e.g., AAPL, Tesla, Microsoft)" class="search-input">
+                <button id="fallbackSearchBtn" class="search-btn">
+                    <span class="btn-text">Search</span>
+                    <i class="fas fa-spinner fa-spin btn-loading" style="display: none;"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add basic functionality
+    const searchInput = document.getElementById('fallbackSearchInput');
+    const searchBtn = document.getElementById('fallbackSearchBtn');
+    
+    if (searchInput && searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            const query = searchInput.value.trim();
+            if (query) {
+                console.log('Fallback search for:', query);
+                // Basic search functionality
+                window.location.href = `#search=${encodeURIComponent(query)}`;
+            }
+        });
+        
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchBtn.click();
+            }
+        });
+        
+        console.log('✅ Fallback search bar created');
+    }
+}
+
+// Final fallback - create basic search bar
+setTimeout(() => {
+    if (!document.querySelector('.search-section .search-container')) {
+        console.log('🔧 React failed, creating fallback search bar...');
+        createFallbackSearchBar();
+    }
+}, 5000);
