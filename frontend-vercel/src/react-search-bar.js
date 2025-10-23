@@ -261,18 +261,18 @@ function SearchBarComponent() {
                 onKeyPress: handleKeyPress,
                 placeholder: 'Search stocks... (e.g., AAPL, Tesla, Microsoft)',
                 className: 'search-input'
-            }),
-            React.createElement('button', {
-                onClick: searchStock,
-                disabled: isLoading,
-                className: `search-btn ${isLoading ? 'loading' : ''}`
-            },
-                React.createElement('span', { className: 'btn-text' }, 'Search'),
-                React.createElement('i', { 
-                    className: 'fas fa-spinner fa-spin btn-loading',
-                    style: { display: isLoading ? 'inline-block' : 'none' }
-                })
-            )
+            })
+        ),
+        React.createElement('button', {
+            onClick: searchStock,
+            disabled: isLoading,
+            className: `search-btn ${isLoading ? 'loading' : ''}`
+        },
+            React.createElement('span', { className: 'btn-text' }, 'Search'),
+            React.createElement('i', { 
+                className: 'fas fa-spinner fa-spin btn-loading',
+                style: { display: isLoading ? 'inline-block' : 'none' }
+            })
         ),
         // Suggestions dropdown
         showSuggestions && suggestions.length > 0 && React.createElement('div', {

@@ -386,7 +386,7 @@ function updateMarketTicker() {
 
 
 // Popular stocks database for fast search (Portfolio Version)
-const POPULAR_STOCKS = [
+const APP_POPULAR_STOCKS = [
     { symbol: 'AAPL', name: 'Apple Inc.' },
     { symbol: 'GOOGL', name: 'Alphabet Inc.' },
     { symbol: 'MSFT', name: 'Microsoft Corporation' },
