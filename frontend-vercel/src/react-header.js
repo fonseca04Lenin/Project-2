@@ -117,23 +117,25 @@ const ModernHeader = () => {
                                 style={{
                                     background: 'rgba(255, 255, 255, 0.05)',
                                     color: '#fff',
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '20px',
-                                    fontSize: '0.85rem',
-                                    fontWeight: '500',
+                                    padding: '0.4rem 0.8rem',
+                                    borderRadius: '16px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '400',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                                    gap: '0.4rem',
+                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    opacity: '0.8'
                                 }}
                             >
                                 <span 
                                     style={{
-                                        width: '8px',
-                                        height: '8px',
+                                        width: '6px',
+                                        height: '6px',
                                         borderRadius: '50%',
                                         background: marketStatus.isOpen ? '#22c55e' : '#ef4444',
-                                        display: 'inline-block'
+                                        display: 'inline-block',
+                                        opacity: '0.9'
                                     }}
                                 ></span>
                                 {marketStatus.isOpen ? 'Market Open' : 'Market Closed'}
