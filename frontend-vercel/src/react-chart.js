@@ -303,9 +303,12 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 key: 'controls',
                 style: { display: 'flex', alignItems: 'center', gap: '8px' }
             }, [
-                isModal && React.createElement('button', {
+                React.createElement('button', {
                     key: 'close',
-                    onClick: onClose,
+                    onClick: onClose || (() => {
+                        const chartSection = document.getElementById('chartSection');
+                        if (chartSection) chartSection.style.display = 'none';
+                    }),
                     style: {
                         backgroundColor: 'rgba(239, 68, 68, 0.2)',
                         color: '#ef4444',
