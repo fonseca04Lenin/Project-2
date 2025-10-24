@@ -54,7 +54,7 @@ print(f"🚀 Railway deployment - CORS configured for Vercel frontend")
 CORS(app,
      origins=allowed_origins,
      supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-User-ID'],  # Added X-User-ID for Firebase token auth
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-User-ID', 'Cache-Control'],  # Added Cache-Control for news refresh
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
      expose_headers=['Content-Type', 'Authorization'],
      vary_header=False)
