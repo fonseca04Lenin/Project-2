@@ -90,18 +90,17 @@
 
                             <!-- Chart Section -->
                             <section class="chart-section" id="chartSection" style="display: none;">
-                                <div class="section-header">
-                                    <h2>
-                                        <i class="fas fa-chart-area"></i>
+                                <div class="chart-section-header">
+                                    <h2 class="chart-section-title">
                                         Price Chart
                                         <span id="chartSelectedSymbol" class="chart-selected-symbol"></span>
                                     </h2>
                                     <button id="closeChartBtn" class="close-chart-btn" title="Close Chart" onclick="closeChartSection()">
-                                        <i class="fas fa-times"></i>
+                                        ✕ Close
                                     </button>
                                 </div>
-                                <div class="chart-container">
-                                    <canvas id="stockChart"></canvas>
+                                <div id="chartContainer" class="chart-container">
+                                    <!-- React chart will be rendered here -->
                                 </div>
                             </section>
 
@@ -256,7 +255,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
     <script src="config.js?v=2.2"></script>
     <script src="static/js/app.js?v=20250122-SEAMLESS-AUTH&t=1761181421312"></script>
     
@@ -268,6 +267,7 @@
     <script type="text/babel" src="src/react-watchlist.js?v=20250122-SEARCH-BAR-FIX"></script>
     <script type="text/babel" src="src/react-ai-chat.js?v=1.0"></script>
     <script type="text/babel" src="src/react-header.js?v=1.0"></script>
+    <script type="text/babel" src="src/react-chart.js?v=1.0"></script>
     <script src="src/vanilla-search-bar.js?v=20250122-SEARCH-BAR-FIX"></script>
 </body>
 </html> 

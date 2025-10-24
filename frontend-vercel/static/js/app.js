@@ -1,7 +1,6 @@
 // Global variables
 let watchlistData = [];
 let currentStock = null;
-let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
 
 // Debug function removed - cleaner production code
@@ -1292,24 +1291,30 @@ function closeChartSection() {
     if (chartSelectedSymbol) chartSelectedSymbol.textContent = '';
 }
 
-// Modify viewChart to highlight the selected stock and show symbol in chart header
+// Modern React Chart Integration
+let currentChartData = null;
+let currentChartSymbol = null;
+
+// Modify viewChart to use React chart component
 async function viewChart(symbol) {
     try {
         // Remove previous highlights
         document.querySelectorAll('.stock-card.selected, .watchlist-item.selected').forEach(el => {
             el.classList.remove('selected');
         });
+        
         // Highlight the selected stock card or watchlist item
-        // Try to find in stockCard
         if (stockCard && stockCard.innerHTML.includes(symbol)) {
             stockCard.classList.add('selected');
         }
+        
         // Try to find in watchlist
-        document.querySelectorAll('.watchlist-item').forEach(item => {
+        document.querySelectorAll('.p-4.rounded-lg.bg-secondary\\/50').forEach(item => {
             if (item.innerHTML.includes(symbol)) {
                 item.classList.add('selected');
             }
         });
+        
         // Show selected symbol in chart header
         const chartSelectedSymbol = document.getElementById('chartSelectedSymbol');
         if (chartSelectedSymbol) chartSelectedSymbol.textContent = symbol;
@@ -1320,13 +1325,12 @@ async function viewChart(symbol) {
         const data = await response.json();
 
         if (response.ok) {
-            displayChart(data, symbol);
+            currentChartData = data;
+            currentChartSymbol = symbol;
+            displayModernChart(data, symbol);
             
-            // Debug chart section visibility
-            
+            // Show chart section
             chartSection.style.display = 'block';
-            
-            // Force the chart section to be visible and scroll to it
             chartSection.style.visibility = 'visible';
             chartSection.style.opacity = '1';
             chartSection.style.position = 'relative';
@@ -1335,91 +1339,55 @@ async function viewChart(symbol) {
             // Scroll to the chart section
             chartSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             
-            // Check if canvas exists
-            const canvas = document.getElementById('stockChart');
-            if (canvas) {
-            }
-            
         } else {
             showToast(data.error || 'Error loading chart data', 'error');
         }
     } catch (error) {
-        showToast('Error loading chart data', 'error');
+        console.error('Error loading chart:', error);
+        showToast('Failed to load chart data', 'error');
     }
 }
 
-function displayChart(chartData, symbol) {
-    
-    const ctx = document.getElementById('stockChart').getContext('2d');
-    
-    // Destroy existing chart if it exists
-    if (chart) {
-        chart.destroy();
+// Display modern React chart
+function displayModernChart(chartData, symbol) {
+    const chartContainer = document.getElementById('chartContainer');
+    if (!chartContainer) {
+        console.error('Chart container not found');
+        return;
     }
 
-    const labels = chartData.map(item => item.date);
-    const prices = chartData.map(item => item.price);
+    // Clear any existing chart
+    chartContainer.innerHTML = '';
+    
+    // Create React root and render chart
+    const chartRoot = ReactDOM.createRoot(chartContainer);
+    chartRoot.render(React.createElement(StockChart, {
+        symbol: symbol,
+        data: chartData,
+        isModal: false,
+        onClose: closeChartSection
+    }));
+}
 
-    try {
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: `${symbol} Price`,
-                    data: prices,
-                    borderColor: '#4ade80',
-                    backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `${symbol} - 30 Day Price History`,
-                        color: '#ffffff',
-                        font: {
-                            size: 16,
-                            weight: 'bold'
-                        }
-                    },
-                    legend: {
-                        labels: {
-                            color: '#ffffff'
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#94a3b8',
-                            maxTicksLimit: 8
-                        }
-                    },
-                    y: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#94a3b8',
-                            callback: function(value) {
-                                return '$' + value.toFixed(2);
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    } catch (error) {
+// Close chart section
+function closeChartSection() {
+    const chartSection = document.getElementById('chartSection');
+    if (chartSection) {
+        chartSection.style.display = 'none';
     }
+    
+    // Clear chart data
+    currentChartData = null;
+    currentChartSymbol = null;
+    
+    // Remove highlights
+    document.querySelectorAll('.stock-card.selected, .watchlist-item.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+    
+    // Clear selected symbol
+    const chartSelectedSymbol = document.getElementById('chartSelectedSymbol');
+    if (chartSelectedSymbol) chartSelectedSymbol.textContent = '';
 }
 
 // Market status
@@ -2510,34 +2478,19 @@ async function loadStockDetails(symbol) {
         });
         const chartData = await chartResp.json();
         if (chartResp.ok && chartContainer) {
-            chartContainer.innerHTML = '<canvas id="detailsStockChart"></canvas>';
-            const ctx = document.getElementById('detailsStockChart').getContext('2d');
-            if (window.detailsChart) window.detailsChart.destroy();
-            window.detailsChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.map(item => item.date),
-                    datasets: [{
-                        label: `${symbol} Price`,
-                        data: chartData.map(item => item.price),
-                        borderColor: '#4ade80',
-                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: { ticks: { color: '#a1a1aa' } },
-                        y: { ticks: { color: '#a1a1aa' } }
-                    }
+            // Clear container and render React chart
+            chartContainer.innerHTML = '';
+            const chartRoot = ReactDOM.createRoot(chartContainer);
+            chartRoot.render(React.createElement(StockChart, {
+                symbol: symbol,
+                data: chartData,
+                isModal: true,
+                onClose: () => {
+                    // Close modal if needed
+                    const modal = document.getElementById('stockDetailsModal');
+                    if (modal) modal.style.display = 'none';
                 }
-            });
+            }));
         } else if (chartContainer) {
             chartContainer.innerHTML = '<div class="error">Chart unavailable</div>';
         }
@@ -2708,34 +2661,19 @@ async function loadWatchlistStockDetails(symbol) {
         });
         const chartData = await chartResp.json();
         if (chartResp.ok && chartContainer) {
-            chartContainer.innerHTML = '<canvas id="detailsStockChart"></canvas>';
-            const ctx = document.getElementById('detailsStockChart').getContext('2d');
-            if (window.detailsChart) window.detailsChart.destroy();
-            window.detailsChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.map(item => item.date),
-                    datasets: [{
-                        label: `${symbol} Price`,
-                        data: chartData.map(item => item.price),
-                        borderColor: '#4ade80',
-                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: { ticks: { color: '#a1a1aa' } },
-                        y: { ticks: { color: '#a1a1aa' } }
-                    }
+            // Clear container and render React chart
+            chartContainer.innerHTML = '';
+            const chartRoot = ReactDOM.createRoot(chartContainer);
+            chartRoot.render(React.createElement(StockChart, {
+                symbol: symbol,
+                data: chartData,
+                isModal: true,
+                onClose: () => {
+                    // Close modal if needed
+                    const modal = document.getElementById('stockDetailsModal');
+                    if (modal) modal.style.display = 'none';
                 }
-            });
+            }));
         } else if (chartContainer) {
             chartContainer.innerHTML = '<div class="error">Chart unavailable</div>';
         }
@@ -2805,40 +2743,6 @@ async function loadWatchlistStockDetails(symbol) {
             </div>
         `;
     }
-}
-
-// Helper to display chart in modal
-function displayDetailsChart(chartData, symbol) {
-    const ctx = document.getElementById('detailsStockChart').getContext('2d');
-    if (window.detailsChart) window.detailsChart.destroy();
-    const labels = chartData.map(item => item.date);
-    const prices = chartData.map(item => item.price);
-    window.detailsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: `${symbol} Price`,
-                data: prices,
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34,197,94,0.08)',
-                tension: 0.2,
-                pointRadius: 2,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: { mode: 'index', intersect: false }
-            },
-            scales: {
-                x: { display: true, title: { display: false } },
-                y: { display: true, title: { display: false } }
-            }
-        }
-    });
 }
 
 // Add helper for formatting market cap
