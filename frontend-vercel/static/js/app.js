@@ -470,6 +470,24 @@ async function wakeUpBackend() {
 
 // Search functionality moved to React component
 
+// Hide stock results and restore normal layout
+function hideStockResults() {
+    const stockResults = document.getElementById('stockResults');
+    const dashboard = document.querySelector('.dashboard');
+    
+    if (stockResults) {
+        stockResults.style.display = 'none';
+    }
+    
+    if (dashboard) {
+        dashboard.classList.remove('with-stock-results');
+    }
+}
+
+// Make functions globally available
+window.hideStockResults = hideStockResults;
+window.displayStockResult = displayStockResult;
+
 // Display search results
 function displayStockResult(stock) {
     const priceChangeClass = stock.priceChange >= 0 ? 'positive' : 'negative';
@@ -505,6 +523,12 @@ function displayStockResult(stock) {
     
     // Show the stock results section
     stockResults.style.display = 'block';
+    
+    // Add class to dashboard to adjust layout
+    const dashboard = document.querySelector('.dashboard');
+    if (dashboard) {
+        dashboard.classList.add('with-stock-results');
+    }
 }
 
 
@@ -2390,6 +2414,12 @@ async function handleLogout() {
         const stockResults = document.getElementById('stockResults');
         if (stockResults) {
             stockResults.style.display = 'none';
+        }
+        
+        // Remove stock results layout class
+        const dashboard = document.querySelector('.dashboard');
+        if (dashboard) {
+            dashboard.classList.remove('with-stock-results');
         }
         
         // Clear watchlist display
