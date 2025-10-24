@@ -59,10 +59,13 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     const fetchChartData = async (range) => {
         setIsLoadingNewData(true);
         try {
+            console.log(`🔄 Fetching ${range} data for ${symbol}`);
             const response = await fetch(`${window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app'}/api/chart/${symbol}?range=${range}`, {
                 credentials: 'include'
             });
             const newData = await response.json();
+            
+            console.log(`📊 Received ${newData.length} data points for ${range}`);
             
             if (response.ok) {
                 const processedData = newData.map((item, index) => ({
@@ -73,6 +76,8 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     index: index
                 }));
                 
+                console.log(`✅ Processed data:`, processedData.slice(0, 3), '...');
+                
                 setChartData(processedData);
                 
                 // Calculate price change
@@ -82,14 +87,16 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     const change = lastPrice - firstPrice;
                     const percentage = (change / firstPrice) * 100;
                     setPriceChange({ value: change, percentage });
+                    console.log(`📈 Price change: ${change.toFixed(2)} (${percentage.toFixed(2)}%)`);
                 }
                 
                 setError(null);
             } else {
+                console.error(`❌ Error loading ${range} data:`, newData.error);
                 setError(newData.error || 'Error loading chart data');
             }
         } catch (error) {
-            console.error('Error fetching chart data:', error);
+            console.error('❌ Error fetching chart data:', error);
             setError('Failed to load chart data');
         } finally {
             setIsLoadingNewData(false);
@@ -126,40 +133,40 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
         }
     };
 
-    // Create modern chart
+    // Create or update chart
     useEffect(() => {
         if (chartData.length === 0 || !chartRef.current) return;
-
-        // Destroy existing chart
-        if (chartInstanceRef.current) {
-            chartInstanceRef.current.destroy();
-        }
 
         const ctx = chartRef.current.getContext('2d');
         
         try {
-            chartInstanceRef.current = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartData.map(item => item.formattedDate),
-                    datasets: [{
-                        label: `${symbol} Price`,
-                        data: chartData.map(item => item.price),
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0,
-                        pointHoverRadius: 6,
-                        pointHoverBackgroundColor: '#22c55e',
-                        pointHoverBorderColor: '#ffffff',
-                        pointHoverBorderWidth: 2,
-                        pointHoverBackgroundColor: '#22c55e',
-                        pointHoverBorderColor: '#ffffff',
-                        pointHoverBorderWidth: 2
-                    }]
-                },
+            // If chart exists, update data instead of recreating
+            if (chartInstanceRef.current) {
+                chartInstanceRef.current.data.labels = chartData.map(item => item.formattedDate);
+                chartInstanceRef.current.data.datasets[0].data = chartData.map(item => item.price);
+                chartInstanceRef.current.data.datasets[0].label = `${symbol} Price`;
+                chartInstanceRef.current.update('active');
+            } else {
+                // Create new chart
+                chartInstanceRef.current = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.map(item => item.formattedDate),
+                        datasets: [{
+                            label: `${symbol} Price`,
+                            data: chartData.map(item => item.price),
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: '#22c55e',
+                            pointHoverBorderColor: '#ffffff',
+                            pointHoverBorderWidth: 2
+                        }]
+                    },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -250,11 +257,12 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     }
                 }
             });
+            }
         } catch (error) {
             console.error('Chart creation error:', error);
             setError('Failed to create chart');
         }
-    }, [chartData, symbol]);
+    }, [chartData, symbol, timeRange]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -476,9 +484,47 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 height: isModal ? '200px' : '280px',
                 position: 'relative'
             }
-        }, React.createElement('canvas', {
-            ref: chartRef,
-            style: { width: '100%', height: '100%' }
-        }))
+        }, [
+            isLoadingNewData && React.createElement('div', {
+                key: 'loading-overlay',
+                style: {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(16, 18, 27, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10,
+                    borderRadius: '8px'
+                }
+            }, [
+                React.createElement('div', {
+                    key: 'spinner',
+                    style: {
+                        width: '30px',
+                        height: '30px',
+                        border: '3px solid rgba(34, 197, 94, 0.3)',
+                        borderTop: '3px solid #22c55e',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                    }
+                }),
+                React.createElement('div', {
+                    key: 'text',
+                    style: {
+                        marginLeft: '12px',
+                        color: '#a1a1aa',
+                        fontSize: '14px'
+                    }
+                }, 'Loading...')
+            ]),
+            React.createElement('canvas', {
+                ref: chartRef,
+                style: { width: '100%', height: '100%' }
+            })
+        ])
     ]);
 };
