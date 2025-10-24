@@ -787,12 +787,11 @@ body {
     border-color: var(--primary-color);
 }
 
-/* Watchlist container - remove scrolling and optimize height */
+/* Watchlist container scrolling - optimized height to reduce empty space */
 .watchlist-section .watchlist-container {
-    height: auto; /* Allow natural height */
-    max-height: none; /* Remove height restriction */
-    overflow-y: visible; /* Remove scrolling */
-    padding-right: 0; /* Remove scrollbar space */
+    max-height: 450px; /* Optimized height to better fit content */
+    overflow-y: auto; /* Restore scrolling for more than 3 stocks */
+    padding-right: 8px; /* Add space for scrollbar */
 }
 
 /* Custom scrollbar styling for watchlist section to match news section */
