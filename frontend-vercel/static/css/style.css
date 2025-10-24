@@ -761,22 +761,25 @@ body {
     padding: 0; /* Remove padding to align with components */
 }
 
-/* Stock Card - Sleek horizontal design like watchlist cards */
+/* Stock Card - Apply watchlist card styling directly to container */
 .stock-card {
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
+    background: rgba(44, 44, 46, 0.5); /* bg-secondary/50 */
     backdrop-filter: blur(20px);
-    border-radius: 1rem; /* Smaller radius for sleeker look */
-    padding: 2rem 2.5rem; /* Increased padding for better spacing */
-    border: 1px solid var(--border-color);
-    transition: all 0.4s ease;
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 1rem; /* p-4 */
+    border: 1px solid var(--border-color); /* border border-border */
+    transition: border-color 0.3s ease; /* transition-colors */
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     width: 100%; /* Full width to match dashboard components */
-    height: 160px; /* Increased height to fit all elements properly */
+    height: 160px; /* Keep same height */
     display: flex;
-    flex-direction: row; /* Horizontal layout */
-    align-items: center; /* Center content vertically */
-    justify-content: space-between; /* Spread content horizontally */
+    flex-direction: column; /* Vertical layout for content */
+    justify-content: space-between; /* Space between header and buttons */
     margin: 0; /* Remove any margins */
+}
+
+.stock-card:hover {
+    border-color: rgba(0, 217, 36, 0.5); /* hover:border-primary/50 */
 }
 
 /* Content Grid - Top row (watchlist and news) */
