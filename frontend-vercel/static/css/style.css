@@ -4981,7 +4981,6 @@ body {
 .border-border { border-color: var(--border-color); }
 .hover\:border-primary\/50:hover { border-color: rgba(0, 217, 36, 0.5); }
 .transition-colors { transition: border-color 0.3s ease; }
-.hover\:border-primary\/50:hover { border-color: rgba(0, 217, 36, 0.5); }
 .mb-3 { margin-bottom: 0.75rem; }
 .font-semibold { font-weight: 600; }
 .text-lg { font-size: 1.125rem; }
