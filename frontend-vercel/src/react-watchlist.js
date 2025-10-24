@@ -9,7 +9,7 @@ const WatchlistComponent = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        console.log('🔍 React useEffect triggered - setting up watchlist');
+        // React useEffect triggered - setting up watchlist
         
         // Load watchlist from API
         loadWatchlistFromAPI();
@@ -17,47 +17,47 @@ const WatchlistComponent = () => {
         // Listen for authentication state changes
         let authUnsubscribe = null;
         if (window.firebase && window.firebase.auth()) {
-            console.log('🔍 Setting up Firebase auth listener');
+            // Setting up Firebase auth listener
             authUnsubscribe = window.firebase.auth().onAuthStateChanged((user) => {
-                console.log('🔍 Auth state changed:', user ? `User: ${user.email}` : 'No user');
+                // Auth state changed
                 if (user) {
                     // User logged in, reload watchlist
-                    console.log('🔍 User logged in, reloading watchlist');
+                    // User logged in, reloading watchlist
                     loadWatchlistFromAPI();
                 } else {
                     // User logged out, clear watchlist
-                    console.log('🔍 User logged out, clearing watchlist');
+                    // User logged out, clearing watchlist
                     setWatchlistData([]);
                     setLoading(false);
                 }
             });
         } else {
-            console.log('🔍 Firebase not available, no auth listener set up');
+            // Firebase not available, no auth listener set up
         }
         
         // Listen for watchlist changes from main app
         const handleWatchlistChange = (event) => {
-            console.log('🔍 Watchlist change event received:', event.detail);
+            // Watchlist change event received
             const { action, symbol, companyName } = event.detail;
             
             if (action === 'add') {
-                console.log('🔍 Stock added, reloading watchlist');
+                // Stock added, reloading watchlist
                 loadWatchlistFromAPI();
             } else if (action === 'remove') {
-                console.log('🔍 Stock removed, reloading watchlist');
+                // Stock removed, reloading watchlist
                 loadWatchlistFromAPI();
             } else if (action === 'clear') {
-                console.log('🔍 Watchlist cleared, reloading watchlist');
+                // Watchlist cleared, reloading watchlist
                 loadWatchlistFromAPI();
             }
         };
         
         window.addEventListener('watchlistChanged', handleWatchlistChange);
-        console.log('🔍 Added watchlist change event listener');
+        // Added watchlist change event listener
         
         // Cleanup listeners on unmount
         return () => {
-            console.log('🔍 Cleaning up listeners');
+            // Cleaning up listeners
             if (authUnsubscribe) authUnsubscribe();
             window.removeEventListener('watchlistChanged', handleWatchlistChange);
         };
@@ -66,12 +66,12 @@ const WatchlistComponent = () => {
     const loadWatchlistFromAPI = async () => {
         try {
             setLoading(true);
-            console.log('🔄 Loading watchlist from API...');
+            // Loading watchlist from API
             
             // Check if user is authenticated
             if (window.firebase && window.firebase.auth().currentUser) {
                 const user = window.firebase.auth().currentUser;
-                console.log('✅ User authenticated:', user.email);
+                // User authenticated
                 const token = await user.getIdToken();
                 
                 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
@@ -79,7 +79,7 @@ const WatchlistComponent = () => {
                 // Add cache busting like the original code
                 const timestamp = Date.now();
                 const url = `${API_BASE_URL}/api/watchlist?t=${timestamp}`;
-                console.log('🌐 Fetching from:', url);
+                // Fetching from API
                 
                 const response = await fetch(url, {
                     method: 'GET',
@@ -90,11 +90,11 @@ const WatchlistComponent = () => {
                     }
                 });
                 
-                console.log('📡 API Response status:', response.status);
+                // API Response status
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('📊 Raw watchlist data received:', data);
+                    // Raw watchlist data received
                     
                     // Process data like the original code
                     let stocksData = [];
@@ -103,12 +103,12 @@ const WatchlistComponent = () => {
                     } else if (data && data.watchlist && Array.isArray(data.watchlist)) {
                         stocksData = data.watchlist;
                     } else {
-                        console.log('📊 No stocks data found, setting empty array');
+                        // No stocks data found, setting empty array
                         setWatchlistData([]);
                         return;
                     }
                     
-                    console.log('📊 Processing stocks:', stocksData.length, 'items');
+                    // Processing stocks
                     
                     // Process and fetch prices for each stock using the same API as search
                     const processedStocks = await Promise.all(stocksData.map(async (item) => {
@@ -143,7 +143,7 @@ const WatchlistComponent = () => {
                                 };
                             }
                         } catch (error) {
-                            console.log('⚠️ Error fetching price for', symbol, error);
+                            // Error fetching price
                         }
                         
                         return {
@@ -157,7 +157,7 @@ const WatchlistComponent = () => {
                         };
                     }));
                     
-                    console.log('📊 Processed stocks:', processedStocks);
+                    // Processed stocks
                     setWatchlistData(processedStocks);
                 } else {
                     console.error('❌ API failed with status:', response.status);
@@ -167,7 +167,7 @@ const WatchlistComponent = () => {
                     setWatchlistData([]);
                 }
             } else {
-                console.log('❌ User not authenticated');
+                // User not authenticated
                 // User not authenticated, show empty state
                 setWatchlistData([]);
             }
@@ -182,7 +182,7 @@ const WatchlistComponent = () => {
 
     const handleRemoveStock = async (symbol) => {
         try {
-            console.log('🗑️ Removing stock:', symbol);
+            // Removing stock
             
             // Optimistically update UI
             setWatchlistData(prev => prev.filter(stock => stock.symbol !== symbol));
@@ -193,7 +193,7 @@ const WatchlistComponent = () => {
                 const token = await user.getIdToken();
                 
                 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
-                console.log('🌐 Calling DELETE API for:', symbol);
+                // Calling DELETE API
                 
                 const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
                     method: 'DELETE',
@@ -204,14 +204,14 @@ const WatchlistComponent = () => {
                     }
                 });
                 
-                console.log('📡 DELETE API response status:', response.status);
+                // DELETE API response status
                 
                 if (!response.ok) {
                     console.error('❌ Failed to remove stock from backend, reverting UI');
                     // If API call fails, revert the UI change
                     loadWatchlistFromAPI();
                 } else {
-                    console.log('✅ Stock successfully removed from backend');
+                    // Stock successfully removed from backend
                 }
             }
         } catch (error) {
@@ -223,7 +223,7 @@ const WatchlistComponent = () => {
 
     const handleViewChart = (symbol) => {
         // This would integrate with the existing chart functionality
-        console.log('View chart for:', symbol);
+        // View chart for stock
         // You can call the existing viewChart function here
         if (window.viewChart) {
             window.viewChart(symbol);
@@ -448,34 +448,34 @@ const WatchlistComponent = () => {
 
 // Function to initialize React component
 function initializeReactWatchlist() {
-    console.log('🔍 Initializing React watchlist...');
+    // Initializing React watchlist
     
     // Find the React root element
     const reactRootElement = document.getElementById('react-watchlist-root');
     
-    console.log('🔍 React root element found:', !!reactRootElement);
+    // React root element found
     
     if (reactRootElement) {
-        console.log('🔍 Rendering React component into root element...');
+        // Rendering React component into root element
         
         // Render React component directly into the root element
         const root = ReactDOM.createRoot(reactRootElement);
         root.render(React.createElement(WatchlistComponent));
         
-        console.log('✅ React Watchlist component loaded successfully');
+        // React Watchlist component loaded successfully
         
         // Check Firebase auth state immediately
         if (window.firebase && window.firebase.auth()) {
             const currentUser = window.firebase.auth().currentUser;
-            console.log('🔍 Current Firebase user:', currentUser ? currentUser.email : 'Not logged in');
+            // Current Firebase user status
         } else {
-            console.log('🔍 Firebase not available yet');
+            // Firebase not available yet
         }
         
         return true;
     } else {
         console.warn('⚠️ React root element not found, React component not loaded');
-        console.log('Available elements:', {
+        // Available elements
             reactRootElement: !!reactRootElement,
             allDivs: document.querySelectorAll('div').length
         });
@@ -484,18 +484,18 @@ function initializeReactWatchlist() {
 }
 
 // Try to initialize immediately
-console.log('🔍 Script loaded, attempting immediate initialization...');
+// Script loaded, attempting immediate initialization
 if (document.readyState === 'loading') {
-    console.log('🔍 Document still loading, waiting for DOMContentLoaded...');
+    // Document still loading, waiting for DOMContentLoaded
     document.addEventListener('DOMContentLoaded', initializeReactWatchlist);
 } else {
-    console.log('🔍 Document already loaded, initializing immediately...');
+    // Document already loaded, initializing immediately
     initializeReactWatchlist();
 }
 
 // Fallback: try again after a short delay
 setTimeout(() => {
-    console.log('🔍 Fallback initialization attempt...');
+    // Fallback initialization attempt
     if (!document.getElementById('react-watchlist-root')) {
         initializeReactWatchlist();
     }
@@ -506,7 +506,7 @@ window.WatchlistComponent = WatchlistComponent;
 
 // Export refresh function for integration with existing app
 window.refreshWatchlist = () => {
-    console.log('🔄 Manual watchlist refresh triggered');
+    // Manual watchlist refresh triggered
     const watchlistRoot = document.getElementById('react-watchlist-root');
     if (watchlistRoot) {
         const root = ReactDOM.createRoot(watchlistRoot);
@@ -516,7 +516,7 @@ window.refreshWatchlist = () => {
 
 // Export function to manually reload watchlist data
 window.reloadWatchlistData = () => {
-    console.log('🔄 Manual watchlist data reload triggered');
+    // Manual watchlist data reload triggered
     // Find the React component instance and trigger reload
     const watchlistRoot = document.getElementById('react-watchlist-root');
     if (watchlistRoot && watchlistRoot._reactInternalFiber) {

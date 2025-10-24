@@ -1768,14 +1768,14 @@ async function checkAuthStatus() {
             // Wait for initial auth state with longer timeout for better reliability
             const authUser = await new Promise((resolve) => {
                 const timeout = setTimeout(() => {
-                    console.log('⏰ Auth state timeout, resolving with current user');
+                    // Auth state timeout, resolving with current user
                     resolve(window.firebaseAuth.currentUser);
                 }, 5000); // Increased timeout to 5 seconds
                 
                 const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
                     clearTimeout(timeout);
                     unsubscribe(); // Only resolve once
-                    console.log('🔐 Auth state resolved:', user ? 'User authenticated' : 'No user');
+                    // Auth state resolved
                     resolve(user);
                 });
             });
@@ -1789,13 +1789,13 @@ async function checkAuthStatus() {
             
             // Listen for custom authentication events from React components
             window.addEventListener('userAuthenticated', (event) => {
-                console.log('📡 Received userAuthenticated event:', event.detail.user.email);
+                // Received userAuthenticated event
                 if (event.detail && event.detail.user) {
                     handleAuthStateChange(event.detail.user);
                 }
             });
         } else {
-            console.log('❌ Firebase auth not available, showing auth forms');
+            // Firebase auth not available, showing auth forms
             await handleAuthStateChange(null);
             authStateChecked = true;
         }
@@ -1843,7 +1843,7 @@ function saveRememberMePreference(remember) {
 
 // Make function globally accessible
 window.handleAuthStateChange = async function handleAuthStateChange(user) {
-    console.log('🔄 Handling auth state change:', user ? `User: ${user.email}` : 'No user');
+    // Handling auth state change
     
     if (user) {
         // Show main content immediately without waiting for backend verification
@@ -1863,7 +1863,7 @@ window.handleAuthStateChange = async function handleAuthStateChange(user) {
         
         // Verify with backend in background (non-blocking)
         verifyWithBackend(user).catch(error => {
-            console.log('⚠️ Backend verification failed:', error);
+            // Backend verification failed
         });
         
     } else {
@@ -1874,7 +1874,7 @@ window.handleAuthStateChange = async function handleAuthStateChange(user) {
         if (!shouldStayLoggedIn()) {
             showAuthForms();
         } else {
-            console.log('🔒 User should stay logged in, but no user found');
+            // User should stay logged in, but no user found
             showAuthForms();
         }
     }
@@ -1897,14 +1897,14 @@ async function verifyWithBackend(user) {
 }
 
 function showMainContent(user) {
-    console.log('📱 Showing main content for user:', user.name);
+    // Showing main content for user
     
     // Check if elements exist
     const marketpulseRoot = document.getElementById('marketpulse-root');
     const mainContent = document.getElementById('main-content');
     const usernameDisplay = document.getElementById('username-display');
     
-    console.log('🔍 Element check:', {
+    // Element check
         marketpulseRoot: !!marketpulseRoot,
         mainContent: !!mainContent,
         usernameDisplay: !!usernameDisplay
@@ -1923,18 +1923,18 @@ function showMainContent(user) {
         return;
     }
     
-    console.log('✅ All elements found, proceeding with transition');
+    // All elements found, proceeding with transition
     
     // Hide React landing page
     marketpulseRoot.style.display = 'none';
-    console.log('🚫 Hidden React landing page');
+    // Hidden React landing page
     
     // Show main content with smooth transition
     mainContent.style.display = 'block';
-    console.log('👁️ Showing main content');
+    // Showing main content
     setTimeout(() => {
         mainContent.classList.remove('hidden');
-        console.log('✨ Main content transition complete');
+        // Main content transition complete
     }, 50);
     
     // Update username display (footer)
@@ -2002,12 +2002,12 @@ async function loadIntelligenceSection() {
             intelligenceSection.style.opacity = '1';
         }
     } catch (error) {
-        console.log('Intelligence section load error:', error);
+        // Intelligence section load error
     }
 }
 
 function showAuthForms() {
-    console.log('🔐 Showing auth forms');
+    // Showing auth forms
     
     // Check if elements exist
     const marketpulseRoot = document.getElementById('marketpulse-root');
