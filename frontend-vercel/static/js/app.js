@@ -3,7 +3,6 @@ let watchlistData = [];
 let currentStock = null;
 let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
-let currentNewsPage = 1; // Track current news page for refresh functionality
 
 // Debug function removed - cleaner production code
 
@@ -35,9 +34,7 @@ function initializeApp() {
     startBackendKeepAlive();
     
     // Set up event listeners
-    if (refreshNewsBtn) {
-        refreshNewsBtn.addEventListener('click', () => loadMarketNews(true));
-    }
+    // Refresh button removed for now
     
     // Initialize market intelligence search functionality
     initializeMarketIntelligenceSearch();
@@ -1427,68 +1424,20 @@ async function updateMarketStatus() {
 }
 
 // News functionality
-async function loadMarketNews(isRefresh = false) {
-    console.log('🔄 Refreshing market news...');
-    
-    // Increment page for refresh, reset to 1 for initial load
-    if (isRefresh) {
-        currentNewsPage++;
-        console.log('📄 Loading news page:', currentNewsPage);
-    } else {
-        currentNewsPage = 1;
-        console.log('📄 Loading initial news page:', currentNewsPage);
-    }
-    
-    // Add loading state to refresh button
-    if (refreshNewsBtn) {
-        const icon = refreshNewsBtn.querySelector('i');
-        if (icon) {
-            icon.classList.add('fa-spin');
-        }
-        refreshNewsBtn.disabled = true;
-    }
-    
-    // Show loading state in news container
-    if (newsContainer) {
-        newsContainer.innerHTML = `
-            <div class="loading-state">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>${isRefresh ? 'Loading more news...' : 'Loading news...'}</p>
-            </div>
-        `;
-    }
-    
+async function loadMarketNews() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/news/market?page=${currentNewsPage}`, {
-            credentials: 'include',
-            cache: 'no-cache', // Force fresh data
-            headers: {
-                'Cache-Control': 'no-cache'
-            }
+        const response = await fetch(`${API_BASE_URL}/api/news/market`, {
+            credentials: 'include'
         });
-        
-        console.log('📰 News API response:', response.status);
         const data = await response.json();
         
         if (response.ok) {
-            console.log('✅ News loaded successfully:', data.length, 'articles');
             displayNews(data);
         } else {
-            console.error('❌ News API error:', response.status, data);
             displayNewsError();
         }
     } catch (error) {
-        console.error('❌ News fetch error:', error);
         displayNewsError();
-    } finally {
-        // Remove loading state from refresh button
-        if (refreshNewsBtn) {
-            const icon = refreshNewsBtn.querySelector('i');
-            if (icon) {
-                icon.classList.remove('fa-spin');
-            }
-            refreshNewsBtn.disabled = false;
-        }
     }
 }
 

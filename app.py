@@ -1224,22 +1224,7 @@ def market_status():
 @app.route('/api/news/market')
 def get_market_news():
     try:
-        # Get page parameter for different news (default to 1)
-        page = request.args.get('page', 1, type=int)
-        
-        # Calculate offset for different news articles
-        # NewsAPI doesn't support page parameter directly, so we'll use different approaches
-        if page == 1:
-            # First page - get latest news
-            news = news_api.get_market_news(limit=10)
-        else:
-            # For subsequent pages, we'll get more news and slice it
-            # This is a workaround since NewsAPI doesn't support pagination directly
-            news = news_api.get_market_news(limit=20)  # Get more articles
-            # Take articles from the middle/end for variety
-            start_idx = min((page - 1) * 5, len(news) - 10)
-            news = news[start_idx:start_idx + 10] if start_idx + 10 <= len(news) else news[-10:]
-        
+        news = news_api.get_market_news(limit=10)
         return jsonify(news)
     except Exception as e:
         return jsonify({'error': 'Could not fetch market news'}), 500
