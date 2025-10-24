@@ -268,7 +268,7 @@ const WatchlistComponent = () => {
     };
 
     const formatPrice = (price) => {
-        return `$${price.toFixed(2)}`;
+        return price.toFixed(2);
     };
 
     const formatChange = (changePercent) => {
@@ -394,7 +394,7 @@ const WatchlistComponent = () => {
                                 React.createElement('p', { className: 'text-2xl font-bold text-primary' }, `$${formatPrice(stock.price)}`),
                                 React.createElement('span', { 
                                     className: `badge ${stock.change_percent >= 0 ? 'bg-primary' : 'bg-destructive'}` 
-                                }, `${stock.change_percent >= 0 ? '+' : ''}${formatChange(stock.change_percent)}`)
+                                }, formatChange(stock.change_percent))
                             )
                         ),
                         React.createElement('div', { className: 'flex gap-2' },
