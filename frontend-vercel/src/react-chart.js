@@ -92,10 +92,10 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     maintainAspectRatio: false,
                     layout: {
                         padding: {
-                            left: 20,
+                            left: 40,
                             right: 20,
-                            top: 10,
-                            bottom: 10
+                            top: 20,
+                            bottom: 30
                         }
                     },
                     interaction: {
@@ -146,7 +146,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                                     size: 12
                                 },
                                 maxTicksLimit: 8,
-                                padding: 8
+                                padding: 15
                             }
                         },
                         y: {
@@ -160,7 +160,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                                 font: {
                                     size: 12
                                 },
-                                padding: 12,
+                                padding: 20,
                                 callback: function(value) {
                                     return '$' + value.toFixed(2);
                                 }
@@ -377,7 +377,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
             style: {
                 height: isModal ? '200px' : '280px',
                 position: 'relative',
-                padding: '8px',
+                padding: '4px',
                 backgroundColor: 'rgba(34, 197, 94, 0.02)',
                 borderRadius: '8px',
                 border: '1px solid rgba(34, 197, 94, 0.1)'
