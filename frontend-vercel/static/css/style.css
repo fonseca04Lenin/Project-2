@@ -910,6 +910,17 @@ body {
     border-color: var(--primary-color);
 }
 
+.refresh-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.refresh-btn:disabled:hover {
+    background: var(--card-bg);
+    border-color: rgba(0, 217, 36, 0.2);
+}
+
 /* AI Investment Advisor Section */
 .ai-advisor-section {
     background: var(--card-bg);
