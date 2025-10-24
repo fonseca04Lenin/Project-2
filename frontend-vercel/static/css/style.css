@@ -638,45 +638,36 @@ body {
 
 .stock-header {
     display: flex;
-    flex-direction: column; /* Stack company info vertically */
+    justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0; /* No bottom margin for horizontal layout */
-    width: auto; /* Let it size naturally */
-    flex: 1; /* Take available space */
-    gap: 0.5rem; /* Add gap between company name and symbol */
+    margin-bottom: 1.5rem;
+    width: 100%;
 }
 
 .stock-info h3 {
-    font-size: 1.8rem; /* Reduced for horizontal layout */
+    font-size: 2rem;
     font-weight: 700;
-    margin-bottom: 0; /* Remove margin since we use gap */
+    margin-bottom: 0.5rem;
     color: var(--text-primary);
-    line-height: 1.2; /* Tighter line height */
 }
 
 .stock-symbol {
     color: var(--text-muted);
-    font-size: 0.9rem; /* Slightly smaller */
+    font-size: 1rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 0; /* No bottom margin */
 }
 
 .stock-price {
     text-align: right;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.5rem; /* Add gap between price and change */
 }
 
 .current-price {
-    font-size: 2rem; /* Reduced for horizontal layout */
+    font-size: 2.5rem;
     font-weight: 800;
-    margin-bottom: 0; /* Remove margin since we use gap */
+    margin-bottom: 0.5rem;
     color: var(--text-primary);
-    line-height: 1.1; /* Tighter line height */
 }
 
 .price-change {
@@ -704,11 +695,8 @@ body {
 
 .stock-actions {
     display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-    gap: 0.75rem; /* Reduced gap for horizontal layout */
-    margin-top: 0; /* No top margin for horizontal layout */
-    align-items: center; /* Center buttons vertically */
-    justify-content: center; /* Center buttons in their space */
+    gap: 1rem;
+    margin-top: 1.5rem;
 }
 
 .btn {
