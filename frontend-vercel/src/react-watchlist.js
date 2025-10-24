@@ -475,10 +475,7 @@ function initializeReactWatchlist() {
         return true;
     } else {
         console.warn('⚠️ React root element not found, React component not loaded');
-        // Available elements
-            reactRootElement: !!reactRootElement,
-            allDivs: document.querySelectorAll('div').length
-        });
+        // Available elements check
         return false;
     }
 }
