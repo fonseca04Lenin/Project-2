@@ -643,12 +643,13 @@ body {
     margin-bottom: 0; /* No bottom margin for horizontal layout */
     width: auto; /* Let it size naturally */
     flex: 1; /* Take available space */
+    gap: 0.5rem; /* Add gap between company name and symbol */
 }
 
 .stock-info h3 {
     font-size: 1.8rem; /* Reduced for horizontal layout */
     font-weight: 700;
-    margin-bottom: 0.25rem; /* Reduced margin */
+    margin-bottom: 0; /* Remove margin since we use gap */
     color: var(--text-primary);
     line-height: 1.2; /* Tighter line height */
 }
@@ -667,12 +668,13 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    gap: 0.5rem; /* Add gap between price and change */
 }
 
 .current-price {
     font-size: 2rem; /* Reduced for horizontal layout */
     font-weight: 800;
-    margin-bottom: 0.25rem; /* Reduced margin */
+    margin-bottom: 0; /* Remove margin since we use gap */
     color: var(--text-primary);
     line-height: 1.1; /* Tighter line height */
 }
@@ -702,9 +704,11 @@ body {
 
 .stock-actions {
     display: flex;
+    flex-direction: column; /* Stack buttons vertically */
     gap: 0.75rem; /* Reduced gap for horizontal layout */
     margin-top: 0; /* No top margin for horizontal layout */
     align-items: center; /* Center buttons vertically */
+    justify-content: center; /* Center buttons in their space */
 }
 
 .btn {
@@ -774,12 +778,12 @@ body {
     background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
     backdrop-filter: blur(20px);
     border-radius: 1rem; /* Smaller radius for sleeker look */
-    padding: 1.5rem 2rem; /* Reduced padding for horizontal layout */
+    padding: 2rem 2.5rem; /* Increased padding for better spacing */
     border: 1px solid var(--border-color);
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     width: 100%; /* Full width to match dashboard components */
-    height: 120px; /* Fixed height for sleek horizontal design */
+    height: 160px; /* Increased height to fit all elements properly */
     display: flex;
     flex-direction: row; /* Horizontal layout */
     align-items: center; /* Center content vertically */
