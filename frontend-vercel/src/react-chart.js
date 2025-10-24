@@ -11,6 +11,8 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [priceChange, setPriceChange] = useState({ value: 0, percentage: 0 });
+    const [timeRange, setTimeRange] = useState('30d');
+    const [isLoadingNewData, setIsLoadingNewData] = useState(false);
     const chartRef = useRef(null);
     const chartInstanceRef = useRef(null);
 
@@ -51,6 +53,77 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
             month: 'short', 
             day: 'numeric' 
         });
+    };
+
+    // Fetch new chart data for different time ranges
+    const fetchChartData = async (range) => {
+        setIsLoadingNewData(true);
+        try {
+            const response = await fetch(`${window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app'}/api/chart/${symbol}?range=${range}`, {
+                credentials: 'include'
+            });
+            const newData = await response.json();
+            
+            if (response.ok) {
+                const processedData = newData.map((item, index) => ({
+                    ...item,
+                    date: new Date(item.date),
+                    formattedDate: formatDateForRange(item.date, range),
+                    price: parseFloat(item.price),
+                    index: index
+                }));
+                
+                setChartData(processedData);
+                
+                // Calculate price change
+                if (processedData.length >= 2) {
+                    const firstPrice = processedData[0].price;
+                    const lastPrice = processedData[processedData.length - 1].price;
+                    const change = lastPrice - firstPrice;
+                    const percentage = (change / firstPrice) * 100;
+                    setPriceChange({ value: change, percentage });
+                }
+                
+                setError(null);
+            } else {
+                setError(newData.error || 'Error loading chart data');
+            }
+        } catch (error) {
+            console.error('Error fetching chart data:', error);
+            setError('Failed to load chart data');
+        } finally {
+            setIsLoadingNewData(false);
+        }
+    };
+
+    // Format date based on time range
+    const formatDateForRange = (dateString, range) => {
+        const date = new Date(dateString);
+        
+        if (range === '5y' || range === 'all') {
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                year: '2-digit' 
+            });
+        } else if (range === '1y') {
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        } else {
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+    };
+
+    // Handle time range change
+    const handleTimeRangeChange = (newRange) => {
+        if (newRange !== timeRange) {
+            setTimeRange(newRange);
+            fetchChartData(newRange);
+        }
     };
 
     // Create modern chart
@@ -307,12 +380,37 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                         padding: '4px 8px',
                         borderRadius: '6px'
                     }
-                }, '30D Price History')
+                }, `${timeRange.toUpperCase()} Price History`)
             ]),
             React.createElement('div', {
                 key: 'controls',
                 style: { display: 'flex', alignItems: 'center', gap: '8px' }
             }, [
+                // Time Range Buttons
+                React.createElement('div', {
+                    key: 'time-range-buttons',
+                    style: { display: 'flex', gap: '4px' }
+                }, [
+                    ['30d', '1y', '5y', 'all'].map(range => 
+                        React.createElement('button', {
+                            key: range,
+                            onClick: () => handleTimeRangeChange(range),
+                            disabled: isLoadingNewData,
+                            style: {
+                                backgroundColor: timeRange === range ? '#22c55e' : 'rgba(34, 197, 94, 0.2)',
+                                color: timeRange === range ? 'white' : '#22c55e',
+                                border: 'none',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                cursor: isLoadingNewData ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s',
+                                opacity: isLoadingNewData ? 0.6 : 1
+                            }
+                        }, range.toUpperCase())
+                    )
+                ]),
                 React.createElement('button', {
                     key: 'close',
                     onClick: onClose || (() => {

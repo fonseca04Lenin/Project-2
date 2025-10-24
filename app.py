@@ -1209,9 +1209,22 @@ def get_migration_status():
 @app.route('/api/chart/<symbol>')
 def get_chart_data(symbol):
     symbol = symbol.upper()
-    last_month_date = datetime.now() - timedelta(days=30)
-    start_date = last_month_date.strftime("%Y-%m-%d")
-    end_date = datetime.now().strftime("%Y-%m-%d")
+    
+    # Get time range from query parameter, default to 30d
+    time_range = request.args.get('range', '30d')
+    
+    # Calculate date range based on parameter
+    now = datetime.now()
+    if time_range == '1y':
+        start_date = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+    elif time_range == '5y':
+        start_date = (now - timedelta(days=1825)).strftime("%Y-%m-%d")  # 5 years
+    elif time_range == 'all':
+        start_date = (now - timedelta(days=3650)).strftime("%Y-%m-%d")  # 10 years (practical limit)
+    else:  # Default to 30d
+        start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+    
+    end_date = now.strftime("%Y-%m-%d")
     
     stock = Stock(symbol, yahoo_finance_api)
     dates, prices = stock.retrieve_historical_data(start_date, end_date)
