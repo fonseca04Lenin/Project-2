@@ -764,9 +764,9 @@ body {
     grid-row: 1; /* First row */
     margin-bottom: 2rem;
     animation: slideIn 0.4s ease;
-    max-width: 1400px; /* Increased width to take up more space */
+    width: 100%; /* Full width to match dashboard */
     margin: 0 auto; /* Center the stock results */
-    padding: 0 1rem; /* Add some padding for mobile */
+    padding: 0; /* Remove padding to align with components */
 }
 
 /* Stock Card - Sleek horizontal design like watchlist cards */
@@ -778,12 +778,13 @@ body {
     border: 1px solid var(--border-color);
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    width: 100%; /* Full width of container */
+    width: 100%; /* Full width to match dashboard components */
     height: 120px; /* Fixed height for sleek horizontal design */
     display: flex;
     flex-direction: row; /* Horizontal layout */
     align-items: center; /* Center content vertically */
     justify-content: space-between; /* Spread content horizontally */
+    margin: 0; /* Remove any margins */
 }
 
 /* Content Grid - Top row (watchlist and news) */
