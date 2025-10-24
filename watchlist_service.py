@@ -27,6 +27,7 @@ class WatchlistItem:
         self.target_price = kwargs.get('target_price', None)
         self.stop_loss = kwargs.get('stop_loss', None)
         self.alert_enabled = kwargs.get('alert_enabled', True)
+        self.original_price = kwargs.get('original_price', None)  # Price when added to watchlist
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to Firestore-compatible dictionary"""
@@ -41,7 +42,8 @@ class WatchlistItem:
             'tags': self.tags,
             'target_price': self.target_price,
             'stop_loss': self.stop_loss,
-            'alert_enabled': self.alert_enabled
+            'alert_enabled': self.alert_enabled,
+            'original_price': self.original_price
         }
 
     @classmethod
@@ -58,7 +60,8 @@ class WatchlistItem:
             tags=data.get('tags', []),
             target_price=data.get('target_price'),
             stop_loss=data.get('stop_loss'),
-            alert_enabled=data.get('alert_enabled', True)
+            alert_enabled=data.get('alert_enabled', True),
+            original_price=data.get('original_price')
         )
 
 
@@ -121,7 +124,7 @@ class WatchlistService:
 
         return errors
 
-    def add_stock(self, user_id: str, symbol: str, company_name: str, **kwargs) -> Dict[str, Any]:
+    def add_stock(self, user_id: str, symbol: str, company_name: str, current_price: float = None, **kwargs) -> Dict[str, Any]:
         """
         Add a stock to user's watchlist with enhanced features
 
@@ -129,6 +132,7 @@ class WatchlistService:
             user_id: Firebase user ID
             symbol: Stock symbol
             company_name: Company name
+            current_price: Current stock price (will be stored as original_price)
             **kwargs: Additional options (category, notes, priority, tags, etc.)
 
         Returns:
@@ -152,8 +156,8 @@ class WatchlistService:
                     'message': f'{symbol} is already in your watchlist'
                 }
 
-            # Create watchlist item
-            item = WatchlistItem(symbol, company_name, **kwargs)
+            # Create watchlist item with original price
+            item = WatchlistItem(symbol, company_name, original_price=current_price, **kwargs)
 
             # Validate item
             errors = self._validate_watchlist_item(item)
@@ -523,6 +527,41 @@ class WatchlistService:
             return {
                 'success': False,
                 'message': 'Batch update failed'
+            }
+
+    def update_legacy_stocks(self, user_id: str, stock_prices: Dict[str, float]) -> Dict[str, Any]:
+        """
+        Update legacy stocks that don't have original_price set
+        This is called when displaying watchlist details for stocks without original price data
+        """
+        try:
+            watchlist = self.get_watchlist(user_id)
+            updated_count = 0
+            
+            for item in watchlist:
+                symbol = item.get('symbol')
+                if symbol and not item.get('original_price') and symbol in stock_prices:
+                    # Update the stock with current price as original price
+                    result = self.update_stock(
+                        user_id, 
+                        symbol, 
+                        original_price=stock_prices[symbol]
+                    )
+                    if result['success']:
+                        updated_count += 1
+            
+            logger.info(f"Updated {updated_count} legacy stocks for user {user_id}")
+            return {
+                'success': True,
+                'message': f'Updated {updated_count} legacy stocks',
+                'updated_count': updated_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Error updating legacy stocks for user {user_id}: {e}")
+            return {
+                'success': False,
+                'message': 'Failed to update legacy stocks'
             }
 
 
