@@ -3632,7 +3632,10 @@ function animateNumber(element, startValue, endValue, duration) {
 // Add live indicators to the UI
 function addLiveIndicators() {
     // Add live indicator to watchlist header
-    const watchlistHeader = document.querySelector('#watchlistContainer').previousElementSibling;
+    const watchlistContainer = document.querySelector('#watchlistContainer');
+    if (!watchlistContainer) return;
+    
+    const watchlistHeader = watchlistContainer.previousElementSibling;
     if (watchlistHeader && !watchlistHeader.querySelector('.live-indicator')) {
         const liveIndicator = document.createElement('div');
         liveIndicator.className = 'live-indicator';
