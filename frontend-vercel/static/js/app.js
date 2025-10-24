@@ -2454,6 +2454,11 @@ async function loadStockDetails(symbol) {
     document.getElementById('detailsCEO').textContent = '-';
     document.getElementById('detailsDescription').textContent = '-';
     document.getElementById('detailsPrice').textContent = '-';
+    
+    // Hide watchlist details for regular stock details
+    const watchlistDetails = document.getElementById('watchlistDetails');
+    if (watchlistDetails) watchlistDetails.style.display = 'none';
+    
     const chartContainer = document.getElementById('detailsChartContainer');
     if (chartContainer) chartContainer.innerHTML = '<div class="spinner"></div>';
     const newsContainer = document.getElementById('detailsNewsContainer');
@@ -2604,6 +2609,204 @@ async function loadStockDetails(symbol) {
     }
 }
 
+// Load watchlist-specific stock details
+async function loadWatchlistStockDetails(symbol) {
+    // Show loading state
+    document.getElementById('detailsCompanyName').textContent = 'Loading...';
+    document.getElementById('detailsSymbol').textContent = symbol;
+    document.getElementById('detailsCEO').textContent = '-';
+    document.getElementById('detailsDescription').textContent = '-';
+    document.getElementById('detailsPrice').textContent = '-';
+    
+    // Hide watchlist details initially
+    const watchlistDetails = document.getElementById('watchlistDetails');
+    if (watchlistDetails) watchlistDetails.style.display = 'none';
+    
+    const chartContainer = document.getElementById('detailsChartContainer');
+    if (chartContainer) chartContainer.innerHTML = '<div class="spinner"></div>';
+    const newsContainer = document.getElementById('detailsNewsContainer');
+    if (newsContainer) newsContainer.innerHTML = '<div class="spinner"></div>';
+
+    // Scroll modal to top and focus close button for accessibility
+    const modalContent = document.querySelector('.stock-details-content');
+    if (modalContent) modalContent.scrollTop = 0;
+    const closeBtn = document.getElementById('closeDetailsBtn');
+    if (closeBtn) closeBtn.focus();
+
+    try {
+        // Fetch watchlist-specific company info from backend
+        const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/details`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Populate basic company info
+            document.getElementById('detailsCompanyName').textContent = data.name || symbol;
+            document.getElementById('detailsSymbol').textContent = data.symbol || symbol;
+            document.getElementById('detailsCEO').textContent = data.ceo || '-';
+            document.getElementById('detailsDescription').textContent = data.description || '-';
+            document.getElementById('detailsPrice').textContent = data.price !== undefined ? data.price.toFixed(2) : '-';
+            document.getElementById('detailsMarketCap').textContent = data.marketCap && data.marketCap !== '-' ? formatMarketCap(data.marketCap) : '-';
+            document.getElementById('detailsPERatio').textContent = data.peRatio && data.peRatio !== '-' ? data.peRatio : '-';
+            document.getElementById('detailsDividendYield').textContent = data.dividendYield && data.dividendYield !== '-' ? (data.dividendYield * 100).toFixed(2) + '%' : '-';
+            
+            const websiteElem = document.getElementById('detailsWebsite');
+            if (websiteElem) {
+                if (data.website && data.website !== '-') {
+                    websiteElem.textContent = data.website.replace(/^https?:\/\//, '');
+                    websiteElem.href = data.website;
+                } else {
+                    websiteElem.textContent = '-';
+                    websiteElem.href = '#';
+                }
+            }
+            document.getElementById('detailsHeadquarters').textContent = data.headquarters && data.headquarters !== '-' ? data.headquarters : '-';
+            
+            // Populate watchlist-specific data
+            if (watchlistDetails) {
+                watchlistDetails.style.display = 'block';
+                
+                document.getElementById('detailsDateAdded').textContent = data.date_added || '-';
+                document.getElementById('detailsOriginalPrice').textContent = data.original_price ? data.original_price.toFixed(2) : '-';
+                
+                // Handle price change and percentage change
+                const priceChangeElem = document.getElementById('detailsPriceChange');
+                const percentageChangeElem = document.getElementById('detailsPercentageChange');
+                
+                if (data.price_change !== null && data.percentage_change !== null) {
+                    const isPositive = data.price_change >= 0;
+                    const sign = isPositive ? '+' : '';
+                    
+                    priceChangeElem.textContent = `${sign}$${data.price_change.toFixed(2)}`;
+                    priceChangeElem.className = isPositive ? 'positive' : 'negative';
+                    
+                    percentageChangeElem.textContent = `${sign}${data.percentage_change.toFixed(2)}%`;
+                    percentageChangeElem.className = isPositive ? 'positive' : 'negative';
+                } else {
+                    priceChangeElem.textContent = 'N/A';
+                    percentageChangeElem.textContent = 'N/A';
+                }
+                
+                document.getElementById('detailsCategory').textContent = data.category || '-';
+                document.getElementById('detailsNotes').textContent = data.notes || '-';
+                document.getElementById('detailsTargetPrice').textContent = data.target_price ? data.target_price.toFixed(2) : '-';
+                document.getElementById('detailsStopLoss').textContent = data.stop_loss ? data.stop_loss.toFixed(2) : '-';
+            }
+        } else {
+            document.getElementById('detailsCompanyName').textContent = 'Not found in watchlist';
+        }
+    } catch (err) {
+        document.getElementById('detailsCompanyName').textContent = 'Error loading data';
+        console.error('Error loading watchlist stock details:', err);
+    }
+
+    // Fetch and display chart in modal (same as regular loadStockDetails)
+    try {
+        const chartResp = await fetch(`${API_BASE_URL}/api/chart/${symbol}`, {
+            credentials: 'include'
+        });
+        const chartData = await chartResp.json();
+        if (chartResp.ok && chartContainer) {
+            chartContainer.innerHTML = '<canvas id="detailsStockChart"></canvas>';
+            const ctx = document.getElementById('detailsStockChart').getContext('2d');
+            if (window.detailsChart) window.detailsChart.destroy();
+            window.detailsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(item => item.date),
+                    datasets: [{
+                        label: `${symbol} Price`,
+                        data: chartData.map(item => item.price),
+                        borderColor: '#4ade80',
+                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#a1a1aa' } },
+                        y: { ticks: { color: '#a1a1aa' } }
+                    }
+                }
+            });
+        } else if (chartContainer) {
+            chartContainer.innerHTML = '<div class="error">Chart unavailable</div>';
+        }
+    } catch (err) {
+        if (chartContainer) chartContainer.innerHTML = '<div class="error">Chart unavailable</div>';
+    }
+
+    // Fetch and display company news (same as regular loadStockDetails)
+    try {
+        const newsRes = await fetch(`${API_BASE_URL}/api/news/company/${symbol}`, {
+            credentials: 'include'
+        });
+        let newsData = await newsRes.json();
+        if (newsRes.ok && Array.isArray(newsData)) {
+            // Filter out news with missing title or link
+            newsData = newsData.filter(n => n.title && n.link);
+            // Limit to 6 news items
+            newsData = newsData.slice(0, 6);
+            if (newsData.length > 0) {
+                let newsHTML = `<h3>Latest News</h3>` + newsData.map(news => `
+                    <div class="news-item">
+                        <div class="news-item-title">
+                            <a href="${news.link}" target="_blank" rel="noopener noreferrer">
+                                ${news.title}
+                            </a>
+                        </div>
+                        <div class="news-item-meta">
+                            <span class="news-item-source">${news.source}</span>
+                            <span class="news-item-date">${formatDate(news.published_at)}</span>
+                        </div>
+                        ${news.summary ? `<div class="news-item-summary">${news.summary}</div>` : ''}
+                    </div>
+                `).join('');
+                newsContainer.innerHTML = newsHTML;
+            } else {
+                newsContainer.innerHTML = `
+                    <h3>Latest News</h3>
+                    <div class="news-item news-item-placeholder">
+                        <div class="news-item-title">
+                            <span style="color:var(--text-muted);">No news available for this company</span>
+                        </div>
+                        <div class="news-item-meta">
+                            <span class="news-item-source">-</span>
+                            <span class="news-item-date">-</span>
+                        </div>
+                        <div class="news-item-summary" style="color:var(--text-muted);">
+                            When news is available for this company, it will appear here as a preview card.
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            newsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-newspaper"></i>
+                    <p>No news available</p>
+                    <small>Try refreshing later</small>
+                </div>
+            `;
+        }
+    } catch (err) {
+        newsContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Failed to load news</p>
+                <small>Please try again later</small>
+            </div>
+        `;
+    }
+}
+
 // Helper to display chart in modal
 function displayDetailsChart(chartData, symbol) {
     const ctx = document.getElementById('detailsStockChart').getContext('2d');
@@ -2678,7 +2881,7 @@ function setupWatchlistListeners() {
                 const symbolElement = item.querySelector('p.text-sm.text-muted-foreground');
                 if (symbolElement) {
                     const symbol = symbolElement.textContent.trim();
-                    if (symbol) openStockDetailsModal(symbol);
+                    if (symbol) openStockDetailsModal(symbol, true); // Pass true for isFromWatchlist
                 }
             }
         };
@@ -2710,15 +2913,20 @@ setTimeout(() => {
 }, 2000); 
 
 // Define the modal functions
-function openStockDetailsModal(symbol) {
+function openStockDetailsModal(symbol, isFromWatchlist = false) {
     // Hide search bar
     const searchSection = document.querySelector('.search-section');
     if (searchSection) searchSection.style.display = 'none';
 
     // Show modal
     document.getElementById('stockDetailsModal').style.display = 'flex';
-    // Fetch and display details
-    loadStockDetails(symbol);
+    
+    // Fetch and display details based on source
+    if (isFromWatchlist) {
+        loadWatchlistStockDetails(symbol);
+    } else {
+        loadStockDetails(symbol);
+    }
 }
 
 function closeStockDetailsModal() {

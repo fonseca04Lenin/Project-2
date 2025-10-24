@@ -1766,6 +1766,88 @@ body {
   border-color: var(--primary-color);
 }
 
+/* Watchlist details section in modal */
+.watchlist-details {
+  background: linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(139,92,246,0.06) 100%);
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  margin-top: 1.5rem;
+  border: 1.5px solid var(--border-color);
+  backdrop-filter: blur(10px) saturate(1.1);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.watchlist-details:hover {
+  box-shadow: 0 4px 20px rgba(34,197,94,0.15);
+  border-color: var(--primary-color);
+}
+
+.watchlist-details-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.watchlist-details-title::before {
+  content: "📊";
+  font-size: 1.1rem;
+}
+
+.watchlist-details-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.8rem;
+}
+
+.watchlist-details-meta div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.watchlist-details-meta div:last-child {
+  border-bottom: none;
+}
+
+.watchlist-details-meta strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 120px;
+  font-size: 0.9rem;
+}
+
+.watchlist-details-meta span {
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+/* Price change styling */
+#detailsPriceChange.positive {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+#detailsPriceChange.negative {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+#detailsPercentageChange.positive {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+#detailsPercentageChange.negative {
+  color: #ef4444;
+  font-weight: 600;
+}
+
 /* News section in modal - improved placeholder */
 .stock-details-news {
   min-height: 180px;
