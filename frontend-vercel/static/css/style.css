@@ -777,9 +777,8 @@ body {
     border: 1px solid var(--border-color);
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-height: 500px; /* Fixed height for bottom row components */
-    height: 500px; /* Exact height to match */
-    overflow-y: auto; /* Allow scrolling if content exceeds height */
+    min-height: 700px; /* Increased height for bottom row components */
+    height: 700px; /* Increased exact height to match */
 }
 
 .watchlist-section:hover, .chart-section:hover, .news-section:hover,
@@ -1275,9 +1274,13 @@ body {
         gap: 1.5rem;
     }
     
-    .watchlist-section, .chart-section, .news-section,
-    #ai-advisor-chat-root, .market-intelligence-container {
+    .watchlist-section, .chart-section, .news-section {
         min-height: 400px; /* Reduced height on mobile */
+        height: auto; /* Allow natural height on mobile */
+    }
+    
+    #ai-advisor-chat-root, .market-intelligence-container {
+        min-height: 500px; /* Increased height on mobile for better usability */
         height: auto; /* Allow natural height on mobile */
     }
 
