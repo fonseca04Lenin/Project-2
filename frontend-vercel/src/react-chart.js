@@ -90,6 +90,14 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            left: 20,
+                            right: 20,
+                            top: 10,
+                            bottom: 10
+                        }
+                    },
                     interaction: {
                         intersect: false,
                         mode: 'index'
@@ -137,7 +145,8 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                                 font: {
                                     size: 12
                                 },
-                                maxTicksLimit: 8
+                                maxTicksLimit: 8,
+                                padding: 8
                             }
                         },
                         y: {
@@ -151,6 +160,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                                 font: {
                                     size: 12
                                 },
+                                padding: 12,
                                 callback: function(value) {
                                     return '$' + value.toFixed(2);
                                 }
@@ -366,7 +376,11 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
             key: 'chart',
             style: {
                 height: isModal ? '200px' : '280px',
-                position: 'relative'
+                position: 'relative',
+                padding: '8px',
+                backgroundColor: 'rgba(34, 197, 94, 0.02)',
+                borderRadius: '8px',
+                border: '1px solid rgba(34, 197, 94, 0.1)'
             }
         }, React.createElement('canvas', {
             ref: chartRef,
