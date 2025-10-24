@@ -1904,11 +1904,7 @@ function showMainContent(user) {
     const mainContent = document.getElementById('main-content');
     const usernameDisplay = document.getElementById('username-display');
     
-    // Element check
-        marketpulseRoot: !!marketpulseRoot,
-        mainContent: !!mainContent,
-        usernameDisplay: !!usernameDisplay
-    });
+    // Element check completed
     
     if (!marketpulseRoot) {
         console.error('❌ marketpulse-root element not found');
