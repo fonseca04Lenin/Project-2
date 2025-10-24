@@ -3492,27 +3492,32 @@ async function updateLivePrices() {
 function getVisibleStocks() {
     const stocks = [];
 
-    // Add watchlist stocks
-    const watchlistItems = document.querySelectorAll('.watchlist-item');
+    // Add watchlist stocks - updated to match current React component structure
+    const watchlistItems = document.querySelectorAll('.p-4.rounded-lg.bg-secondary\\/50');
     watchlistItems.forEach(item => {
-        const symbolElement = item.querySelector('.watchlist-item-symbol');
+        const symbolElement = item.querySelector('p.text-sm.text-muted-foreground');
         if (symbolElement) {
             stocks.push({
-                symbol: symbolElement.textContent,
+                symbol: symbolElement.textContent.trim(),
                 type: 'watchlist',
                 element: item
             });
         }
     });
 
-    // Add current search result
-    const searchResult = document.querySelector('#stockCard .stock-symbol');
+    // Add current search result - updated to match current search card structure
+    const searchResult = document.querySelector('#stockCard p.text-sm.text-muted-foreground');
     if (searchResult && stockResults.style.display !== 'none') {
         stocks.push({
-            symbol: searchResult.textContent,
+            symbol: searchResult.textContent.trim(),
             type: 'search',
             element: document.getElementById('stockCard')
         });
+    }
+
+    // Debug logging
+    if (stocks.length > 0) {
+        console.log(`🔍 Found ${stocks.length} visible stocks for live pricing:`, stocks.map(s => `${s.symbol} (${s.type})`));
     }
 
     return stocks;
@@ -3560,57 +3565,64 @@ async function updateSingleStockPrice(symbol, type) {
 
 // Update price in DOM elements
 function updatePriceInDOM(symbol, price, change, changePercent, type) {
+    console.log(`💰 Updating ${symbol} price: $${price} (${changePercent >= 0 ? '+' : ''}${changePercent}%) - ${type}`);
+    
     if (type === 'watchlist') {
-        const watchlistItem = Array.from(document.querySelectorAll('.watchlist-item')).find(item => {
-            const symbolEl = item.querySelector('.watchlist-item-symbol');
-            return symbolEl && symbolEl.textContent === symbol;
+        // Find watchlist item by symbol using current React component structure
+        const watchlistItem = Array.from(document.querySelectorAll('.p-4.rounded-lg.bg-secondary\\/50')).find(item => {
+            const symbolEl = item.querySelector('p.text-sm.text-muted-foreground');
+            return symbolEl && symbolEl.textContent.trim() === symbol;
         });
 
         if (watchlistItem) {
-            const priceElement = watchlistItem.querySelector('.watchlist-item-price');
-            const perfElement = watchlistItem.querySelector('.watchlist-item-performance');
+            const priceElement = watchlistItem.querySelector('p.text-2xl.font-bold.text-primary');
+            const changeElement = watchlistItem.querySelector('span.badge');
 
             if (priceElement) {
                 priceElement.textContent = `$${price.toFixed(2)}`;
+                console.log(`✅ Updated watchlist price for ${symbol}`);
             }
 
-            if (perfElement && changePercent !== undefined) {
-                const perfClass = changePercent > 0 ? 'watchlist-perf-up' :
-                                changePercent < 0 ? 'watchlist-perf-down' : 'watchlist-perf-flat';
-                const perfText = changePercent === 0 ? 'No change' :
-                               `${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}% today`;
+            if (changeElement && changePercent !== undefined) {
+                const changeClass = changePercent >= 0 ? 'bg-primary' : 'bg-destructive';
+                const changeIcon = changePercent >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down';
+                const changeSign = changePercent >= 0 ? '+' : '';
 
-                perfElement.className = `watchlist-item-performance ${perfClass}`;
-                perfElement.textContent = perfText;
-
-                // Update price element class too
-                if (priceElement) {
-                    priceElement.className = `watchlist-item-price ${perfClass}`;
-                }
+                changeElement.className = `badge ${changeClass}`;
+                changeElement.innerHTML = `
+                    <i class="${changeIcon}"></i>
+                    ${changeSign}$${Math.abs(change).toFixed(2)} (${changeSign}${changePercent.toFixed(2)}%)
+                `;
+                console.log(`✅ Updated watchlist change for ${symbol}`);
             }
+        } else {
+            console.log(`❌ Could not find watchlist item for ${symbol}`);
         }
     } else if (type === 'search') {
         const stockCard = document.getElementById('stockCard');
         if (stockCard) {
-            const priceElement = stockCard.querySelector('.current-price');
-            const changeElement = stockCard.querySelector('.price-change');
+            const priceElement = stockCard.querySelector('p.text-2xl.font-bold.text-primary');
+            const changeElement = stockCard.querySelector('span.badge');
 
             if (priceElement) {
                 priceElement.textContent = `$${price.toFixed(2)}`;
+                console.log(`✅ Updated search price for ${symbol}`);
             }
 
             if (changeElement && change !== undefined && changePercent !== undefined) {
-                const changeClass = change >= 0 ? 'positive' : 'negative';
+                const changeClass = change >= 0 ? 'bg-primary' : 'bg-destructive';
                 const changeIcon = change >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down';
                 const changeSign = change >= 0 ? '+' : '';
 
-                changeElement.className = `price-change ${changeClass}`;
+                changeElement.className = `badge ${changeClass}`;
                 changeElement.innerHTML = `
                     <i class="${changeIcon}"></i>
-                    ${changeSign}$${Math.abs(change).toFixed(2)}
-                    (${changeSign}${changePercent.toFixed(2)}%)
+                    ${changeSign}$${Math.abs(change).toFixed(2)} (${changeSign}${changePercent.toFixed(2)}%)
                 `;
+                console.log(`✅ Updated search change for ${symbol}`);
             }
+        } else {
+            console.log(`❌ Could not find search card for ${symbol}`);
         }
     }
 }
