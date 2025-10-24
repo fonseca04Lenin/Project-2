@@ -145,6 +145,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 chartInstanceRef.current.data.labels = chartData.map(item => item.formattedDate);
                 chartInstanceRef.current.data.datasets[0].data = chartData.map(item => item.price);
                 chartInstanceRef.current.data.datasets[0].label = `${symbol} Price`;
+                chartInstanceRef.current.data.datasets[0].pointRadius = 0; // No circles for any time range
                 chartInstanceRef.current.update('active');
             } else {
                 // Create new chart
@@ -160,7 +161,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                             borderWidth: 3,
                             fill: true,
                             tension: 0.4,
-                            pointRadius: 0,
+                            pointRadius: timeRange === '30d' ? 0 : 0, // No circles for any time range
                             pointHoverRadius: 6,
                             pointHoverBackgroundColor: '#22c55e',
                             pointHoverBorderColor: '#ffffff',
