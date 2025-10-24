@@ -1356,17 +1356,36 @@ function displayModernChart(chartData, symbol) {
         return;
     }
 
+    // Check if React and StockChart are available
+    if (typeof React === 'undefined') {
+        console.error('React not loaded');
+        chartContainer.innerHTML = '<div style="padding: 20px; color: #ef4444;">React not loaded. Please refresh the page.</div>';
+        return;
+    }
+
+    if (typeof window.StockChart === 'undefined') {
+        console.error('StockChart component not loaded');
+        chartContainer.innerHTML = '<div style="padding: 20px; color: #ef4444;">Chart component not loaded. Please refresh the page.</div>';
+        return;
+    }
+
     // Clear any existing chart
     chartContainer.innerHTML = '';
     
-    // Create React root and render chart
-    const chartRoot = ReactDOM.createRoot(chartContainer);
-    chartRoot.render(React.createElement(StockChart, {
-        symbol: symbol,
-        data: chartData,
-        isModal: false,
-        onClose: closeChartSection
-    }));
+    try {
+        // Create React root and render chart
+        const chartRoot = ReactDOM.createRoot(chartContainer);
+        chartRoot.render(React.createElement(StockChart, {
+            symbol: symbol,
+            data: chartData,
+            isModal: false,
+            onClose: closeChartSection
+        }));
+        console.log('✅ Chart rendered successfully');
+    } catch (error) {
+        console.error('❌ Error rendering chart:', error);
+        chartContainer.innerHTML = `<div style="padding: 20px; color: #ef4444;">Error rendering chart: ${error.message}</div>`;
+    }
 }
 
 // Close chart section
@@ -2829,7 +2848,7 @@ function openStockDetailsModal(symbol, isFromWatchlist = false) {
     if (isFromWatchlist) {
         loadWatchlistStockDetails(symbol);
     } else {
-        loadStockDetails(symbol);
+    loadStockDetails(symbol);
     }
 }
 
