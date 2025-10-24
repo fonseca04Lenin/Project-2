@@ -1427,19 +1427,58 @@ async function updateMarketStatus() {
 
 // News functionality
 async function loadMarketNews() {
+    console.log('🔄 Refreshing market news...');
+    
+    // Add loading state to refresh button
+    if (refreshNewsBtn) {
+        const icon = refreshNewsBtn.querySelector('i');
+        if (icon) {
+            icon.classList.add('fa-spin');
+        }
+        refreshNewsBtn.disabled = true;
+    }
+    
+    // Show loading state in news container
+    if (newsContainer) {
+        newsContainer.innerHTML = `
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Refreshing news...</p>
+            </div>
+        `;
+    }
+    
     try {
         const response = await fetch(`${API_BASE_URL}/api/news/market`, {
-            credentials: 'include'
+            credentials: 'include',
+            cache: 'no-cache', // Force fresh data
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
         });
+        
+        console.log('📰 News API response:', response.status);
         const data = await response.json();
         
         if (response.ok) {
+            console.log('✅ News loaded successfully:', data.length, 'articles');
             displayNews(data);
         } else {
+            console.error('❌ News API error:', response.status, data);
             displayNewsError();
         }
     } catch (error) {
+        console.error('❌ News fetch error:', error);
         displayNewsError();
+    } finally {
+        // Remove loading state from refresh button
+        if (refreshNewsBtn) {
+            const icon = refreshNewsBtn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-spin');
+            }
+            refreshNewsBtn.disabled = false;
+        }
     }
 }
 
