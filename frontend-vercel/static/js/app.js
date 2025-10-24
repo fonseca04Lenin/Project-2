@@ -1292,25 +1292,27 @@ function closeChartSection() {
     if (chartSelectedSymbol) chartSelectedSymbol.textContent = '';
 }
 
-// Modify viewChart to show chart below search card instead of scrolling to bottom
+// Modify viewChart to highlight the selected stock and show symbol in chart header
 async function viewChart(symbol) {
     try {
         // Remove previous highlights
         document.querySelectorAll('.stock-card.selected, .watchlist-item.selected').forEach(el => {
             el.classList.remove('selected');
         });
-        
-        // Highlight the selected stock card
+        // Highlight the selected stock card or watchlist item
+        // Try to find in stockCard
         if (stockCard && stockCard.innerHTML.includes(symbol)) {
             stockCard.classList.add('selected');
         }
-        
         // Try to find in watchlist
         document.querySelectorAll('.watchlist-item').forEach(item => {
             if (item.innerHTML.includes(symbol)) {
                 item.classList.add('selected');
             }
         });
+        // Show selected symbol in chart header
+        const chartSelectedSymbol = document.getElementById('chartSelectedSymbol');
+        if (chartSelectedSymbol) chartSelectedSymbol.textContent = symbol;
 
         const response = await fetch(`${API_BASE_URL}/api/chart/${symbol}`, {
             credentials: 'include'
@@ -1318,126 +1320,32 @@ async function viewChart(symbol) {
         const data = await response.json();
 
         if (response.ok) {
-            // Create chart container right below the search card
-            displayChartBelowSearchCard(data, symbol);
+            displayChart(data, symbol);
+            
+            // Debug chart section visibility
+            
+            chartSection.style.display = 'block';
+            
+            // Force the chart section to be visible and scroll to it
+            chartSection.style.visibility = 'visible';
+            chartSection.style.opacity = '1';
+            chartSection.style.position = 'relative';
+            chartSection.style.zIndex = '10';
+            
+            // Scroll to the chart section
+            chartSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Check if canvas exists
+            const canvas = document.getElementById('stockChart');
+            if (canvas) {
+            }
+            
         } else {
             showToast(data.error || 'Error loading chart data', 'error');
         }
     } catch (error) {
         showToast('Error loading chart data', 'error');
     }
-}
-
-// Display chart directly below the search card
-function displayChartBelowSearchCard(chartData, symbol) {
-    // Remove any existing chart below search card
-    const existingChart = document.getElementById('searchCardChart');
-    if (existingChart) {
-        existingChart.remove();
-    }
-    
-    // Create chart container
-    const chartContainer = document.createElement('div');
-    chartContainer.id = 'searchCardChart';
-    chartContainer.className = 'search-card-chart';
-    chartContainer.innerHTML = `
-        <div class="chart-header">
-            <h3><i class="fas fa-chart-area"></i> ${symbol} - 30 Day Price History</h3>
-            <button class="close-chart-btn" onclick="closeSearchCardChart()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="chart-canvas-container">
-            <canvas id="searchCardChartCanvas"></canvas>
-        </div>
-    `;
-    
-    // Insert chart container right after the stock results
-    const stockResults = document.getElementById('stockResults');
-    if (stockResults) {
-        stockResults.insertAdjacentElement('afterend', chartContainer);
-        
-        // Create the chart
-        setTimeout(() => {
-            const ctx = document.getElementById('searchCardChartCanvas').getContext('2d');
-            
-            // Destroy existing chart if it exists
-            if (window.searchCardChart) {
-                window.searchCardChart.destroy();
-            }
-
-            const labels = chartData.map(item => item.date);
-            const prices = chartData.map(item => item.price);
-
-            window.searchCardChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: `${symbol} Price`,
-                        data: prices,
-                        borderColor: '#4ade80',
-                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#ffffff'
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#94a3b8',
-                                maxTicksLimit: 8
-                            }
-                        },
-                        y: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#94a3b8',
-                                callback: function(value) {
-                                    return '$' + value.toFixed(2);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }, 100);
-    }
-}
-
-// Close chart below search card
-function closeSearchCardChart() {
-    const chartContainer = document.getElementById('searchCardChart');
-    if (chartContainer) {
-        chartContainer.remove();
-    }
-    
-    // Destroy chart instance
-    if (window.searchCardChart) {
-        window.searchCardChart.destroy();
-        window.searchCardChart = null;
-    }
-    
-    // Remove selection highlight
-    document.querySelectorAll('.stock-card.selected').forEach(el => {
-        el.classList.remove('selected');
-    });
 }
 
 function displayChart(chartData, symbol) {

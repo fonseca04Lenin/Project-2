@@ -782,61 +782,6 @@ body {
     border-color: rgba(0, 217, 36, 0.5); /* hover:border-primary/50 */
 }
 
-/* Chart below search card */
-.search-card-chart {
-    background: rgba(44, 44, 46, 0.5); /* Same as watchlist cards */
-    backdrop-filter: blur(20px);
-    border-radius: 0.5rem;
-    border: 1px solid var(--border-color);
-    margin-top: 1rem;
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    animation: slideIn 0.4s ease;
-}
-
-.search-card-chart .chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.search-card-chart .chart-header h3 {
-    color: var(--text-primary);
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.search-card-chart .chart-header h3 i {
-    color: var(--primary-color);
-}
-
-.search-card-chart .close-chart-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.search-card-chart .close-chart-btn:hover {
-    background: var(--error-color);
-    border-color: var(--error-color);
-    color: white;
-}
-
-.search-card-chart .chart-canvas-container {
-    height: 400px;
-    position: relative;
-}
-
 /* Content Grid - Top row (watchlist and news) */
 .content-grid {
     display: contents; /* Allow grid items to participate in parent grid */
