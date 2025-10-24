@@ -1281,21 +1281,8 @@ body {
     position: relative;
 }
 
-/* Enhanced chart container styles */
-.chart-container {
-    position: relative;
-    background: linear-gradient(135deg, rgba(34,197,94,0.05) 0%, rgba(139,92,246,0.05) 100%);
-    border-radius: 12px;
-    padding: 16px;
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
-}
-
-.chart-container:hover {
-    border-color: rgba(34, 197, 94, 0.4);
-    box-shadow: 0 8px 32px rgba(34, 197, 94, 0.1);
-}
+/* Enhanced chart container styles - REMOVED */
+/* Chart container styling removed to prevent background box conflicts */
 
 /* Chart section enhancements */
 .chart-section {
@@ -1341,15 +1328,18 @@ body {
     }
 }
 
+/* Enhanced chart container styles - REMOVED */
+/* Chart container styling removed to prevent background box conflicts */
+
 /* Chart Section */
 .chart-container {
-    background: var(--card-bg);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    border: 1px solid var(--border-color);
-    backdrop-filter: blur(10px);
-    height: 400px; /* Add height for the chart */
-    position: relative; /* For proper canvas positioning */
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    backdrop-filter: none;
+    height: auto;
+    position: relative;
 }
 
 .chart-container canvas {
