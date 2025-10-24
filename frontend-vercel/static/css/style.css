@@ -755,6 +755,21 @@ body {
     grid-row: 1; /* First row */
     margin-bottom: 2rem;
     animation: slideIn 0.4s ease;
+    max-width: 1200px; /* Match dashboard width */
+    margin: 0 auto; /* Center the stock results */
+}
+
+/* Stock Card - Make it wider */
+.stock-card {
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 1.5rem;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    transition: all 0.4s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    width: 100%; /* Full width of container */
+    min-height: 200px; /* Ensure adequate height */
 }
 
 /* Content Grid - Top row (watchlist and news) */
@@ -762,13 +777,40 @@ body {
     display: contents; /* Allow grid items to participate in parent grid */
 }
 
+/* Grid positioning for components */
+#react-watchlist-root {
+    grid-column: 1; /* Left column */
+    grid-row: 2; /* Second row */
+}
+
+.news-section {
+    grid-column: 2; /* Right column */
+    grid-row: 2; /* Second row */
+}
+
+#ai-advisor-chat-root {
+    grid-column: 1; /* Left column */
+    grid-row: 3; /* Third row */
+}
+
+.market-intelligence-container {
+    grid-column: 2; /* Right column */
+    grid-row: 3; /* Third row */
+}
+
 /* When stock results are shown, adjust grid layout */
 .dashboard.with-stock-results {
     grid-template-rows: auto auto auto; /* Three rows when stock results shown */
 }
 
-.dashboard.with-stock-results .content-grid > * {
-    grid-row: 2; /* Move content to second row when stock results shown */
+.dashboard.with-stock-results #react-watchlist-root,
+.dashboard.with-stock-results .news-section {
+    grid-row: 2; /* Move to second row when stock results shown */
+}
+
+.dashboard.with-stock-results #ai-advisor-chat-root,
+.dashboard.with-stock-results .market-intelligence-container {
+    grid-row: 3; /* Move to third row when stock results shown */
 }
 
 /* Top row components - Watchlist and News */
