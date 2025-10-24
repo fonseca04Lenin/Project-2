@@ -3,7 +3,8 @@
  * Exact same functionality as the original, but with updated styling
  */
 
-console.log('🚀 Vanilla Search Bar script starting to load...');
+// Vanilla Search Bar - Production Version
+// Removed console.log statements for cleaner production code
 
 // Popular stocks database for instant suggestions
 const VANILLA_POPULAR_STOCKS = [
@@ -27,9 +28,9 @@ async function wakeUpBackend() {
             credentials: 'include',
             signal: AbortSignal.timeout(3000)
         });
-        console.log('Backend wake up successful');
+        // Backend wake up successful
     } catch (error) {
-        console.log('Backend wake up failed:', error);
+        // Backend wake up failed
     }
 }
 
@@ -231,7 +232,7 @@ function displaySearchSuggestions(container, suggestions, inputElement) {
 
 // Initialize vanilla search bar
 function initializeVanillaSearchBar() {
-    console.log('🔍 Initializing Vanilla Search Bar...');
+    // Initializing Vanilla Search Bar
     
     const searchSection = document.querySelector('.search-section');
     if (!searchSection) {
@@ -272,7 +273,7 @@ function initializeVanillaSearchBar() {
         setupSearchSuggestions();
     }
     
-    console.log('✅ Vanilla Search Bar initialized successfully');
+    // Vanilla Search Bar initialized successfully
     return true;
 }
 
@@ -283,4 +284,4 @@ if (document.readyState === 'loading') {
     initializeVanillaSearchBar();
 }
 
-console.log('✅ Vanilla Search Bar script loaded');
+// Vanilla Search Bar script loaded
