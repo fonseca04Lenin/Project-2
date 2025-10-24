@@ -763,9 +763,8 @@ body {
     border: 1px solid var(--border-color);
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-height: 600px; /* Fixed height for top row components */
-    height: 600px; /* Exact height to match */
-    overflow-y: auto; /* Allow scrolling if content exceeds height */
+    min-height: 500px; /* Reduced height to better fit content */
+    height: auto; /* Allow natural height based on content */
 }
 
 /* Bottom row components - AI Chat and Market Intelligence */
@@ -788,11 +787,12 @@ body {
     border-color: var(--primary-color);
 }
 
-/* Watchlist container scrolling - limit content area for scrolling */
+/* Watchlist container - remove scrolling and optimize height */
 .watchlist-section .watchlist-container {
-    max-height: 400px; /* Limit content area to enable scrolling */
-    overflow-y: auto; /* Enable scrolling for more than 3 stocks */
-    padding-right: 8px; /* Add space for scrollbar */
+    height: auto; /* Allow natural height */
+    max-height: none; /* Remove height restriction */
+    overflow-y: visible; /* Remove scrolling */
+    padding-right: 0; /* Remove scrollbar space */
 }
 
 /* Custom scrollbar styling for watchlist section to match news section */
@@ -1275,7 +1275,7 @@ body {
     }
     
     .watchlist-section, .chart-section, .news-section {
-        min-height: 400px; /* Reduced height on mobile */
+        min-height: 350px; /* Further reduced height on mobile */
         height: auto; /* Allow natural height on mobile */
     }
     
