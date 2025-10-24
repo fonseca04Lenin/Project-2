@@ -2655,20 +2655,31 @@ function setupStockCardListeners() {
         stockCard.onclick = function(e) {
             // Only trigger if not clicking a button
             if (!e.target.closest('button')) {
-                const symbol = stockCard.querySelector('.stock-symbol')?.textContent;
-                if (symbol) openStockDetailsModal(symbol);
+                // Look for symbol in the current Tailwind structure
+                const symbolElement = stockCard.querySelector('p.text-sm.text-muted-foreground');
+                if (symbolElement) {
+                    const symbol = symbolElement.textContent.trim();
+                    if (symbol) openStockDetailsModal(symbol);
+                }
             }
         };
     }
 }
 
 function setupWatchlistListeners() {
-    if (watchlistContainer) {
-        watchlistContainer.onclick = function(e) {
-            const item = e.target.closest('.watchlist-item');
+    // Use event delegation for React watchlist items
+    const watchlistRoot = document.getElementById('react-watchlist-root');
+    if (watchlistRoot) {
+        watchlistRoot.onclick = function(e) {
+            // Look for watchlist item container
+            const item = e.target.closest('.p-4.rounded-lg.bg-secondary\\/50');
             if (item && !e.target.closest('button')) {
-                const symbol = item.querySelector('.watchlist-item-symbol')?.textContent;
-                if (symbol) openStockDetailsModal(symbol);
+                // Look for symbol in the Tailwind structure
+                const symbolElement = item.querySelector('p.text-sm.text-muted-foreground');
+                if (symbolElement) {
+                    const symbol = symbolElement.textContent.trim();
+                    if (symbol) openStockDetailsModal(symbol);
+                }
             }
         };
     }
@@ -2684,7 +2695,19 @@ const origDisplayWatchlist = displayWatchlist;
 displayWatchlist = function(stocks) {
     origDisplayWatchlist(stocks);
     setupWatchlistListeners();
-}; 
+};
+
+// Set up listeners when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setupStockCardListeners();
+    setupWatchlistListeners();
+});
+
+// Also set up listeners after a delay to catch React components
+setTimeout(() => {
+    setupStockCardListeners();
+    setupWatchlistListeners();
+}, 2000); 
 
 // Define the modal functions
 function openStockDetailsModal(symbol) {
