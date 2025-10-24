@@ -3,6 +3,7 @@ let watchlistData = [];
 let currentStock = null;
 let chart = null; // Add chart variable declaration
 let searchTimeout = null; // Add timeout for search debouncing
+let currentNewsPage = 1; // Track current news page for refresh functionality
 
 // Debug function removed - cleaner production code
 
@@ -35,7 +36,7 @@ function initializeApp() {
     
     // Set up event listeners
     if (refreshNewsBtn) {
-        refreshNewsBtn.addEventListener('click', loadMarketNews);
+        refreshNewsBtn.addEventListener('click', () => loadMarketNews(true));
     }
     
     // Initialize market intelligence search functionality
@@ -1426,8 +1427,17 @@ async function updateMarketStatus() {
 }
 
 // News functionality
-async function loadMarketNews() {
+async function loadMarketNews(isRefresh = false) {
     console.log('🔄 Refreshing market news...');
+    
+    // Increment page for refresh, reset to 1 for initial load
+    if (isRefresh) {
+        currentNewsPage++;
+        console.log('📄 Loading news page:', currentNewsPage);
+    } else {
+        currentNewsPage = 1;
+        console.log('📄 Loading initial news page:', currentNewsPage);
+    }
     
     // Add loading state to refresh button
     if (refreshNewsBtn) {
@@ -1443,13 +1453,13 @@ async function loadMarketNews() {
         newsContainer.innerHTML = `
             <div class="loading-state">
                 <i class="fas fa-spinner fa-spin"></i>
-                <p>Refreshing news...</p>
+                <p>${isRefresh ? 'Loading more news...' : 'Loading news...'}</p>
             </div>
         `;
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/api/news/market`, {
+        const response = await fetch(`${API_BASE_URL}/api/news/market?page=${currentNewsPage}`, {
             credentials: 'include',
             cache: 'no-cache', // Force fresh data
             headers: {
