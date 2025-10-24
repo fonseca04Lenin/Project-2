@@ -376,11 +376,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
             key: 'chart',
             style: {
                 height: isModal ? '200px' : '280px',
-                position: 'relative',
-                padding: '4px',
-                backgroundColor: 'rgba(34, 197, 94, 0.02)',
-                borderRadius: '8px',
-                border: '1px solid rgba(34, 197, 94, 0.1)'
+                position: 'relative'
             }
         }, React.createElement('canvas', {
             ref: chartRef,
