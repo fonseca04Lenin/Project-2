@@ -23,7 +23,7 @@ try {
     // Set persistence to browser local storage for better reliability
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
         .then(() => {
-            console.log('✅ Firebase auth persistence set to LOCAL');
+            // Firebase auth persistence set to LOCAL
         })
         .catch((error) => {
             console.error('❌ Could not set Firebase auth persistence:', error);
@@ -32,9 +32,9 @@ try {
     // Enhanced auth state listener with better error handling
     auth.onAuthStateChanged((user) => {
         if (user) {
-            console.log('🔐 Firebase auth state: User authenticated', user.email);
+            // Firebase auth state: User authenticated
         } else {
-            console.log('🔐 Firebase auth state: No user');
+            // Firebase auth state: No user
         }
     }, (error) => {
         console.error('❌ Firebase auth state error:', error);

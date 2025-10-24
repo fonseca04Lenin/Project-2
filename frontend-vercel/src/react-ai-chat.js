@@ -17,15 +17,15 @@ const AIAdvisorChat = () => {
 
     // Initialize component
     useEffect(() => {
-        console.log('🤖 AI Advisor Chat component mounted');
+        // AI Advisor Chat component mounted
         
         // Set up authentication listener
         const authUnsubscribe = window.firebaseAuth?.onAuthStateChanged((user) => {
             setCurrentUser(user);
             if (user) {
-                console.log('🤖 User authenticated for AI chat:', user.email);
+                // User authenticated for AI chat
             } else {
-                console.log('🤖 User not authenticated for AI chat');
+                // User not authenticated for AI chat
                 setMessages([]);
             }
         });
