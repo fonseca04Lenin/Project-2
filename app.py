@@ -1039,11 +1039,25 @@ def add_to_watchlist():
     try:
         print(f"🔍 POST watchlist request - User: {user.id}, Symbol: {symbol}, Company: {company_name}")
         
+        # Get current stock price to store as original price
+        current_price = None
+        try:
+            stock = Stock(symbol, yahoo_finance_api)
+            stock.retrieve_data()
+            if stock.price and stock.price > 0:
+                current_price = stock.price
+                print(f"💰 Current price for {symbol}: ${current_price}")
+            else:
+                print(f"⚠️ Could not get current price for {symbol}")
+        except Exception as price_error:
+            print(f"⚠️ Error getting current price for {symbol}: {price_error}")
+        
         # Re-enabled with proper watchlist service
         result = watchlist_service.add_stock(
             user.id,
             symbol,
             company_name,
+            current_price=current_price,
             category=category,
             notes=notes,
             priority=priority,
@@ -1260,6 +1274,80 @@ def get_company_info(symbol):
         })
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+
+@app.route('/api/watchlist/<symbol>/details')
+def get_watchlist_stock_details(symbol):
+    """Get detailed information for a stock in user's watchlist including watchlist-specific data"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    symbol = symbol.upper()
+    
+    try:
+        # Get watchlist item data
+        watchlist_item = watchlist_service.get_stock(user.id, symbol)
+        if not watchlist_item:
+            return jsonify({'error': f'Stock "{symbol}" not found in watchlist'}), 404
+        
+        # Get current stock data
+        stock = Stock(symbol, yahoo_finance_api)
+        stock.retrieve_data()
+        finnhub_info = finnhub_api.get_company_profile(symbol)
+        info = yahoo_finance_api.get_info(symbol)
+        
+        if not stock.name or 'not found' in stock.name.lower():
+            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+        
+        # Calculate percentage change if we have original price
+        percentage_change = None
+        price_change = None
+        original_price = watchlist_item.get('original_price')
+        current_price = stock.price
+        
+        # Handle legacy data: if no original price, set current price as original
+        if not original_price and current_price:
+            print(f"🔄 Setting current price as original price for legacy stock {symbol}")
+            watchlist_service.update_stock(user.id, symbol, original_price=current_price)
+            original_price = current_price
+        
+        if original_price and current_price and original_price > 0:
+            price_change = current_price - original_price
+            percentage_change = (price_change / original_price) * 100
+        
+        # Format date added
+        added_at = watchlist_item.get('added_at')
+        if isinstance(added_at, datetime):
+            date_added_str = added_at.strftime('%B %d, %Y')
+        else:
+            date_added_str = 'Unknown'
+        
+        return jsonify({
+            'symbol': stock.symbol,
+            'name': stock.name,
+            'ceo': finnhub_info.get('ceo', '-') or '-',
+            'description': finnhub_info.get('description', '-') or '-',
+            'price': stock.price,
+            'marketCap': info.get('marketCap', '-'),
+            'peRatio': info.get('trailingPE', '-') or info.get('forwardPE', '-'),
+            'dividendYield': info.get('dividendYield', '-'),
+            'website': info.get('website', '-'),
+            'headquarters': (info.get('city', '-') + (', ' + info.get('state', '-') if info.get('state') else '')) if info.get('city') else '-',
+            # Watchlist-specific data
+            'date_added': date_added_str,
+            'original_price': original_price,
+            'price_change': price_change,
+            'percentage_change': percentage_change,
+            'category': watchlist_item.get('category', 'General'),
+            'notes': watchlist_item.get('notes', ''),
+            'priority': watchlist_item.get('priority', 'medium'),
+            'target_price': watchlist_item.get('target_price'),
+            'stop_loss': watchlist_item.get('stop_loss')
+        })
+        
+    except Exception as e:
+        print(f"⚠️ Error getting watchlist stock details for {symbol}: {e}")
+        return jsonify({'error': f'Failed to get stock details for {symbol}'}), 500
 
 @app.route('/api/alerts', methods=['GET'])
 def get_alerts():
