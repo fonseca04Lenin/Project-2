@@ -4,21 +4,123 @@
  */
 
 const { useState, useEffect, useRef, useMemo } = React;
-const { 
-    LineChart, 
-    Line, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
-    ResponsiveContainer, 
-    ReferenceLine,
-    Area,
-    AreaChart,
-    Brush
-} = Recharts;
 
-const StockChart = ({ symbol, data, isModal = false, onClose }) => {
+// Check if Recharts is available
+if (typeof Recharts === 'undefined') {
+    console.error('Recharts library not loaded. Please ensure Recharts is included before this script.');
+    
+    // Fallback chart component
+    window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
+        const [chartData, setChartData] = useState([]);
+        
+        useEffect(() => {
+            if (data && Array.isArray(data)) {
+                setChartData(data);
+            }
+        }, [data]);
+        
+        const maxPrice = Math.max(...chartData.map(d => d.price));
+        const minPrice = Math.min(...chartData.map(d => d.price));
+        const priceRange = maxPrice - minPrice;
+        
+        return React.createElement('div', {
+            style: { 
+                width: '100%',
+                height: isModal ? '300px' : '400px',
+                backgroundColor: 'rgba(16, 18, 27, 0.8)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid rgba(34, 197, 94, 0.2)',
+                position: 'relative'
+            }
+        }, [
+            React.createElement('div', {
+                key: 'header',
+                style: {
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '16px',
+                    paddingBottom: '12px',
+                    borderBottom: '1px solid rgba(34, 197, 94, 0.2)'
+                }
+            }, [
+                React.createElement('h3', {
+                    key: 'title',
+                    style: {
+                        fontSize: '20px',
+                        fontWeight: '700',
+                        color: '#22c55e',
+                        margin: 0
+                    }
+                }, `${symbol} - Price Chart`),
+                isModal && React.createElement('button', {
+                    key: 'close',
+                    onClick: onClose,
+                    style: {
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        color: '#ef4444',
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                    }
+                }, '✕')
+            ]),
+            React.createElement('div', {
+                key: 'chart',
+                style: {
+                    height: isModal ? '200px' : '280px',
+                    position: 'relative',
+                    backgroundColor: 'rgba(34, 197, 94, 0.05)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(34, 197, 94, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    gap: '12px'
+                }
+            }, [
+                React.createElement('div', {
+                    key: 'icon',
+                    style: { fontSize: '48px', opacity: 0.3 }
+                }, '📈'),
+                React.createElement('div', {
+                    key: 'message',
+                    style: { 
+                        color: '#a1a1aa', 
+                        fontSize: '16px',
+                        textAlign: 'center'
+                    }
+                }, 'Chart library loading...'),
+                React.createElement('div', {
+                    key: 'submessage',
+                    style: { 
+                        color: '#6b7280', 
+                        fontSize: '14px',
+                        textAlign: 'center'
+                    }
+                }, 'Please refresh the page if this persists')
+            ])
+        ]);
+    };
+} else {
+    const { 
+        LineChart, 
+        Line, 
+        XAxis, 
+        YAxis, 
+        CartesianGrid, 
+        Tooltip, 
+        ResponsiveContainer, 
+        ReferenceLine,
+        Area,
+        AreaChart,
+        Brush
+    } = Recharts;
+
+    const StockChart = ({ symbol, data, isModal = false, onClose }) => {
     const [chartData, setChartData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -403,5 +505,6 @@ const StockChart = ({ symbol, data, isModal = false, onClose }) => {
     ]);
 };
 
-// Export for use in other components
-window.StockChart = StockChart;
+    // Export for use in other components
+    window.StockChart = StockChart;
+}
