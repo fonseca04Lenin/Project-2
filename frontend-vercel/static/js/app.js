@@ -495,33 +495,35 @@ function displayStockResult(stock) {
     const priceChangeSign = stock.priceChange >= 0 ? '+' : '';
 
     stockCard.innerHTML = `
-        <div class="flex items-start justify-between mb-3">
-            <div>
-                <h3 class="font-semibold text-lg text-foreground">${stock.name}</h3>
-                <p class="text-sm text-muted-foreground">${stock.symbol}</p>
+        <div class="p-4 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
+            <div class="flex items-start justify-between mb-3">
+                <div>
+                    <h3 class="font-semibold text-lg text-foreground">${stock.name}</h3>
+                    <p class="text-sm text-muted-foreground">${stock.symbol}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-bold text-primary">$${stock.price.toFixed(2)}</p>
+                    <span class="badge ${priceChangeClass === 'positive' ? 'bg-primary' : 'bg-destructive'}">
+                        <i class="${priceChangeIcon}"></i>
+                        ${priceChangeSign}$${Math.abs(stock.priceChange).toFixed(2)} (${priceChangeSign}${stock.priceChangePercent.toFixed(2)}%)
+                    </span>
+                </div>
             </div>
-            <div class="text-right">
-                <p class="text-2xl font-bold text-primary">$${stock.price.toFixed(2)}</p>
-                <span class="badge ${priceChangeClass === 'positive' ? 'bg-primary' : 'bg-destructive'}">
-                    <i class="${priceChangeIcon}"></i>
-                    ${priceChangeSign}$${Math.abs(stock.priceChange).toFixed(2)} (${priceChangeSign}${stock.priceChangePercent.toFixed(2)}%)
-                </span>
+            <div class="flex gap-2">
+                <button class="btn btn-outline btn-sm flex-1" onclick="addToWatchlist('${stock.symbol}', '${stock.name || stock.symbol}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    Add to Watchlist
+                </button>
+                <button class="btn btn-outline btn-sm flex-1" onclick="viewChart('${stock.symbol}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                        <path d="M3 3v18h18"/>
+                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                    </svg>
+                    View Chart
+                </button>
             </div>
-        </div>
-        <div class="flex gap-2">
-            <button class="btn btn-outline btn-sm flex-1" onclick="addToWatchlist('${stock.symbol}', '${stock.name || stock.symbol}')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                Add to Watchlist
-            </button>
-            <button class="btn btn-outline btn-sm flex-1" onclick="viewChart('${stock.symbol}')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                    <path d="M3 3v18h18"/>
-                    <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
-                </svg>
-                View Chart
-            </button>
         </div>
     `;
     
