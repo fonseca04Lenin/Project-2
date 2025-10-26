@@ -105,6 +105,7 @@ class FirebaseUser(UserMixin):
         self.id = user_data.get('uid')
         self.name = user_data.get('name') or user_data.get('username')  # Support both
         self.email = user_data.get('email')
+        self.username = user_data.get('username')  # Add username field
         self.created_at = user_data.get('created_at')
         self.last_login = user_data.get('last_login')
     
@@ -227,15 +228,30 @@ class FirebaseService:
             # Store user in Firestore for session persistence
             try:
                 if db:
+                    # First check if user already exists in Firestore
+                    user_doc_ref = db.collection('users').document(uid)
+                    existing_user = user_doc_ref.get()
+                    
+                    # If user exists, get their existing data (especially username)
+                    existing_data = {}
+                    if existing_user.exists:
+                        existing_data = existing_user.to_dict()
+                        print(f"✅ Found existing user in Firestore with data: {existing_data}")
+                    
+                    # Merge existing data with new profile data
                     user_doc = {
                         'uid': uid,
                         'name': user_profile['name'],
                         'email': user_profile['email'],
-                        'created_at': user_profile['created_at'],
-                        'last_login': user_profile['last_login']
+                        'created_at': existing_data.get('created_at', user_profile['created_at']),
+                        'last_login': user_profile['last_login'],
+                        'username': existing_data.get('username', None)  # Keep existing username or None
                     }
-                    db.collection('users').document(uid).set(user_doc, merge=True)
+                    user_doc_ref.set(user_doc, merge=True)
                     print(f"✅ User stored in Firestore: {uid}")
+                    
+                    # Add username to user_profile for FirebaseUser
+                    user_profile['username'] = existing_data.get('username', None)
                 else:
                     print("⚠️ Firestore not available, user not stored")
             except Exception as store_e:
@@ -280,6 +296,48 @@ class FirebaseService:
             return True
         except Exception as e:
             print(f"❌ Error updating last login: {e}")
+            return False
+    
+    @staticmethod
+    def is_username_taken(username):
+        """Check if username is already taken"""
+        try:
+            if not firebase_initialized or not db:
+                print("❌ Firebase or Firestore not initialized")
+                return True  # Assume taken if we can't check
+                
+            # Query users collection for existing username
+            users_ref = db.collection('users')
+            query = users_ref.where('username', '==', username).limit(1)
+            docs = query.get()
+            
+            is_taken = len(docs) > 0
+            print(f"🔍 Username '{username}' {'is taken' if is_taken else 'is available'}")
+            return is_taken
+            
+        except Exception as e:
+            print(f"❌ Error checking username availability: {e}")
+            return True  # Assume taken if we can't check
+    
+    @staticmethod
+    def set_user_username(user_id, username):
+        """Set username for a user and return updated user data"""
+        try:
+            if not firebase_initialized or not db:
+                print("❌ Firebase or Firestore not initialized")
+                return False
+                
+            # Update user document with username
+            update_data = {
+                'username': username,
+                'updated_at': datetime.utcnow()
+            }
+            db.collection('users').document(user_id).update(update_data)
+            print(f"✅ Set username '{username}' for user: {user_id}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error setting username: {e}")
             return False
     
     @staticmethod
