@@ -1333,10 +1333,15 @@ def get_watchlist_stock_details(symbol):
     symbol = symbol.upper()
     
     try:
+        print(f"🔍 Getting watchlist details for symbol: {symbol}, user: {user.id}")
+        
         # Get watchlist item data
         watchlist_item = watchlist_service.get_stock(user.id, symbol)
         if not watchlist_item:
+            print(f"❌ Stock {symbol} not found in watchlist for user {user.id}")
             return jsonify({'error': f'Stock "{symbol}" not found in watchlist'}), 404
+        
+        print(f"✅ Found watchlist item for {symbol}")
         
         # Get current stock data
         stock = Stock(symbol, yahoo_finance_api)
