@@ -2546,8 +2546,6 @@ async function loadStockDetails(symbol) {
                 
                 document.getElementById('detailsCategory').textContent = data.category || '-';
                 document.getElementById('detailsNotes').textContent = data.notes || '-';
-                document.getElementById('detailsTargetPrice').textContent = data.target_price ? data.target_price.toFixed(2) : '-';
-                document.getElementById('detailsStopLoss').textContent = data.stop_loss ? data.stop_loss.toFixed(2) : '-';
             }
         } else {
             document.getElementById('detailsCompanyName').textContent = 'Not found';
@@ -2733,8 +2731,6 @@ async function loadWatchlistStockDetails(symbol) {
                 
                 document.getElementById('detailsCategory').textContent = data.category || '-';
                 document.getElementById('detailsNotes').textContent = data.notes || '-';
-                document.getElementById('detailsTargetPrice').textContent = data.target_price ? data.target_price.toFixed(2) : '-';
-                document.getElementById('detailsStopLoss').textContent = data.stop_loss ? data.stop_loss.toFixed(2) : '-';
             }
         } else {
             // Show error message but don't overwrite company name yet
