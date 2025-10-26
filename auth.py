@@ -53,11 +53,29 @@ def login():
         
         # Check if this is a token-based login (Firebase Auth)
         id_token = data.get('idToken')
+        is_google_signin = data.get('isGoogleSignIn', False)
+        
         if id_token:
             print(f"🔐 Token-based login attempt with token length: {len(id_token)}")
+            if is_google_signin:
+                print("🔐 Google Sign-In detected")
+            
             # Firebase Authentication flow
             user = FirebaseService.authenticate_with_token(id_token)
             if user:
+                # Check if this is a new Google user who needs a username
+                if is_google_signin and not user.username:
+                    print(f"🆕 New Google user detected: {user.email}")
+                    return jsonify({
+                        'message': 'Google sign-in successful, username required',
+                        'needsUsername': True,
+                        'user': {
+                            'id': user.id,
+                            'name': user.name,
+                            'email': user.email
+                        }
+                    })
+                
                 login_user(user)
                 print(f"✅ Login successful for user: {user.email}")
                 return jsonify({
@@ -65,7 +83,8 @@ def login():
                     'user': {
                         'id': user.id,
                         'name': user.name,
-                        'email': user.email
+                        'email': user.email,
+                        'username': getattr(user, 'username', None)
                     }
                 })
             else:
@@ -92,6 +111,62 @@ def logout():
         session.clear()
         return jsonify({'message': 'Logout successful'})
 
+@auth.route('/api/auth/set-username', methods=['POST'])
+def set_username():
+    """Set username for Google Sign-In users"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request data'}), 400
+        
+        id_token = data.get('idToken')
+        username = data.get('username', '').strip()
+        
+        if not id_token:
+            return jsonify({'error': 'Authentication token required'}), 400
+        
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        if len(username) < 3:
+            return jsonify({'error': 'Username must be at least 3 characters long'}), 400
+        
+        if len(username) > 20:
+            return jsonify({'error': 'Username must be less than 20 characters'}), 400
+        
+        # Verify the token and get user
+        user = FirebaseService.authenticate_with_token(id_token)
+        if not user:
+            return jsonify({'error': 'Invalid authentication token'}), 401
+        
+        # Check if username is already taken
+        if FirebaseService.is_username_taken(username):
+            return jsonify({'error': 'Username is already taken. Please choose another.'}), 400
+        
+        # Set the username
+        if FirebaseService.set_user_username(user.id, username):
+            # Refresh user data from Firestore to get updated username
+            user = FirebaseService.authenticate_with_token(id_token)
+            if user:
+                login_user(user)
+                return jsonify({
+                    'message': 'Username set successfully',
+                    'user': {
+                        'id': user.id,
+                        'name': user.name,
+                        'email': user.email,
+                        'username': getattr(user, 'username', username)
+                    }
+                })
+            else:
+                return jsonify({'error': 'Failed to refresh user data'}), 500
+        else:
+            return jsonify({'error': 'Failed to set username. Please try again.'}), 500
+            
+    except Exception as e:
+        print(f"❌ Set username error: {e}")
+        return jsonify({'error': 'Failed to set username. Please try again.'}), 500
+
 @auth.route('/api/auth/user')
 def get_user():
     if current_user.is_authenticated:
@@ -99,7 +174,8 @@ def get_user():
             'user': {
                 'id': current_user.id,
                 'name': current_user.name,
-                'email': current_user.email
+                'email': current_user.email,
+                'username': getattr(current_user, 'username', None)
             }
         })
     else:
