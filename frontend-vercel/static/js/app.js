@@ -2606,8 +2606,13 @@ async function loadWatchlistStockDetails(symbol) {
     if (closeBtn) closeBtn.focus();
 
     try {
+        // Get auth headers for the request
+        const authHeaders = await getAuthHeaders();
+        
         // Fetch watchlist-specific company info from backend
         const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/details`, {
+            method: 'GET',
+            headers: authHeaders,
             credentials: 'include'
         });
         const data = await response.json();
@@ -2666,11 +2671,19 @@ async function loadWatchlistStockDetails(symbol) {
                 document.getElementById('detailsStopLoss').textContent = data.stop_loss ? data.stop_loss.toFixed(2) : '-';
             }
         } else {
-            document.getElementById('detailsCompanyName').textContent = 'Not found in watchlist';
+            // Show error message but don't overwrite company name yet
+            console.error('❌ Failed to load watchlist details:', data);
+            if (response.status === 401) {
+                document.getElementById('detailsCompanyName').textContent = 'Authentication required';
+            } else if (response.status === 404) {
+                document.getElementById('detailsCompanyName').textContent = 'Not found in watchlist';
+            } else {
+                document.getElementById('detailsCompanyName').textContent = 'Error loading data';
+            }
         }
     } catch (err) {
         document.getElementById('detailsCompanyName').textContent = 'Error loading data';
-        console.error('Error loading watchlist stock details:', err);
+        console.error('❌ Error loading watchlist stock details:', err);
     }
 
     // Fetch and display chart in modal (same as regular loadStockDetails)
