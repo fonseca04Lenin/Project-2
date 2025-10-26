@@ -317,10 +317,26 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         }
 
         // Sign in with Firebase Auth
-        const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(
-          formData.email,
-          formData.password
-        );
+        let userCredential;
+        try {
+          userCredential = await window.firebaseAuth.signInWithEmailAndPassword(
+            formData.email,
+            formData.password
+          );
+        } catch (authError) {
+          // Handle specific Firebase auth errors
+          if (authError.code === 'auth/invalid-login-credentials') {
+            throw new Error("Invalid email or password. If you signed up with Google, please use the 'Continue with Google' button.");
+          } else if (authError.code === 'auth/user-not-found') {
+            throw new Error("No account found with this email. Please create an account first.");
+          } else if (authError.code === 'auth/wrong-password') {
+            throw new Error("Incorrect password. Please try again.");
+          } else if (authError.code === 'auth/invalid-email') {
+            throw new Error("Please enter a valid email address.");
+          } else {
+            throw new Error(`Authentication failed: ${authError.message}`);
+          }
+        }
 
         // Get ID token and send to backend
         const idToken = await userCredential.user.getIdToken();
