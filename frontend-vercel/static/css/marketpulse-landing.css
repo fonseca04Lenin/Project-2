@@ -333,7 +333,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem 1.5rem 1rem 1.5rem;
-  border-bottom: 1px solid #0a0a0a;
+  border-bottom: 1px solid #2a2a2a;
   margin-bottom: 0;
   background-color: #000000;
 }
@@ -376,7 +376,7 @@ body {
   background: transparent;
   padding: 0.3rem;
   border-radius: 10px;
-  border: none;
+  border: 1px solid #2a2a2a;
 }
 
 .auth-tab {
@@ -412,6 +412,8 @@ body {
   opacity: 1 !important;
   background-color: transparent !important;
   background: transparent !important;
+  border-top: 1px solid #2a2a2a;
+  margin-top: 0.5rem;
 }
 
 .auth-field {
@@ -435,7 +437,7 @@ body {
 .auth-field input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1.5px solid #2a2a2a;
+  border: 1px solid #2a2a2a;
   border-radius: 10px;
   background-color: #000000;
   color: #ffffff;
@@ -445,6 +447,7 @@ body {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+  box-sizing: border-box;
 }
 
 .auth-field input:focus {
@@ -546,14 +549,14 @@ body {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #0a0a0a;
+  background-color: #2a2a2a;
 }
 
 .auth-divider::after {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #0a0a0a;
+  background-color: #2a2a2a;
 }
 
 .auth-divider-text {
@@ -620,7 +623,7 @@ body {
 .auth-dialog-footer {
   padding: 1.25rem 1.5rem;
   text-align: center;
-  border-top: 1px solid #0a0a0a;
+  border-top: 1px solid #2a2a2a;
   background-color: #000000;
 }
 
