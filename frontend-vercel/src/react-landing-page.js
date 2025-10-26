@@ -527,30 +527,6 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
             Continue with Google
           </button>
         </form>
-
-        <div className="auth-dialog-footer">
-          {mode === "signin" ? (
-            <p className="auth-switch-text">
-              Don't have an account?{" "}
-              <button 
-                className="auth-switch-link"
-                onClick={() => onModeChange("signup")}
-              >
-                Sign Up
-              </button>
-            </p>
-          ) : (
-            <p className="auth-switch-text">
-              Already have an account?{" "}
-              <button 
-                className="auth-switch-link"
-                onClick={() => onModeChange("signin")}
-              >
-                Sign In
-              </button>
-            </p>
-          )}
-        </div>
       </div>
     </div>
   );
