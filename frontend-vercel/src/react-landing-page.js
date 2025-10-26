@@ -414,7 +414,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
 
   return (
     <div className="auth-dialog-overlay" onClick={() => onOpenChange(false)}>
-      <div className="auth-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="auth-dialog" style={{backgroundColor: '#ff00ff'}} onClick={(e) => e.stopPropagation()}>
         <div className="auth-dialog-header">
           <h2>{mode === "signup" ? "Create Account" : "Sign In"}</h2>
           <button 

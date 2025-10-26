@@ -300,7 +300,8 @@ body {
 }
 
 .auth-dialog {
-  background-color: #000000;
+  background-color: #000000 !important;
+  background: #000000 !important;
   border: 1px solid #1a1a1a;
   border-radius: 16px;
   width: 100%;
@@ -309,6 +310,11 @@ body {
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.03);
   z-index: 1001;
   animation: slideUp 0.3s ease-out;
+}
+
+.auth-dialog .auth-form {
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 @keyframes slideUp {
@@ -404,7 +410,8 @@ body {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
-  background-color: transparent;
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 .auth-field {
