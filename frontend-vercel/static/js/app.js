@@ -2545,7 +2545,11 @@ async function loadStockDetails(symbol) {
                 }
                 
                 document.getElementById('detailsCategory').textContent = data.category || '-';
-                document.getElementById('detailsNotes').textContent = data.notes || '-';
+                
+                // Render notes editor component
+                if (window.renderWatchlistNotes) {
+                    window.renderWatchlistNotes(symbol, data.notes || '');
+                }
             }
         } else {
             document.getElementById('detailsCompanyName').textContent = 'Not found';
@@ -2730,7 +2734,11 @@ async function loadWatchlistStockDetails(symbol) {
                 }
                 
                 document.getElementById('detailsCategory').textContent = data.category || '-';
-                document.getElementById('detailsNotes').textContent = data.notes || '-';
+                
+                // Render notes editor component
+                if (window.renderWatchlistNotes) {
+                    window.renderWatchlistNotes(symbol, data.notes || '');
+                }
             }
         } else {
             // Show error message but don't overwrite company name yet
@@ -2933,7 +2941,11 @@ function closeStockDetailsModal() {
     if (searchSection) searchSection.style.display = 'block';
 
     document.getElementById('stockDetailsModal').style.display = 'none';
-    // Optionally clear modal content
+    
+    // Unmount React notes component
+    if (window.unmountWatchlistNotes) {
+        window.unmountWatchlistNotes();
+    }
 }
 
 // Expose modal functions globally for event handlers (must be at the end)
