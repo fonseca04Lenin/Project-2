@@ -300,7 +300,7 @@ body {
 }
 
 .auth-dialog {
-  background-color: #0a0a0a;
+  background-color: #000000;
   border: 1px solid #2a2a2a;
   border-radius: 16px;
   width: 100%;
@@ -329,6 +329,7 @@ body {
   padding: 1.5rem 1.5rem 1rem 1.5rem;
   border-bottom: 1px solid #1a1a1a;
   margin-bottom: 0;
+  background-color: transparent;
 }
 
 .auth-dialog-header h2 {
@@ -369,7 +370,7 @@ body {
   background: transparent;
   padding: 0.3rem;
   border-radius: 10px;
-  border: 1px solid #1a1a1a;
+  border: none;
 }
 
 .auth-tab {
@@ -403,6 +404,7 @@ body {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+  background-color: transparent;
 }
 
 .auth-field {
@@ -552,7 +554,7 @@ body {
   color: #666666;
   font-size: 0.75rem;
   font-weight: 600;
-  background-color: #0a0a0a;
+  background-color: #000000;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-family: 'Inter', sans-serif;
