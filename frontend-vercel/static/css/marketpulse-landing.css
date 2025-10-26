@@ -302,7 +302,7 @@ body {
 .auth-dialog {
   background-color: #000000 !important;
   background: #000000 !important;
-  border: 1px solid #1a1a1a;
+  border: 1px solid #2a2a2a !important;
   border-radius: 16px;
   width: 100%;
   max-width: 420px;
