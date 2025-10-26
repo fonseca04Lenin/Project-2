@@ -1149,6 +1149,31 @@ def update_watchlist_stock(symbol):
 
     return jsonify({'error': result['message']}), 400
 
+@app.route('/api/watchlist/<symbol>/notes', methods=['PUT'])
+def update_watchlist_notes(symbol):
+    """Update notes for a specific stock in the watchlist"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    symbol = symbol.upper()
+    data = request.get_json()
+    
+    if not data or 'notes' not in data:
+        return jsonify({'error': 'Notes field is required'}), 400
+    
+    notes = data.get('notes', '').strip()
+    
+    result = watchlist_service.update_stock(user.id, symbol, notes=notes)
+
+    if result['success']:
+        return jsonify({
+            'message': result['message'],
+            'notes': notes
+        })
+
+    return jsonify({'error': result['message']}), 400
+
 @app.route('/api/watchlist/categories', methods=['GET'])
 def get_watchlist_categories():
     """Get all categories used by the user"""
