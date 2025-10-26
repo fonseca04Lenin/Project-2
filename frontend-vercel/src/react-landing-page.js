@@ -15,7 +15,7 @@ function LandingHeader() {
         </div>
         
         <div className="landing-header-right">
-          <nav className="landing-nav">
+          <nav className="landing-nav" style={{ display: 'none' }}>
             <a href="#features" className="landing-nav-link">Features</a>
             <a href="#platform" className="landing-nav-link">Platform</a>
             <a href="#performance" className="landing-nav-link">Performance</a>
@@ -600,11 +600,6 @@ function HeroSection() {
             </button>
           </div>
 
-          <div className="stock-watchlist-footer">
-            <p className="stock-watchlist-tagline">
-              THE ANTIDOTE TO NOISE
-            </p>
-          </div>
         </div>
       </section>
 
