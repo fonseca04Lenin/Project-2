@@ -301,12 +301,12 @@ body {
 
 .auth-dialog {
   background-color: #000000;
-  border: 1px solid #2a2a2a;
+  border: 1px solid #1a1a1a;
   border-radius: 16px;
   width: 100%;
   max-width: 420px;
   position: relative;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.03);
   z-index: 1001;
   animation: slideUp 0.3s ease-out;
 }
@@ -327,9 +327,9 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem 1.5rem 1rem 1.5rem;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid #0a0a0a;
   margin-bottom: 0;
-  background-color: transparent;
+  background-color: #000000;
 }
 
 .auth-dialog-header h2 {
@@ -539,14 +539,14 @@ body {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #2a2a2a;
+  background-color: #0a0a0a;
 }
 
 .auth-divider::after {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #2a2a2a;
+  background-color: #0a0a0a;
 }
 
 .auth-divider-text {
@@ -613,8 +613,8 @@ body {
 .auth-dialog-footer {
   padding: 1.25rem 1.5rem;
   text-align: center;
-  border-top: 1px solid #1a1a1a;
-  background-color: transparent;
+  border-top: 1px solid #0a0a0a;
+  background-color: #000000;
 }
 
 .auth-switch-text {
