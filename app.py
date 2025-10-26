@@ -273,167 +273,167 @@ if Config.DEBUG:
     @app.route('/api/debug/auth', methods=['GET', 'POST'])
     def debug_auth():
         """Debug endpoint to test authentication headers"""
-    try:
-        auth_header = request.headers.get('Authorization')
-        user_id_header = request.headers.get('X-User-ID')
-        
-        debug_info = {
-            'headers_received': {
-                'Authorization': auth_header[:50] + '...' if auth_header and len(auth_header) > 50 else auth_header,
-                'X-User-ID': user_id_header,
-                'Content-Type': request.headers.get('Content-Type'),
-                'Origin': request.headers.get('Origin')
-            },
-            'authentication_flow': {
-                'has_auth_header': bool(auth_header),
-                'has_user_id_header': bool(user_id_header),
-                'auth_header_format_correct': bool(auth_header and auth_header.startswith('Bearer ')),
-                'current_user_authenticated': current_user.is_authenticated if current_user else False
-            }
-        }
-        
-        # Try to verify token if provided
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.replace('Bearer ', '')
-            debug_info['token_info'] = {
-                'token_length': len(token),
-                'token_starts_with': token[:20] + '...' if len(token) > 20 else token
+        try:
+            auth_header = request.headers.get('Authorization')
+            user_id_header = request.headers.get('X-User-ID')
+            
+            debug_info = {
+                'headers_received': {
+                    'Authorization': auth_header[:50] + '...' if auth_header and len(auth_header) > 50 else auth_header,
+                    'X-User-ID': user_id_header,
+                    'Content-Type': request.headers.get('Content-Type'),
+                    'Origin': request.headers.get('Origin')
+                },
+                'authentication_flow': {
+                    'has_auth_header': bool(auth_header),
+                    'has_user_id_header': bool(user_id_header),
+                    'auth_header_format_correct': bool(auth_header and auth_header.startswith('Bearer ')),
+                    'current_user_authenticated': current_user.is_authenticated if current_user else False
+                }
             }
             
-            try:
-                decoded_token = FirebaseService.verify_token(token)
-                if decoded_token:
-                    debug_info['token_verification'] = {
-                        'valid': True,
-                        'uid': decoded_token.get('uid'),
-                        'email': decoded_token.get('email'),
-                        'uid_matches_header': decoded_token.get('uid') == user_id_header
-                    }
-                else:
+            # Try to verify token if provided
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.replace('Bearer ', '')
+                debug_info['token_info'] = {
+                    'token_length': len(token),
+                    'token_starts_with': token[:20] + '...' if len(token) > 20 else token
+                }
+                
+                try:
+                    decoded_token = FirebaseService.verify_token(token)
+                    if decoded_token:
+                        debug_info['token_verification'] = {
+                            'valid': True,
+                            'uid': decoded_token.get('uid'),
+                            'email': decoded_token.get('email'),
+                            'uid_matches_header': decoded_token.get('uid') == user_id_header
+                        }
+                    else:
+                        debug_info['token_verification'] = {
+                            'valid': False,
+                            'error': 'Token verification returned None'
+                        }
+                except Exception as e:
                     debug_info['token_verification'] = {
                         'valid': False,
-                        'error': 'Token verification returned None'
+                        'error': str(e)
                     }
-            except Exception as e:
-                debug_info['token_verification'] = {
-                    'valid': False,
-                    'error': str(e)
-                }
-        
-        return jsonify(debug_info)
-        
-    except Exception as e:
-        return jsonify({'error': f'Debug endpoint failed: {str(e)}'}), 500
+            
+            return jsonify(debug_info)
+            
+        except Exception as e:
+            return jsonify({'error': f'Debug endpoint failed: {str(e)}'}), 500
 
     @app.route('/api/debug/test-watchlist')
     def debug_test_watchlist():
         """Debug endpoint to test watchlist with a test user"""
-    try:
-        # Create a test user object
-        test_user_data = {
-            'uid': 'debug-test-user',
-            'name': 'Test User',
-            'email': 'test@example.com'
-        }
-        
-        from firebase_service import FirebaseUser
-        test_user = FirebaseUser(test_user_data)
-        
-        # Test getting watchlist
         try:
-            watchlist = watchlist_service.get_watchlist(test_user.id, limit=5)
-            watchlist_test = {
-                'success': True,
-                'watchlist_count': len(watchlist),
-                'watchlist': watchlist[:3]  # Show first 3 items
+            # Create a test user object
+            test_user_data = {
+                'uid': 'debug-test-user',
+                'name': 'Test User',
+                'email': 'test@example.com'
             }
+            
+            from firebase_service import FirebaseUser
+            test_user = FirebaseUser(test_user_data)
+            
+            # Test getting watchlist
+            try:
+                watchlist = watchlist_service.get_watchlist(test_user.id, limit=5)
+                watchlist_test = {
+                    'success': True,
+                    'watchlist_count': len(watchlist),
+                    'watchlist': watchlist[:3]  # Show first 3 items
+                }
+            except Exception as e:
+                watchlist_test = {
+                    'success': False,
+                    'error': str(e)
+                }
+            
+            # Test adding to watchlist
+            try:
+                add_result = watchlist_service.add_stock(
+                    test_user.id,
+                    'DEBUG',
+                    'Debug Test Stock',
+                    category='Test'
+                )
+                add_test = {
+                    'success': add_result.get('success', False),
+                    'message': add_result.get('message', 'No message'),
+                    'result': add_result
+                }
+            except Exception as e:
+                add_test = {
+                    'success': False,
+                    'error': str(e)
+                }
+            
+            return jsonify({
+                'watchlist_service_test': watchlist_test,
+                'add_stock_test': add_test,
+                'firestore_available': watchlist_service.db is not None
+            })
+            
         except Exception as e:
-            watchlist_test = {
-                'success': False,
-                'error': str(e)
-            }
-        
-        # Test adding to watchlist
-        try:
-            add_result = watchlist_service.add_stock(
-                test_user.id,
-                'DEBUG',
-                'Debug Test Stock',
-                category='Test'
-            )
-            add_test = {
-                'success': add_result.get('success', False),
-                'message': add_result.get('message', 'No message'),
-                'result': add_result
-            }
-        except Exception as e:
-            add_test = {
-                'success': False,
-                'error': str(e)
-            }
-        
-        return jsonify({
-            'watchlist_service_test': watchlist_test,
-            'add_stock_test': add_test,
-            'firestore_available': watchlist_service.db is not None
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Debug test failed: {str(e)}'}), 500
+            return jsonify({'error': f'Debug test failed: {str(e)}'}), 500
 
     @app.route('/api/debug/chatbot-watchlist/<user_id>')
     def debug_chatbot_watchlist(user_id):
         """Debug endpoint to test chatbot's watchlist access for a specific user"""
-    try:
-        from chat_service import chat_service
-        
-        # Test chatbot's user context method
-        context = chat_service._get_user_context(user_id)
-        
-        return jsonify({
-            'user_id': user_id,
-            'context': context,
-            'watchlist_count': len(context.get('watchlist', [])),
-            'firestore_client_available': chat_service.firestore_client is not None
-        })
-        
-    except Exception as e:
-        import traceback
-        return jsonify({
-            'error': f'Chatbot watchlist debug failed: {str(e)}',
-            'traceback': traceback.format_exc()
-        }), 500
+        try:
+            from chat_service import chat_service
+            
+            # Test chatbot's user context method
+            context = chat_service._get_user_context(user_id)
+            
+            return jsonify({
+                'user_id': user_id,
+                'context': context,
+                'watchlist_count': len(context.get('watchlist', [])),
+                'firestore_client_available': chat_service.firestore_client is not None
+            })
+            
+        except Exception as e:
+            import traceback
+            return jsonify({
+                'error': f'Chatbot watchlist debug failed: {str(e)}',
+                'traceback': traceback.format_exc()
+            }), 500
 
     @app.route('/api/debug/current-user-watchlist')
     def debug_current_user_watchlist():
         """Debug endpoint to test current user's watchlist access"""
-    try:
-        user = authenticate_request()
-        if not user:
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        # Test both watchlist service and chatbot access
-        watchlist_service_result = watchlist_service.get_watchlist(user.id, limit=10)
-        
-        from chat_service import chat_service
-        chatbot_context = chat_service._get_user_context(user.id)
-        
-        return jsonify({
-            'user_id': user.id,
-            'user_email': user.email,
-            'watchlist_service_count': len(watchlist_service_result),
-            'watchlist_service_data': watchlist_service_result[:3],  # First 3 items
-            'chatbot_context_count': len(chatbot_context.get('watchlist', [])),
-            'chatbot_context_data': chatbot_context.get('watchlist', [])[:3],  # First 3 items
-            'firestore_client_available': chat_service.firestore_client is not None
-        })
-        
-    except Exception as e:
-        import traceback
-        return jsonify({
-            'error': f'Current user watchlist debug failed: {str(e)}',
-            'traceback': traceback.format_exc()
-        }), 500
+        try:
+            user = authenticate_request()
+            if not user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            # Test both watchlist service and chatbot access
+            watchlist_service_result = watchlist_service.get_watchlist(user.id, limit=10)
+            
+            from chat_service import chat_service
+            chatbot_context = chat_service._get_user_context(user.id)
+            
+            return jsonify({
+                'user_id': user.id,
+                'user_email': user.email,
+                'watchlist_service_count': len(watchlist_service_result),
+                'watchlist_service_data': watchlist_service_result[:3],  # First 3 items
+                'chatbot_context_count': len(chatbot_context.get('watchlist', [])),
+                'chatbot_context_data': chatbot_context.get('watchlist', [])[:3],  # First 3 items
+                'firestore_client_available': chat_service.firestore_client is not None
+            })
+            
+        except Exception as e:
+            import traceback
+            return jsonify({
+                'error': f'Current user watchlist debug failed: {str(e)}',
+                'traceback': traceback.format_exc()
+            }), 500
 
 # End of debug endpoints (only enabled in development)
 
