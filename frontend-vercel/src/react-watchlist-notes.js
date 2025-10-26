@@ -35,7 +35,10 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
             // Get auth headers
             const authHeaders = await window.getAuthHeaders();
             
-            const response = await fetch(`${window.API_BASE_URL || 'https://web-production-2e2e.up.railway.app'}/api/watchlist/${symbol}/notes`, {
+            // Get API base URL from config
+            const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
+            
+            const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/notes`, {
                 method: 'PUT',
                 headers: authHeaders,
                 credentials: 'include',
