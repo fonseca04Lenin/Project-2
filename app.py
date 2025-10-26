@@ -268,9 +268,11 @@ def test_watchlist_service():
         print(f"❌ WatchlistService test failed: {e}")
         return jsonify({'error': f'WatchlistService test failed: {str(e)}'}), 500
 
-@app.route('/api/debug/auth', methods=['GET', 'POST'])
-def debug_auth():
-    """Debug endpoint to test authentication headers"""
+# Debug endpoints - only enabled in development
+if Config.DEBUG:
+    @app.route('/api/debug/auth', methods=['GET', 'POST'])
+    def debug_auth():
+        """Debug endpoint to test authentication headers"""
     try:
         auth_header = request.headers.get('Authorization')
         user_id_header = request.headers.get('X-User-ID')
@@ -323,9 +325,9 @@ def debug_auth():
     except Exception as e:
         return jsonify({'error': f'Debug endpoint failed: {str(e)}'}), 500
 
-@app.route('/api/debug/test-watchlist')
-def debug_test_watchlist():
-    """Debug endpoint to test watchlist with a test user"""
+    @app.route('/api/debug/test-watchlist')
+    def debug_test_watchlist():
+        """Debug endpoint to test watchlist with a test user"""
     try:
         # Create a test user object
         test_user_data = {
@@ -379,9 +381,9 @@ def debug_test_watchlist():
     except Exception as e:
         return jsonify({'error': f'Debug test failed: {str(e)}'}), 500
 
-@app.route('/api/debug/chatbot-watchlist/<user_id>')
-def debug_chatbot_watchlist(user_id):
-    """Debug endpoint to test chatbot's watchlist access for a specific user"""
+    @app.route('/api/debug/chatbot-watchlist/<user_id>')
+    def debug_chatbot_watchlist(user_id):
+        """Debug endpoint to test chatbot's watchlist access for a specific user"""
     try:
         from chat_service import chat_service
         
@@ -402,9 +404,9 @@ def debug_chatbot_watchlist(user_id):
             'traceback': traceback.format_exc()
         }), 500
 
-@app.route('/api/debug/current-user-watchlist')
-def debug_current_user_watchlist():
-    """Debug endpoint to test current user's watchlist access"""
+    @app.route('/api/debug/current-user-watchlist')
+    def debug_current_user_watchlist():
+        """Debug endpoint to test current user's watchlist access"""
     try:
         user = authenticate_request()
         if not user:
@@ -432,6 +434,8 @@ def debug_current_user_watchlist():
             'error': f'Current user watchlist debug failed: {str(e)}',
             'traceback': traceback.format_exc()
         }), 500
+
+# End of debug endpoints (only enabled in development)
 
 # WebSocket Events
 @socketio.on('connect')
@@ -708,11 +712,24 @@ def get_market_status():
 
 @app.route('/api/search', methods=['POST'])
 def search_stock():
-    data = request.get_json()
-    symbol = data.get('symbol', '').upper()
+    from utils import sanitize_stock_symbol, validate_stock_symbol
     
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid request data'}), 400
+    
+    symbol = data.get('symbol', '').strip()
+    
+    # Validate and sanitize symbol
     if not symbol:
         return jsonify({'error': 'Please enter a stock symbol'}), 400
+    
+    # Sanitize the symbol
+    symbol = sanitize_stock_symbol(symbol)
+    
+    # Additional validation
+    if not validate_stock_symbol(symbol):
+        return jsonify({'error': 'Invalid stock symbol format'}), 400
     
     stock = Stock(symbol, yahoo_finance_api)
     stock.retrieve_data()
@@ -755,15 +772,21 @@ def search_stock():
 @app.route('/api/stock/<symbol>', methods=['GET'])
 def get_stock_data(symbol):
     """Get current stock data for a specific symbol (used by watchlist price updates)"""
+    from utils import sanitize_stock_symbol, validate_stock_symbol
+    
     # Authenticate user
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
     
-    symbol = symbol.upper()
-
+    # Sanitize and validate symbol from URL
+    symbol = sanitize_stock_symbol(symbol)
+    
     if not symbol:
         return jsonify({'error': 'Please provide a stock symbol'}), 400
+    
+    if not validate_stock_symbol(symbol):
+        return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     try:
         stock = Stock(symbol, yahoo_finance_api)
@@ -812,13 +835,19 @@ def get_stock_data(symbol):
 @app.route('/api/search/stocks', methods=['GET'])
 def search_stocks():
     """Search stocks by name or symbol with caching and rate limiting protection"""
+    from utils import sanitize_search_query, validate_search_length
+    
     query = request.args.get('q', '').strip()
     
+    # Validate and sanitize input
     if not query:
         return jsonify({'error': 'Please provide a search query'}), 400
     
-    if len(query) < 2:
-        return jsonify({'error': 'Search query must be at least 2 characters'}), 400
+    if not validate_search_length(query, min_length=2, max_length=100):
+        return jsonify({'error': 'Search query must be between 2 and 100 characters'}), 400
+    
+    # Sanitize the query
+    query = sanitize_search_query(query)
     
     try:
         # Add rate limiting protection
@@ -853,13 +882,19 @@ def search_stocks():
 @app.route('/api/search/companies', methods=['GET'])
 def search_companies():
     """Search companies by name with enhanced results and rate limiting protection"""
+    from utils import sanitize_search_query, validate_search_length
+    
     query = request.args.get('q', '').strip()
     
+    # Validate and sanitize input
     if not query:
         return jsonify({'error': 'Please provide a search query'}), 400
     
-    if len(query) < 2:
-        return jsonify({'error': 'Search query must be at least 2 characters'}), 400
+    if not validate_search_length(query, min_length=2, max_length=100):
+        return jsonify({'error': 'Search query must be between 2 and 100 characters'}), 400
+    
+    # Sanitize the query
+    query = sanitize_search_query(query)
     
     try:
         # Add rate limiting protection
