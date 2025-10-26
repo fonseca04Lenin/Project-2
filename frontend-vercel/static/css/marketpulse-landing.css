@@ -305,8 +305,6 @@ body {
   border-radius: 16px;
   width: 100%;
   max-width: 420px;
-  max-height: 90vh;
-  overflow-y: auto;
   position: relative;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
   z-index: 1001;
@@ -328,13 +326,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2rem 2rem 1.5rem 2rem;
+  padding: 1.5rem 1.5rem 1rem 1.5rem;
   border-bottom: 1px solid #1a1a1a;
   margin-bottom: 0;
 }
 
 .auth-dialog-header h2 {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #ffffff;
   margin: 0;
@@ -366,21 +364,21 @@ body {
 
 .auth-dialog-tabs {
   display: flex;
-  margin: 2rem 2rem 0 2rem;
-  gap: 0.75rem;
+  margin: 1.5rem 1.5rem 0 1.5rem;
+  gap: 0.5rem;
   background: rgba(255, 255, 255, 0.03);
-  padding: 0.375rem;
+  padding: 0.3rem;
   border-radius: 10px;
   border: 1px solid #1a1a1a;
 }
 
 .auth-tab {
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 1rem;
   background: transparent;
   border: none;
   color: #808080;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   border-radius: 8px;
@@ -401,14 +399,14 @@ body {
 }
 
 .auth-form {
-  padding: 2rem;
+  padding: 1.5rem;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
 
 .auth-field {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -416,10 +414,10 @@ body {
 
 .auth-field label {
   display: block !important;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #ffffff;
-  margin-bottom: 0.625rem;
+  margin-bottom: 0.5rem;
   visibility: visible !important;
   opacity: 1 !important;
   font-family: 'Inter', sans-serif;
@@ -427,12 +425,12 @@ body {
 
 .auth-field input {
   width: 100%;
-  padding: 0.9375rem 1.125rem;
+  padding: 0.75rem 1rem;
   border: 1.5px solid #2a2a2a;
   border-radius: 10px;
   background-color: #141414;
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: 'Inter', sans-serif;
   display: block !important;
@@ -455,13 +453,13 @@ body {
 .auth-field-footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 0.625rem;
+  margin-top: 0.375rem;
 }
 
 .forgot-password-link {
   color: #00D924;
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   transition: all 0.2s ease;
   font-family: 'Inter', sans-serif;
@@ -476,22 +474,22 @@ body {
   background-color: rgba(239, 68, 68, 0.12);
   border: 1.5px solid rgba(239, 68, 68, 0.35);
   color: #ff6b6b;
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 0.875rem;
   border-radius: 10px;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
+  font-size: 0.8125rem;
+  margin-bottom: 0.75rem;
   font-family: 'Inter', sans-serif;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .auth-submit-btn {
   width: 100%;
-  padding: 1rem 1.25rem;
+  padding: 0.875rem 1rem;
   background-color: #00D924;
   color: #000000;
   border: none;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -501,7 +499,7 @@ body {
   gap: 0.5rem;
   font-family: 'Inter', sans-serif;
   box-shadow: 0 4px 12px rgba(0, 217, 36, 0.3);
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .auth-submit-btn:hover:not(:disabled) {
@@ -531,7 +529,7 @@ body {
 .auth-divider {
   display: flex;
   align-items: center;
-  margin: 1.75rem 0 1.5rem 0;
+  margin: 1.25rem 0 1rem 0;
   position: relative;
 }
 
@@ -550,9 +548,9 @@ body {
 }
 
 .auth-divider-text {
-  padding: 0 1rem;
+  padding: 0 0.875rem;
   color: #666666;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   background-color: #0a0a0a;
   text-transform: uppercase;
@@ -562,19 +560,19 @@ body {
 
 .auth-google-btn {
   width: 100%;
-  padding: 1rem 1.25rem;
+  padding: 0.875rem 1rem;
   background-color: #ffffff;
   color: #1f1f1f;
   border: 1.5px solid #e5e5e5;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.625rem;
   font-family: 'Inter', sans-serif;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
@@ -611,7 +609,7 @@ body {
 }
 
 .auth-dialog-footer {
-  padding: 1.75rem 2rem;
+  padding: 1.25rem 1.5rem;
   text-align: center;
   border-top: 1px solid #1a1a1a;
   background-color: rgba(255, 255, 255, 0.015);
@@ -619,7 +617,7 @@ body {
 
 .auth-switch-text {
   color: #808080;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   margin: 0;
   font-family: 'Inter', sans-serif;
 }
@@ -628,7 +626,7 @@ body {
   background: none;
   border: none;
   color: #00D924;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
@@ -720,23 +718,23 @@ body {
   }
 
   .auth-dialog-header {
-    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    padding: 1.25rem 1.25rem 0.875rem 1.25rem;
   }
 
   .auth-dialog-header h2 {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
   }
 
   .auth-dialog-tabs {
-    margin: 1.5rem 1.5rem 0 1.5rem;
+    margin: 1.25rem 1.25rem 0 1.25rem;
   }
 
   .auth-form {
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
 
   .auth-dialog-footer {
-    padding: 1.5rem;
+    padding: 1.125rem 1.25rem;
   }
 }
 
