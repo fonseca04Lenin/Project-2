@@ -2442,9 +2442,29 @@ async function loadStockDetails(symbol) {
     document.getElementById('detailsDescription').textContent = '-';
     document.getElementById('detailsPrice').textContent = '-';
     
-    // Hide watchlist details for regular stock details
+    // Initially hide watchlist details - we'll check if stock is in watchlist
     const watchlistDetails = document.getElementById('watchlistDetails');
     if (watchlistDetails) watchlistDetails.style.display = 'none';
+    
+    // Check if this stock is in the user's watchlist
+    let isInWatchlist = false;
+    try {
+        const authHeaders = await getAuthHeaders();
+        const watchlistCheck = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/details`, {
+            method: 'GET',
+            headers: authHeaders,
+            credentials: 'include'
+        });
+        
+        if (watchlistCheck.ok) {
+            isInWatchlist = true;
+            console.log(`✅ Stock ${symbol} is in watchlist, loading watchlist data`);
+        } else {
+            console.log(`ℹ️ Stock ${symbol} is not in watchlist, showing regular details`);
+        }
+    } catch (err) {
+        console.log(`ℹ️ Could not check watchlist status for ${symbol}`);
+    }
     
     const chartContainer = document.getElementById('detailsChartContainer');
     if (chartContainer) chartContainer.innerHTML = '<div class="spinner"></div>';
@@ -2458,17 +2478,32 @@ async function loadStockDetails(symbol) {
     if (closeBtn) closeBtn.focus();
 
     try {
-        // Fetch company info from backend
-        const response = await fetch(`${API_BASE_URL}/api/company/${symbol}`, {
-            credentials: 'include'
-        });
-        const data = await response.json();
+        // If stock is in watchlist, fetch watchlist data, otherwise fetch regular company data
+        let response, data;
+        
+        if (isInWatchlist) {
+            // Fetch watchlist-specific data with auth headers
+            const authHeaders = await getAuthHeaders();
+            response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/details`, {
+                method: 'GET',
+                headers: authHeaders,
+                credentials: 'include'
+            });
+        } else {
+            // Fetch regular company data
+            response = await fetch(`${API_BASE_URL}/api/company/${symbol}`, {
+                credentials: 'include'
+            });
+        }
+        
+        data = await response.json();
+        
         if (response.ok) {
             document.getElementById('detailsCompanyName').textContent = data.name || symbol;
             document.getElementById('detailsSymbol').textContent = data.symbol || symbol;
             document.getElementById('detailsCEO').textContent = data.ceo || '-';
             document.getElementById('detailsDescription').textContent = data.description || '-';
-            document.getElementById('detailsPrice').textContent = data.price !== undefined ? data.price : '-';
+            document.getElementById('detailsPrice').textContent = data.price !== undefined ? data.price.toFixed(2) : '-';
             document.getElementById('detailsMarketCap').textContent = data.marketCap && data.marketCap !== '-' ? formatMarketCap(data.marketCap) : '-';
             document.getElementById('detailsPERatio').textContent = data.peRatio && data.peRatio !== '-' ? data.peRatio : '-';
             document.getElementById('detailsDividendYield').textContent = data.dividendYield && data.dividendYield !== '-' ? (data.dividendYield * 100).toFixed(2) + '%' : '-';
@@ -2483,6 +2518,37 @@ async function loadStockDetails(symbol) {
                 }
             }
             document.getElementById('detailsHeadquarters').textContent = data.headquarters && data.headquarters !== '-' ? data.headquarters : '-';
+            
+            // If stock is in watchlist, populate watchlist-specific data
+            if (isInWatchlist && data.date_added) {
+                watchlistDetails.style.display = 'block';
+                
+                document.getElementById('detailsDateAdded').textContent = data.date_added || '-';
+                document.getElementById('detailsOriginalPrice').textContent = data.original_price ? data.original_price.toFixed(2) : '-';
+                
+                // Handle price change and percentage change
+                const priceChangeElem = document.getElementById('detailsPriceChange');
+                const percentageChangeElem = document.getElementById('detailsPercentageChange');
+                
+                if (data.price_change !== null && data.percentage_change !== null) {
+                    const isPositive = data.price_change >= 0;
+                    const sign = isPositive ? '+' : '';
+                    
+                    priceChangeElem.textContent = `${sign}$${data.price_change.toFixed(2)}`;
+                    priceChangeElem.className = isPositive ? 'positive' : 'negative';
+                    
+                    percentageChangeElem.textContent = `${sign}${data.percentage_change.toFixed(2)}%`;
+                    percentageChangeElem.className = isPositive ? 'positive' : 'negative';
+                } else {
+                    priceChangeElem.textContent = 'N/A';
+                    percentageChangeElem.textContent = 'N/A';
+                }
+                
+                document.getElementById('detailsCategory').textContent = data.category || '-';
+                document.getElementById('detailsNotes').textContent = data.notes || '-';
+                document.getElementById('detailsTargetPrice').textContent = data.target_price ? data.target_price.toFixed(2) : '-';
+                document.getElementById('detailsStopLoss').textContent = data.stop_loss ? data.stop_loss.toFixed(2) : '-';
+            }
         } else {
             document.getElementById('detailsCompanyName').textContent = 'Not found';
         }
