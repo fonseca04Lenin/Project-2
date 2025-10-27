@@ -692,14 +692,16 @@ Remember:
                     tools=[{"type": "function", "function": func} for func in self._get_available_functions()],
                     tool_choice="auto",
                     temperature=0.7,
-                    max_tokens=1000
+                    max_tokens=1000,
+                    timeout=30.0
                 )
                 logger.info("Groq API call successful")
             except Exception as e:
                 logger.error(f"Groq API call failed: {e}")
                 return {
                     "success": False,
-                    "error": f"I'm having trouble connecting to my AI service right now. Please try again in a moment. Error: {str(e)}"
+                    "error": f"I'm having trouble connecting to my AI service right now. Please try again in a moment. Error: {str(e)}",
+                    "response": "I'm having trouble connecting right now. Please try again in a moment."
                 }
             
             # Process response
@@ -759,16 +761,29 @@ Remember:
                 
                 # Get final AI response
                 try:
+                    logger.info("Getting final AI response after function execution...")
                     final_response = self.groq_client.chat.completions.create(
                         model="llama-3.1-8b-instant",
                         messages=messages,
                         temperature=0.7,
-                        max_tokens=1000
+                        max_tokens=1000,
+                        timeout=30.0
                     )
                     ai_response = final_response.choices[0].message.content
+                    logger.info(f"Final AI response received: {ai_response[:100]}...")
                 except Exception as e:
                     logger.error(f"Failed to get final AI response: {e}")
-                    ai_response = "I encountered an error while processing your request. Please try again."
+                    # If we have function results, create a simple response
+                    if function_results:
+                        success_results = [r for r in function_results if r["result"].get("success")]
+                        if success_results:
+                            messages_summary = ", ".join([r["result"].get("message", "") for r in success_results])
+                            ai_response = messages_summary
+                        else:
+                            error_messages = [r["result"].get("message", "Unknown error") for r in function_results]
+                            ai_response = f"Error: {'; '.join(error_messages)}"
+                    else:
+                        ai_response = "I encountered an error while processing your request. Please try again."
             else:
                 ai_response = ai_message.content
             
