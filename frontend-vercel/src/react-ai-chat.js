@@ -118,6 +118,24 @@ const AIAdvisorChat = () => {
                 if (data.rate_limit) {
                     setRateLimitInfo(data.rate_limit);
                 }
+
+                // Check if response is about adding/removing stocks and refresh watchlist
+                const responseText = data.response.toLowerCase();
+                if (responseText.includes('successfully added') || 
+                    responseText.includes('successfully removed') ||
+                    responseText.includes('added') && responseText.includes('watchlist') ||
+                    responseText.includes('removed') && responseText.includes('watchlist')) {
+                    // Dispatch watchlist change event to trigger refresh
+                    const event = new CustomEvent('watchlistChanged', {
+                        detail: { action: 'add' }
+                    });
+                    window.dispatchEvent(event);
+                    
+                    // Also call the refresh function if available
+                    if (window.refreshWatchlist) {
+                        setTimeout(() => window.refreshWatchlist(), 500);
+                    }
+                }
             } else {
                 showError(data.error || data.response || 'Failed to get response from AI');
             }
