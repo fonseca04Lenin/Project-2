@@ -1,8 +1,13 @@
 // React Market Intelligence Component
 const { useState, useEffect } = React;
 
-const API_BASE_URL = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-window.API_BASE_URL = API_BASE_URL;
+// Initialize API_BASE_URL once to avoid duplicate declarations
+if (typeof window.API_BASE_URL === 'undefined') {
+    window.API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
+}
+
+// Use window.API_BASE_URL to avoid const redeclaration errors
+const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
 const MarketIntelligence = () => {
     const [activeTab, setActiveTab] = useState('earnings');
@@ -39,7 +44,7 @@ const MarketIntelligence = () => {
         setError(null);
         
         try {
-            const response = await fetch(`${API_BASE_URL}/api/market/earnings`, {
+            const response = await fetch(`${API_BASE}/api/market/earnings`, {
                 credentials: 'include'
             });
             
@@ -71,11 +76,11 @@ const MarketIntelligence = () => {
         try {
             let endpoint = '';
             if (tab === 'insider') {
-                endpoint = `${API_BASE_URL}/api/market/insider-trading/${searchQuery.toUpperCase()}`;
+                endpoint = `${API_BASE}/api/market/insider-trading/${searchQuery.toUpperCase()}`;
             } else if (tab === 'analyst') {
-                endpoint = `${API_BASE_URL}/api/market/analyst-ratings/${searchQuery.toUpperCase()}`;
+                endpoint = `${API_BASE}/api/market/analyst-ratings/${searchQuery.toUpperCase()}`;
             } else if (tab === 'options') {
-                endpoint = `${API_BASE_URL}/api/market/options/${searchQuery.toUpperCase()}`;
+                endpoint = `${API_BASE}/api/market/options/${searchQuery.toUpperCase()}`;
             }
 
             const response = await fetch(endpoint, {
@@ -382,7 +387,7 @@ const MarketIntelligence = () => {
 };
 
 // Initialize Market Intelligence component
-window.initializeMarketIntelligence = () => {
+window.__initMarketIntelReact = () => {
     const container = document.querySelector('.market-intelligence-container');
     if (!container) {
         console.error('Market Intelligence container not found');
