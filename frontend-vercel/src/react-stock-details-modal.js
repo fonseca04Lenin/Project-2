@@ -31,20 +31,32 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
         if (isSaving) return;
         setIsSaving(true);
         try {
+            const authHeaders = await window.getAuthHeaders();
             const response = await fetch(`${API_BASE}/api/watchlist/${symbol}/notes`, {
-                method: 'POST',
+                method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    ...authHeaders
                 },
                 credentials: 'include',
                 body: JSON.stringify({ notes })
             });
+            
             if (response.ok) {
                 setHasChanges(false);
                 setIsEditing(false);
+                // Show success notification
+                if (window.showNotification) {
+                    window.showNotification('Notes saved successfully', 'success');
+                }
+            } else {
+                throw new Error('Failed to save notes');
             }
         } catch (err) {
             console.error('Error saving notes:', err);
+            if (window.showNotification) {
+                window.showNotification('Failed to save notes', 'error');
+            }
         } finally {
             setIsSaving(false);
         }
@@ -77,16 +89,13 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                         <i className="fas fa-sticky-note"></i>
                         Notes
                     </h4>
-                    <button 
-                        className="btn-icon btn-icon-sm" 
-                        onClick={() => setIsEditing(true)}
-                        title="Add notes"
-                    >
-                        <i className="fas fa-plus"></i>
-                    </button>
                 </div>
-                <div className="watchlist-notes-empty">
-                    <span>Click + to add notes about this stock</span>
+                <div 
+                    className="watchlist-notes-empty"
+                    onClick={() => setIsEditing(true)}
+                    style={{ cursor: 'pointer' }}
+                >
+                    <span>Click here to add notes about this stock</span>
                 </div>
             </div>
         );
@@ -100,15 +109,12 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                         <i className="fas fa-sticky-note"></i>
                         Notes
                     </h4>
-                    <button 
-                        className="btn-icon btn-icon-sm" 
-                        onClick={() => setIsEditing(true)}
-                        title="Edit notes"
-                    >
-                        <i className="fas fa-edit"></i>
-                    </button>
                 </div>
-                <div className="watchlist-notes-content">
+                <div 
+                    className="watchlist-notes-content"
+                    onClick={() => setIsEditing(true)}
+                    style={{ cursor: 'pointer' }}
+                >
                     <p>{notes}</p>
                 </div>
             </div>
@@ -122,38 +128,37 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                     <i className="fas fa-sticky-note"></i>
                     Notes
                 </h4>
-                <div className="watchlist-notes-actions">
-                    {hasChanges && (
-                        <span className="watchlist-notes-unsaved">
-                            <i className="fas fa-circle" style={{ fontSize: '8px', color: 'var(--primary)' }}></i>
-                            Unsaved changes
-                        </span>
-                    )}
-                    <button 
-                        className="btn-icon btn-icon-sm" 
-                        onClick={handleBlur}
-                        disabled={isSaving}
-                        title="Save notes (Ctrl+Enter)"
-                    >
-                        <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
-                    </button>
-                </div>
             </div>
             <textarea
                 className="watchlist-notes-textarea"
                 value={notes}
                 onChange={handleChange}
-                onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
-                placeholder="Add your notes here... (Press Ctrl+Enter to save, Esc to cancel)"
+                placeholder="Add your notes here..."
                 autoFocus
-                rows="4"
+                rows="5"
             />
-            <div className="watchlist-notes-hint">
-                <small>
-                    <i className="fas fa-info-circle"></i>
-                    Press Ctrl+Enter to save, Esc to cancel
-                </small>
+            <div className="watchlist-notes-actions">
+                <button 
+                    className="btn-secondary"
+                    onClick={() => {
+                        setNotes(initialNotes || '');
+                        setHasChanges(false);
+                        setIsEditing(false);
+                    }}
+                    disabled={isSaving}
+                    style={{ marginRight: '0.5rem' }}
+                >
+                    Cancel
+                </button>
+                <button 
+                    className="btn-primary"
+                    onClick={saveNotes}
+                    disabled={isSaving || !hasChanges}
+                >
+                    <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
+                    {isSaving ? ' Saving...' : ' Save Notes'}
+                </button>
             </div>
         </div>
     );
@@ -384,8 +389,10 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     <>
                         {/* Header */}
                         <div className="modal-header">
-                            <h2>{stockData.name || symbol}</h2>
-                            <span className="stock-symbol-badge">{symbol}</span>
+                            <div className="modal-header-content">
+                                <h2>{stockData.name || symbol}</h2>
+                                <span className="stock-symbol-badge">{symbol}</span>
+                            </div>
                         </div>
 
                         {/* Watchlist Info */}
