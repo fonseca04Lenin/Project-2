@@ -1,8 +1,13 @@
 // React Stock Details Modal Component
 const { useState, useEffect } = React;
 
-const API_BASE_URL = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-window.API_BASE_URL = API_BASE_URL;
+// Avoid duplicate declaration of API_BASE_URL
+if (typeof window.API_BASE_URL === 'undefined') {
+    window.API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
+}
+
+// Use window.API_BASE_URL to avoid const redeclaration errors  
+const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
 const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false }) => {
     const [stockData, setStockData] = useState(null);
@@ -30,7 +35,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 if (!isFromWatchlist) {
                     try {
                         authHeaders = await window.getAuthHeaders();
-                        const watchlistCheck = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/details`, {
+                        const watchlistCheck = await fetch(`${API_BASE}/api/watchlist/${symbol}/details`, {
                             method: 'GET',
                             headers: authHeaders,
                             credentials: 'include'
@@ -45,7 +50,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 let response, data;
                 if (isInWatchlist || isFromWatchlist) {
                     authHeaders = authHeaders || await window.getAuthHeaders();
-                    response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/details`, {
+                    response = await fetch(`${API_BASE}/api/watchlist/${symbol}/details`, {
                         method: 'GET',
                         headers: authHeaders,
                         credentials: 'include'
@@ -65,7 +70,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         });
                     }
                 } else {
-                    response = await fetch(`${API_BASE_URL}/api/company/${symbol}`, {
+                    response = await fetch(`${API_BASE}/api/company/${symbol}`, {
                         credentials: 'include'
                     });
                     data = await response.json();
@@ -80,7 +85,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 }
 
                 // Fetch chart data
-                const chartResp = await fetch(`${API_BASE_URL}/api/chart/${symbol}`, {
+                const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
                     credentials: 'include'
                 });
                 const chartRespData = await chartResp.json();
@@ -89,7 +94,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 }
 
                 // Fetch news
-                const newsResp = await fetch(`${API_BASE_URL}/api/news/${symbol}`, {
+                const newsResp = await fetch(`${API_BASE}/api/news/${symbol}`, {
                     credentials: 'include'
                 });
                 const newsRespData = await newsResp.json();
@@ -390,7 +395,7 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
     setTimeout(() => {
         const chartContainer = document.getElementById('modalChartContainer');
         if (chartContainer && modalState.symbol) {
-            fetch(`${API_BASE_URL}/api/chart/${modalState.symbol}`, {
+            fetch(`${API_BASE}/api/chart/${modalState.symbol}`, {
                 credentials: 'include'
             })
             .then(res => res.json())
