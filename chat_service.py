@@ -358,6 +358,18 @@ class ChatService:
             }
         ]
     
+    def _format_function_result(self, result: Dict) -> str:
+        """Format function result for AI to understand"""
+        if result.get("success"):
+            message = result.get("message", "Success")
+            data = result.get("data")
+            
+            # Return clear success message
+            return message
+        else:
+            error_msg = result.get("message", result.get("error", "Unknown error"))
+            return f"Error: {error_msg}"
+    
     def _execute_function(self, function_name: str, arguments: Dict, user_id: str) -> Dict:
         """Execute a function called by the AI"""
         try:
@@ -527,21 +539,19 @@ class ChatService:
                     )
                     
                     if result.get("success"):
+                        logger.info(f"Successfully added {symbol} to watchlist for user {user_id}")
                         return {
                             "success": True,
-                            "data": {
-                                "symbol": symbol,
-                                "name": company_name,
-                                "price": current_price,
-                                "category": category
-                            },
-                            "message": f"✅ Added {symbol} ({company_name}) to your watchlist!"
+                            "data": None,
+                            "message": f"Success: Added {symbol} ({company_name}) to your watchlist at ${current_price:.2f}"
                         }
                     else:
+                        error_msg = result.get("message", f"Failed to add {symbol} to watchlist")
+                        logger.warning(f"Failed to add {symbol}: {error_msg}")
                         return {
                             "success": False,
                             "data": None,
-                            "message": result.get("message", f"Failed to add {symbol} to watchlist")
+                            "message": f"Failed: {error_msg}"
                         }
                 except Exception as e:
                     logger.error(f"Error adding stock to watchlist: {e}")
@@ -565,19 +575,19 @@ class ChatService:
                     )
                     
                     if result.get("success"):
+                        logger.info(f"Successfully removed {symbol} from watchlist for user {user_id}")
                         return {
                             "success": True,
-                            "data": {
-                                "symbol": symbol
-                            },
-                            "message": f"✅ Removed {symbol} from your watchlist!"
+                            "data": None,
+                            "message": f"Success: Removed {symbol} from your watchlist"
                         }
                     else:
                         error_msg = result.get("message", f"Failed to remove {symbol} from watchlist")
+                        logger.warning(f"Failed to remove {symbol}: {error_msg}")
                         return {
                             "success": False,
                             "data": None,
-                            "message": error_msg
+                            "message": f"Failed: {error_msg}"
                         }
                 except Exception as e:
                     logger.error(f"Error removing stock from watchlist: {e}")
@@ -647,6 +657,7 @@ Guidelines:
 4. When analyzing stocks, use the available functions to get current data
 5. Be conversational but professional
 6. If you don't know something, say so rather than guessing
+7. When you successfully add or remove a stock, tell the user clearly what happened
 
 Available functions:
 - get_stock_price: Get current stock price and info
@@ -661,7 +672,10 @@ Remember:
 - Always use functions to get real-time data when discussing specific stocks or portfolios
 - When users ask to add a stock to their watchlist, use the add_stock_to_watchlist function
 - When users ask to remove or delete a stock from their watchlist, use the remove_stock_from_watchlist function
-- The add_stock function will automatically fetch the current price and set it as the original price."""
+- The add_stock function will automatically fetch the current price and set it as the original price
+- NEVER create fake or manual responses. Use the actual function results to respond to the user
+- When a function returns "Success:" it means it worked - tell the user it worked and use that information
+- When a function returns "Failed:" it means it didn't work - tell the user it failed and why"""
 
             # Prepare messages for Groq API
             messages = [
@@ -734,10 +748,13 @@ Remember:
                 # Get final response with function results
                 messages.append(ai_message)
                 for result in function_results:
+                    # Format the result for better AI understanding
+                    formatted_content = self._format_function_result(result["result"])
+                    logger.info(f"Function {result['function_name']} result: {formatted_content}")
                     messages.append({
                         "role": "tool",
                         "tool_call_id": result["tool_call_id"],
-                        "content": json.dumps(result["result"], default=str)
+                        "content": formatted_content
                     })
                 
                 # Get final AI response
