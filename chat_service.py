@@ -362,13 +362,11 @@ class ChatService:
         """Format function result for AI to understand"""
         if result.get("success"):
             message = result.get("message", "Success")
-            data = result.get("data")
-            
-            # Return clear success message
-            return message
+            # Make it VERY explicit
+            return f"SUCCESS: {message}. Use this exact information in your response to the user."
         else:
             error_msg = result.get("message", result.get("error", "Unknown error"))
-            return f"Error: {error_msg}"
+            return f"FAILED: {error_msg}. Tell the user this exact error."
     
     def _execute_function(self, function_name: str, arguments: Dict, user_id: str) -> Dict:
         """Execute a function called by the AI"""
@@ -511,13 +509,17 @@ class ChatService:
                 name = arguments.get("name", "")
                 category = arguments.get("category", "General")
                 
+                logger.info(f"Adding stock to watchlist: symbol={symbol}, user={user_id}, category={category}")
+                
                 # Import watchlist service
                 from watchlist_service import watchlist_service
                 
                 # Get current stock price to set as original_price
+                logger.info(f"Fetching stock data for {symbol}...")
                 stock_data = self.stock_api.get_real_time_data(symbol)
                 
                 if not stock_data:
+                    logger.error(f"Could not fetch stock data for {symbol}")
                     return {
                         "success": False,
                         "data": None,
@@ -528,8 +530,11 @@ class ChatService:
                 company_name = name or stock_data.get("name", symbol)
                 current_price = stock_data.get("price", 0)
                 
+                logger.info(f"Stock data received: name={company_name}, price={current_price}")
+                
                 # Add stock to watchlist
                 try:
+                    logger.info(f"Calling watchlist_service.add_stock for {symbol}...")
                     result = watchlist_service.add_stock(
                         user_id=user_id,
                         symbol=symbol,
@@ -537,28 +542,29 @@ class ChatService:
                         current_price=current_price,
                         category=category
                     )
+                    logger.info(f"watchlist_service.add_stock result: {result}")
                     
                     if result.get("success"):
-                        logger.info(f"Successfully added {symbol} to watchlist for user {user_id}")
+                        logger.info(f"SUCCESS: Added {symbol} to watchlist for user {user_id}")
                         return {
                             "success": True,
                             "data": None,
-                            "message": f"Success: Added {symbol} ({company_name}) to your watchlist at ${current_price:.2f}"
+                            "message": f"SUCCESS: Added {symbol} ({company_name}) to your watchlist at ${current_price:.2f}"
                         }
                     else:
                         error_msg = result.get("message", f"Failed to add {symbol} to watchlist")
-                        logger.warning(f"Failed to add {symbol}: {error_msg}")
+                        logger.warning(f"FAILED to add {symbol}: {error_msg}")
                         return {
                             "success": False,
                             "data": None,
-                            "message": f"Failed: {error_msg}"
+                            "message": f"FAILED: {error_msg}"
                         }
                 except Exception as e:
-                    logger.error(f"Error adding stock to watchlist: {e}")
+                    logger.error(f"Exception adding stock to watchlist: {e}", exc_info=True)
                     return {
                         "success": False,
                         "data": None,
-                        "message": f"Error adding {symbol} to watchlist: {str(e)}"
+                        "message": f"FAILED: Error adding {symbol} to watchlist: {str(e)}"
                     }
             
             elif function_name == "remove_stock_from_watchlist":
@@ -668,14 +674,14 @@ Available functions:
 - add_stock_to_watchlist: Add a stock to the user's watchlist
 - remove_stock_from_watchlist: Remove a stock from the user's watchlist
 
-Remember: 
-- Always use functions to get real-time data when discussing specific stocks or portfolios
-- When users ask to add a stock to their watchlist, use the add_stock_to_watchlist function
-- When users ask to remove or delete a stock from their watchlist, use the remove_stock_from_watchlist function
-- The add_stock function will automatically fetch the current price and set it as the original price
-- NEVER create fake or manual responses. Use the actual function results to respond to the user
-- When a function returns "Success:" it means it worked - tell the user it worked and use that information
-- When a function returns "Failed:" it means it didn't work - tell the user it failed and why"""
+CRITICAL RULES:
+1. NEVER create fake data, fake stock details, or fake watchlists
+2. NEVER say you're adding a stock "manually" - always use the actual function
+3. When you receive "SUCCESS:" from a function, that means it actually worked in the database
+4. When you receive "FAILED:" from a function, tell the user exactly what went wrong
+5. If a function returns SUCCESS about adding a stock, the stock IS in their watchlist - confirm this to them
+6. NEVER generate fake JSON watchlists - only show real data from functions
+7. ALWAYS use the exact information returned by functions"""
 
             # Prepare messages for Groq API
             messages = [
