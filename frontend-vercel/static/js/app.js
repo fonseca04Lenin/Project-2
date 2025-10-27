@@ -3183,11 +3183,13 @@ async function getOptionsData() {
     }
 }
 
-// Initialize market intelligence data when user is authenticated
+// Initialize market intelligence data when user is authenticated  
 function initializeMarketIntelligence() {
     // Use React component instead of vanilla JS
-    if (window.initializeMarketIntelligence) {
-        window.initializeMarketIntelligence();
+    // Save reference to original function before React component overwrites it
+    const reactInitFn = window.__initMarketIntelReact;
+    if (reactInitFn && typeof reactInitFn === 'function') {
+        reactInitFn();
     }
 }
 
