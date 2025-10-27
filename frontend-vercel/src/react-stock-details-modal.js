@@ -317,59 +317,38 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                         {/* Watchlist Details Section */}
                         {stockData.isInWatchlist && stockData.dateAdded && (
-                            <div className="modal-watchlist-section">
-                                <h3>
-                                    <i className="fas fa-bookmark"></i>
-                                    Watchlist Information
-                                </h3>
-                                <div className="modal-info-grid">
-                                    <div className="info-card">
-                                        <span className="info-icon"><i className="fas fa-calendar"></i></span>
-                                        <div>
-                                            <span className="info-label">Date Added</span>
-                                            <span className="info-value">{stockData.dateAdded || '-'}</span>
-                                        </div>
+                            <div className="watchlist-details">
+                                <h3>Watchlist Information</h3>
+                                <div className="stock-details-meta">
+                                    <div>
+                                        <strong data-icon="calendar">Date Added:</strong> <span>{stockData.dateAdded || '-'}</span>
                                     </div>
-                                    <div className="info-card">
-                                        <span className="info-icon"><i className="fas fa-dollar-sign"></i></span>
-                                        <div>
-                                            <span className="info-label">Original Price</span>
-                                            <span className="info-value">
-                                                {stockData.originalPrice !== null && stockData.originalPrice !== undefined 
-                                                    ? `$${typeof stockData.originalPrice === 'number' ? stockData.originalPrice.toFixed(2) : stockData.originalPrice}`
-                                                    : '-'
-                                                }
-                                            </span>
-                                        </div>
+                                    <div>
+                                        <strong data-icon="dollar">Original Price:</strong> <span>
+                                            {stockData.originalPrice !== null && stockData.originalPrice !== undefined 
+                                                ? `$${typeof stockData.originalPrice === 'number' ? stockData.originalPrice.toFixed(2) : stockData.originalPrice}`
+                                                : '-'
+                                            }
+                                        </span>
                                     </div>
-                                    <div className="info-card">
-                                        <span className="info-icon"><i className="fas fa-arrow-up"></i></span>
-                                        <div>
-                                            <span className="info-label">Price Change</span>
-                                            <span className={`info-value ${stockData.priceChange !== null && stockData.priceChange !== undefined && stockData.priceChange >= 0 ? 'positive' : 'negative'}`}>
-                                                {stockData.priceChange !== null && stockData.priceChange !== undefined ? 
-                                                    `${stockData.priceChange >= 0 ? '+' : ''}$${stockData.priceChange.toFixed(2)}` 
-                                                    : '-'}
-                                            </span>
-                                        </div>
+                                    <div>
+                                        <strong data-icon="trend">Price Change:</strong> <span className={`${stockData.priceChange !== null && stockData.priceChange !== undefined && stockData.priceChange >= 0 ? 'positive' : 'negative'}`}>
+                                            {stockData.priceChange !== null && stockData.priceChange !== undefined ? 
+                                                `${stockData.priceChange >= 0 ? '+' : ''}$${stockData.priceChange.toFixed(2)}` 
+                                                : '-'
+                                            }
+                                        </span>
                                     </div>
-                                    <div className="info-card">
-                                        <span className="info-icon"><i className="fas fa-percentage"></i></span>
-                                        <div>
-                                            <span className="info-label">Change %</span>
-                                            <span className={`info-value ${stockData.percentageChange !== null && stockData.percentageChange !== undefined && stockData.percentageChange >= 0 ? 'positive' : 'negative'}`}>
-                                                {stockData.percentageChange !== null && stockData.percentageChange !== undefined ? 
-                                                    `${stockData.percentageChange >= 0 ? '+' : ''}${stockData.percentageChange.toFixed(2)}%` 
-                                                    : '-'}
-                                            </span>
-                                        </div>
+                                    <div>
+                                        <strong data-icon="percent">Percentage Change:</strong> <span className={`${stockData.percentageChange !== null && stockData.percentageChange !== undefined && stockData.percentageChange >= 0 ? 'positive' : 'negative'}`}>
+                                            {stockData.percentageChange !== null && stockData.percentageChange !== undefined ? 
+                                                `${stockData.percentageChange >= 0 ? '+' : ''}${stockData.percentageChange.toFixed(2)}%` 
+                                                : '-'
+                                            }
+                                        </span>
                                     </div>
-                                    <div className="info-card">
-                                        <span className="info-icon"><i className="fas fa-tags"></i></span>
-                                        <div>
-                                            <span className="info-label">Category</span>
-                                            <span className="info-value">{stockData.category || '-'}</span>
-                                        </div>
+                                    <div>
+                                        <strong data-icon="category">Category:</strong> <span>{stockData.category || '-'}</span>
                                     </div>
                                 </div>
                             </div>
