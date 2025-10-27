@@ -318,6 +318,29 @@ class ChatService:
                     },
                     "required": ["symbols"]
                 }
+            },
+            {
+                "name": "add_stock_to_watchlist",
+                "description": "Add a stock to the user's watchlist",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "symbol": {
+                            "type": "string",
+                            "description": "Stock symbol to add (e.g., AAPL, GOOGL)"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Company name (optional, will be fetched if not provided)"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Category for the stock (e.g., Technology, Healthcare)",
+                            "default": "General"
+                        }
+                    },
+                    "required": ["symbol"]
+                }
             }
         ]
     
@@ -457,6 +480,63 @@ class ChatService:
                     "message": f"Compared {len(comparison_data)} stocks"
                 }
             
+            elif function_name == "add_stock_to_watchlist":
+                symbol = arguments.get("symbol", "").upper()
+                name = arguments.get("name", "")
+                category = arguments.get("category", "General")
+                
+                # Import watchlist service
+                from watchlist_service import watchlist_service
+                
+                # Get current stock price to set as original_price
+                stock_data = self.stock_api.get_real_time_data(symbol)
+                
+                if not stock_data:
+                    return {
+                        "success": False,
+                        "data": None,
+                        "message": f"Could not find stock {symbol}. Please check the symbol and try again."
+                    }
+                
+                # Use provided name or fetch from stock data
+                company_name = name or stock_data.get("name", symbol)
+                current_price = stock_data.get("price", 0)
+                
+                # Add stock to watchlist
+                try:
+                    result = watchlist_service.add_stock(
+                        user_id=user_id,
+                        symbol=symbol,
+                        company_name=company_name,
+                        current_price=current_price,
+                        category=category
+                    )
+                    
+                    if result.get("success"):
+                        return {
+                            "success": True,
+                            "data": {
+                                "symbol": symbol,
+                                "name": company_name,
+                                "price": current_price,
+                                "category": category
+                            },
+                            "message": f"✅ Added {symbol} ({company_name}) to your watchlist!"
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "data": None,
+                            "message": result.get("message", f"Failed to add {symbol} to watchlist")
+                        }
+                except Exception as e:
+                    logger.error(f"Error adding stock to watchlist: {e}")
+                    return {
+                        "success": False,
+                        "data": None,
+                        "message": f"Error adding {symbol} to watchlist: {str(e)}"
+                    }
+            
             else:
                 return {
                     "success": False,
@@ -524,8 +604,12 @@ Available functions:
 - get_watchlist_details: Get comprehensive watchlist information
 - get_market_news: Get news for specific stocks
 - compare_stocks: Compare multiple stocks
+- add_stock_to_watchlist: Add a stock to the user's watchlist
 
-Remember: Always use functions to get real-time data when discussing specific stocks or portfolios."""
+Remember: 
+- Always use functions to get real-time data when discussing specific stocks or portfolios
+- When users ask to add a stock to their watchlist, use the add_stock_to_watchlist function
+- The function will automatically fetch the current price and set it as the original price."""
 
             # Prepare messages for Groq API
             messages = [
