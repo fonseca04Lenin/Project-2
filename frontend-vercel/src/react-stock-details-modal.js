@@ -16,6 +16,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [chartData, setChartData] = useState(null);
     const [news, setNews] = useState([]);
 
+    // Update global modalState when stockData changes
+    useEffect(() => {
+        if (stockData) {
+            modalState.stockData = stockData;
+        }
+    }, [stockData]);
+
     // Fetch stock details
     useEffect(() => {
         if (!isOpen || !symbol) return;
@@ -121,6 +128,35 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
         fetchData();
     }, [isOpen, symbol, isFromWatchlist]);
+
+    // Render chart when chartData is available
+    useEffect(() => {
+        if (!chartData || !symbol) return;
+
+        const chartContainer = document.getElementById('modalChartContainer');
+        if (!chartContainer) return;
+
+        // Clear container
+        chartContainer.innerHTML = '';
+        
+        // Render chart
+        if (window.StockChart && chartData.length > 0) {
+            const chartRoot = ReactDOM.createRoot(chartContainer);
+            chartRoot.render(React.createElement(window.StockChart, {
+                symbol: symbol,
+                data: chartData,
+                isModal: true,
+                onClose: null
+            }));
+        }
+
+        return () => {
+            // Cleanup
+            if (chartContainer) {
+                chartContainer.innerHTML = '';
+            }
+        };
+    }, [chartData, symbol]);
 
     // Handle escape key
     useEffect(() => {
@@ -377,13 +413,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         )}
 
                         {/* Chart */}
-                        {chartData && (
+                        {chartData && chartData.length > 0 && (
                             <div className="modal-chart">
                                 <h3>
                                     <i className="fas fa-chart-area"></i>
                                     Price History
                                 </h3>
-                                <div id="modalChartContainer"></div>
+                                <div id="modalChartContainer" style={{ minHeight: '300px' }}></div>
                             </div>
                         )}
 
@@ -422,7 +458,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 let modalState = {
     isOpen: false,
     symbol: null,
-    isFromWatchlist: false
+    isFromWatchlist: false,
+    stockData: null
 };
 
 let modalContainer = null;
@@ -460,44 +497,23 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
         }
     }));
 
-    // Mount chart after a brief delay to ensure DOM is ready
+    // Render notes editor after modal is rendered
     setTimeout(() => {
-        const chartContainer = document.getElementById('modalChartContainer');
-        if (chartContainer && modalState.symbol) {
-            fetch(`${API_BASE}/api/chart/${modalState.symbol}`, {
-                credentials: 'include'
-            })
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
+        const renderNotesEditor = () => {
+            if (modalState.isFromWatchlist && modalState.stockData && modalState.stockData.notes !== undefined) {
+                if (window.renderWatchlistNotes && modalState.symbol) {
+                    try {
+                        window.renderWatchlistNotes(modalState.symbol, modalState.stockData.notes || '');
+                    } catch (err) {
+                        console.error('Error rendering notes editor:', err);
+                    }
                 }
-                return res.json();
-            })
-            .then(chartData => {
-                if (chartData && chartData.length > 0) {
-                    chartContainer.innerHTML = '';
-                    const chartRoot = ReactDOM.createRoot(chartContainer);
-                    chartRoot.render(React.createElement(window.StockChart, {
-                        symbol: modalState.symbol,
-                        data: chartData,
-                        isModal: true,
-                        onClose: null
-                    }));
-                }
-            })
-            .catch(err => {
-                console.error('Error loading chart:', err);
-                chartContainer.innerHTML = '<div class="chart-error">Chart unavailable</div>';
-            });
-        }
-
-        // Render notes editor if in watchlist
-        if (modalState.isFromWatchlist && stockData && stockData.notes !== undefined) {
-            if (window.renderWatchlistNotes && modalState.symbol) {
-                window.renderWatchlistNotes(modalState.symbol, stockData.notes || '');
             }
-        }
-    }, 100);
+        };
+
+        // Render notes editor
+        renderNotesEditor();
+    }, 800);
 
     // Hide search bar
     const searchSection = document.querySelector('.search-section');
