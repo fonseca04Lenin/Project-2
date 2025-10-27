@@ -145,8 +145,11 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 chartInstanceRef.current.data.labels = chartData.map(item => item.formattedDate);
                 chartInstanceRef.current.data.datasets[0].data = chartData.map(item => item.price);
                 chartInstanceRef.current.data.datasets[0].label = `${symbol} Price`;
+                // Ensure points are hidden
                 chartInstanceRef.current.data.datasets[0].pointRadius = 0;
-                chartInstanceRef.current.data.datasets[0].pointHoverRadius = 6;
+                chartInstanceRef.current.data.datasets[0].pointBorderWidth = 0;
+                chartInstanceRef.current.data.datasets[0].pointHoverRadius = 5;
+                chartInstanceRef.current.data.datasets[0].pointStyle = false;
                 chartInstanceRef.current.update('active');
             } else {
                 // Create new chart
@@ -159,17 +162,18 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                             data: chartData.map(item => item.price),
                             borderColor: '#22c55e',
                             backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                            borderWidth: 3,
+                            borderWidth: 2,
                             fill: true,
                             tension: 0.4,
                             pointRadius: 0,
-                            pointHoverRadius: 6,
+                            pointHoverRadius: 5,
                             pointHoverBackgroundColor: '#22c55e',
                             pointHoverBorderColor: '#ffffff',
                             pointHoverBorderWidth: 2,
                             pointStyle: 'circle',
                             showLine: true,
-                            spanGaps: false
+                            spanGaps: false,
+                            pointBorderWidth: 0
                         }]
                     },
                 options: {
@@ -258,7 +262,12 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                             hoverBackgroundColor: '#22c55e',
                             hoverBorderColor: '#ffffff',
                             hoverBorderWidth: 2,
-                            hoverRadius: 6
+                            hoverRadius: 5,
+                            borderWidth: 0
+                        },
+                        line: {
+                            borderWidth: 2,
+                            tension: 0.4
                         }
                     }
                 }
