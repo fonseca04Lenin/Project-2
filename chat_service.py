@@ -321,30 +321,38 @@ class ChatService:
             },
             {
                 "name": "add_stock_to_watchlist",
-                "description": "Add a stock to the user's watchlist. Only provide the symbol parameter.",
+                "description": "Add a stock to the user's watchlist. You can provide either a stock symbol OR a company name.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "symbol": {
                             "type": "string",
-                            "description": "Stock symbol to add (e.g., AAPL, GOOGL, WMT)"
+                            "description": "Stock symbol if user provided one directly (e.g., AAPL, GOOGL, WMT). Leave empty if company name provided."
+                        },
+                        "company_name": {
+                            "type": "string",
+                            "description": "Company name if user provided company name instead of symbol (e.g., Walmart, Apple, Microsoft). Leave empty if symbol provided."
                         }
                     },
-                    "required": ["symbol"]
+                    "required": []
                 }
             },
             {
                 "name": "remove_stock_from_watchlist",
-                "description": "Remove a stock from the user's watchlist",
+                "description": "Remove a stock from the user's watchlist. You can provide either a stock symbol OR a company name.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "symbol": {
                             "type": "string",
-                            "description": "Stock symbol to remove (e.g., AAPL, GOOGL)"
+                            "description": "Stock symbol if user provided one directly (e.g., AAPL, GOOGL, WMT). Leave empty if company name provided."
+                        },
+                        "company_name": {
+                            "type": "string",
+                            "description": "Company name if user provided company name instead of symbol (e.g., Walmart, Apple, Microsoft). Leave empty if symbol provided."
                         }
                     },
-                    "required": ["symbol"]
+                    "required": []
                 }
             }
         ]
@@ -496,9 +504,10 @@ class ChatService:
                 }
             
             elif function_name == "add_stock_to_watchlist":
-                symbol = arguments.get("symbol", "").upper()
+                symbol = arguments.get("symbol", "").strip().upper()
+                company_name_input = arguments.get("company_name", "").strip()
                 
-                logger.info(f"Adding stock to watchlist: symbol={symbol}, user={user_id}")
+                logger.info(f"Adding stock to watchlist: symbol={symbol}, company_name={company_name_input}, user={user_id}")
                 
                 # Import watchlist service
                 from watchlist_service import get_watchlist_service
@@ -506,6 +515,37 @@ class ChatService:
                 
                 db_client = get_firestore_client()
                 watchlist_service = get_watchlist_service(db_client)
+                
+                # If company name provided but not symbol, try to find the symbol
+                if company_name_input and not symbol:
+                    logger.info(f"Searching for symbol for company: {company_name_input}")
+                    # Try to search for the company
+                    try:
+                        search_result = self.stock_api.search_stocks(company_name_input, limit=5)
+                        if search_result and len(search_result) > 0:
+                            symbol = search_result[0].get('symbol', '').upper()
+                            logger.info(f"Found symbol {symbol} for company {company_name_input}")
+                        else:
+                            return {
+                                "success": False,
+                                "data": None,
+                                "message": f"Could not find stock for '{company_name_input}'. Please provide the stock symbol directly (e.g., WMT for Walmart)."
+                            }
+                    except Exception as e:
+                        logger.error(f"Error searching for company: {e}")
+                        return {
+                            "success": False,
+                            "data": None,
+                            "message": f"Error searching for '{company_name_input}'. Please provide the stock symbol directly (e.g., WMT for Walmart)."
+                        }
+                
+                # If still no symbol, fail
+                if not symbol:
+                    return {
+                        "success": False,
+                        "data": None,
+                        "message": "Please provide either a stock symbol (e.g., WMT) or a company name (e.g., Walmart)."
+                    }
                 
                 # Get current stock price to set as original_price
                 logger.info(f"Fetching stock data for {symbol}...")
@@ -560,9 +600,10 @@ class ChatService:
                     }
             
             elif function_name == "remove_stock_from_watchlist":
-                symbol = arguments.get("symbol", "").upper()
+                symbol = arguments.get("symbol", "").strip().upper()
+                company_name_input = arguments.get("company_name", "").strip()
                 
-                logger.info(f"Removing stock from watchlist: symbol={symbol}, user={user_id}")
+                logger.info(f"Removing stock from watchlist: symbol={symbol}, company_name={company_name_input}, user={user_id}")
                 
                 # Import watchlist service
                 from watchlist_service import get_watchlist_service
@@ -571,12 +612,44 @@ class ChatService:
                 db_client = get_firestore_client()
                 watchlist_service = get_watchlist_service(db_client)
                 
+                # If company name provided but not symbol, try to find the symbol
+                if company_name_input and not symbol:
+                    logger.info(f"Searching for symbol for company: {company_name_input}")
+                    try:
+                        search_result = self.stock_api.search_stocks(company_name_input, limit=5)
+                        if search_result and len(search_result) > 0:
+                            symbol = search_result[0].get('symbol', '').upper()
+                            logger.info(f"Found symbol {symbol} for company {company_name_input}")
+                        else:
+                            return {
+                                "success": False,
+                                "data": None,
+                                "message": f"FAILED: Could not find stock for '{company_name_input}'. Please provide the stock symbol directly."
+                            }
+                    except Exception as e:
+                        logger.error(f"Error searching for company: {e}")
+                        return {
+                            "success": False,
+                            "data": None,
+                            "message": f"FAILED: Error searching for '{company_name_input}'. Please provide the stock symbol directly."
+                        }
+                
+                # If still no symbol, fail
+                if not symbol:
+                    return {
+                        "success": False,
+                        "data": None,
+                        "message": "FAILED: Please provide either a stock symbol or a company name."
+                    }
+                
                 # Remove stock from watchlist
                 try:
+                    logger.info(f"Calling watchlist_service.remove_stock for {symbol}...")
                     result = watchlist_service.remove_stock(
                         user_id=user_id,
                         symbol=symbol
                     )
+                    logger.info(f"watchlist_service.remove_stock result: {result}")
                     
                     if result.get("success"):
                         logger.info(f"Successfully removed {symbol} from watchlist for user {user_id}")
@@ -679,7 +752,11 @@ CRITICAL RULES:
 4. When you receive "FAILED:" from a function, tell the user exactly what went wrong
 5. If a function returns SUCCESS about adding a stock, the stock IS in their watchlist - confirm this to them
 6. NEVER generate fake JSON watchlists - only show real data from functions
-7. ALWAYS use the exact information returned by functions"""
+7. ALWAYS use the exact information returned by functions
+8. When users provide company names (like "Walmart" or "Apple") for adding/removing, use company_name parameter
+9. When users provide stock symbols (like "WMT" or "AAPL"), use symbol parameter
+10. The functions will automatically search and find the correct symbol for company names
+11. For add/remove operations, provide EITHER symbol OR company_name, not both"""
 
             # Prepare messages for Groq API
             messages = [
