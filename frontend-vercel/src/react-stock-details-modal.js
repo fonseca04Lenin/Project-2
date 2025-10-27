@@ -276,55 +276,42 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         )}
 
-                        {/* Stock Info Grid */}
-                        <div className="modal-info-grid">
-                            <div className="info-card">
-                                <span className="info-icon"><i className="fas fa-user-tie"></i></span>
-                                <div>
-                                    <span className="info-label">CEO</span>
-                                    <span className="info-value">{stockData.ceo || '-'}</span>
-                                </div>
+                        {/* Stock Info - Vanilla Style */}
+                        <div className="stock-details-meta">
+                            <div>
+                                <strong data-icon="ceo">CEO:</strong> <span>{stockData.ceo || '-'}</span>
                             </div>
-                            <div className="info-card">
-                                <span className="info-icon"><i className="fas fa-dollar-sign"></i></span>
-                                <div>
-                                    <span className="info-label">Price</span>
-                                    <span className="info-value">${stockData.price || '-'}</span>
-                                </div>
+                            <div>
+                                <strong data-icon="desc">Description:</strong> <span>{stockData.description || '-'}</span>
                             </div>
-                            <div className="info-card">
-                                <span className="info-icon"><i className="fas fa-building"></i></span>
-                                <div>
-                                    <span className="info-label">Market Cap</span>
-                                    <span className="info-value">{formatMarketCap(stockData.marketCap)}</span>
-                                </div>
+                            <div>
+                                <strong data-icon="price">Price:</strong> ${stockData.price || '-'}
                             </div>
-                            <div className="info-card">
-                                <span className="info-icon"><i className="fas fa-percentage"></i></span>
-                                <div>
-                                    <span className="info-label">P/E Ratio</span>
-                                    <span className="info-value">{stockData.peRatio || '-'}</span>
-                                </div>
+                            <div>
+                                <strong data-icon="marketcap">Market Cap:</strong> <span>{formatMarketCap(stockData.marketCap)}</span>
                             </div>
-                            <div className="info-card">
-                                <span className="info-icon"><i className="fas fa-chart-pie"></i></span>
-                                <div>
-                                    <span className="info-label">Dividend Yield</span>
-                                    <span className="info-value">{stockData.dividendYield || '-'}</span>
-                                </div>
+                            <div>
+                                <strong data-icon="pe">P/E Ratio:</strong> <span>{stockData.peRatio || '-'}</span>
                             </div>
-                            <div className="info-card">
-                                <span className="info-icon"><i className="fas fa-globe"></i></span>
-                                <div>
-                                    <span className="info-label">Website</span>
-                                    <span className="info-value">
-                                        {stockData.website ? (
-                                            <a href={stockData.website} target="_blank" rel="noopener noreferrer">
-                                                {stockData.website}
-                                            </a>
-                                        ) : '-'}
-                                    </span>
-                                </div>
+                            <div>
+                                <strong data-icon="dividend">Dividend Yield:</strong> <span>
+                                    {stockData.dividendYield && stockData.dividendYield !== '-' 
+                                        ? (typeof stockData.dividendYield === 'number' ? (stockData.dividendYield * 100).toFixed(2) + '%' : stockData.dividendYield)
+                                        : '-'
+                                    }
+                                </span>
+                            </div>
+                            <div>
+                                <strong data-icon="website">Website:</strong> <span>
+                                    {stockData.website && stockData.website !== '-' ? (
+                                        <a href={stockData.website} target="_blank" rel="noopener noreferrer">
+                                            {stockData.website.replace(/^https?:\/\//, '')}
+                                        </a>
+                                    ) : '-'}
+                                </span>
+                            </div>
+                            <div>
+                                <strong data-icon="hq">Headquarters:</strong> <span>{stockData.headquarters || '-'}</span>
                             </div>
                         </div>
 
@@ -385,25 +372,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* Description */}
-                        {stockData.description && (
-                            <div className="modal-description">
-                                <h3>
-                                    <i className="fas fa-align-left"></i>
-                                    About
-                                </h3>
-                                <p>{stockData.description}</p>
-                            </div>
-                        )}
-
-                        {/* Headquarters */}
-                        {stockData.headquarters && (
-                            <div className="modal-headquarters">
-                                <i className="fas fa-map-marker-alt"></i>
-                                <span>{stockData.headquarters}</span>
                             </div>
                         )}
 
