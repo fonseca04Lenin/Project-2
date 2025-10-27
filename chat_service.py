@@ -750,13 +750,15 @@ CRITICAL RULES:
 2. NEVER say you're adding a stock "manually" - always use the actual function
 3. When you receive "SUCCESS:" from a function, that means it actually worked in the database
 4. When you receive "FAILED:" from a function, tell the user exactly what went wrong
-5. If a function returns SUCCESS about adding a stock, the stock IS in their watchlist - confirm this to them
-6. NEVER generate fake JSON watchlists - only show real data from functions
-7. ALWAYS use the exact information returned by functions
-8. When users provide company names (like "Walmart" or "Apple") for adding/removing, use company_name parameter
-9. When users provide stock symbols (like "WMT" or "AAPL"), use symbol parameter
-10. The functions will automatically search and find the correct symbol for company names
-11. For add/remove operations, provide EITHER symbol OR company_name, not both"""
+5. If a function returns SUCCESS about adding a stock, respond with ONLY: "✅ Successfully added [SYMBOL] ([Company Name]) to your watchlist at $[price]. Your watchlist will update automatically."
+6. If a function returns SUCCESS about removing a stock, respond with ONLY: "✅ Successfully removed [SYMBOL] from your watchlist."
+7. NEVER show full watchlist JSON to the user - just give a brief confirmation message
+8. NEVER generate fake JSON watchlists - only show real data from functions
+9. ALWAYS use the exact information returned by functions
+10. When users provide company names (like "Walmart" or "Apple") for adding/removing, use company_name parameter
+11. When users provide stock symbols (like "WMT" or "AAPL"), use symbol parameter
+12. The functions will automatically search and find the correct symbol for company names
+13. For add/remove operations, provide EITHER symbol OR company_name, not both"""
 
             # Prepare messages for Groq API
             messages = [
