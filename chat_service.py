@@ -341,6 +341,20 @@ class ChatService:
                     },
                     "required": ["symbol"]
                 }
+            },
+            {
+                "name": "remove_stock_from_watchlist",
+                "description": "Remove a stock from the user's watchlist",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "symbol": {
+                            "type": "string",
+                            "description": "Stock symbol to remove (e.g., AAPL, GOOGL)"
+                        }
+                    },
+                    "required": ["symbol"]
+                }
             }
         ]
     
@@ -537,6 +551,42 @@ class ChatService:
                         "message": f"Error adding {symbol} to watchlist: {str(e)}"
                     }
             
+            elif function_name == "remove_stock_from_watchlist":
+                symbol = arguments.get("symbol", "").upper()
+                
+                # Import watchlist service
+                from watchlist_service import watchlist_service
+                
+                # Remove stock from watchlist
+                try:
+                    result = watchlist_service.remove_stock(
+                        user_id=user_id,
+                        symbol=symbol
+                    )
+                    
+                    if result.get("success"):
+                        return {
+                            "success": True,
+                            "data": {
+                                "symbol": symbol
+                            },
+                            "message": f"✅ Removed {symbol} from your watchlist!"
+                        }
+                    else:
+                        error_msg = result.get("message", f"Failed to remove {symbol} from watchlist")
+                        return {
+                            "success": False,
+                            "data": None,
+                            "message": error_msg
+                        }
+                except Exception as e:
+                    logger.error(f"Error removing stock from watchlist: {e}")
+                    return {
+                        "success": False,
+                        "data": None,
+                        "message": f"Error removing {symbol} from watchlist: {str(e)}"
+                    }
+            
             else:
                 return {
                     "success": False,
@@ -605,11 +655,13 @@ Available functions:
 - get_market_news: Get news for specific stocks
 - compare_stocks: Compare multiple stocks
 - add_stock_to_watchlist: Add a stock to the user's watchlist
+- remove_stock_from_watchlist: Remove a stock from the user's watchlist
 
 Remember: 
 - Always use functions to get real-time data when discussing specific stocks or portfolios
 - When users ask to add a stock to their watchlist, use the add_stock_to_watchlist function
-- The function will automatically fetch the current price and set it as the original price."""
+- When users ask to remove or delete a stock from their watchlist, use the remove_stock_from_watchlist function
+- The add_stock function will automatically fetch the current price and set it as the original price."""
 
             # Prepare messages for Groq API
             messages = [
