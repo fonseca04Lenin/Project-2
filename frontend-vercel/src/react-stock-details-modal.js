@@ -1,5 +1,5 @@
 // React Stock Details Modal Component
-const { useState, useEffect } = React;
+const { useState, useEffect, useCallback } = React;
 
 // Avoid duplicate declaration of API_BASE_URL
 if (typeof window.API_BASE_URL === 'undefined') {
@@ -8,6 +8,156 @@ if (typeof window.API_BASE_URL === 'undefined') {
 
 // Use window.API_BASE_URL to avoid const redeclaration errors  
 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+
+// Watchlist Notes Section Component
+const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
+    const [notes, setNotes] = useState(initialNotes);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    // Update notes when initialNotes changes
+    useEffect(() => {
+        setNotes(initialNotes || '');
+        setHasChanges(false);
+    }, [initialNotes]);
+
+    const handleChange = (e) => {
+        setNotes(e.target.value);
+        setHasChanges(true);
+    };
+
+    const saveNotes = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
+        try {
+            const response = await fetch(`${API_BASE}/api/watchlist/${symbol}/notes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ notes })
+            });
+            if (response.ok) {
+                setHasChanges(false);
+                setIsEditing(false);
+            }
+        } catch (err) {
+            console.error('Error saving notes:', err);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleBlur = () => {
+        if (hasChanges && !isSaving) {
+            saveNotes();
+        } else {
+            setIsEditing(false);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            saveNotes();
+        } else if (e.key === 'Escape') {
+            setNotes(initialNotes || '');
+            setHasChanges(false);
+            setIsEditing(false);
+        }
+    };
+
+    if (!isEditing && !initialNotes && !notes) {
+        return (
+            <div className="watchlist-notes-section">
+                <div className="watchlist-notes-header">
+                    <h4>
+                        <i className="fas fa-sticky-note"></i>
+                        Notes
+                    </h4>
+                    <button 
+                        className="btn-icon btn-icon-sm" 
+                        onClick={() => setIsEditing(true)}
+                        title="Add notes"
+                    >
+                        <i className="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div className="watchlist-notes-empty">
+                    <span>Click + to add notes about this stock</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isEditing) {
+        return (
+            <div className="watchlist-notes-section">
+                <div className="watchlist-notes-header">
+                    <h4>
+                        <i className="fas fa-sticky-note"></i>
+                        Notes
+                    </h4>
+                    <button 
+                        className="btn-icon btn-icon-sm" 
+                        onClick={() => setIsEditing(true)}
+                        title="Edit notes"
+                    >
+                        <i className="fas fa-edit"></i>
+                    </button>
+                </div>
+                <div className="watchlist-notes-content">
+                    <p>{notes}</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="watchlist-notes-section watchlist-notes-editing">
+            <div className="watchlist-notes-header">
+                <h4>
+                    <i className="fas fa-sticky-note"></i>
+                    Notes
+                </h4>
+                <div className="watchlist-notes-actions">
+                    {hasChanges && (
+                        <span className="watchlist-notes-unsaved">
+                            <i className="fas fa-circle" style={{ fontSize: '8px', color: 'var(--primary)' }}></i>
+                            Unsaved changes
+                        </span>
+                    )}
+                    <button 
+                        className="btn-icon btn-icon-sm" 
+                        onClick={handleBlur}
+                        disabled={isSaving}
+                        title="Save notes (Ctrl+Enter)"
+                    >
+                        <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
+                    </button>
+                </div>
+            </div>
+            <textarea
+                className="watchlist-notes-textarea"
+                value={notes}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                placeholder="Add your notes here... (Press Ctrl+Enter to save, Esc to cancel)"
+                autoFocus
+                rows="4"
+            />
+            <div className="watchlist-notes-hint">
+                <small>
+                    <i className="fas fa-info-circle"></i>
+                    Press Ctrl+Enter to save, Esc to cancel
+                </small>
+            </div>
+        </div>
+    );
+};
 
 const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false }) => {
     const [stockData, setStockData] = useState(null);
@@ -356,19 +506,24 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                         {/* Notes Section (only for watchlist items) */}
                         {stockData.isInWatchlist && (
-                            <div id="watchlistNotesEditor"></div>
+                            <WatchlistNotesSection symbol={symbol} initialNotes={stockData.notes || ''} />
                         )}
 
                         {/* Chart */}
-                        {chartData && chartData.length > 0 && (
-                            <div className="modal-chart">
-                                <h3>
-                                    <i className="fas fa-chart-area"></i>
-                                    Price History
-                                </h3>
-                                <div id="modalChartContainer" style={{ minHeight: '300px' }}></div>
+                        <div className="modal-chart">
+                            <h3>
+                                <i className="fas fa-chart-area"></i>
+                                Price History
+                            </h3>
+                            <div id="modalChartContainer" style={{ minHeight: '300px' }}>
+                                {!chartData && (
+                                    <div className="loading-state">
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                        <p>Loading chart...</p>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
 
                         {/* News */}
                         {news.length > 0 && (
@@ -430,9 +585,6 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
         ...modalState,
         onClose: () => {
             modalState.isOpen = false;
-            if (window.unmountWatchlistNotes) {
-                window.unmountWatchlistNotes();
-            }
             if (modalRoot) {
                 modalRoot.render(null);
             }
@@ -444,24 +596,6 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
         }
     }));
 
-    // Render notes editor after modal is rendered
-    setTimeout(() => {
-        const renderNotesEditor = () => {
-            if (modalState.isFromWatchlist && modalState.stockData && modalState.stockData.notes !== undefined) {
-                if (window.renderWatchlistNotes && modalState.symbol) {
-                    try {
-                        window.renderWatchlistNotes(modalState.symbol, modalState.stockData.notes || '');
-                    } catch (err) {
-                        console.error('Error rendering notes editor:', err);
-                    }
-                }
-            }
-        };
-
-        // Render notes editor
-        renderNotesEditor();
-    }, 800);
-
     // Hide search bar
     const searchSection = document.querySelector('.search-section');
     if (searchSection) searchSection.style.display = 'none';
@@ -469,9 +603,6 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
 
 // Close modal function
 window.closeStockDetailsModalReact = () => {
-    if (window.unmountWatchlistNotes) {
-        window.unmountWatchlistNotes();
-    }
     if (modalRoot) {
         modalRoot.render(null);
     }
