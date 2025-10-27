@@ -1,7 +1,8 @@
 // React Stock Details Modal Component
 const { useState, useEffect } = React;
 
-const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
+const API_BASE_URL = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+window.API_BASE_URL = API_BASE_URL;
 
 const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false }) => {
     const [stockData, setStockData] = useState(null);

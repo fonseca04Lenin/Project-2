@@ -2957,6 +2957,21 @@ window.closeStockDetailsModal = closeStockDetailsModal;
 
 // Market Intelligence Functions removed - now handled by React component
 
+// Stub functions to prevent errors while HTML is being replaced by React component
+window.showIntelligenceTab = function(tab) {
+    // This is now handled by the React component
+};
+
+async function getInsiderTrading() {
+    // This is now handled by the React component  
+    showNotification('Market Intelligence is loading...', 'info');
+}
+
+async function getOptionsData() {
+    // This is now handled by the React component
+    showNotification('Market Intelligence is loading...', 'info');
+}
+
 async function getAnalystRatings() {
     const symbol = document.getElementById('analyst-symbol').value.trim().toUpperCase();
     
