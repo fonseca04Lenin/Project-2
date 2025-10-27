@@ -1981,6 +1981,28 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.watchlist-notes-actions .btn-primary,
+.watchlist-notes-actions .btn-secondary {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.watchlist-notes-actions .btn-primary:disabled,
+.watchlist-notes-actions .btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .watchlist-notes-unsaved {
@@ -5396,12 +5418,16 @@ body {
 }
 
 .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
+    padding-right: 60px;
     border-bottom: 2px solid rgba(34, 197, 94, 0.2);
+}
+
+.modal-header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
 .modal-header h2 {
@@ -5419,6 +5445,7 @@ body {
     font-weight: 600;
     font-size: 0.875rem;
     border: 1px solid rgba(34, 197, 94, 0.3);
+    white-space: nowrap;
 }
 
 .watchlist-info-banner {
