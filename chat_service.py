@@ -512,7 +512,11 @@ class ChatService:
                 logger.info(f"Adding stock to watchlist: symbol={symbol}, user={user_id}, category={category}")
                 
                 # Import watchlist service
-                from watchlist_service import watchlist_service
+                from watchlist_service import get_watchlist_service
+                from firebase_service import get_firestore_client
+                
+                db_client = get_firestore_client()
+                watchlist_service = get_watchlist_service(db_client)
                 
                 # Get current stock price to set as original_price
                 logger.info(f"Fetching stock data for {symbol}...")
@@ -570,8 +574,14 @@ class ChatService:
             elif function_name == "remove_stock_from_watchlist":
                 symbol = arguments.get("symbol", "").upper()
                 
+                logger.info(f"Removing stock from watchlist: symbol={symbol}, user={user_id}")
+                
                 # Import watchlist service
-                from watchlist_service import watchlist_service
+                from watchlist_service import get_watchlist_service
+                from firebase_service import get_firestore_client
+                
+                db_client = get_firestore_client()
+                watchlist_service = get_watchlist_service(db_client)
                 
                 # Remove stock from watchlist
                 try:
