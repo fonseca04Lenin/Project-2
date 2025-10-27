@@ -321,22 +321,13 @@ class ChatService:
             },
             {
                 "name": "add_stock_to_watchlist",
-                "description": "Add a stock to the user's watchlist",
+                "description": "Add a stock to the user's watchlist. Only provide the symbol parameter.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "symbol": {
                             "type": "string",
-                            "description": "Stock symbol to add (e.g., AAPL, GOOGL)"
-                        },
-                        "name": {
-                            "type": "string",
-                            "description": "Company name (optional, will be fetched if not provided)"
-                        },
-                        "category": {
-                            "type": "string",
-                            "description": "Category for the stock (e.g., Technology, Healthcare)",
-                            "default": "General"
+                            "description": "Stock symbol to add (e.g., AAPL, GOOGL, WMT)"
                         }
                     },
                     "required": ["symbol"]
@@ -506,10 +497,8 @@ class ChatService:
             
             elif function_name == "add_stock_to_watchlist":
                 symbol = arguments.get("symbol", "").upper()
-                name = arguments.get("name", "")
-                category = arguments.get("category", "General")
                 
-                logger.info(f"Adding stock to watchlist: symbol={symbol}, user={user_id}, category={category}")
+                logger.info(f"Adding stock to watchlist: symbol={symbol}, user={user_id}")
                 
                 # Import watchlist service
                 from watchlist_service import get_watchlist_service
@@ -530,8 +519,8 @@ class ChatService:
                         "message": f"Could not find stock {symbol}. Please check the symbol and try again."
                     }
                 
-                # Use provided name or fetch from stock data
-                company_name = name or stock_data.get("name", symbol)
+                # Fetch company name and price from stock data
+                company_name = stock_data.get("name", symbol)
                 current_price = stock_data.get("price", 0)
                 
                 logger.info(f"Stock data received: name={company_name}, price={current_price}")
@@ -543,8 +532,7 @@ class ChatService:
                         user_id=user_id,
                         symbol=symbol,
                         company_name=company_name,
-                        current_price=current_price,
-                        category=category
+                        current_price=current_price
                     )
                     logger.info(f"watchlist_service.add_stock result: {result}")
                     
