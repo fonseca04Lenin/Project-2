@@ -2955,21 +2955,211 @@ function closeStockDetailsModal() {
 window.openStockDetailsModal = openStockDetailsModal;
 window.closeStockDetailsModal = closeStockDetailsModal;
 
-// Market Intelligence Functions removed - now handled by React component
+// Market Intelligence Functions - Vanilla JavaScript Version
 
-// Stub functions to prevent errors while HTML is being replaced by React component
-window.showIntelligenceTab = function(tab) {
-    // This is now handled by the React component
-};
-
-async function getInsiderTrading() {
-    // This is now handled by the React component  
-    showNotification('Market Intelligence is loading...', 'info');
+function showIntelligenceTab(tabName) {
+    // Hide all tab contents
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => content.classList.remove('active'));
+    
+    // Remove active class from all tab buttons
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => btn.classList.remove('active'));
+    
+    // Show selected tab content
+    const tabElement = document.getElementById(`${tabName}-tab`);
+    if (tabElement) {
+        tabElement.classList.add('active');
+    }
+    
+    // Add active class to clicked button
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
+    
+    // Load data for the selected tab
+    if (tabName === 'earnings') {
+        loadEarningsCalendar();
+    }
 }
 
-async function getOptionsData() {
-    // This is now handled by the React component
-    showNotification('Market Intelligence is loading...', 'info');
+async function loadEarningsCalendar() {
+    const earningsContainer = document.getElementById('earningsList');
+    if (!earningsContainer) return;
+    
+    // Show loading state
+    earningsContainer.innerHTML = `
+        <div class="loading-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading earnings calendar...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/market/earnings`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const earnings = await response.json();
+
+        if (!earnings || earnings.length === 0) {
+            earningsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-calendar"></i>
+                    <p>No upcoming earnings found</p>
+                    <small>Check back later for new earnings announcements</small>
+                </div>
+            `;
+            return;
+        }
+
+        let earningsHTML = `
+            <div class="earnings-summary">
+                <h4>Upcoming Earnings Calendar</h4>
+                <p>Showing ${earnings.length} upcoming earnings events</p>
+            </div>
+        `;
+        
+        earnings.forEach(earning => {
+            const date = new Date(earning.earnings_date).toLocaleDateString();
+            const estimateClass = earning.estimate > 0 ? 'positive' : 'negative';
+            const daysUntil = Math.ceil((new Date(earning.earnings_date) - new Date()) / (1000 * 60 * 60 * 24));
+            const daysText = daysUntil === 1 ? 'Tomorrow' : daysUntil === 0 ? 'Today' : `in ${daysUntil} days`;
+            
+            earningsHTML += `
+                <div class="earnings-item">
+                    <div class="earnings-header">
+                        <div class="earnings-symbol">
+                            <i class="fas fa-chart-line"></i>
+                            ${earning.symbol}
+                        </div>
+                        <div class="earnings-date">
+                            <i class="fas fa-calendar-alt"></i>
+                            ${date} (${daysText})
+                        </div>
+                    </div>
+                    <div class="earnings-company">
+                        <i class="fas fa-building"></i>
+                        ${earning.company_name}
+                    </div>
+                    <div class="earnings-estimate ${estimateClass}">
+                        <i class="fas fa-dollar-sign"></i>
+                        Estimate: $${earning.estimate}
+                    </div>
+                </div>
+            `;
+        });
+
+        earningsContainer.innerHTML = earningsHTML;
+    } catch (error) {
+        earningsContainer.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Failed to load earnings calendar</p>
+                <small>Please try again later or check your connection</small>
+            </div>
+        `;
+        showNotification('Failed to load earnings calendar', 'error');
+    }
+}
+
+async function getInsiderTrading() {
+    const symbol = document.getElementById('insider-symbol').value.trim().toUpperCase();
+    
+    if (!symbol) {
+        showNotification('Please enter a stock symbol', 'error');
+        return;
+    }
+
+    const insiderContainer = document.getElementById('insiderList');
+    if (!insiderContainer) return;
+    
+    // Show loading state
+    insiderContainer.innerHTML = `
+        <div class="loading-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading insider trading data for ${symbol}...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/market/insider-trading/${symbol}`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                insiderContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-user-secret"></i>
+                        <p>No insider trading data found for ${symbol}</p>
+                        <small>Try searching for a different stock symbol</small>
+                    </div>
+                `;
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return;
+        }
+        
+        const insiderData = await response.json();
+
+        if (!insiderData || insiderData.length === 0) {
+            insiderContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-secret"></i>
+                    <p>No insider trading data found for ${symbol}</p>
+                    <small>This stock may not have recent insider trading activity</small>
+                </div>
+            `;
+            return;
+        }
+
+        let insiderHTML = `
+            <div class="insider-summary">
+                <h4>Recent Insider Trading for ${symbol}</h4>
+                <p>Showing ${insiderData.length} recent transactions</p>
+            </div>
+        `;
+        
+        insiderData.forEach(insider => {
+            const date = new Date(insider.date).toLocaleDateString();
+            const transactionClass = insider.transaction_type.toLowerCase();
+            const valueFormatted = insider.value ? `$${insider.value.toLocaleString()}` : 'N/A';
+            
+            insiderHTML += `
+                <div class="insider-item">
+                    <div class="insider-header">
+                        <div class="insider-filer">${insider.filer_name}</div>
+                        <div class="insider-date">${date}</div>
+                    </div>
+                    <div class="insider-title">${insider.title}</div>
+                    <div class="insider-transaction ${transactionClass}">
+                        <i class="fas fa-${transactionClass === 'buy' ? 'arrow-up' : 'arrow-down'}"></i>
+                        ${insider.transaction_type} ${insider.shares.toLocaleString()} shares
+                    </div>
+                    <div class="insider-shares">
+                        Price: $${insider.price} | Value: ${valueFormatted}
+                    </div>
+                </div>
+            `;
+        });
+
+        insiderContainer.innerHTML = insiderHTML;
+    } catch (error) {
+        insiderContainer.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Failed to load insider trading data</p>
+                <small>Please try again later or check your connection</small>
+            </div>
+        `;
+        showNotification('Failed to load insider trading data', 'error');
+    }
 }
 
 async function getAnalystRatings() {
@@ -3185,13 +3375,16 @@ async function getOptionsData() {
 
 // Initialize market intelligence data when user is authenticated  
 function initializeMarketIntelligence() {
-    // Use React component instead of vanilla JS
-    // Save reference to original function before React component overwrites it
-    const reactInitFn = window.__initMarketIntelReact;
-    if (reactInitFn && typeof reactInitFn === 'function') {
-        reactInitFn();
-    }
+    // Load earnings calendar by default
+    loadEarningsCalendar();
 }
+
+// Make Market Intelligence functions globally available
+window.showIntelligenceTab = showIntelligenceTab;
+window.getInsiderTrading = getInsiderTrading;
+window.getAnalystRatings = getAnalystRatings;
+window.getOptionsData = getOptionsData;
+window.loadEarningsCalendar = loadEarningsCalendar;
 
 // =============================================================================
 // 🚀 LIVE PRICING SYSTEM - Real-time price updates with animations
