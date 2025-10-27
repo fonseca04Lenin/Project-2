@@ -2914,38 +2914,31 @@ setTimeout(() => {
     setupWatchlistListeners();
 }, 2000); 
 
-// Define the modal functions - Now using React component
+// Define the modal functions
 function openStockDetailsModal(symbol, isFromWatchlist = false) {
-    // Use React modal if available
-    if (window.openStockDetailsModalReact) {
-        window.openStockDetailsModalReact(symbol, isFromWatchlist);
-        return;
-    }
-    
-    // Fallback to vanilla JS modal (shouldn't be reached)
+    // Hide search bar
     const searchSection = document.querySelector('.search-section');
     if (searchSection) searchSection.style.display = 'none';
+
+    // Show modal
     document.getElementById('stockDetailsModal').style.display = 'flex';
     
+    // Fetch and display details based on source
     if (isFromWatchlist) {
         loadWatchlistStockDetails(symbol);
     } else {
-        loadStockDetails(symbol);
+    loadStockDetails(symbol);
     }
 }
 
 function closeStockDetailsModal() {
-    // Use React modal close if available
-    if (window.closeStockDetailsModalReact) {
-        window.closeStockDetailsModalReact();
-        return;
-    }
-    
-    // Fallback to vanilla JS modal (shouldn't be reached)
+    // Show search bar again
     const searchSection = document.querySelector('.search-section');
     if (searchSection) searchSection.style.display = 'block';
+
     document.getElementById('stockDetailsModal').style.display = 'none';
     
+    // Unmount React notes component
     if (window.unmountWatchlistNotes) {
         window.unmountWatchlistNotes();
     }
