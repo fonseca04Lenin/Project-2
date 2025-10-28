@@ -194,15 +194,7 @@ const AIAdvisorChat = () => {
                     <h2>AI Investment Advisor</h2>
                 </div>
                 <div className="ai-status-indicator">
-                    <div className={`status-dot ${isOnline ? 'online' : 'offline'}`}></div>
                     <span className="status-text">{isOnline ? 'Online' : 'Offline'}</span>
-                    <button 
-                        className="test-connection-btn" 
-                        onClick={testAPIConnection}
-                        title="Test API Connection"
-                    >
-                        🧪
-                    </button>
                 </div>
             </div>
 
