@@ -45,36 +45,36 @@ const DashboardRedesign = () => {
                             className={`nav-tab ${activeView === 'overview' ? 'active' : ''}`}
                             onClick={() => setActiveView('overview')}
                         >
-                            <i className="fas fa-chart-line"></i>
-                            Overview
+                            <i className="fas fa-chart-area"></i>
+                            <span>Overview</span>
                         </button>
                         <button 
                             className={`nav-tab ${activeView === 'watchlist' ? 'active' : ''}`}
                             onClick={() => setActiveView('watchlist')}
                         >
-                            <i className="fas fa-list"></i>
-                            Watchlist
+                            <i className="fas fa-briefcase"></i>
+                            <span>Watchlist</span>
                         </button>
                         <button 
                             className={`nav-tab ${activeView === 'news' ? 'active' : ''}`}
                             onClick={() => setActiveView('news')}
                         >
-                            <i className="fas fa-newspaper"></i>
-                            News
+                            <i className="fas fa-bullhorn"></i>
+                            <span>News</span>
                         </button>
                         <button 
                             className={`nav-tab ${activeView === 'intelligence' ? 'active' : ''}`}
                             onClick={() => setActiveView('intelligence')}
                         >
-                            <i className="fas fa-brain"></i>
-                            Intelligence
+                            <i className="fas fa-chart-pie"></i>
+                            <span>Intelligence</span>
                         </button>
                         <button 
                             className={`nav-tab ${activeView === 'assistant' ? 'active' : ''}`}
                             onClick={() => setActiveView('assistant')}
                         >
-                            <i className="fas fa-robot"></i>
-                            AI Assistant
+                            <i className="fas fa-comments"></i>
+                            <span>Assistant</span>
                         </button>
                     </nav>
                 </div>
@@ -108,10 +108,10 @@ const DashboardRedesign = () => {
                 {activeView === 'assistant' && <AIAssistantView />}
             </div>
 
-            {/* Floating AI Assistant - Always Available */}
+            {/* Floating Assistant - Always Available */}
             <button className="floating-ai-btn">
-                <i className="fas fa-robot"></i>
-                <span className="tooltip">Ask AI Assistant</span>
+                <i className="fas fa-comments"></i>
+                <span className="tooltip">Open Assistant</span>
             </button>
         </div>
     );
@@ -129,7 +129,7 @@ const OverviewView = ({ watchlistData }) => {
             <div className="kpi-grid">
                 <div className="kpi-card">
                     <div className="kpi-icon portfolio">
-                        <i className="fas fa-chart-line"></i>
+                        <i className="fas fa-dollar-sign"></i>
                     </div>
                     <div className="kpi-content">
                         <p className="kpi-label">Total Value</p>
@@ -142,7 +142,7 @@ const OverviewView = ({ watchlistData }) => {
 
                 <div className="kpi-card">
                     <div className="kpi-icon positions">
-                        <i className="fas fa-list"></i>
+                        <i className="fas fa-cubes"></i>
                     </div>
                     <div className="kpi-content">
                         <p className="kpi-label">Positions</p>
@@ -153,7 +153,7 @@ const OverviewView = ({ watchlistData }) => {
 
                 <div className="kpi-card">
                     <div className="kpi-icon performance">
-                        <i className="fas fa-rocket"></i>
+                        <i className="fas fa-arrow-trend-up"></i>
                     </div>
                     <div className="kpi-content">
                         <p className="kpi-label">Top Gainer</p>
@@ -178,7 +178,7 @@ const OverviewView = ({ watchlistData }) => {
 
                 <div className="kpi-card">
                     <div className="kpi-icon market">
-                        <i className="fas fa-globe"></i>
+                        <i className="fas fa-building"></i>
                     </div>
                     <div className="kpi-content">
                         <p className="kpi-label">Market Status</p>
@@ -193,7 +193,7 @@ const OverviewView = ({ watchlistData }) => {
                 {/* Left Column - Portfolio Quick View */}
                 <div className="main-card">
                     <div className="card-header">
-                        <h3><i className="fas fa-chart-line"></i> Watchlist</h3>
+                        <h3><i className="fas fa-table"></i> Watchlist</h3>
                         <button className="view-all-btn">See All <i className="fas fa-arrow-right"></i></button>
                     </div>
                     <div className="watchlist-quick">
@@ -213,7 +213,7 @@ const OverviewView = ({ watchlistData }) => {
                         ))}
                         {watchlistData.length === 0 && (
                             <div className="empty-state">
-                                <i className="fas fa-inbox"></i>
+                                <i className="fas fa-database"></i>
                                 <p>No stocks in your watchlist yet</p>
                             </div>
                         )}
@@ -223,13 +223,13 @@ const OverviewView = ({ watchlistData }) => {
                 {/* Right Column - Market Intelligence Quick Look */}
                 <div className="main-card">
                     <div className="card-header">
-                        <h3><i className="fas fa-brain"></i> Market Intelligence</h3>
+                        <h3><i className="fas fa-database"></i> Market Intelligence</h3>
                         <button className="view-all-btn">Explore <i className="fas fa-arrow-right"></i></button>
                     </div>
                     <div className="insights-list">
                         <div className="insight-item">
                             <div className="insight-icon">
-                                <i className="fas fa-calendar-alt"></i>
+                                <i className="fas fa-calendar"></i>
                             </div>
                             <div className="insight-content">
                                 <h4>Earnings Calendar</h4>
@@ -238,7 +238,7 @@ const OverviewView = ({ watchlistData }) => {
                         </div>
                         <div className="insight-item">
                             <div className="insight-icon">
-                                <i className="fas fa-trending-up"></i>
+                                <i className="fas fa-chart-bar"></i>
                             </div>
                             <div className="insight-content">
                                 <h4>Sector Performance</h4>
@@ -247,7 +247,7 @@ const OverviewView = ({ watchlistData }) => {
                         </div>
                         <div className="insight-item">
                             <div className="insight-icon">
-                                <i className="fas fa-newspaper"></i>
+                                <i className="fas fa-file-alt"></i>
                             </div>
                             <div className="insight-content">
                                 <h4>Market News</h4>
@@ -302,11 +302,11 @@ const WatchlistView = ({ watchlistData }) => {
                 ))}
                 {watchlistData.length === 0 && (
                     <div className="empty-watchlist">
-                        <i className="fas fa-inbox"></i>
+                        <i className="fas fa-briefcase"></i>
                         <h3>Your watchlist is empty</h3>
                         <p>Add stocks to start tracking</p>
                         <button className="empty-action-btn">
-                            <i className="fas fa-plus"></i> Add Your First Stock
+                            Add Your First Stock
                         </button>
                     </div>
                 )}
@@ -330,7 +330,9 @@ const NewsView = () => {
             </div>
             <div className="news-grid">
                 <div className="news-card featured">
-                    <img src="https://via.placeholder.com/400x200" alt="News" />
+                    <div className="news-image-placeholder">
+                        <i className="fas fa-chart-line"></i>
+                    </div>
                     <div className="news-badge">Featured</div>
                     <div className="news-content">
                         <span className="news-category">Market Analysis</span>
@@ -377,7 +379,7 @@ const IntelligenceView = () => {
             <div className="intel-content">
                 <div className="intel-card">
                     <div className="intel-header">
-                        <h3><i className="fas fa-calendar"></i> Upcoming Earnings</h3>
+                        <h3><i className="fas fa-calendar-check"></i> Upcoming Earnings</h3>
                         <span className="intel-count">12 events</span>
                     </div>
                     <div className="intel-list">
@@ -469,10 +471,10 @@ const AIAssistantView = () => {
                 {messages.length === 0 && (
                     <div className="assistant-welcome">
                         <div className="assistant-avatar">
-                            <i className="fas fa-robot"></i>
+                            <i className="fas fa-user-tie"></i>
                         </div>
-                        <h3>Hi! I'm your AI Investment Assistant</h3>
-                        <p>I can help you with portfolio analysis, stock research, and investment strategies.</p>
+                        <h3>Investment Advisor</h3>
+                        <p>Get portfolio analysis, stock research, and strategic insights.</p>
                         <div className="quick-prompts">
                             {quickPrompts.map((prompt, index) => (
                                 <button 
@@ -497,7 +499,7 @@ const AIAssistantView = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <div className="ai-avatar"><i className="fas fa-robot"></i></div>
+                                        <div className="ai-avatar"><i className="fas fa-user-tie"></i></div>
                                         <p>{msg.content}</p>
                                     </>
                                 )}
@@ -507,7 +509,7 @@ const AIAssistantView = () => {
                     {isTyping && (
                         <div className="assistant-msg ai">
                             <div className="assistant-msg-content">
-                                <div className="ai-avatar"><i className="fas fa-robot"></i></div>
+                                <div className="ai-avatar"><i className="fas fa-user-tie"></i></div>
                                 <div className="typing-indicator">
                                     <span></span><span></span><span></span>
                                 </div>
