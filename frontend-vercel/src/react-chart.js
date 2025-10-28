@@ -16,6 +16,17 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     const chartRef = useRef(null);
     const chartInstanceRef = useRef(null);
 
+    // Check if Chart.js is available
+    useEffect(() => {
+        if (typeof Chart === 'undefined') {
+            console.error('❌ Chart.js is not loaded!');
+            setError('Chart.js library not loaded');
+            setIsLoading(false);
+        } else {
+            console.log('✅ Chart.js loaded:', typeof Chart);
+        }
+    }, []);
+
     // Process chart data
     useEffect(() => {
         if (data && Array.isArray(data)) {
