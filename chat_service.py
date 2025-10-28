@@ -357,9 +357,19 @@ class ChatService:
             }
         ]
     
-    def _format_function_result(self, result: Dict) -> str:
+    def _format_function_result(self, result: Dict, function_name: str = None) -> str:
         """Format function result for AI to understand"""
         if result.get("success"):
+            # For add/remove operations, be EXTREMELY explicit
+            if function_name and "add_stock_to_watchlist" in function_name:
+                symbol = result.get("data", {}).get("symbol", "")
+                name = result.get("data", {}).get("name", "")
+                price = result.get("data", {}).get("price", 0)
+                return f"SUCCESS: Stock added to watchlist. Respond with ONLY this EXACT message and NOTHING else: '✅ Successfully added {symbol} ({name}) to your watchlist at ${price}. Your watchlist will update automatically.' DO NOT show any JSON or additional data."
+            elif function_name and "remove_stock_from_watchlist" in function_name:
+                symbol = result.get("data", {}).get("symbol", "")
+                return f"SUCCESS: Stock removed from watchlist. Respond with ONLY this EXACT message and NOTHING else: '✅ Successfully removed {symbol} from your watchlist.' DO NOT show any JSON or additional data."
+            
             message = result.get("message", "Success")
             # Make it VERY explicit
             return f"SUCCESS: {message}. Use this exact information in your response to the user."
@@ -580,7 +590,11 @@ class ChatService:
                         logger.info(f"SUCCESS: Added {symbol} to watchlist for user {user_id}")
                         return {
                             "success": True,
-                            "data": None,
+                            "data": {
+                                "symbol": symbol,
+                                "name": company_name,
+                                "price": current_price
+                            },
                             "message": f"SUCCESS: Added {symbol} ({company_name}) to your watchlist at ${current_price:.2f}"
                         }
                     else:
@@ -655,7 +669,9 @@ class ChatService:
                         logger.info(f"Successfully removed {symbol} from watchlist for user {user_id}")
                         return {
                             "success": True,
-                            "data": None,
+                            "data": {
+                                "symbol": symbol
+                            },
                             "message": f"Success: Removed {symbol} from your watchlist"
                         }
                     else:
@@ -750,15 +766,19 @@ CRITICAL RULES:
 2. NEVER say you're adding a stock "manually" - always use the actual function
 3. When you receive "SUCCESS:" from a function, that means it actually worked in the database
 4. When you receive "FAILED:" from a function, tell the user exactly what went wrong
-5. If a function returns SUCCESS about adding a stock, respond with ONLY: "✅ Successfully added [SYMBOL] ([Company Name]) to your watchlist at $[price]. Your watchlist will update automatically."
-6. If a function returns SUCCESS about removing a stock, respond with ONLY: "✅ Successfully removed [SYMBOL] from your watchlist."
+5. **ABSOLUTELY CRITICAL**: When adding a stock, respond with EXACTLY this format and NOTHING else:
+   "✅ Successfully added META (Meta Platforms, Inc.) to your watchlist at $738.36. Your watchlist will update automatically."
+   DO NOT include the full watchlist JSON. DO NOT include the word "Success:". DO NOT show any additional data.
+6. **ABSOLUTELY CRITICAL**: When removing a stock, respond with EXACTLY this format and NOTHING else:
+   "✅ Successfully removed META from your watchlist."
 7. NEVER show full watchlist JSON to the user - just give a brief confirmation message
 8. NEVER generate fake JSON watchlists - only show real data from functions
 9. ALWAYS use the exact information returned by functions
 10. When users provide company names (like "Walmart" or "Apple") for adding/removing, use company_name parameter
 11. When users provide stock symbols (like "WMT" or "AAPL"), use symbol parameter
 12. The functions will automatically search and find the correct symbol for company names
-13. For add/remove operations, provide EITHER symbol OR company_name, not both"""
+13. For add/remove operations, provide EITHER symbol OR company_name, not both
+14. **REMEMBER**: Keep all confirmation messages SHORT and CLEAN. No extra details, no JSON dumps."""
 
             # Prepare messages for Groq API
             messages = [
@@ -834,7 +854,7 @@ CRITICAL RULES:
                 messages.append(ai_message)
                 for result in function_results:
                     # Format the result for better AI understanding
-                    formatted_content = self._format_function_result(result["result"])
+                    formatted_content = self._format_function_result(result["result"], result["function_name"])
                     logger.info(f"Function {result['function_name']} result: {formatted_content}")
                     messages.append({
                         "role": "tool",
