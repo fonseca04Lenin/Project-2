@@ -223,10 +223,60 @@ const DashboardRedesign = () => {
             });
             
             if (response.ok) {
-                const data = await response.json();
-                setWatchlistData(data || []);
+                let data = await response.json();
+                console.log('📋 Raw watchlist data:', data);
+                
+                // Fetch current prices for each stock
+                if (Array.isArray(data) && data.length > 0) {
+                    const stocksWithPrices = await Promise.all(data.map(async (stock) => {
+                        try {
+                            const priceResponse = await fetch(`${API_BASE}/api/stock/${stock.symbol}`, {
+                                method: 'GET',
+                                headers: authHeaders,
+                                credentials: 'include'
+                            });
+                            
+                            if (priceResponse.ok) {
+                                const stockData = await priceResponse.json();
+                                console.log(`✅ Fetched price for ${stock.symbol}:`, stockData);
+                                
+                                // Calculate change percent if we have original_price
+                                let change_percent = 0;
+                                if (stock.original_price && stockData.price) {
+                                    const priceChange = stockData.price - stock.original_price;
+                                    change_percent = (priceChange / stock.original_price) * 100;
+                                }
+                                
+                                return {
+                                    ...stock,
+                                    current_price: stockData.price || stock.current_price || 0,
+                                    change_percent: change_percent || stock.change_percent || 0,
+                                    name: stockData.name || stock.name || stock.symbol
+                                };
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching price for ${stock.symbol}:`, e);
+                        }
+                        
+                        // Return stock with existing data if fetch failed
+                        return {
+                            ...stock,
+                            current_price: stock.current_price || 0,
+                            change_percent: stock.change_percent || 0,
+                            name: stock.name || stock.symbol
+                        };
+                    }));
+                    
+                    console.log('📊 Processed stocks with prices:', stocksWithPrices);
+                    setWatchlistData(stocksWithPrices);
+                } else {
+                    setWatchlistData([]);
+                }
+            } else {
+                setWatchlistData([]);
             }
         } catch (error) {
+            console.error('Error loading watchlist:', error);
             setWatchlistData([]);
         } finally {
             setIsLoading(false);
