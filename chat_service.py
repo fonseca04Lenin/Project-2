@@ -257,6 +257,29 @@ class ChatService:
                 }
             },
             {
+                "name": "get_top_performer_by_date",
+                "description": "Find the top performing stock for a specific date within a universe (watchlist or S&P 500)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Date in YYYY-MM-DD"
+                        },
+                        "universe": {
+                            "type": "string",
+                            "enum": ["watchlist", "sp500"],
+                            "description": "Universe to consider"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Optional cap on symbols to evaluate"
+                        }
+                    },
+                    "required": ["date"]
+                }
+            },
+            {
                 "name": "analyze_watchlist",
                 "description": "Analyze the user's complete watchlist performance",
                 "parameters": {
@@ -511,6 +534,74 @@ class ChatService:
                     "success": True,
                     "data": comparison_data,
                     "message": f"Compared {len(comparison_data)} stocks"
+                }
+
+            elif function_name == "get_top_performer_by_date":
+                # Compute top performer by calling internal method directly (avoid external HTTP)
+                date_str = arguments.get("date", "").strip()
+                universe = (arguments.get("universe", "watchlist") or "watchlist").lower()
+                limit = arguments.get("limit")
+
+                if not date_str:
+                    return {"success": False, "data": None, "message": "Date (YYYY-MM-DD) is required"}
+
+                # Build symbol list
+                symbols: List[str] = []
+                universe_used = universe
+
+                if universe == "watchlist":
+                    context = self._get_user_context(user_id)
+                    wl = context.get('watchlist', [])
+                    symbols = [item.get('symbol') for item in wl if item.get('symbol')]
+                elif universe == "sp500":
+                    # Use Finnhub constituents helper; fallback to popular tickers
+                    try:
+                        symbols = self.finnhub_api.get_index_constituents('^GSPC') or []
+                    except Exception:
+                        symbols = []
+                    if not symbols:
+                        symbols = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'TSLA', 'AVGO', 'BRK.B', 'LLY']
+                else:
+                    return {"success": False, "data": None, "message": "universe must be 'watchlist' or 'sp500'"}
+
+                if limit:
+                    try:
+                        limit_int = int(limit)
+                        symbols = symbols[:max(1, limit_int)]
+                    except Exception:
+                        pass
+
+                if not symbols:
+                    return {"success": False, "data": None, "message": f"No symbols found for universe {universe_used}"}
+
+                best_symbol: Optional[str] = None
+                best_change: Optional[float] = None
+                evaluated = 0
+
+                for sym in symbols:
+                    try:
+                        change_pct = self.stock_api.get_day_change_percent(sym, date_str)
+                        evaluated += 1
+                        if best_change is None or change_pct > best_change:
+                            best_change = change_pct
+                            best_symbol = sym
+                    except Exception:
+                        continue
+
+                if best_symbol is None:
+                    return {"success": False, "data": None, "message": "Could not compute top performer for requested date"}
+
+                return {
+                    "success": True,
+                    "data": {
+                        "date": date_str,
+                        "universe": universe_used,
+                        "top_symbol": best_symbol,
+                        "top_change_percent": round(best_change or 0.0, 2),
+                        "evaluated_count": evaluated,
+                        "source": "Yahoo Finance via yfinance"
+                    },
+                    "message": f"Top performer on {date_str}: {best_symbol} ({round(best_change or 0.0, 2)}%)"
                 }
             
             elif function_name == "add_stock_to_watchlist":

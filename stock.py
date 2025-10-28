@@ -362,6 +362,36 @@ class YahooFinanceAPI:
             print(f"Error retrieving historical data for {symbol}: {e}")
             return None
 
+    def get_day_change_percent(self, symbol: str, date_str: str) -> float:
+        """Compute close-to-close percent change for a specific trading date.
+
+        Strategy: pull up to 10 calendar days ending the next day after date_str,
+        take the last two trading sessions (prev, current) and compute
+        (close_today / close_prev - 1) * 100. Returns 0.0 if not available.
+        """
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d")
+            end_date = (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
+            start_date = (target_date - timedelta(days=10)).strftime("%Y-%m-%d")
+
+            stock = yf.Ticker(symbol)
+            hist = stock.history(start=start_date, end=end_date)
+            if hist is None or hist.empty or len(hist) < 2:
+                return 0.0
+
+            closes = hist["Close"].dropna()
+            if len(closes) < 2:
+                return 0.0
+
+            close_today = closes.iloc[-1]
+            close_prev = closes.iloc[-2]
+            if close_prev and close_prev > 0:
+                return float((close_today / close_prev - 1.0) * 100.0)
+            return 0.0
+        except Exception as e:
+            print(f"Error computing day change percent for {symbol} on {date_str}: {e}")
+            return 0.0
+
 class Stock:
     def __init__(self, symbol, api=None):
         self.symbol = symbol.upper()
@@ -422,4 +452,23 @@ class FinnhubAPI:
         except Exception as e:
             print(f'Error fetching Finnhub profile for {symbol}: {e}')
             return {'ceo': '-', 'description': '-'}
+
+    def get_index_constituents(self, index_symbol: str) -> list:
+        """Fetch index constituents from Finnhub. Example index_symbol: '^GSPC' for S&P 500.
+        Returns a list of symbols or empty list on failure.
+        """
+        try:
+            # Finnhub expects e.g. '^GSPC' or '^NDX'
+            url = f'{self.base_url}index/constituents'
+            params = {'symbol': index_symbol, 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('constituents', []) or []
+            else:
+                print(f'Finnhub constituents error: {response.status_code} {response.text}')
+                return []
+        except Exception as e:
+            print(f'Error fetching constituents for {index_symbol}: {e}')
+            return []
 

@@ -1325,6 +1325,82 @@ def get_company_news(symbol):
     except Exception as e:
         return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
 
+@app.route('/api/market/top-performer', methods=['GET'])
+def get_top_performer_by_date():
+    """Return the top performing stock for a specific date within a universe.
+
+    Query params:
+      - date: YYYY-MM-DD (required)
+      - universe: 'watchlist' (default) or 'sp500'
+      - limit: integer cap on symbols to evaluate (optional; defaults 100 for sp500, all for watchlist)
+    """
+    try:
+        date_str = request.args.get('date', '').strip()
+        universe = (request.args.get('universe', 'watchlist') or 'watchlist').lower()
+        limit_param = request.args.get('limit')
+        try:
+            limit = int(limit_param) if limit_param is not None else None
+        except Exception:
+            limit = None
+
+        if not date_str:
+            return jsonify({'error': 'date is required (YYYY-MM-DD)'}), 400
+
+        symbols = []
+        universe_used = universe
+
+        if universe == 'watchlist':
+            user = authenticate_request()
+            if not user:
+                return jsonify({'error': 'Authentication required'}), 401
+            wl = watchlist_service.get_watchlist(user.id, limit=500)
+            symbols = [item.get('symbol') or item.get('id') for item in wl if item.get('symbol') or item.get('id')]
+            symbols = [s.upper() for s in symbols if isinstance(s, str) and len(s) > 0]
+        elif universe == 'sp500':
+            # Use Finnhub to get S&P 500 constituents; fallback to popular set if empty
+            constituents = finnhub_api.get_index_constituents('^GSPC') or []
+            symbols = [s.upper() for s in constituents if isinstance(s, str) and len(s) > 0]
+            if not symbols:
+                # Fallback minimal universe
+                symbols = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'TSLA', 'AVGO', 'BRK.B', 'LLY']
+        else:
+            return jsonify({'error': "universe must be 'watchlist' or 'sp500'"}), 400
+
+        if limit:
+            symbols = symbols[:max(1, limit)]
+
+        if not symbols:
+            return jsonify({'error': f'No symbols found for universe {universe_used}'}), 404
+
+        best_symbol = None
+        best_change = None
+
+        # Evaluate percent change for the specified date
+        evaluated = 0
+        for symbol in symbols:
+            try:
+                change_pct = yahoo_finance_api.get_day_change_percent(symbol, date_str)
+                evaluated += 1
+                if best_change is None or change_pct > best_change:
+                    best_change = change_pct
+                    best_symbol = symbol
+            except Exception:
+                continue
+
+        if best_symbol is None:
+            return jsonify({'error': 'Could not compute top performer for requested date'}), 502
+
+        return jsonify({
+            'date': date_str,
+            'universe': universe_used,
+            'top_symbol': best_symbol,
+            'top_change_percent': round(best_change, 2),
+            'evaluated_count': evaluated,
+            'source': 'Yahoo Finance via yfinance'
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to compute top performer: {str(e)}'}), 500
+
 @app.route('/api/company/<symbol>')
 def get_company_info(symbol):
     symbol = symbol.upper()
