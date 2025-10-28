@@ -1191,16 +1191,48 @@ const AIAssistantView = () => {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [rateLimitInfo, setRateLimitInfo] = useState(null);
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, isTyping]);
+
+    useEffect(() => {
+        // Set up authentication listener
+        if (window.firebaseAuth) {
+            const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
+                setCurrentUser(user);
+                if (!user) {
+                    setMessages([]);
+                }
+            });
+            return () => unsubscribe();
+        }
+    }, []);
+
+    const showError = (message) => {
+        const errorMessage = {
+            id: Date.now(),
+            type: 'error',
+            content: message,
+            timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+    };
 
     const sendMessage = async () => {
         const message = inputValue.trim();
-        if (!message || isTyping) return;
+        if (!message || isTyping || !currentUser) return;
 
+        // Check rate limit
+        if (rateLimitInfo && !rateLimitInfo.can_send) {
+            showError('Rate limit exceeded. Please wait before sending another message.');
+            return;
+        }
+
+        // Clear input and add user message
         setInputValue('');
         const userMessage = {
             id: Date.now(),
@@ -1211,17 +1243,45 @@ const AIAssistantView = () => {
         setMessages(prev => [...prev, userMessage]);
         setIsTyping(true);
 
-        // Simulate AI response for demo
-        setTimeout(() => {
-            const aiMessage = {
-                id: Date.now() + 1,
-                type: 'ai',
-                content: `I understand you're asking about "${message}". This is a prototype of the AI assistant integration.`,
-                timestamp: new Date()
-            };
-            setMessages(prev => [...prev, aiMessage]);
+        try {
+            // Get auth headers
+            const token = await currentUser.getIdToken();
+            const API_BASE_URL = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+
+            const response = await fetch(`${API_BASE_URL}/api/chat`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-ID': currentUser.uid,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
             setIsTyping(false);
-        }, 1500);
+
+            if (data.success) {
+                const aiMessage = {
+                    id: Date.now() + 1,
+                    type: 'ai',
+                    content: data.response,
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, aiMessage]);
+
+                // Update rate limit info
+                if (data.rate_limit) {
+                    setRateLimitInfo(data.rate_limit);
+                }
+            } else {
+                showError(data.error || data.response || 'Failed to get response from AI');
+            }
+        } catch (error) {
+            console.error('❌ Chat API error:', error);
+            setIsTyping(false);
+            showError(`Failed to connect to AI service: ${error.message}`);
+        }
     };
 
     const handleKeyPress = (e) => {
