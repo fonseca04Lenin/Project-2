@@ -169,10 +169,10 @@ const AIAdvisorChat = () => {
     };
 
     const quickSuggestions = [
-        { text: "📊 How is my watchlist performing?", message: "How is my watchlist performing?" },
-        { text: "💰 What's the current price of AAPL?", message: "What's the current price of AAPL?" },
-        { text: "💡 Should I buy more Apple stock?", message: "Should I buy more Apple stock?" },
-        { text: "⚖️ Compare Apple vs Microsoft", message: "Compare Apple vs Microsoft" }
+        { text: "How is my watchlist performing?", message: "How is my watchlist performing?" },
+        { text: "What's the current price of AAPL?", message: "What's the current price of AAPL?" },
+        { text: "Should I buy more Apple stock?", message: "Should I buy more Apple stock?" },
+        { text: "Compare Apple vs Microsoft", message: "Compare Apple vs Microsoft" }
     ];
 
     const formatMessage = (content) => {
@@ -214,7 +214,7 @@ const AIAdvisorChat = () => {
                             <i className="fas fa-robot"></i>
                         </div>
                         <div className="welcome-content">
-                            <h4>👋 Hi! I'm your AI Investment Advisor</h4>
+                            <h4>Hi! I'm your AI Investment Advisor</h4>
                             <p>Ask me about stocks, your watchlist performance, or get personalized investment advice. I have access to real-time market data!</p>
                             <div className="quick-suggestions">
                                 {quickSuggestions.map((suggestion, index) => (

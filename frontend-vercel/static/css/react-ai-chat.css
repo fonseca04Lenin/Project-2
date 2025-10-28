@@ -2,13 +2,13 @@
 
 .ai-advisor-chat-react {
     background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    margin-bottom: 24px;
+    border: none;
+    border-radius: 1.5rem;
+    margin: 0;
     overflow: hidden;
-    box-shadow: var(--shadow-lg);
+    box-shadow: none;
     backdrop-filter: blur(20px);
-    height: 600px;
+    height: 100%;
     display: flex;
     flex-direction: column;
 }

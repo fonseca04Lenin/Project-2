@@ -841,7 +841,7 @@ body {
     background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
     backdrop-filter: blur(20px);
     border-radius: 1.5rem;
-    padding: 2rem;
+    padding: 0;
     border: 1px solid var(--border-color);
     transition: all 0.4s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
