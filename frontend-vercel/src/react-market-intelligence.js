@@ -56,7 +56,6 @@ const MarketIntelligence = () => {
             setData(earningsData);
         } catch (err) {
             setError('Failed to load earnings calendar');
-            console.error('Error loading earnings:', err);
         } finally {
             setLoading(false);
         }
@@ -95,7 +94,6 @@ const MarketIntelligence = () => {
             setData(result);
         } catch (err) {
             setError(`Failed to load ${tab} data`);
-            console.error(`Error loading ${tab}:`, err);
         } finally {
             setLoading(false);
         }
