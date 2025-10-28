@@ -430,20 +430,7 @@ async function fetchStockDataDirect(symbol) {
         return stockData;
         
     } catch (error) {
-        
-        // Return demo data as fallback
-        return {
-            symbol: symbol,
-            companyName: symbol + ' Corporation',
-            price: 150.00 + Math.random() * 100,
-            change: (Math.random() - 0.5) * 10,
-            changePercent: (Math.random() - 0.5) * 5,
-            volume: Math.floor(Math.random() * 1000000),
-            marketCap: Math.floor(Math.random() * 1000000000000),
-            fiftyTwoWeekHigh: 200.00,
-            fiftyTwoWeekLow: 100.00,
-            currency: 'USD'
-        };
+        return null;
     }
 }
 
@@ -993,12 +980,11 @@ async function fetchStockPrice(symbol, companyName) {
         
         
     } catch (error) {
-        
-        // Update with demo data if API fails
+        // Surface failure; caller may choose to retry or show error
         updateStockInWatchlist(symbol, {
-            price: (Math.random() * 200 + 50).toFixed(2),
-            change: (Math.random() * 10 - 5).toFixed(2),
-            change_percent: (Math.random() * 5 - 2.5).toFixed(2),
+            price: '-',
+            change: '-',
+            change_percent: '-',
             company_name: companyName || symbol
         });
     }
