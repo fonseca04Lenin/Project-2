@@ -267,5 +267,20 @@
     <script type="text/babel" src="src/react-watchlist-notes.js?v=1.0"></script>
     <script type="text/babel" src="src/react-stock-details-modal.js?v=1.0"></script>
     <script src="src/vanilla-search-bar.js?v=20250122-SEARCH-BAR-FIX"></script>
+    
+    <!-- REDESIGN PROTOTYPE - UNCOMMENT TO TEST -->
+    <!--
+    <link rel="stylesheet" href="static/css/dashboard-redesign.css">
+    <div id="dashboard-redesign-root"></div>
+    <script type="text/babel" src="src/react-dashboard-redesign.js"></script>
+    <script type="text/babel">
+        // Initialize redesign demo
+        const redesignRoot = document.getElementById('dashboard-redesign-root');
+        if (redesignRoot) {
+            const root = ReactDOM.createRoot(redesignRoot);
+            root.render(React.createElement(window.DashboardRedesign));
+        }
+    </script>
+    -->
 </body>
 </html> 
