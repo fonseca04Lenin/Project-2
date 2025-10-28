@@ -223,17 +223,17 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     }
                     
                     data = await response.json();
-                    setStockData({
-                        ...data,
-                        isInWatchlist: true,
+                        setStockData({
+                            ...data,
+                            isInWatchlist: true,
                         // Map snake_case to camelCase
                         dateAdded: data.date_added || data.dateAdded,
                         originalPrice: data.original_price || data.originalPrice,
                         priceChange: data.price_change !== null && data.price_change !== undefined ? data.price_change : data.priceChange,
                         percentageChange: data.percentage_change !== null && data.percentage_change !== undefined ? data.percentage_change : data.percentageChange,
-                        category: data.category,
-                        notes: data.notes
-                    });
+                            category: data.category,
+                            notes: data.notes
+                        });
                 } else {
                     response = await fetch(`${API_BASE}/api/company/${symbol}`, {
                         credentials: 'include'
@@ -241,8 +241,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     
                     if (!response.ok) {
                         throw new Error(`Failed to load stock data: HTTP ${response.status}`);
-                    }
-                    
+                }
+
                     data = await response.json();
                     setStockData({ ...data, isInWatchlist: false });
                 }
@@ -250,11 +250,11 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 // Fetch chart data
                 try {
                     const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
-                        credentials: 'include'
-                    });
+                    credentials: 'include'
+                });
                     if (chartResp.ok) {
-                        const chartRespData = await chartResp.json();
-                        setChartData(chartRespData);
+                const chartRespData = await chartResp.json();
+                    setChartData(chartRespData);
                     }
                 } catch (err) {
                     console.error('Error loading chart:', err);
@@ -263,11 +263,11 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 // Fetch news
                 try {
                     const newsResp = await fetch(`${API_BASE}/api/news/${symbol}`, {
-                        credentials: 'include'
-                    });
+                    credentials: 'include'
+                });
                     if (newsResp.ok) {
-                        const newsRespData = await newsResp.json();
-                        setNews(newsRespData.slice(0, 5)); // Limit to 5 articles
+                const newsRespData = await newsResp.json();
+                    setNews(newsRespData.slice(0, 5)); // Limit to 5 articles
                     }
                 } catch (err) {
                     console.error('Error loading news:', err);
@@ -286,23 +286,40 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
     // Render chart when chartData is available
     useEffect(() => {
-        if (!chartData || !symbol) return;
+        if (!chartData || !symbol) {
+            console.log('⚠️ Chart not rendering:', { chartData, symbol });
+            return;
+        }
 
         const chartContainer = document.getElementById('modalChartContainer');
-        if (!chartContainer) return;
+        if (!chartContainer) {
+            console.log('⚠️ Chart container not found');
+            return;
+        }
 
+        console.log('📊 Rendering chart with data:', chartData.length, 'points');
+        
         // Clear container
         chartContainer.innerHTML = '';
         
         // Render chart
-        if (window.StockChart && chartData.length > 0) {
-            const chartRoot = ReactDOM.createRoot(chartContainer);
-            chartRoot.render(React.createElement(window.StockChart, {
-                symbol: symbol,
-                data: chartData,
-                isModal: true,
-                onClose: null
-            }));
+        if (window.StockChart) {
+            if (chartData.length > 0) {
+                const chartRoot = ReactDOM.createRoot(chartContainer);
+                chartRoot.render(React.createElement(window.StockChart, {
+                    symbol: symbol,
+                    data: chartData,
+                    isModal: true,
+                    onClose: null
+                }));
+                console.log('✅ Chart rendered successfully');
+            } else {
+                console.log('⚠️ No chart data points to render');
+                chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>No chart data available</p></div>';
+            }
+        } else {
+            console.error('❌ window.StockChart is not defined');
+            chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart component not loaded</p></div>';
         }
 
         return () => {
@@ -390,8 +407,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         {/* Header */}
                         <div className="modal-header">
                             <div className="modal-header-content">
-                                <h2>{stockData.name || symbol}</h2>
-                                <span className="stock-symbol-badge">{symbol}</span>
+                            <h2>{stockData.name || symbol}</h2>
+                            <span className="stock-symbol-badge">{symbol}</span>
                             </div>
                         </div>
 
@@ -435,22 +452,22 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                         {/* Stock Info - Vanilla Style */}
                         <div className="stock-details-meta">
-                            <div>
+                                <div>
                                 <strong data-icon="ceo">CEO:</strong> <span>{stockData.ceo || '-'}</span>
-                            </div>
+                                </div>
                             <div>
                                 <strong data-icon="desc">Description:</strong> <span>{stockData.description || '-'}</span>
                             </div>
-                            <div>
+                                <div>
                                 <strong data-icon="price">Price:</strong> ${stockData.price || '-'}
                             </div>
-                            <div>
+                                <div>
                                 <strong data-icon="marketcap">Market Cap:</strong> <span>{formatMarketCap(stockData.marketCap)}</span>
                             </div>
-                            <div>
+                                <div>
                                 <strong data-icon="pe">P/E Ratio:</strong> <span>{stockData.peRatio || '-'}</span>
                             </div>
-                            <div>
+                                <div>
                                 <strong data-icon="dividend">Dividend Yield:</strong> <span>
                                     {stockData.dividendYield && stockData.dividendYield !== '-' 
                                         ? (typeof stockData.dividendYield === 'number' ? (stockData.dividendYield * 100).toFixed(2) + '%' : stockData.dividendYield)
@@ -458,15 +475,15 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     }
                                 </span>
                             </div>
-                            <div>
+                                <div>
                                 <strong data-icon="website">Website:</strong> <span>
                                     {stockData.website && stockData.website !== '-' ? (
-                                        <a href={stockData.website} target="_blank" rel="noopener noreferrer">
+                                            <a href={stockData.website} target="_blank" rel="noopener noreferrer">
                                             {stockData.website.replace(/^https?:\/\//, '')}
-                                        </a>
-                                    ) : '-'}
-                                </span>
-                            </div>
+                                            </a>
+                                        ) : '-'}
+                                    </span>
+                                </div>
                             <div>
                                 <strong data-icon="hq">Headquarters:</strong> <span>{stockData.headquarters || '-'}</span>
                             </div>
@@ -507,7 +524,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     <div>
                                         <strong data-icon="category">Category:</strong> <span>{stockData.category || '-'}</span>
                                     </div>
-                                </div>
+                            </div>
                             </div>
                         )}
 
@@ -517,11 +534,11 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         )}
 
                         {/* Chart */}
-                        <div className="modal-chart">
-                            <h3>
-                                <i className="fas fa-chart-area"></i>
-                                Price History
-                            </h3>
+                            <div className="modal-chart">
+                                <h3>
+                                    <i className="fas fa-chart-area"></i>
+                                    Price History
+                                </h3>
                             <div id="modalChartContainer" style={{ minHeight: '300px' }}>
                                 {!chartData && (
                                     <div className="loading-state">
