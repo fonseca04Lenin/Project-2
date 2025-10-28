@@ -9,6 +9,17 @@ const DashboardRedesign = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearchResults, setShowSearchResults] = useState(false);
+    const [searching, setSearching] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+    const [highlightedIndex, setHighlightedIndex] = useState(-1);
+    const searchDebounceRef = useRef(null);
+    const [filterText, setFilterText] = useState('');
+    
+    // Live pricing state
+    const [lastUpdate, setLastUpdate] = useState(null);
+    const [marketStatus, setMarketStatus] = useState({ isOpen: false, status: 'Closed' });
+    const livePricingRef = useRef({ interval: null, isActive: false, priceCache: new Map() });
+    const keepAliveRef = useRef(null);
 
     useEffect(() => {
         loadWatchlistData();
@@ -22,6 +33,136 @@ const DashboardRedesign = () => {
         
         return () => clearInterval(interval);
     }, []);
+
+    // Backend keep-alive mechanism
+    useEffect(() => {
+        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+        
+        const wakeUpBackend = async () => {
+            try {
+                await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    signal: AbortSignal.timeout(5000)
+                });
+            } catch (e) {
+                // Silently handle keep-alive errors
+            }
+        };
+        
+        // Wake up backend immediately
+        wakeUpBackend();
+        
+        // Then ping every 5 minutes to keep Heroku awake
+        keepAliveRef.current = setInterval(wakeUpBackend, 300000); // 5 minutes
+        
+        return () => {
+            if (keepAliveRef.current) {
+                clearInterval(keepAliveRef.current);
+            }
+        };
+    }, []);
+
+    // Market status updates
+    useEffect(() => {
+        const loadMarketStatus = async () => {
+            try {
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const response = await fetch(`${API_BASE}/api/market-status`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setMarketStatus({
+                        isOpen: data.is_open || false,
+                        status: data.is_open ? 'Open' : 'Closed'
+                    });
+                }
+            } catch (e) {
+                // Fallback to checking market hours locally
+                const now = new Date();
+                const hour = now.getUTCHours();
+                const day = now.getUTCDay();
+                const isWeekday = day >= 1 && day <= 5;
+                const isDuringMarketHours = hour >= 13 && hour < 20; // 9:30 AM - 4:00 PM ET
+                setMarketStatus({
+                    isOpen: isWeekday && isDuringMarketHours,
+                    status: isWeekday && isDuringMarketHours ? 'Open' : 'Closed'
+                });
+            }
+        };
+        
+        loadMarketStatus();
+        const marketInterval = setInterval(loadMarketStatus, 60000); // Every minute
+        
+        return () => clearInterval(marketInterval);
+    }, []);
+
+    // Live pricing updates
+    useEffect(() => {
+        if (!watchlistData.length || !marketStatus.isOpen) return;
+        
+        const updateLivePrices = async () => {
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            
+            for (const stock of watchlistData.slice(0, 10)) { // Limit to 10 stocks for performance
+                try {
+                    const authHeaders = await window.getAuthHeaders();
+                    const response = await fetch(`${API_BASE}/api/search`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...authHeaders
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ symbol: stock.symbol })
+                    });
+                    
+                    if (response.ok) {
+                        const stockData = await response.json();
+                        const oldPrice = livePricingRef.current.priceCache.get(stock.symbol);
+                        const newPrice = stockData.price;
+                        
+                        if (oldPrice && Math.abs(oldPrice - newPrice) > 0.01) {
+                            // Trigger animation by updating watchlist data
+                            setWatchlistData(prev => prev.map(s => 
+                                s.symbol === stock.symbol 
+                                    ? { ...s, current_price: newPrice, change_percent: stockData.priceChangePercent, _updated: true }
+                                    : s
+                            ));
+                            
+                            // Add visual flash animation
+                            setTimeout(() => {
+                                setWatchlistData(prev => prev.map(s => 
+                                    s.symbol === stock.symbol ? { ...s, _updated: false } : s
+                                ));
+                            }, 2000);
+                        }
+                        
+                        livePricingRef.current.priceCache.set(stock.symbol, newPrice);
+                    }
+                } catch (e) {
+                    // Silently handle update errors
+                }
+            }
+            
+            setLastUpdate(new Date());
+        };
+        
+        // Initial update
+        updateLivePrices();
+        
+        // Update every 15 seconds during market hours
+        livePricingRef.current.interval = setInterval(updateLivePrices, 15000);
+        livePricingRef.current.isActive = true;
+        
+        return () => {
+            if (livePricingRef.current.interval) {
+                clearInterval(livePricingRef.current.interval);
+            }
+            livePricingRef.current.isActive = false;
+        };
+    }, [watchlistData, marketStatus.isOpen]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -80,6 +221,8 @@ const DashboardRedesign = () => {
                 setSearchResults([data]);
                 setShowSearchResults(true);
                 window.openStockDetailsModalReact && window.openStockDetailsModalReact(searchQuery.toUpperCase());
+                setSuggestions([]);
+                setHighlightedIndex(-1);
             } else {
                 window.showNotification && window.showNotification('Stock not found', 'error');
             }
@@ -89,9 +232,66 @@ const DashboardRedesign = () => {
     };
 
     const handleKeyPress = (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setHighlightedIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
+            return;
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+            return;
+        }
         if (e.key === 'Enter') {
+            if (suggestions.length > 0 && highlightedIndex >= 0) {
+                const choice = suggestions[highlightedIndex];
+                if (choice?.symbol) {
+                    window.openStockDetailsModalReact && window.openStockDetailsModalReact(choice.symbol);
+                    setSuggestions([]);
+                    setHighlightedIndex(-1);
+                    return;
+                }
+            }
             handleSearch();
         }
+    };
+
+    const onSearchInputChange = (value) => {
+        setSearchQuery(value);
+        if (searchDebounceRef.current) {
+            clearTimeout(searchDebounceRef.current);
+        }
+        if (!value.trim()) {
+            setSuggestions([]);
+            setHighlightedIndex(-1);
+            return;
+        }
+        searchDebounceRef.current = setTimeout(async () => {
+            try {
+                setSearching(true);
+                const authHeaders = await window.getAuthHeaders();
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const resp = await fetch(`${API_BASE}/api/search/stocks?q=${encodeURIComponent(value.trim())}`, {
+                    method: 'GET',
+                    headers: authHeaders,
+                    credentials: 'include'
+                });
+                if (resp.ok) {
+                    const res = await resp.json();
+                    // Expect an array of { symbol, name }
+                    setSuggestions(Array.isArray(res) ? res.slice(0, 8) : []);
+                    setHighlightedIndex(res && res.length > 0 ? 0 : -1);
+                } else {
+                    setSuggestions([]);
+                    setHighlightedIndex(-1);
+                }
+            } catch (_) {
+                setSuggestions([]);
+                setHighlightedIndex(-1);
+            } finally {
+                setSearching(false);
+            }
+        }, 250);
     };
 
     const refreshData = () => {
@@ -110,6 +310,83 @@ const DashboardRedesign = () => {
         } catch (error) {
             window.location.href = '/';
         }
+    };
+
+    const openDetails = (symbol) => {
+        if (window.openStockDetailsModalReact) {
+            window.openStockDetailsModalReact(symbol);
+        }
+    };
+
+    // Expose chart viewing globally
+    window.viewChart = async (symbol) => {
+        if (window.openStockDetailsModalReact) {
+            window.openStockDetailsModalReact(symbol);
+            // Chart will be shown in the modal
+        }
+    };
+
+    const removeFromWatchlist = async (symbol) => {
+        try {
+            const confirmed = window.confirm ? window.confirm(`Remove ${symbol} from your watchlist?`) : true;
+            if (!confirmed) return;
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/watchlist/${encodeURIComponent(symbol)}`, {
+                method: 'DELETE',
+                headers: authHeaders,
+                credentials: 'include'
+            });
+            if (response.ok) {
+                // Optimistically update local state
+                setWatchlistData((prev) => prev.filter((s) => (s.symbol || '').toUpperCase() !== symbol.toUpperCase()));
+                // Notify other parts of the app
+                try {
+                    window.dispatchEvent && window.dispatchEvent(new CustomEvent('watchlistChanged'));
+                } catch (_) {}
+                if (typeof window.refreshWatchlist === 'function') {
+                    window.refreshWatchlist();
+                }
+                window.showNotification && window.showNotification(`${symbol} removed from watchlist`, 'success');
+            } else {
+                window.showNotification && window.showNotification(`Failed to remove ${symbol}`, 'error');
+            }
+        } catch (error) {
+            window.showNotification && window.showNotification('Network error removing symbol', 'error');
+        }
+    };
+
+    const addToWatchlist = async () => {
+        try {
+            const input = window.prompt ? window.prompt('Enter stock symbol (e.g., AAPL):') : '';
+            const symbol = (input || '').trim().toUpperCase();
+            if (!symbol) return;
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/watchlist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
+                credentials: 'include',
+                body: JSON.stringify({ symbol })
+            });
+            if (response.ok) {
+                const added = await response.json().catch(() => null);
+                window.showNotification && window.showNotification(`${symbol} added to watchlist`, 'success');
+                // Refresh list
+                await loadWatchlistData();
+                try { window.dispatchEvent(new CustomEvent('watchlistChanged')); } catch (_) {}
+                if (typeof window.refreshWatchlist === 'function') window.refreshWatchlist();
+            } else {
+                window.showNotification && window.showNotification(`Failed to add ${symbol}`, 'error');
+            }
+        } catch (err) {
+            window.showNotification && window.showNotification('Network error adding symbol', 'error');
+        }
+    };
+
+    const openFilterPrompt = () => {
+        const value = window.prompt ? window.prompt('Filter symbols or names (leave blank to clear):', filterText) : '';
+        setFilterText((value || '').trim());
     };
 
     if (isLoading) {
@@ -172,6 +449,22 @@ const DashboardRedesign = () => {
                     </nav>
                 </div>
                 <div className="header-right">
+                    {/* Market Status Indicator */}
+                    <div className="market-status-indicator">
+                        <div className={`market-status-dot ${marketStatus.isOpen ? 'open' : 'closed'}`}></div>
+                        <span className="market-status-text">{marketStatus.status}</span>
+                    </div>
+                    
+                    {/* Last Update Indicator */}
+                    {lastUpdate && (
+                        <div className="last-update-indicator">
+                            <i className="fas fa-clock"></i>
+                            <span className="update-time">
+                                Updated {formatTimeAgo(lastUpdate)}
+                            </span>
+                        </div>
+                    )}
+                    
                     <button className="refresh-btn" onClick={refreshData}>
                         <i className="fas fa-sync-alt"></i>
                     </button>
@@ -246,18 +539,53 @@ const DashboardRedesign = () => {
                     placeholder="Search stocks, companies, or symbols..." 
                     className="search-input"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    onChange={(e) => onSearchInputChange(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    aria-autocomplete="list"
+                    aria-expanded={suggestions.length > 0}
                 />
-                <button className="search-btn" onClick={handleSearch}>
-                    Search
+                <button className="search-btn" onClick={handleSearch} disabled={searching}>
+                    {searching ? 'Searching…' : 'Search'}
                 </button>
+                {suggestions.length > 0 && (
+                    <div className="search-suggestions" role="listbox">
+                        {suggestions.map((s, idx) => (
+                            <div 
+                                key={`${s.symbol}-${idx}`}
+                                role="option"
+                                className={`suggestion-item ${idx === highlightedIndex ? 'active' : ''}`}
+                                onMouseEnter={() => setHighlightedIndex(idx)}
+                                onClick={() => {
+                                    window.openStockDetailsModalReact && window.openStockDetailsModalReact(s.symbol);
+                                    setSuggestions([]);
+                                    setHighlightedIndex(-1);
+                                }}
+                            >
+                                <span className="s-symbol">{s.symbol}</span>
+                                <span className="s-name">{s.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Main Content Area */}
             <div className="dashboard-content">
                 {activeView === 'overview' && <OverviewView watchlistData={watchlistData} onNavigate={setActiveView} />}
-                {activeView === 'watchlist' && <WatchlistView watchlistData={watchlistData} />}
+                {activeView === 'watchlist' && (
+                    <WatchlistView 
+                        watchlistData={watchlistData.filter((s) => {
+                            if (!filterText) return true;
+                            const q = filterText.toLowerCase();
+                            return (s.symbol || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q);
+                        })}
+                        onOpenDetails={openDetails}
+                        onRemove={removeFromWatchlist}
+                        onAdd={addToWatchlist}
+                        onFilter={openFilterPrompt}
+                        isFiltered={!!filterText}
+                    />
+                )}
                 {activeView === 'news' && <NewsView />}
                 {activeView === 'intelligence' && <IntelligenceView />}
                 {activeView === 'assistant' && <AIAssistantView />}
@@ -331,16 +659,7 @@ const OverviewView = ({ watchlistData, onNavigate }) => {
                     </div>
                 </div>
 
-                <div className="kpi-card">
-                    <div className="kpi-icon market">
-                        <i className="fas fa-building"></i>
-                    </div>
-                    <div className="kpi-content">
-                        <p className="kpi-label">Market Status</p>
-                        <h2 className="kpi-value">Open</h2>
-                        <span className="kpi-change">Live Data</span>
-                    </div>
-                </div>
+                <MarketStatusCard marketStatus={marketStatus} />
             </div>
 
             {/* Two Column Layout */}
@@ -358,10 +677,15 @@ const OverviewView = ({ watchlistData, onNavigate }) => {
                             <div 
                                 key={index} 
                                 className="stock-row"
-                                onClick={() => window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol)}
                                 role="button"
                                 tabIndex={0}
-                                onKeyPress={(e) => { if (e.key === 'Enter') { window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol); }}}
+                                onClick={() => window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol);
+                                    }
+                                }}
                             >
                                 <div className="stock-info">
                                     <div className="stock-symbol">{stock.symbol}</div>
@@ -428,23 +752,23 @@ const OverviewView = ({ watchlistData, onNavigate }) => {
 };
 
 // Watchlist View Component
-const WatchlistView = ({ watchlistData }) => {
+const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter, isFiltered }) => {
     return (
         <div className="watchlist-view">
             <div className="view-header">
                 <h2>My Watchlist</h2>
                 <div className="header-actions">
-                    <button className="action-btn">
+                    <button className="action-btn" onClick={() => onAdd && onAdd()}>
                         <i className="fas fa-plus"></i> Add Stock
                     </button>
-                    <button className="action-btn">
-                        <i className="fas fa-filter"></i> Filter
+                    <button className="action-btn" onClick={() => onFilter && onFilter()}>
+                        <i className="fas fa-filter"></i> {isFiltered ? 'Filter (On)' : 'Filter'}
                     </button>
                 </div>
             </div>
             <div className="watchlist-grid">
                 {watchlistData.map((stock, index) => (
-                    <div key={index} className="watchlist-card">
+                    <div key={index} className="watchlist-card" role="group" aria-label={`${stock.symbol} card`}>
                         <div className="card-top">
                             <div className="stock-symbol">{stock.symbol}</div>
                             <button className="more-btn">
@@ -452,15 +776,20 @@ const WatchlistView = ({ watchlistData }) => {
                             </button>
                         </div>
                         <div className="stock-name">{stock.name}</div>
-                        <div className="stock-price-large">${stock.current_price?.toFixed(2) || '0.00'}</div>
+                        <div className={`stock-price-large ${stock._updated ? 'price-updated' : ''}`}>
+                            ${stock.current_price?.toFixed(2) || '0.00'}
+                        </div>
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                             {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                         </div>
                         <div className="card-actions">
-                            <button className="card-action-btn">
+                            <button className="card-action-btn" onClick={() => onOpenDetails && onOpenDetails(stock.symbol)}>
                                 <i className="fas fa-info-circle"></i> Details
                             </button>
-                            <button className="card-action-btn">
+                            <button className="card-action-btn" onClick={() => window.viewChart && window.viewChart(stock.symbol)}>
+                                <i className="fas fa-chart-line"></i> Chart
+                            </button>
+                            <button className="card-action-btn" onClick={() => onRemove && onRemove(stock.symbol)}>
                                 <i className="fas fa-trash"></i> Remove
                             </button>
                         </div>
@@ -483,43 +812,73 @@ const WatchlistView = ({ watchlistData }) => {
 
 // News View Component
 const NewsView = () => {
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [articles, setArticles] = useState([]);
+    const [query, setQuery] = useState('markets');
+
+    useEffect(() => { loadNews(); }, []);
+
+    const loadNews = async () => {
+        try {
+            setLoading(true); setError('');
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const r = await fetch(`${API_BASE}/api/news/market?q=${encodeURIComponent(query)}`, { headers: authHeaders, credentials: 'include' });
+            if (!r.ok) throw new Error('Failed to fetch news');
+            const data = await r.json();
+            setArticles(Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : []);
+        } catch (e) {
+            setError('Unable to load news right now');
+            setArticles([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="news-view">
             <div className="view-header">
                 <h2>Market News</h2>
-                <div className="news-filters">
-                    <button className="filter-btn active">All</button>
-                    <button className="filter-btn">Breaking</button>
-                    <button className="filter-btn">Analysis</button>
-                    <button className="filter-btn">Earnings</button>
+                <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+                    <input 
+                        className="search-input" 
+                        style={{ maxWidth:'240px' }} 
+                        value={query}
+                        onChange={(e)=>setQuery(e.target.value)}
+                        placeholder="Search news" />
+                    <button className="search-btn" onClick={loadNews} disabled={loading}>Refresh</button>
+                    {error && <span style={{ color:'#FF6B35', fontSize:'0.9rem' }}>{error}</span>}
                 </div>
             </div>
             <div className="news-grid">
-                <div className="news-card featured">
-                    <div className="news-image-placeholder">
-                        <i className="fas fa-chart-line"></i>
-                    </div>
-                    <div className="news-badge">Featured</div>
-                    <div className="news-content">
-                        <span className="news-category">Market Analysis</span>
-                        <h3>Tech Stocks Rally on Strong Earnings</h3>
-                        <p>Major technology companies report better-than-expected Q3 earnings, driving sector gains</p>
-                        <div className="news-meta">
-                            <span><i className="fas fa-clock"></i> 2 hours ago</span>
-                            <button className="read-more">Read More <i className="fas fa-arrow-right"></i></button>
+                {(loading ? Array.from({length:1}) : articles.slice(0,1)).map((a, idx) => (
+                    <div key={`feat-${idx}`} className="news-card featured">
+                        <div className="news-image-placeholder">
+                            <i className="fas fa-chart-line"></i>
+                        </div>
+                        <div className="news-badge">Featured</div>
+                        <div className="news-content">
+                            <span className="news-category">{loading ? 'Loading…' : (a.source || a.category || 'Top Story')}</span>
+                            <h3>{loading ? 'Loading headline…' : (a.title || '—')}</h3>
+                            <p>{loading ? '' : (a.description || '')}</p>
+                            <div className="news-meta">
+                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
+                                {a?.url && <a className="read-more" href={a.url} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className="news-card">
+                ))}
+
+                {(loading ? Array.from({length:6}) : articles.slice(1,7)).map((a, i) => (
+                    <div key={`card-${i}`} className="news-card">
                         <div className="news-content">
-                            <span className="news-category">Breaking News</span>
-                            <h3>Sample News Article Title {i}</h3>
-                            <p>This is a sample news article description</p>
+                            <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
+                            <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
+                            <p>{loading ? '' : (a.description || '')}</p>
                             <div className="news-meta">
-                                <span><i className="fas fa-clock"></i> {i} hours ago</span>
-                                <button className="read-more">Read More <i className="fas fa-arrow-right"></i></button>
+                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
+                                {a?.url && <a className="read-more" href={a.url} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
                             </div>
                         </div>
                     </div>
@@ -531,39 +890,204 @@ const NewsView = () => {
 
 // Intelligence View Component
 const IntelligenceView = () => {
+    const [activeTab, setActiveTab] = useState('earnings');
+    const [symbol, setSymbol] = useState('AAPL');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [earnings, setEarnings] = useState([]);
+    const [insider, setInsider] = useState([]);
+    const [analyst, setAnalyst] = useState([]);
+    const [optionsData, setOptionsData] = useState([]);
+
+    useEffect(() => {
+        loadCurrentTab();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab]);
+
+    // Expose a safe setter so other sections can deep-link to a tab
+    useEffect(() => {
+        const setter = (tab) => setActiveTab(tab);
+        window.__setIntelTab = setter;
+        return () => {
+            if (window.__setIntelTab === setter) delete window.__setIntelTab;
+        };
+    }, []);
+
+    const withAuth = async () => {
+        const authHeaders = await window.getAuthHeaders();
+        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+        return { authHeaders, API_BASE };
+    };
+
+    const loadCurrentTab = async () => {
+        if (activeTab === 'earnings') return loadEarnings();
+        if (activeTab === 'insider') return loadInsider();
+        if (activeTab === 'analyst') return loadAnalyst();
+        if (activeTab === 'options') return loadOptions();
+    };
+
+    const loadEarnings = async () => {
+        try {
+            setLoading(true); setError('');
+            const { authHeaders, API_BASE } = await withAuth();
+            const r = await fetch(`${API_BASE}/api/market/earnings`, { headers: authHeaders, credentials: 'include' });
+            if (!r.ok) throw new Error('Failed to fetch earnings');
+            const data = await r.json();
+            setEarnings(Array.isArray(data) ? data : []);
+        } catch (e) {
+            setError('Unable to load earnings right now');
+            setEarnings([]);
+        } finally { setLoading(false); }
+    };
+
+    const loadInsider = async () => {
+        try {
+            setLoading(true); setError('');
+            const { authHeaders, API_BASE } = await withAuth();
+            const r = await fetch(`${API_BASE}/api/market/insider-trading/${encodeURIComponent(symbol)}`, { headers: authHeaders, credentials: 'include' });
+            if (!r.ok) throw new Error('Failed to fetch insider trading');
+            const data = await r.json();
+            setInsider(Array.isArray(data?.transactions) ? data.transactions : Array.isArray(data) ? data : []);
+        } catch (e) {
+            setError('Unable to load insider trading');
+            setInsider([]);
+        } finally { setLoading(false); }
+    };
+
+    const loadAnalyst = async () => {
+        try {
+            setLoading(true); setError('');
+            const { authHeaders, API_BASE } = await withAuth();
+            const r = await fetch(`${API_BASE}/api/market/analyst-ratings/${encodeURIComponent(symbol)}`, { headers: authHeaders, credentials: 'include' });
+            if (!r.ok) throw new Error('Failed to fetch analyst ratings');
+            const data = await r.json();
+            setAnalyst(Array.isArray(data?.ratings) ? data.ratings : Array.isArray(data) ? data : []);
+        } catch (e) {
+            setError('Unable to load analyst ratings');
+            setAnalyst([]);
+        } finally { setLoading(false); }
+    };
+
+    const loadOptions = async () => {
+        try {
+            setLoading(true); setError('');
+            const { authHeaders, API_BASE } = await withAuth();
+            const r = await fetch(`${API_BASE}/api/market/options/${encodeURIComponent(symbol)}`, { headers: authHeaders, credentials: 'include' });
+            if (!r.ok) throw new Error('Failed to fetch options');
+            const data = await r.json();
+            setOptionsData(Array.isArray(data?.chains) ? data.chains : Array.isArray(data) ? data : []);
+        } catch (e) {
+            setError('Unable to load options');
+            setOptionsData([]);
+        } finally { setLoading(false); }
+    };
+
     return (
         <div className="intelligence-view">
             <div className="view-header">
                 <h2>Market Intelligence</h2>
                 <div className="intel-tabs">
-                    <button className="intel-tab active">Earnings</button>
-                    <button className="intel-tab">Insider Trading</button>
-                    <button className="intel-tab">Analyst Ratings</button>
-                    <button className="intel-tab">Options</button>
+                    <button className={`intel-tab ${activeTab==='earnings'?'active':''}`} onClick={()=>setActiveTab('earnings')}>Earnings</button>
+                    <button className={`intel-tab ${activeTab==='insider'?'active':''}`} onClick={()=>setActiveTab('insider')}>Insider Trading</button>
+                    <button className={`intel-tab ${activeTab==='analyst'?'active':''}`} onClick={()=>setActiveTab('analyst')}>Analyst Ratings</button>
+                    <button className={`intel-tab ${activeTab==='options'?'active':''}`} onClick={()=>setActiveTab('options')}>Options</button>
                 </div>
             </div>
-            <div className="intel-content">
+
+            <div className="intel-controls" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', margin: '0 0 1rem 0' }}>
+                <input 
+                    className="search-input"
+                    style={{ maxWidth: '220px' }}
+                    value={symbol}
+                    onChange={(e)=>setSymbol(e.target.value.toUpperCase())}
+                    placeholder="Symbol e.g., AAPL" />
+                <button className="search-btn" onClick={loadCurrentTab} disabled={loading}>Refresh</button>
+                {error && <span style={{ color: '#FF6B35', fontSize: '0.9rem' }}>{error}</span>}
+            </div>
+
+            {activeTab === 'earnings' && (
                 <div className="intel-card">
                     <div className="intel-header">
                         <h3><i className="fas fa-calendar-check"></i> Upcoming Earnings</h3>
-                        <span className="intel-count">12 events</span>
+                        <span className="intel-count">{earnings.length} events</span>
                     </div>
                     <div className="intel-list">
-                        {[1, 2, 3, 4, 5].map(i => (
+                        {(loading ? Array.from({length:5}) : earnings).slice(0,5).map((item, i) => (
                             <div key={i} className="intel-item">
-                                <div className="intel-symbol">AAPL</div>
+                                <div className="intel-symbol">{loading ? '—' : (item.symbol || item.ticker || '—')}</div>
                                 <div className="intel-details">
-                                    <div className="intel-company">Apple Inc.</div>
-                                    <div className="intel-date">Oct 28, 2025</div>
+                                    <div className="intel-company">{loading ? 'Loading…' : (item.company || item.name || '—')}</div>
+                                    <div className="intel-date">{loading ? '' : (item.date || item.reportDate || '—')}</div>
                                 </div>
-                                <div className="intel-estimate">
-                                    Est: $1.20
-                                </div>
+                                <div className="intel-estimate">{loading ? '' : (item.estimate ? `Est: ${item.estimate}` : '')}</div>
                             </div>
                         ))}
                     </div>
                 </div>
-            </div>
+            )}
+
+            {activeTab === 'insider' && (
+                <div className="intel-card">
+                    <div className="intel-header">
+                        <h3><i className="fas fa-user-shield"></i> Insider Transactions</h3>
+                        <span className="intel-count">{insider.length}</span>
+                    </div>
+                    <div className="intel-list">
+                        {(loading ? Array.from({length:5}) : insider).slice(0,5).map((t, i) => (
+                            <div key={i} className="intel-item">
+                                <div className="intel-symbol">{symbol}</div>
+                                <div className="intel-details">
+                                    <div className="intel-company">{loading ? 'Loading…' : (t.insider || t.name || '—')}</div>
+                                    <div className="intel-date">{loading ? '' : (t.date || t.transactionDate || '—')}</div>
+                                </div>
+                                <div className="intel-estimate">{loading ? '' : ((t.transaction || t.type || '—'))}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'analyst' && (
+                <div className="intel-card">
+                    <div className="intel-header">
+                        <h3><i className="fas fa-chart-line"></i> Analyst Ratings</h3>
+                        <span className="intel-count">{analyst.length}</span>
+                    </div>
+                    <div className="intel-list">
+                        {(loading ? Array.from({length:5}) : analyst).slice(0,5).map((r, i) => (
+                            <div key={i} className="intel-item">
+                                <div className="intel-symbol">{symbol}</div>
+                                <div className="intel-details">
+                                    <div className="intel-company">{loading ? 'Loading…' : (r.firm || r.analyst || '—')}</div>
+                                    <div className="intel-date">{loading ? '' : (r.date || r.ratingDate || '—')}</div>
+                                </div>
+                                <div className="intel-estimate">{loading ? '' : (r.rating || r.action || '—')}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'options' && (
+                <div className="intel-card">
+                    <div className="intel-header">
+                        <h3><i className="fas fa-stream"></i> Options Flow</h3>
+                        <span className="intel-count">{optionsData.length}</span>
+                    </div>
+                    <div className="intel-list">
+                        {(loading ? Array.from({length:5}) : optionsData).slice(0,5).map((o, i) => (
+                            <div key={i} className="intel-item">
+                                <div className="intel-symbol">{symbol}</div>
+                                <div className="intel-details">
+                                    <div className="intel-company">{loading ? 'Loading…' : `${o.type || o.side || '—'} ${o.strike ? `@ ${o.strike}` : ''}`}</div>
+                                    <div className="intel-date">{loading ? '' : (o.expiration || o.exp || '—')}</div>
+                                </div>
+                                <div className="intel-estimate">{loading ? '' : (o.premium ? `$${o.premium}` : '')}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -621,61 +1145,60 @@ const AIAssistantView = () => {
     ];
 
     return (
-        <div className="assistant-view">
-            <div className="assistant-header">
+        <div className="assistant-view simple">
+            <div className="assistant-header" style={{justifyContent:'center', textAlign:'center'}}>
                 <div>
-                    <h2>AI Investment Assistant</h2>
-                    <p>Get real-time insights and personalized investment advice</p>
-                </div>
-                <div className="assistant-status">
-                    <span className="status-dot"></span>
-                    <span>Online</span>
+                    <h2>Ask anything</h2>
+                    <p>Simple, fast answers about markets and your watchlist</p>
                 </div>
             </div>
 
             <div className="assistant-chat">
+                <div className="assistant-input searchlike">
+                    <i className="fas fa-message"></i>
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Ask anything…"
+                        className="assistant-input-field"
+                    />
+                    <button 
+                        className="send-btn"
+                        onClick={sendMessage}
+                        disabled={!inputValue || isTyping}
+                        aria-label="Send"
+                    >
+                        <i className="fas fa-arrow-up"></i>
+                    </button>
+                </div>
+
                 {messages.length === 0 && (
-                    <div className="assistant-welcome">
-                        <div className="assistant-avatar">
-                            <i className="fas fa-user-tie"></i>
-                        </div>
-                        <h3>Investment Advisor</h3>
-                        <p>Get portfolio analysis, stock research, and strategic insights.</p>
-                        <div className="quick-prompts">
-                            {quickPrompts.map((prompt, index) => (
-                                <button 
-                                    key={index}
-                                    className="prompt-btn"
-                                    onClick={() => setInputValue(prompt)}
-                                >
-                                    {prompt}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="quick-prompts" style={{justifyContent:'center'}}>
+                        {quickPrompts.map((prompt, index) => (
+                            <button 
+                                key={index}
+                                className="prompt-btn"
+                                onClick={() => setInputValue(prompt)}
+                            >
+                                {prompt}
+                            </button>
+                        ))}
                     </div>
                 )}
 
-                <div className="assistant-messages">
+                <div className="assistant-messages minimal">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`assistant-msg ${msg.type}`}>
-                            <div className="assistant-msg-content">
-                                {msg.type === 'user' ? (
-                                    <>
-                                        <p>{msg.content}</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="ai-avatar"><i className="fas fa-user-tie"></i></div>
-                                        <p>{msg.content}</p>
-                                    </>
-                                )}
+                            <div className="assistant-msg-content minimal">
+                                <p>{msg.content}</p>
                             </div>
                         </div>
                     ))}
                     {isTyping && (
                         <div className="assistant-msg ai">
-                            <div className="assistant-msg-content">
-                                <div className="ai-avatar"><i className="fas fa-user-tie"></i></div>
+                            <div className="assistant-msg-content minimal">
                                 <div className="typing-indicator">
                                     <span></span><span></span><span></span>
                                 </div>
@@ -684,24 +1207,36 @@ const AIAssistantView = () => {
                     )}
                     <div ref={messagesEndRef} />
                 </div>
+            </div>
+        </div>
+    );
+};
 
-                <div className="assistant-input">
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Ask me about stocks, your portfolio, or investment strategies..."
-                        className="assistant-input-field"
-                    />
-                    <button 
-                        className="send-btn"
-                        onClick={sendMessage}
-                        disabled={!inputValue || isTyping}
-                    >
-                        <i className="fas fa-paper-plane"></i>
-                    </button>
-                </div>
+// Helper function for formatting time ago
+function formatTimeAgo(date) {
+    if (!date) return 'just now';
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    
+    if (diff < 10) return 'just now';
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
+}
+
+// Market Status Card Component
+const MarketStatusCard = ({ marketStatus }) => {
+    return (
+        <div className="kpi-card">
+            <div className="kpi-icon market">
+                <i className="fas fa-building"></i>
+            </div>
+            <div className="kpi-content">
+                <p className="kpi-label">Market Status</p>
+                <h2 className="kpi-value">{marketStatus.status}</h2>
+                <span className={`kpi-change ${marketStatus.isOpen ? 'live' : ''}`}>
+                    {marketStatus.isOpen ? 'Live' : 'Closed'}
+                </span>
             </div>
         </div>
     );
