@@ -124,7 +124,7 @@
     
     <!-- NEW DASHBOARD UI - Load it FIRST so it's available for showMainContent -->
     <link rel="stylesheet" href="static/css/dashboard-redesign.css?v=20250122-new-ui">
-    <div id="dashboard-redesign-root" style="display: none; position: relative; z-index: 1000;"></div>
+    <div id="dashboard-redesign-root" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow: auto; z-index: 9999;"></div>
     <script type="text/babel" src="src/react-dashboard-redesign.js"></script>
     
     <!-- Pre-override showMainContent BEFORE app.js and make it work with DashboardRedesign -->
@@ -148,13 +148,16 @@
                     loadingScreen.style.display = 'none';
                 }
                 
-                // Hide landing page
+                // Hide landing page completely
                 const marketpulseRoot = document.getElementById('marketpulse-root');
                 if (marketpulseRoot) {
                     marketpulseRoot.style.display = 'none';
+                    marketpulseRoot.style.visibility = 'hidden';
+                    marketpulseRoot.style.position = 'absolute';
+                    marketpulseRoot.style.zIndex = '-1';
                 }
                 
-                // Show new dashboard
+                // Show new dashboard - position it at the top
                 const redesignRoot = document.getElementById('dashboard-redesign-root');
                 if (redesignRoot && !redesignRoot.hasAttribute('rendered')) {
                     const root = ReactDOM.createRoot(redesignRoot);
@@ -168,8 +171,13 @@
                 }
                 if (redesignRoot) {
                     redesignRoot.style.display = 'block';
-                    redesignRoot.style.position = 'relative';
-                    redesignRoot.style.zIndex = '1000';
+                    redesignRoot.style.position = 'fixed';
+                    redesignRoot.style.top = '0';
+                    redesignRoot.style.left = '0';
+                    redesignRoot.style.width = '100%';
+                    redesignRoot.style.height = '100%';
+                    redesignRoot.style.zIndex = '9999';
+                    redesignRoot.style.overflow = 'auto';
                 }
             };
             
@@ -206,10 +214,13 @@
         window.showNewDashboard = function() {
             console.log('🔵 showNewDashboard called');
             
-            // Hide landing page
+            // Hide landing page completely
             const marketpulseRoot = document.getElementById('marketpulse-root');
             if (marketpulseRoot) {
                 marketpulseRoot.style.display = 'none';
+                marketpulseRoot.style.visibility = 'hidden';
+                marketpulseRoot.style.position = 'absolute';
+                marketpulseRoot.style.zIndex = '-1';
             }
             
             // Hide loading screen
@@ -218,7 +229,7 @@
                 loadingScreen.style.display = 'none';
             }
             
-            // Show new dashboard
+            // Show new dashboard with fixed positioning
             const redesignRoot = document.getElementById('dashboard-redesign-root');
             if (redesignRoot && !redesignRoot.hasAttribute('rendered')) {
                 const root = ReactDOM.createRoot(redesignRoot);
@@ -229,8 +240,13 @@
             }
             if (redesignRoot) {
                 redesignRoot.style.display = 'block';
-                redesignRoot.style.position = 'relative';
-                redesignRoot.style.zIndex = '1000';
+                redesignRoot.style.position = 'fixed';
+                redesignRoot.style.top = '0';
+                redesignRoot.style.left = '0';
+                redesignRoot.style.width = '100%';
+                redesignRoot.style.height = '100%';
+                redesignRoot.style.zIndex = '9999';
+                redesignRoot.style.overflow = 'auto';
             }
         };
         
