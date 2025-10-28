@@ -90,6 +90,61 @@
     font-size: 1rem;
 }
 
+/* Market Status Indicator */
+.market-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.market-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: pulse 2s infinite;
+}
+
+.market-status-dot.open {
+    background: #00D924;
+}
+
+.market-status-text {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+}
+
+/* Last Update Indicator */
+.last-update-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.last-update-indicator i {
+    font-size: 0.875rem;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
 .user-menu-wrapper {
     position: relative;
 }
@@ -222,6 +277,7 @@
     padding: 1.5rem 2rem;
     background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
 }
 
 .search-input {
@@ -265,6 +321,42 @@
     background: #00B01F;
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 217, 36, 0.3);
+}
+
+/* Search suggestions dropdown */
+.search-suggestions {
+    position: absolute;
+    left: 2rem;
+    right: 2rem;
+    top: calc(100% - 0.5rem);
+    background: rgba(24, 26, 35, 1);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    overflow: hidden;
+    z-index: 40;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: rgba(255,255,255,0.85);
+    cursor: pointer;
+}
+
+.suggestion-item .s-symbol {
+    font-weight: 700;
+}
+
+.suggestion-item .s-name {
+    color: rgba(255,255,255,0.6);
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+    background: rgba(255,255,255,0.06);
 }
 
 /* KPI Cards Grid */
@@ -429,6 +521,12 @@
 .stock-row:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.2);
+}
+
+.stock-row:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 217, 36, 0.35);
+    border-color: rgba(0, 217, 36, 0.5);
 }
 
 .stock-info {
@@ -622,6 +720,25 @@
     font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.stock-price-large.price-updated {
+    animation: priceFlash 2s ease-in-out;
+    color: #00D924;
+}
+
+@keyframes priceFlash {
+    0%, 100% {
+        background-color: transparent;
+    }
+    10% {
+        background-color: rgba(0, 217, 36, 0.15);
+        transform: scale(1.05);
+    }
+    50% {
+        background-color: rgba(0, 217, 36, 0.05);
+    }
 }
 
 .stock-change-large {
@@ -988,7 +1105,7 @@
 
 .assistant-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
@@ -1027,11 +1144,11 @@
 .assistant-chat {
     display: flex;
     flex-direction: column;
-    height: 600px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    height: 520px;
+    background: transparent;
+    border: none;
     border-radius: 20px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .assistant-welcome {
@@ -1042,6 +1159,7 @@
     padding: 3rem;
     text-align: center;
     height: 100%;
+    margin: 0 auto;
 }
 
 .assistant-avatar {
@@ -1071,10 +1189,13 @@
 
 .quick-prompts {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1rem;
-    max-width: 600px;
+    max-width: 900px;
     width: 100%;
+    justify-content: center;
+    justify-items: center;
+    margin: 0 auto;
 }
 
 .prompt-btn {
@@ -1184,17 +1305,17 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1.5rem 2rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.75rem 0;
+    background: transparent;
+    border-top: none;
 }
 
 .assistant-input-field {
     flex: 1;
-    padding: 0.875rem 1.5rem;
+    padding: 0.875rem 1.25rem;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 999px;
     color: #ffffff;
     font-size: 1rem;
     outline: none;
@@ -1209,11 +1330,11 @@
 }
 
 .send-btn {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     background: #00D924;
     border: none;
-    border-radius: 12px;
+    border-radius: 50%;
     color: #000000;
     font-size: 1.25rem;
     cursor: pointer;
