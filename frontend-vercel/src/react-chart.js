@@ -20,11 +20,8 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     useEffect(() => {
         const ChartLib = window.Chart || Chart;
         if (typeof ChartLib === 'undefined') {
-            console.error('❌ Chart.js is not loaded!');
             setError('Chart.js library not loaded');
             setIsLoading(false);
-        } else {
-            console.log('✅ Chart.js loaded:', typeof ChartLib);
         }
     }, []);
 
@@ -71,13 +68,10 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     const fetchChartData = async (range) => {
         setIsLoadingNewData(true);
         try {
-            console.log(`🔄 Fetching ${range} data for ${symbol}`);
             const response = await fetch(`${window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app'}/api/chart/${symbol}?range=${range}`, {
                 credentials: 'include'
             });
             const newData = await response.json();
-            
-            console.log(`📊 Received ${newData.length} data points for ${range}`);
             
             if (response.ok) {
                 const processedData = newData.map((item, index) => ({
@@ -88,8 +82,6 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     index: index
                 }));
                 
-                console.log(`✅ Processed data:`, processedData.slice(0, 3), '...');
-                
                 setChartData(processedData);
                 
                 // Calculate price change
@@ -99,16 +91,13 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     const change = lastPrice - firstPrice;
                     const percentage = (change / firstPrice) * 100;
                     setPriceChange({ value: change, percentage });
-                    console.log(`📈 Price change: ${change.toFixed(2)} (${percentage.toFixed(2)}%)`);
                 }
                 
                 setError(null);
             } else {
-                console.error(`❌ Error loading ${range} data:`, newData.error);
                 setError(newData.error || 'Error loading chart data');
             }
         } catch (error) {
-            console.error('❌ Error fetching chart data:', error);
             setError('Failed to load chart data');
         } finally {
             setIsLoadingNewData(false);
