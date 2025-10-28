@@ -571,7 +571,7 @@ const DashboardRedesign = () => {
 
             {/* Main Content Area */}
             <div className="dashboard-content">
-                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} onNavigate={setActiveView} />}
+                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} />}
                 {activeView === 'watchlist' && (
                     <WatchlistView 
                         watchlistData={watchlistData.filter((s) => {
@@ -601,7 +601,7 @@ const DashboardRedesign = () => {
 };
 
 // Overview Tab Component
-const OverviewView = ({ watchlistData, onNavigate }) => {
+const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
     const totalValue = watchlistData.reduce((sum, stock) => sum + (stock.current_price * 100 || 0), 0);
     const totalChange = watchlistData.reduce((sum, stock) => sum + (stock.change_percent || 0), 0);
     const avgChange = watchlistData.length > 0 ? totalChange / watchlistData.length : 0;
