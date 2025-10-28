@@ -6,9 +6,21 @@ const DashboardRedesign = () => {
     const [watchlistData, setWatchlistData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [showSearchResults, setShowSearchResults] = useState(false);
 
     useEffect(() => {
         loadWatchlistData();
+    }, []);
+
+    useEffect(() => {
+        // Auto-refresh every 30 seconds
+        const interval = setInterval(() => {
+            loadWatchlistData();
+        }, 30000);
+        
+        return () => clearInterval(interval);
     }, []);
 
     // Close dropdown when clicking outside
@@ -49,6 +61,69 @@ const DashboardRedesign = () => {
             setIsLoading(false);
         }
     };
+
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) return;
+        
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            
+            const response = await fetch(`${API_BASE}/api/stock/${searchQuery.toUpperCase()}`, {
+                method: 'GET',
+                headers: authHeaders,
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setSearchResults([data]);
+                setShowSearchResults(true);
+                window.openStockDetailsModalReact && window.openStockDetailsModalReact(searchQuery.toUpperCase());
+            } else {
+                window.showNotification && window.showNotification('Stock not found', 'error');
+            }
+        } catch (error) {
+            window.showNotification && window.showNotification('Search failed', 'error');
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
+    const refreshData = () => {
+        setIsLoading(true);
+        loadWatchlistData();
+    };
+
+    const handleLogout = async () => {
+        try {
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            await fetch(`${API_BASE}/api/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            window.location.href = '/';
+        } catch (error) {
+            window.location.href = '/';
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="dashboard-redesign">
+                <div className="loading-container">
+                    <div className="loading-spinner">
+                        <div className="spinner"></div>
+                    </div>
+                    <h3>Loading Dashboard...</h3>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-redesign">
@@ -97,6 +172,9 @@ const DashboardRedesign = () => {
                     </nav>
                 </div>
                 <div className="header-right">
+                    <button className="refresh-btn" onClick={refreshData}>
+                        <i className="fas fa-sync-alt"></i>
+                    </button>
                     <div className="user-menu-wrapper">
                         <button 
                             className="user-menu-btn"
@@ -150,7 +228,7 @@ const DashboardRedesign = () => {
                                     <span>Help & Support</span>
                                 </div>
                                 <div className="dropdown-divider"></div>
-                                <div className="dropdown-item logout">
+                                <div className="dropdown-item logout" onClick={handleLogout}>
                                     <i className="fas fa-sign-out-alt"></i>
                                     <span>Log Out</span>
                                 </div>
@@ -167,15 +245,18 @@ const DashboardRedesign = () => {
                     type="text" 
                     placeholder="Search stocks, companies, or symbols..." 
                     className="search-input"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
                 />
-                <button className="search-btn">
+                <button className="search-btn" onClick={handleSearch}>
                     Search
                 </button>
             </div>
 
             {/* Main Content Area */}
             <div className="dashboard-content">
-                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} />}
+                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} onNavigate={setActiveView} />}
                 {activeView === 'watchlist' && <WatchlistView watchlistData={watchlistData} />}
                 {activeView === 'news' && <NewsView />}
                 {activeView === 'intelligence' && <IntelligenceView />}
@@ -183,7 +264,7 @@ const DashboardRedesign = () => {
             </div>
 
             {/* Floating Assistant - Always Available */}
-            <button className="floating-ai-btn">
+            <button className="floating-ai-btn" onClick={() => setActiveView('assistant')}>
                 <i className="fas fa-comments"></i>
                 <span className="tooltip">Open Assistant</span>
             </button>
@@ -192,7 +273,7 @@ const DashboardRedesign = () => {
 };
 
 // Overview Tab Component
-const OverviewView = ({ watchlistData }) => {
+const OverviewView = ({ watchlistData, onNavigate }) => {
     const totalValue = watchlistData.reduce((sum, stock) => sum + (stock.current_price * 100 || 0), 0);
     const totalChange = watchlistData.reduce((sum, stock) => sum + (stock.change_percent || 0), 0);
     const avgChange = watchlistData.length > 0 ? totalChange / watchlistData.length : 0;
@@ -268,7 +349,9 @@ const OverviewView = ({ watchlistData }) => {
                 <div className="main-card">
                     <div className="card-header">
                         <h3><i className="fas fa-table"></i> Watchlist</h3>
-                        <button className="view-all-btn">See All <i className="fas fa-arrow-right"></i></button>
+                        <button className="view-all-btn" onClick={() => onNavigate('watchlist')}>
+                            See All <i className="fas fa-arrow-right"></i>
+                        </button>
                     </div>
                     <div className="watchlist-quick">
                         {watchlistData.slice(0, 5).map((stock, index) => (
@@ -298,7 +381,9 @@ const OverviewView = ({ watchlistData }) => {
                 <div className="main-card">
                     <div className="card-header">
                         <h3><i className="fas fa-database"></i> Market Intelligence</h3>
-                        <button className="view-all-btn">Explore <i className="fas fa-arrow-right"></i></button>
+                        <button className="view-all-btn" onClick={() => onNavigate('intelligence')}>
+                            Explore <i className="fas fa-arrow-right"></i>
+                        </button>
                     </div>
                     <div className="insights-list">
                         <div className="insight-item">
