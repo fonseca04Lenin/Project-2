@@ -355,7 +355,14 @@ const OverviewView = ({ watchlistData, onNavigate }) => {
                     </div>
                     <div className="watchlist-quick">
                         {watchlistData.slice(0, 5).map((stock, index) => (
-                            <div key={index} className="stock-row">
+                            <div 
+                                key={index} 
+                                className="stock-row"
+                                onClick={() => window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyPress={(e) => { if (e.key === 'Enter') { window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol); }}}
+                            >
                                 <div className="stock-info">
                                     <div className="stock-symbol">{stock.symbol}</div>
                                     <div className="stock-name">{stock.name}</div>
