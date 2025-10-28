@@ -279,60 +279,78 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Pre-override showMainContent BEFORE app.js -->
+    <!-- NEW DASHBOARD UI - Load it FIRST so it's available for showMainContent -->
+    <link rel="stylesheet" href="static/css/dashboard-redesign.css?v=20250122-new-ui">
+    <div id="dashboard-redesign-root" style="display: none; position: relative; z-index: 1000;"></div>
+    <script type="text/babel" src="src/react-dashboard-redesign.js"></script>
+    
+    <!-- Pre-override showMainContent BEFORE app.js and make it work with DashboardRedesign -->
     <script>
-        // Override showMainContent before app.js loads
-        window.showMainContent = function(user) {
-            console.log('🎯 Overridden showMainContent called', user);
-            
-            // Hide loading screen immediately
-            const loadingScreen = document.getElementById('loading-screen');
-            if (loadingScreen) {
-                loadingScreen.style.display = 'none';
+        // Wait for DashboardRedesign to be available
+        const waitForDashboard = setInterval(() => {
+            if (window.DashboardRedesign) {
+                clearInterval(waitForDashboard);
+                setupShowMainContent();
             }
-            
-            // Hide landing page
-            const marketpulseRoot = document.getElementById('marketpulse-root');
-            if (marketpulseRoot) {
-                marketpulseRoot.style.display = 'none';
-            }
-            
-            // Hide old UI completely
-            const oldMainContent = document.getElementById('main-content');
-            if (oldMainContent) {
-                oldMainContent.style.display = 'none';
-            }
-            
-            // Show new dashboard
-            const redesignRoot = document.getElementById('dashboard-redesign-root');
-            if (redesignRoot && !redesignRoot.hasAttribute('rendered')) {
-                const root = ReactDOM.createRoot(redesignRoot);
-                if (window.DashboardRedesign) {
-                    root.render(React.createElement(window.DashboardRedesign));
-                    redesignRoot.setAttribute('rendered', 'true');
-                }
-            }
-            if (redesignRoot) {
-                redesignRoot.style.display = 'block';
-                redesignRoot.style.position = 'relative';
-                redesignRoot.style.zIndex = '1000';
-            }
-        };
+        }, 100);
         
-        // Also listen for the userAuthenticated event from React landing page
-        window.addEventListener('userAuthenticated', function(event) {
-            console.log('📡 Received userAuthenticated event');
-            if (event.detail && event.detail.user) {
-                // Call showMainContent with the user data
-                setTimeout(() => {
-                    window.showMainContent({ 
-                        email: event.detail.user.email, 
-                        id: event.detail.user.uid,
-                        name: event.detail.user.displayName || event.detail.user.email.split('@')[0]
-                    });
-                }, 100);
-            }
-        });
+        function setupShowMainContent() {
+            // Override showMainContent before app.js loads
+            window.showMainContent = function(user) {
+                console.log('🎯 Overridden showMainContent called', user);
+                
+                // Hide loading screen immediately
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+                
+                // Hide landing page
+                const marketpulseRoot = document.getElementById('marketpulse-root');
+                if (marketpulseRoot) {
+                    marketpulseRoot.style.display = 'none';
+                }
+                
+                // Hide old UI completely
+                const oldMainContent = document.getElementById('main-content');
+                if (oldMainContent) {
+                    oldMainContent.style.display = 'none';
+                }
+                
+                // Show new dashboard
+                const redesignRoot = document.getElementById('dashboard-redesign-root');
+                if (redesignRoot && !redesignRoot.hasAttribute('rendered')) {
+                    const root = ReactDOM.createRoot(redesignRoot);
+                    if (window.DashboardRedesign) {
+                        root.render(React.createElement(window.DashboardRedesign));
+                        redesignRoot.setAttribute('rendered', 'true');
+                        console.log('✅ New dashboard rendered!');
+                    } else {
+                        console.error('❌ DashboardRedesign not available');
+                    }
+                }
+                if (redesignRoot) {
+                    redesignRoot.style.display = 'block';
+                    redesignRoot.style.position = 'relative';
+                    redesignRoot.style.zIndex = '1000';
+                }
+            };
+            
+            // Also listen for the userAuthenticated event from React landing page
+            window.addEventListener('userAuthenticated', function(event) {
+                console.log('📡 Received userAuthenticated event');
+                if (event.detail && event.detail.user) {
+                    // Call showMainContent with the user data
+                    setTimeout(() => {
+                        window.showMainContent({ 
+                            email: event.detail.user.email, 
+                            id: event.detail.user.uid,
+                            name: event.detail.user.displayName || event.detail.user.email.split('@')[0]
+                        });
+                    }, 100);
+                }
+            });
+        }
     </script>
     
     <script src="static/js/app.js?v=20250122-SEAMLESS-AUTH&t=1761181421312"></script>
@@ -345,10 +363,7 @@
     <script type="text/babel" src="src/react-stock-details-modal.js?v=1.0"></script>
     <script src="src/vanilla-search-bar.js?v=20250122-SEARCH-BAR-FIX"></script>
     
-    <!-- NEW DASHBOARD UI - PRODUCTION -->
-    <link rel="stylesheet" href="static/css/dashboard-redesign.css?v=20250122-new-ui">
-    <div id="dashboard-redesign-root" style="display: none; position: relative; z-index: 1000;"></div>
-    <script type="text/babel" src="src/react-dashboard-redesign.js"></script>
+    <!-- Duplicate showNewDashboard function for Firebase auth state changes -->
     <script type="text/babel">
         // Make showNewDashboard available globally
         window.showNewDashboard = function() {
