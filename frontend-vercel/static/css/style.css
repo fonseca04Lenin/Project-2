@@ -5600,6 +5600,11 @@ body {
     margin-bottom: 2rem;
 }
 
+.modal-chart {
+    width: 100%;
+    overflow: visible;
+}
+
 .modal-chart h3,
 .modal-news h3 {
     display: flex;
@@ -5616,6 +5621,13 @@ body {
 .modal-chart h3 i,
 .modal-news h3 i {
     color: #22c55e;
+}
+
+#modalChartContainer {
+    width: 100% !important;
+    min-height: 400px;
+    position: relative;
+    overflow: visible;
 }
 
 .news-list {
