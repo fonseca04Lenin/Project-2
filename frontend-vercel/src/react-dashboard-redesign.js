@@ -226,44 +226,49 @@ const DashboardRedesign = () => {
                 let data = await response.json();
                 console.log('📋 Raw watchlist data:', data);
                 
-                // Fetch current prices for each stock
+                // Fetch current prices for each stock using same method as old UI
                 if (Array.isArray(data) && data.length > 0) {
                     const stocksWithPrices = await Promise.all(data.map(async (stock) => {
+                        const symbol = stock.symbol || stock.id;
+                        
                         try {
-                            const priceResponse = await fetch(`${API_BASE}/api/stock/${stock.symbol}`, {
-                                method: 'GET',
-                                headers: authHeaders,
-                                credentials: 'include'
+                            // Use the same /api/search endpoint as old UI for consistent data
+                            const priceResponse = await fetch(`${API_BASE}/api/search`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    ...authHeaders
+                                },
+                                credentials: 'include',
+                                body: JSON.stringify({ symbol: symbol })
                             });
                             
                             if (priceResponse.ok) {
                                 const stockData = await priceResponse.json();
-                                console.log(`✅ Fetched price for ${stock.symbol}:`, stockData);
+                                console.log(`✅ Fetched price for ${symbol}:`, stockData);
                                 
-                                // Calculate change percent if we have original_price
-                                let change_percent = 0;
-                                if (stock.original_price && stockData.price) {
-                                    const priceChange = stockData.price - stock.original_price;
-                                    change_percent = (priceChange / stock.original_price) * 100;
-                                }
-                                
+                                // Map the response to match expected fields
                                 return {
                                     ...stock,
-                                    current_price: stockData.price || stock.current_price || 0,
-                                    change_percent: change_percent || stock.change_percent || 0,
-                                    name: stockData.name || stock.name || stock.symbol
+                                    symbol: stockData.symbol || symbol,
+                                    name: stockData.name || stock.company_name || stock.name || symbol,
+                                    current_price: stockData.price || 0,
+                                    change_percent: stockData.priceChangePercent || 0,
+                                    price_change: stockData.priceChange || 0
                                 };
                             }
                         } catch (e) {
-                            console.error(`Error fetching price for ${stock.symbol}:`, e);
+                            console.error(`Error fetching price for ${symbol}:`, e);
                         }
                         
-                        // Return stock with existing data if fetch failed
+                        // Return stock with fallback data if fetch failed
                         return {
                             ...stock,
-                            current_price: stock.current_price || 0,
-                            change_percent: stock.change_percent || 0,
-                            name: stock.name || stock.symbol
+                            symbol: symbol,
+                            name: stock.name || stock.company_name || symbol,
+                            current_price: stock.current_price || stock.price || 0,
+                            change_percent: stock.change_percent || stock.priceChangePercent || 0,
+                            price_change: stock.price_change || stock.priceChange || 0
                         };
                     }));
                     
