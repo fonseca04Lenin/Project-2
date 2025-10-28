@@ -22,7 +22,26 @@
     <!-- Landing page styles -->
     <style>
         /* Ensure landing page looks clean */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
         #marketpulse-root {
+            min-height: 100vh;
+            width: 100%;
+        }
+        
+        /* Ensure loading screen shows initially */
+        #loading-screen {
+            background-color: #000000;
+        }
+        
+        /* Ensure app container is visible */
+        #app {
+            width: 100%;
             min-height: 100vh;
         }
     </style>
@@ -37,8 +56,8 @@
         <!-- React Landing Page Root -->
         <div id="marketpulse-root"></div>
         
-        <!-- Loading Screen -->
-        <div id="loading-screen" class="loading-screen">
+        <!-- Loading Screen - hidden by default, shown during auth check -->
+        <div id="loading-screen" class="loading-screen" style="display: none;">
             <div class="loading-container">
                 <div class="loading-spinner">
                     <div class="spinner-ring"></div>
