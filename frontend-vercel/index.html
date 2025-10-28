@@ -21,7 +21,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Hide old UI -->
     <style>
-        /* Hide all old UI elements */
+        /* Hide all old UI elements that might appear at the bottom */
         #main-content, 
         #react-watchlist-root,
         .dashboard,
@@ -32,9 +32,27 @@
         .ai-advisor-chat-root,
         .search-section,
         main.main,
-        .container {
+        .container,
+        #header-root,
+        #stockResults,
+        #stockCard,
+        .stock-results,
+        .content-grid {
             display: none !important;
             visibility: hidden !important;
+            height: 0 !important;
+            overflow: hidden !important;
+        }
+        
+        /* Ensure landing page takes full height */
+        #marketpulse-root {
+            min-height: 100vh;
+        }
+        
+        /* Hide any old UI that might be created dynamically */
+        body > main:not(#dashboard-redesign-root),
+        body > #main-content {
+            display: none !important;
         }
     </style>
     
@@ -42,6 +60,55 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="firebase-config.js"></script>
+    
+    <!-- Block dynamic creation of old UI elements -->
+    <script>
+        // Block old UI from appearing dynamically
+        const oldUIDetector = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1) { // Element node
+                        // Check for old UI elements
+                        if (node.classList && (
+                            node.classList.contains('dashboard') ||
+                            node.classList.contains('main-content') ||
+                            node.classList.contains('modern-footer') ||
+                            node.classList.contains('news-section') ||
+                            node.classList.contains('market-intelligence-container') ||
+                            node.classList.contains('search-section')
+                        )) {
+                            node.style.display = 'none !important';
+                            node.style.visibility = 'hidden !important';
+                            node.style.height = '0 !important';
+                            node.style.overflow = 'hidden !important';
+                        }
+                        
+                        // Check for old UI IDs
+                        if (node.id && (
+                            node.id === 'main-content' ||
+                            node.id === 'react-watchlist-root' ||
+                            node.id === 'header-root' ||
+                            node.id === 'stockResults'
+                        )) {
+                            node.style.display = 'none !important';
+                            node.style.visibility = 'hidden !important';
+                            node.style.height = '0 !important';
+                            node.style.overflow = 'hidden !important';
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Start observing when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                oldUIDetector.observe(document.body, { childList: true, subtree: true });
+            });
+        } else {
+            oldUIDetector.observe(document.body, { childList: true, subtree: true });
+        }
+    </script>
 </head>
 <body>
     <div id="app">
@@ -273,7 +340,15 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="config.js?v=2.2"></script>
-    <script src="static/js/app.js?v=20250122-SEAMLESS-AUTH&t=1761181421312"></script>
+    <!-- app.js is only loaded after authentication to prevent old UI from showing -->
+    <script>
+        // Only load app.js after authentication or if needed
+        window.loadAppJS = function() {
+            const script = document.createElement('script');
+            script.src = 'static/js/app.js?v=20250122-SEAMLESS-AUTH&t=1761181421312';
+            document.head.appendChild(script);
+        };
+    </script>
     
     <!-- React Integration -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -298,6 +373,12 @@
         let redesignReactRoot = null;
         
         function showNewDashboard() {
+            // Load app.js after authentication if not already loaded
+            if (window.loadAppJS && !window.appJSLoaded) {
+                window.loadAppJS();
+                window.appJSLoaded = true;
+            }
+            
             // Hide old UI completely
             const oldMainContent = document.getElementById('main-content');
             if (oldMainContent) {
