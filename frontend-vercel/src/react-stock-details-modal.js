@@ -298,68 +298,80 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         console.log('📊 window.StockChart:', typeof window.StockChart);
         console.log('📊 Chart.js available:', typeof Chart !== 'undefined');
 
-        const chartContainer = document.getElementById('modalChartContainer');
-        if (!chartContainer) {
-            console.log('⚠️ Chart container not found');
-            return;
-        }
-
-        console.log('📊 Container found, rendering...');
+        // Try to find container with retry logic
+        let retryCount = 0;
+        const maxRetries = 10;
         
-        // Clear container
-        chartContainer.innerHTML = '';
-        
-        // Check if Chart.js and StockChart are available
-        if (!window.StockChart) {
-            console.error('❌ window.StockChart is not defined');
-            chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart component not loaded. Please refresh the page.</p></div>';
-            return;
-        }
-
-        if (!window.Chart && typeof Chart === 'undefined') {
-            console.error('❌ Chart.js is not loaded');
-            chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart.js library not loaded. Please refresh the page.</p></div>';
-            return;
-        }
-
-        if (chartData.length === 0) {
-            console.log('⚠️ No chart data points to render');
-            chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>No chart data available</p></div>';
-            return;
-        }
-        
-        // Render chart using ReactDOM.createRoot
-        try {
-            console.log('📊 Creating/reusing React root and rendering chart...');
-            
-            // Create or reuse the root
-            if (!chartRootRef.current) {
-                chartRootRef.current = ReactDOM.createRoot(chartContainer);
-                console.log('📊 Created new React root');
-            } else {
-                console.log('📊 Reusing existing React root');
+        const findAndRenderChart = () => {
+            const chartContainer = document.getElementById('modalChartContainer');
+            if (!chartContainer) {
+                retryCount++;
+                if (retryCount < maxRetries) {
+                    console.log(`⚠️ Chart container not found (attempt ${retryCount}/${maxRetries}), retrying in 100ms...`);
+                    setTimeout(findAndRenderChart, 100);
+                } else {
+                    console.error('❌ Chart container not found after maximum retries');
+                }
+                return;
             }
             
-            chartRootRef.current.render(React.createElement(window.StockChart, {
-                symbol: symbol,
-                data: chartData,
-                isModal: true,
-                onClose: null
-            }));
-            console.log('✅ Chart rendered successfully');
-        } catch (error) {
-            console.error('❌ Error rendering chart:', error);
-            chartContainer.innerHTML = `<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Error rendering chart: ${error.message}</p></div>`;
-        }
+            console.log('✅ Chart container found!');
+            
+            // Clear container
+            chartContainer.innerHTML = '';
+            
+            // Check if Chart.js and StockChart are available
+            if (!window.StockChart) {
+                console.error('❌ window.StockChart is not defined');
+                chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart component not loaded. Please refresh the page.</p></div>';
+                return;
+            }
+
+            if (!window.Chart && typeof Chart === 'undefined') {
+                console.error('❌ Chart.js is not loaded');
+                chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart.js library not loaded. Please refresh the page.</p></div>';
+                return;
+            }
+
+            if (chartData.length === 0) {
+                console.log('⚠️ No chart data points to render');
+                chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>No chart data available</p></div>';
+                return;
+            }
+            
+            // Render chart using ReactDOM.createRoot
+            try {
+                console.log('📊 Creating/reusing React root and rendering chart...');
+                
+                // Create or reuse the root
+                if (!chartRootRef.current) {
+                    chartRootRef.current = ReactDOM.createRoot(chartContainer);
+                    console.log('📊 Created new React root');
+                } else {
+                    console.log('📊 Reusing existing React root');
+                }
+                
+                chartRootRef.current.render(React.createElement(window.StockChart, {
+                    symbol: symbol,
+                    data: chartData,
+                    isModal: true,
+                    onClose: null
+                }));
+                console.log('✅ Chart rendered successfully');
+            } catch (error) {
+                console.error('❌ Error rendering chart:', error);
+                chartContainer.innerHTML = `<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Error rendering chart: ${error.message}</p></div>`;
+            }
+        };
+        
+        // Start the retry process
+        findAndRenderChart();
 
         return () => {
             // Cleanup
             console.log('📊 Cleaning up chart...');
             if (chartRootRef.current) {
                 chartRootRef.current.render(null);
-            }
-            if (chartContainer) {
-                chartContainer.innerHTML = '';
             }
         };
     }, [chartData, symbol]);
