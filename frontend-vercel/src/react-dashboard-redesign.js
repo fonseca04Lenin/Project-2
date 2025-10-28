@@ -5,10 +5,28 @@ const DashboardRedesign = () => {
     const [activeView, setActiveView] = useState('overview');
     const [watchlistData, setWatchlistData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     useEffect(() => {
         loadWatchlistData();
     }, []);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (userMenuOpen && !event.target.closest('.user-menu-wrapper')) {
+                setUserMenuOpen(false);
+            }
+        };
+
+        if (userMenuOpen) {
+            document.addEventListener('click', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, [userMenuOpen]);
 
     const loadWatchlistData = async () => {
         try {
@@ -79,10 +97,66 @@ const DashboardRedesign = () => {
                     </nav>
                 </div>
                 <div className="header-right">
-                    <button className="user-menu-btn">
-                        <i className="fas fa-user-circle"></i>
-                        <span>Account</span>
-                    </button>
+                    <div className="user-menu-wrapper">
+                        <button 
+                            className="user-menu-btn"
+                            onClick={() => setUserMenuOpen(!userMenuOpen)}
+                        >
+                            <i className="fas fa-user-circle"></i>
+                            <span>Account</span>
+                            <i className={`fas fa-chevron-down ${userMenuOpen ? 'open' : ''}`}></i>
+                        </button>
+                        {userMenuOpen && (
+                            <div className="user-dropdown">
+                                <div className="user-dropdown-header">
+                                    <div className="user-info">
+                                        <div className="user-avatar">
+                                            <i className="fas fa-user"></i>
+                                        </div>
+                                        <div>
+                                            <div className="user-name">Account</div>
+                                            <div className="user-email">user@example.com</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="dropdown-divider"></div>
+                                <div className="dropdown-item">
+                                    <i className="fas fa-user"></i>
+                                    <span>Profile Settings</span>
+                                </div>
+                                <div className="dropdown-item">
+                                    <i className="fas fa-cog"></i>
+                                    <span>Preferences</span>
+                                </div>
+                                <div className="dropdown-item">
+                                    <i className="fas fa-shield-alt"></i>
+                                    <span>Security</span>
+                                </div>
+                                <div className="dropdown-item">
+                                    <i className="fas fa-bell"></i>
+                                    <span>Notifications</span>
+                                </div>
+                                <div className="dropdown-divider"></div>
+                                <div className="dropdown-item">
+                                    <i className="fas fa-file-alt"></i>
+                                    <span>Terms of Service</span>
+                                </div>
+                                <div className="dropdown-item">
+                                    <i className="fas fa-lock"></i>
+                                    <span>Privacy Policy</span>
+                                </div>
+                                <div className="dropdown-item">
+                                    <i className="fas fa-question-circle"></i>
+                                    <span>Help & Support</span>
+                                </div>
+                                <div className="dropdown-divider"></div>
+                                <div className="dropdown-item logout">
+                                    <i className="fas fa-sign-out-alt"></i>
+                                    <span>Log Out</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
