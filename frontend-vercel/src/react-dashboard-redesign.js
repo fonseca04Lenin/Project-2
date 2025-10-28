@@ -37,7 +37,9 @@ const DashboardRedesign = () => {
             {/* Top Navigation Bar */}
             <header className="dashboard-header">
                 <div className="header-left">
-                    <h1 className="logo">StockPulse</h1>
+                    <h1 className="logo">
+                        <i className="fas fa-chart-line"></i> Stock Watchlist Pro
+                    </h1>
                     <nav className="nav-tabs">
                         <button 
                             className={`nav-tab ${activeView === 'overview' ? 'active' : ''}`}
@@ -122,8 +124,8 @@ const OverviewView = ({ watchlistData }) => {
                         <i className="fas fa-chart-line"></i>
                     </div>
                     <div className="kpi-content">
-                        <p className="kpi-label">Portfolio Value</p>
-                        <h2 className="kpi-value">${(totalValue / 1000000).toFixed(2)}M</h2>
+                        <p className="kpi-label">Total Value</p>
+                        <h2 className="kpi-value">${(totalValue / 1000).toFixed(0)}K</h2>
                         <span className={`kpi-change ${avgChange >= 0 ? 'positive' : 'negative'}`}>
                             {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
                         </span>
@@ -135,18 +137,18 @@ const OverviewView = ({ watchlistData }) => {
                         <i className="fas fa-list"></i>
                     </div>
                     <div className="kpi-content">
-                        <p className="kpi-label">Active Positions</p>
+                        <p className="kpi-label">Positions</p>
                         <h2 className="kpi-value">{watchlistData.length}</h2>
-                        <span className="kpi-change">Stocks watched</span>
+                        <span className="kpi-change">Tracked</span>
                     </div>
                 </div>
 
                 <div className="kpi-card">
                     <div className="kpi-icon performance">
-                        <i className="fas fa-trending-up"></i>
+                        <i className="fas fa-rocket"></i>
                     </div>
                     <div className="kpi-content">
-                        <p className="kpi-label">Best Performer</p>
+                        <p className="kpi-label">Top Gainer</p>
                         <h2 className="kpi-value">
                             {watchlistData.length > 0 ? 
                                 watchlistData.reduce((max, stock) => 
@@ -183,8 +185,8 @@ const OverviewView = ({ watchlistData }) => {
                 {/* Left Column - Portfolio Quick View */}
                 <div className="main-card">
                     <div className="card-header">
-                        <h3><i className="fas fa-chart-pie"></i> Quick Portfolio View</h3>
-                        <button className="view-all-btn">View All <i className="fas fa-arrow-right"></i></button>
+                        <h3><i className="fas fa-chart-line"></i> Watchlist</h3>
+                        <button className="view-all-btn">See All <i className="fas fa-arrow-right"></i></button>
                     </div>
                     <div className="watchlist-quick">
                         {watchlistData.slice(0, 5).map((stock, index) => (
@@ -213,35 +215,35 @@ const OverviewView = ({ watchlistData }) => {
                 {/* Right Column - Market Intelligence Quick Look */}
                 <div className="main-card">
                     <div className="card-header">
-                        <h3><i className="fas fa-brain"></i> Market Insights</h3>
-                        <button className="view-all-btn">More <i className="fas fa-arrow-right"></i></button>
+                        <h3><i className="fas fa-brain"></i> Market Intelligence</h3>
+                        <button className="view-all-btn">Explore <i className="fas fa-arrow-right"></i></button>
                     </div>
                     <div className="insights-list">
                         <div className="insight-item">
                             <div className="insight-icon">
-                                <i className="fas fa-calendar-check"></i>
+                                <i className="fas fa-calendar-alt"></i>
                             </div>
                             <div className="insight-content">
-                                <h4>Upcoming Earnings</h4>
-                                <p>12 companies report this week</p>
+                                <h4>Earnings Calendar</h4>
+                                <p>12 companies reporting this week</p>
                             </div>
                         </div>
                         <div className="insight-item">
                             <div className="insight-icon">
-                                <i className="fas fa-chart-line"></i>
+                                <i className="fas fa-trending-up"></i>
                             </div>
                             <div className="insight-content">
-                                <h4>Market Trends</h4>
-                                <p>Tech sector up 2.3% today</p>
+                                <h4>Sector Performance</h4>
+                                <p>Technology +2.3% today</p>
                             </div>
                         </div>
                         <div className="insight-item">
                             <div className="insight-icon">
-                                <i className="fas fa-megaphone"></i>
+                                <i className="fas fa-newspaper"></i>
                             </div>
                             <div className="insight-content">
-                                <h4>Breaking News</h4>
-                                <p>3 major announcements today</p>
+                                <h4>Market News</h4>
+                                <p>3 key developments today</p>
                             </div>
                         </div>
                     </div>
