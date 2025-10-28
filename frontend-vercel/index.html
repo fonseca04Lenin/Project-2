@@ -19,6 +19,10 @@
     <link rel="stylesheet" href="static/css/style.css?v=2.1-seamless-auth">
     <link rel="stylesheet" href="static/css/react-ai-chat.css?v=1.0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Hide old UI -->
+    <style>
+        #main-content { display: none !important; }
+    </style>
     
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -271,8 +275,8 @@
     <script src="src/vanilla-search-bar.js?v=20250122-SEARCH-BAR-FIX"></script>
     
     <!-- NEW DASHBOARD UI - PRODUCTION -->
-    <link rel="stylesheet" href="static/css/dashboard-redesign.css">
-    <div id="dashboard-redesign-root" style="display: none;"></div>
+    <link rel="stylesheet" href="static/css/dashboard-redesign.css?v=20250122-new-ui">
+    <div id="dashboard-redesign-root" style="display: none; position: relative; z-index: 1000;"></div>
     <script type="text/babel" src="src/react-dashboard-redesign.js"></script>
     <script type="text/babel">
         // Initialize new dashboard UI
@@ -280,6 +284,19 @@
         let redesignReactRoot = null;
         
         function showNewDashboard() {
+            // Hide old UI completely
+            const oldMainContent = document.getElementById('main-content');
+            if (oldMainContent) {
+                oldMainContent.style.display = 'none';
+            }
+            
+            // Hide loading screen
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+            
+            // Show new dashboard
             if (redesignRoot && !redesignRoot.hasAttribute('rendered')) {
                 const root = ReactDOM.createRoot(redesignRoot);
                 root.render(React.createElement(window.DashboardRedesign));
@@ -288,6 +305,8 @@
             }
             if (redesignRoot) {
                 redesignRoot.style.display = 'block';
+                redesignRoot.style.position = 'relative';
+                redesignRoot.style.zIndex = '1000';
             }
         }
         
@@ -297,26 +316,29 @@
             }
         }
         
-        // Override the original showMainContent to show new dashboard instead
-        const originalShowMainContent = window.showMainContent;
-        window.showMainContent = function(user) {
-            hideLoadingScreen();
-            showNewDashboard();
-            if (originalShowMainContent) {
-                originalShowMainContent(user);
-            }
-        };
-        
-        // Also listen for Firebase auth state changes
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().onAuthStateChanged((user) => {
-                if (user) {
-                    showNewDashboard();
-                } else {
-                    hideNewDashboard();
+        // Wait for DOM and all scripts to load
+        setTimeout(() => {
+            // Override the original showMainContent to show new dashboard instead
+            const originalShowMainContent = window.showMainContent;
+            window.showMainContent = function(user) {
+                hideLoadingScreen();
+                showNewDashboard();
+                if (originalShowMainContent) {
+                    originalShowMainContent(user);
                 }
-            });
-        }
+            };
+            
+            // Also listen for Firebase auth state changes
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (user) {
+                        showNewDashboard();
+                    } else {
+                        hideNewDashboard();
+                    }
+                });
+            }
+        }, 100);
     </script>
 </body>
 </html> 
