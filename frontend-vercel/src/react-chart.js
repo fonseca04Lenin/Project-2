@@ -18,12 +18,13 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
 
     // Check if Chart.js is available
     useEffect(() => {
-        if (typeof Chart === 'undefined') {
+        const ChartLib = window.Chart || Chart;
+        if (typeof ChartLib === 'undefined') {
             console.error('❌ Chart.js is not loaded!');
             setError('Chart.js library not loaded');
             setIsLoading(false);
         } else {
-            console.log('✅ Chart.js loaded:', typeof Chart);
+            console.log('✅ Chart.js loaded:', typeof ChartLib);
         }
     }, []);
 
@@ -148,6 +149,12 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     useEffect(() => {
         if (chartData.length === 0 || !chartRef.current) return;
 
+        const ChartLib = window.Chart || Chart;
+        if (typeof ChartLib === 'undefined') {
+            console.error('❌ Chart.js is not available');
+            return;
+        }
+
         const ctx = chartRef.current.getContext('2d');
         
         try {
@@ -164,7 +171,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 chartInstanceRef.current.update('active');
             } else {
                 // Create new chart
-                chartInstanceRef.current = new Chart(ctx, {
+                chartInstanceRef.current = new ChartLib(ctx, {
                     type: 'line',
                     data: {
                         labels: chartData.map(item => item.formattedDate),
