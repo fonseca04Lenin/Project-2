@@ -837,7 +837,7 @@ body {
 }
 
 /* Bottom row components - AI Chat and Market Intelligence */
-#ai-advisor-chat-root, .market-intelligence-container {
+#ai-advisor-chat-root {
     background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
     backdrop-filter: blur(20px);
     border-radius: 1.5rem;
@@ -849,8 +849,26 @@ body {
     height: 700px; /* Increased exact height to match */
 }
 
+.market-intelligence-container {
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 1.5rem;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    transition: all 0.4s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    min-height: 700px; /* Increased height for bottom row components */
+    height: 700px; /* Increased exact height to match */
+}
+
 .watchlist-section:hover, .chart-section:hover, .news-section:hover,
-#ai-advisor-chat-root:hover, .market-intelligence-container:hover {
+.market-intelligence-container:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+    border-color: var(--primary-color);
+}
+
+#ai-advisor-chat-root:hover {
     transform: translateY(-4px);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
     border-color: var(--primary-color);
