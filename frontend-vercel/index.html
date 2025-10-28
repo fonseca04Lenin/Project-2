@@ -21,7 +21,21 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Hide old UI -->
     <style>
-        #main-content { display: none !important; }
+        /* Hide all old UI elements */
+        #main-content, 
+        #react-watchlist-root,
+        .dashboard,
+        .main-content,
+        .modern-footer,
+        .news-section,
+        .market-intelligence-container,
+        .ai-advisor-chat-root,
+        .search-section,
+        main.main,
+        .container {
+            display: none !important;
+            visibility: hidden !important;
+        }
     </style>
     
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
@@ -212,8 +226,8 @@
 
             <!-- Toast Notifications -->
             <div id="toastContainer" class="toast-container"></div>
-        -->
         </div>
+        -->
 
         <!-- Stock Details Modal -->
         <div id="stockDetailsModal" class="stock-details-modal" style="display: none;">
