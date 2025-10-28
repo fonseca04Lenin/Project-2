@@ -1,7 +1,7 @@
 /* React AI Investment Advisor Chat - Sophisticated Design */
 
 .ai-advisor-chat-react {
-    background: var(--card-bg);
+    background: rgba(24, 26, 35, 1);
     border: none;
     border-radius: 1.5rem;
     margin: 0;
