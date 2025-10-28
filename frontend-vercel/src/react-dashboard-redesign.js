@@ -69,6 +69,13 @@ const DashboardRedesign = () => {
                             <i className="fas fa-brain"></i>
                             Intelligence
                         </button>
+                        <button 
+                            className={`nav-tab ${activeView === 'assistant' ? 'active' : ''}`}
+                            onClick={() => setActiveView('assistant')}
+                        >
+                            <i className="fas fa-robot"></i>
+                            AI Assistant
+                        </button>
                     </nav>
                 </div>
                 <div className="header-right">
@@ -98,6 +105,7 @@ const DashboardRedesign = () => {
                 {activeView === 'watchlist' && <WatchlistView watchlistData={watchlistData} />}
                 {activeView === 'news' && <NewsView />}
                 {activeView === 'intelligence' && <IntelligenceView />}
+                {activeView === 'assistant' && <AIAssistantView />}
             </div>
 
             {/* Floating AI Assistant - Always Available */}
@@ -386,6 +394,145 @@ const IntelligenceView = () => {
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// AI Assistant View Component
+const AIAssistantView = () => {
+    const [messages, setMessages] = useState([]);
+    const [inputValue, setInputValue] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    const sendMessage = async () => {
+        const message = inputValue.trim();
+        if (!message || isTyping) return;
+
+        setInputValue('');
+        const userMessage = {
+            id: Date.now(),
+            type: 'user',
+            content: message,
+            timestamp: new Date()
+        };
+        setMessages(prev => [...prev, userMessage]);
+        setIsTyping(true);
+
+        // Simulate AI response for demo
+        setTimeout(() => {
+            const aiMessage = {
+                id: Date.now() + 1,
+                type: 'ai',
+                content: `I understand you're asking about "${message}". This is a prototype of the AI assistant integration.`,
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, aiMessage]);
+            setIsTyping(false);
+        }, 1500);
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    };
+
+    const quickPrompts = [
+        "Analyze my watchlist performance",
+        "What stocks should I add?",
+        "Market outlook for tech sector",
+        "Compare AAPL and MSFT"
+    ];
+
+    return (
+        <div className="assistant-view">
+            <div className="assistant-header">
+                <div>
+                    <h2>AI Investment Assistant</h2>
+                    <p>Get real-time insights and personalized investment advice</p>
+                </div>
+                <div className="assistant-status">
+                    <span className="status-dot"></span>
+                    <span>Online</span>
+                </div>
+            </div>
+
+            <div className="assistant-chat">
+                {messages.length === 0 && (
+                    <div className="assistant-welcome">
+                        <div className="assistant-avatar">
+                            <i className="fas fa-robot"></i>
+                        </div>
+                        <h3>Hi! I'm your AI Investment Assistant</h3>
+                        <p>I can help you with portfolio analysis, stock research, and investment strategies.</p>
+                        <div className="quick-prompts">
+                            {quickPrompts.map((prompt, index) => (
+                                <button 
+                                    key={index}
+                                    className="prompt-btn"
+                                    onClick={() => setInputValue(prompt)}
+                                >
+                                    {prompt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="assistant-messages">
+                    {messages.map((msg) => (
+                        <div key={msg.id} className={`assistant-msg ${msg.type}`}>
+                            <div className="assistant-msg-content">
+                                {msg.type === 'user' ? (
+                                    <>
+                                        <p>{msg.content}</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="ai-avatar"><i className="fas fa-robot"></i></div>
+                                        <p>{msg.content}</p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {isTyping && (
+                        <div className="assistant-msg ai">
+                            <div className="assistant-msg-content">
+                                <div className="ai-avatar"><i className="fas fa-robot"></i></div>
+                                <div className="typing-indicator">
+                                    <span></span><span></span><span></span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                <div className="assistant-input">
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Ask me about stocks, your portfolio, or investment strategies..."
+                        className="assistant-input-field"
+                    />
+                    <button 
+                        className="send-btn"
+                        onClick={sendMessage}
+                        disabled={!inputValue || isTyping}
+                    >
+                        <i className="fas fa-paper-plane"></i>
+                    </button>
                 </div>
             </div>
         </div>
