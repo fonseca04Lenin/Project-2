@@ -580,12 +580,12 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         )}
 
                         {/* Chart */}
-                            <div className="modal-chart">
-                                <h3>
-                                    <i className="fas fa-chart-area"></i>
-                                    Price History
-                                </h3>
-                            <div id="modalChartContainer" style={{ minHeight: '300px' }}>
+                        <div className="modal-chart">
+                            <h3>
+                                <i className="fas fa-chart-area"></i>
+                                Price History
+                            </h3>
+                            <div id="modalChartContainer">
                                 {!chartData && (
                                     <div className="loading-state">
                                         <i className="fas fa-spinner fa-spin"></i>
