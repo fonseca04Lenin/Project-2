@@ -566,7 +566,6 @@ async function loadWatchlist() {
         // No need for separate price update - prices are already fetched above
 
     } catch (error) {
-        console.error('❌ Error loading watchlist:', error);
         displayWatchlist([]);
     }
 }
@@ -797,11 +796,9 @@ async function loadWatchlistFromFirebase() {
             return processedStocks;
         } else {
             const errorText = await response.text();
-            console.error('❌ Firebase API error:', response.status, errorText);
             return [];
         }
     } catch (error) {
-        console.error('❌ Error loading watchlist from Firebase:', error);
         return [];
     }
 }
@@ -829,7 +826,6 @@ async function addToFirebaseWatchlist(symbol, companyName) {
 
         return response.ok;
     } catch (error) {
-        console.error('Error adding to Firebase watchlist:', error);
         return false;
     }
 }
@@ -853,7 +849,6 @@ async function removeFromFirebaseWatchlist(symbol) {
 
         return response.ok;
     } catch (error) {
-        console.error('Error removing from Firebase watchlist:', error);
         return false;
     }
 }
@@ -1035,11 +1030,9 @@ async function fetchStockPriceFromBackend(symbol) {
             }
             return data;
         } else {
-            console.error('Failed to fetch stock price from backend:', response.status);
             return null;
         }
     } catch (error) {
-        console.error('Error fetching stock price from backend:', error);
         return null;
     }
 }
@@ -1075,7 +1068,6 @@ async function updateWatchlistPrices() {
 
 
     } catch (error) {
-        console.error('Error updating watchlist prices:', error);
     } finally {
         window.updatingPrices = false;
     }
@@ -1145,7 +1137,6 @@ async function addToWatchlist(symbol, companyName = null) {
         }
         
     } catch (error) {
-        console.error('❌ Error adding to watchlist:', error);
         showToast('Error adding to watchlist', 'error');
     } finally {
         // Always remove from the set when operation completes
@@ -1226,7 +1217,6 @@ async function removeFromWatchlist(symbol) {
         }
         
     } catch (error) {
-        console.error('Error removing from watchlist:', error);
         showToast('Error removing from watchlist', 'error');
     }
 }
@@ -1270,7 +1260,6 @@ async function clearWatchlist() {
         }
         
     } catch (error) {
-        console.error('Error clearing watchlist:', error);
         showToast('Error clearing watchlist', 'error');
     }
 }
@@ -1339,7 +1328,6 @@ async function viewChart(symbol) {
             showToast(data.error || 'Error loading chart data', 'error');
         }
     } catch (error) {
-        console.error('Error loading chart:', error);
         showToast('Failed to load chart data', 'error');
     }
 }
@@ -1348,19 +1336,16 @@ async function viewChart(symbol) {
 function displayModernChart(chartData, symbol) {
     const chartContainer = document.getElementById('chartContainer');
     if (!chartContainer) {
-        console.error('Chart container not found');
         return;
     }
 
     // Check if React and StockChart are available
     if (typeof React === 'undefined') {
-        console.error('React not loaded');
         chartContainer.innerHTML = '<div style="padding: 20px; color: #ef4444;">React not loaded. Please refresh the page.</div>';
         return;
     }
 
     if (typeof window.StockChart === 'undefined') {
-        console.error('StockChart component not loaded');
         chartContainer.innerHTML = '<div style="padding: 20px; color: #ef4444;">Chart component not loaded. Please refresh the page.</div>';
         return;
     }
@@ -1377,9 +1362,7 @@ function displayModernChart(chartData, symbol) {
             isModal: false,
             onClose: closeChartSection
         }));
-        console.log('✅ Chart rendered successfully');
     } catch (error) {
-        console.error('❌ Error rendering chart:', error);
         chartContainer.innerHTML = `<div style="padding: 20px; color: #ef4444;">Error rendering chart: ${error.message}</div>`;
     }
 }
@@ -1811,7 +1794,6 @@ async function checkAuthStatus() {
             authStateChecked = true;
         }
     } catch (error) {
-        console.error('❌ Auth check error:', error);
         await handleAuthStateChange(null);
         authStateChecked = true;
     }
@@ -1918,15 +1900,12 @@ function showMainContent(user) {
     // Element check completed
     
     if (!marketpulseRoot) {
-        console.error('❌ marketpulse-root element not found');
         return;
     }
     if (!mainContent) {
-        console.error('❌ main-content element not found');
         return;
     }
     if (!usernameDisplay) {
-        console.error('❌ username-display element not found');
         return;
     }
     
@@ -2021,7 +2000,6 @@ function showAuthForms() {
     const mainContent = document.getElementById('main-content');
     
     if (!marketpulseRoot || !mainContent) {
-        console.error('❌ Required elements not found for auth forms');
         return;
     }
     
@@ -2738,7 +2716,6 @@ async function loadWatchlistStockDetails(symbol) {
             }
         } else {
             // Show error message but don't overwrite company name yet
-            console.error('❌ Failed to load watchlist details:', data);
             if (response.status === 401) {
                 document.getElementById('detailsCompanyName').textContent = 'Authentication required';
             } else if (response.status === 404) {
@@ -2749,7 +2726,6 @@ async function loadWatchlistStockDetails(symbol) {
         }
     } catch (err) {
         document.getElementById('detailsCompanyName').textContent = 'Error loading data';
-        console.error('❌ Error loading watchlist stock details:', err);
     }
 
     // Fetch and display chart in modal (same as regular loadStockDetails)
@@ -3499,7 +3475,6 @@ async function updateLivePrices() {
             try {
                 await updateSingleStockPrice(stockInfo.symbol, stockInfo.type);
             } catch (error) {
-                console.error(`❌ Failed to update ${stockInfo.symbol}:`, error);
             }
         });
 
@@ -3510,7 +3485,6 @@ async function updateLivePrices() {
 
 
     } catch (error) {
-        console.error('❌ Live pricing update failed:', error);
     }
 }
 
@@ -3585,14 +3559,11 @@ async function updateSingleStockPrice(symbol, type) {
         updatePriceInDOM(symbol, newPrice, priceChange, priceChangePercent, type);
 
     } catch (error) {
-        console.error(`❌ Failed to update price for ${symbol}:`, error);
     }
 }
 
 // Update price in DOM elements
 function updatePriceInDOM(symbol, price, change, changePercent, type) {
-    console.log(`💰 Updating ${symbol} price: $${price} (${changePercent >= 0 ? '+' : ''}${changePercent}%) - ${type}`);
-    
     if (type === 'watchlist') {
         // Find watchlist item by symbol using current React component structure
         const watchlistItem = Array.from(document.querySelectorAll('.p-4.rounded-lg.bg-secondary\\/50')).find(item => {
@@ -3606,7 +3577,6 @@ function updatePriceInDOM(symbol, price, change, changePercent, type) {
 
             if (priceElement) {
                 priceElement.textContent = `$${price.toFixed(2)}`;
-                console.log(`✅ Updated watchlist price for ${symbol}`);
             }
 
             if (changeElement && changePercent !== undefined) {
@@ -3619,10 +3589,7 @@ function updatePriceInDOM(symbol, price, change, changePercent, type) {
                     <i class="${changeIcon}"></i>
                     ${changeSign}$${Math.abs(change).toFixed(2)} (${changeSign}${changePercent.toFixed(2)}%)
                 `;
-                console.log(`✅ Updated watchlist change for ${symbol}`);
             }
-        } else {
-            console.log(`❌ Could not find watchlist item for ${symbol}`);
         }
     } else if (type === 'search') {
         const stockCard = document.getElementById('stockCard');
