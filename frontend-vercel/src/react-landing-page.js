@@ -600,10 +600,14 @@ function StockWatchlistLandingPage() {
 }
 
 // Render the landing page
+console.log('🚀 Starting landing page render...');
 const rootElement = document.getElementById('marketpulse-root');
+console.log('📦 Root element:', rootElement);
 if (rootElement) {
+  console.log('✅ Creating React root and rendering...');
   const root = ReactDOM.createRoot(rootElement);
   root.render(<StockWatchlistLandingPage />);
+  console.log('✅ Landing page rendered successfully!');
 } else {
-  console.error('Root element not found');
+  console.error('❌ Root element not found - marketpulse-root missing');
 }
