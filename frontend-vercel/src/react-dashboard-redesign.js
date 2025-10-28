@@ -15,6 +15,9 @@ const DashboardRedesign = () => {
     const searchDebounceRef = useRef(null);
     const [filterText, setFilterText] = useState('');
     
+    // User data state
+    const [userData, setUserData] = useState({ name: 'Account', email: 'Loading...' });
+    
     // Live pricing state
     const [lastUpdate, setLastUpdate] = useState(null);
     const [marketStatus, setMarketStatus] = useState({ isOpen: false, status: 'Closed' });
@@ -23,7 +26,34 @@ const DashboardRedesign = () => {
 
     useEffect(() => {
         loadWatchlistData();
+        loadUserData();
+        
+        // Listen for auth state changes
+        if (window.firebaseAuth) {
+            window.firebaseAuth.onAuthStateChanged((user) => {
+                if (user) {
+                    setUserData({
+                        name: user.displayName || user.email.split('@')[0] || 'Account',
+                        email: user.email || 'user@example.com'
+                    });
+                } else {
+                    // Redirect if user is signed out
+                    window.location.href = '/';
+                }
+            });
+        }
     }, []);
+    
+    // Load user data from Firebase
+    const loadUserData = () => {
+        if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+            const user = window.firebaseAuth.currentUser;
+            setUserData({
+                name: user.displayName || user.email.split('@')[0] || 'Account',
+                email: user.email || 'user@example.com'
+            });
+        }
+    };
 
     useEffect(() => {
         // Auto-refresh every 30 seconds
@@ -301,13 +331,22 @@ const DashboardRedesign = () => {
 
     const handleLogout = async () => {
         try {
+            // Sign out from Firebase
+            if (window.firebaseAuth) {
+                await window.firebaseAuth.signOut();
+            }
+            
+            // Sign out from backend
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             await fetch(`${API_BASE}/api/logout`, {
                 method: 'POST',
                 credentials: 'include'
             });
+            
+            // Redirect to home
             window.location.href = '/';
         } catch (error) {
+            console.error('Logout error:', error);
             window.location.href = '/';
         }
     };
@@ -485,8 +524,8 @@ const DashboardRedesign = () => {
                                             <i className="fas fa-user"></i>
                                         </div>
                                         <div>
-                                            <div className="user-name">Account</div>
-                                            <div className="user-email">user@example.com</div>
+                                            <div className="user-name">{userData.name}</div>
+                                            <div className="user-email">{userData.email}</div>
                                         </div>
                                     </div>
                                 </div>
