@@ -65,6 +65,28 @@
             width: 100vw !important;
             max-width: 100% !important;
         }
+        
+        /* Fix the weird loading spinner - simple clean spinner */
+        #loading-screen .loading-spinner .spinner-ring {
+            width: 60px !important;
+            height: 60px !important;
+            margin: 0 auto !important;
+            border: 3px solid rgba(0, 217, 36, 0.2) !important;
+            border-top: 3px solid #00D924 !important;
+            border-right: 3px solid rgba(0, 217, 36, 0.2) !important;
+            border-bottom: 3px solid rgba(0, 217, 36, 0.2) !important;
+            border-left: 3px solid rgba(0, 217, 36, 0.2) !important;
+            border-radius: 50% !important;
+            animation: spin 0.8s linear infinite !important;
+            position: relative !important;
+        }
+        
+        /* Hide any nested or extra spinner elements */
+        #loading-screen .spinner-ring::before,
+        #loading-screen .spinner-ring::after,
+        #loading-screen .spinner-ring * {
+            display: none !important;
+        }
     </style>
     
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
