@@ -900,8 +900,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
                             </button>
                         </div>
                     </div>
-                    );
-                })}
+                ))}
                 {watchlistData.length === 0 && (
                     <div className="empty-watchlist">
                         <i className="fas fa-briefcase"></i>
