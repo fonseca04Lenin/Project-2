@@ -42,6 +42,18 @@ const DashboardRedesign = () => {
                 }
             });
         }
+        
+        // Listen for watchlist changes from chatbot or other sources
+        const handleWatchlistChange = () => {
+            console.log('🔄 Watchlist changed, refreshing data...');
+            loadWatchlistData();
+        };
+        
+        window.addEventListener('watchlistChanged', handleWatchlistChange);
+        
+        return () => {
+            window.removeEventListener('watchlistChanged', handleWatchlistChange);
+        };
     }, []);
     
     // Load user data from Firebase
@@ -1273,6 +1285,20 @@ const AIAssistantView = () => {
                 // Update rate limit info
                 if (data.rate_limit) {
                     setRateLimitInfo(data.rate_limit);
+                }
+                
+                // Check if response is about adding/removing stocks and refresh watchlist
+                const responseText = data.response.toLowerCase();
+                if (responseText.includes('successfully added') || 
+                    responseText.includes('successfully removed') ||
+                    responseText.includes('added') && responseText.includes('watchlist') ||
+                    responseText.includes('removed') && responseText.includes('watchlist')) {
+                    // Dispatch watchlist change event to trigger refresh
+                    console.log('📡 Stock added/removed via chatbot, refreshing watchlist...');
+                    const event = new CustomEvent('watchlistChanged', {
+                        detail: { action: 'add' }
+                    });
+                    window.dispatchEvent(event);
                 }
             } else {
                 showError(data.error || data.response || 'Failed to get response from AI');
