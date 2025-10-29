@@ -1422,19 +1422,6 @@
     margin-bottom: 2rem;
 }
 
-.spinner {
-    width: 64px;
-    height: 64px;
-    border: 4px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #00D924;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
 .loading-container h3 {
     color: rgba(255, 255, 255, 0.7);
     font-size: 1.1rem;
