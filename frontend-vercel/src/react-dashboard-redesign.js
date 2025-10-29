@@ -646,7 +646,7 @@ const DashboardRedesign = () => {
 
             {/* Quick Search Bar - Always Visible */}
             <div className="quick-search-bar">
-               偏好<i className="fas fa-search"></i>
+                <i className="fas fa-search"></i>
                 <div className="search-input-wrapper" style={{ position: 'relative', flex: 1 }}>
                     <input 
                         type="text" 
