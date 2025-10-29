@@ -1308,40 +1308,7 @@ const AIAssistantView = () => {
             </div>
 
             <div className="assistant-chat">
-                <div className="assistant-input searchlike">
-                    <i className="fas fa-message"></i>
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Ask anything…"
-                        className="assistant-input-field"
-                    />
-                    <button 
-                        className="send-btn"
-                        onClick={sendMessage}
-                        disabled={!inputValue || isTyping}
-                        aria-label="Send"
-                    >
-                        <i className="fas fa-arrow-up"></i>
-                    </button>
-                </div>
-
-                {messages.length === 0 && (
-                    <div className="quick-prompts" style={{justifyContent:'center'}}>
-                        {quickPrompts.map((prompt, index) => (
-                            <button 
-                                key={index}
-                                className="prompt-btn"
-                                onClick={() => setInputValue(prompt)}
-                            >
-                                {prompt}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
+                {/* Messages on top */}
                 <div className="assistant-messages minimal">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`assistant-msg ${msg.type}`}>
@@ -1360,6 +1327,42 @@ const AIAssistantView = () => {
                         </div>
                     )}
                     <div ref={messagesEndRef} />
+                </div>
+
+                {/* Quick prompts when no messages */}
+                {messages.length === 0 && (
+                    <div className="quick-prompts" style={{justifyContent:'center'}}>
+                        {quickPrompts.map((prompt, index) => (
+                            <button 
+                                key={index}
+                                className="prompt-btn"
+                                onClick={() => setInputValue(prompt)}
+                            >
+                                {prompt}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Input box at the bottom */}
+                <div className="assistant-input searchlike">
+                    <i className="fas fa-message"></i>
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Ask anything…"
+                        className="assistant-input-field"
+                    />
+                    <button 
+                        className="send-btn"
+                        onClick={sendMessage}
+                        disabled={!inputValue || isTyping}
+                        aria-label="Send"
+                    >
+                        <i className="fas fa-arrow-up"></i>
+                    </button>
                 </div>
             </div>
         </div>
