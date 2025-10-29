@@ -498,7 +498,7 @@ const DashboardRedesign = () => {
     if (isLoading) {
         return (
             <div className="dashboard-redesign">
-                LegendclassName="loading-container">
+                <div className="loading-container">
                     <div style={{
                         width: '50px',
                         height: '50px',
