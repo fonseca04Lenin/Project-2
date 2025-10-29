@@ -1189,7 +1189,6 @@ const IntelligenceView = () => {
                                 const date = new Date(r.date);
                                 formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             }
- Andalusia
                             
                             return (
                             <div key={i} className="intel-item">
