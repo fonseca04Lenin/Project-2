@@ -873,8 +873,16 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
                 </div>
             </div>
             <div className="watchlist-grid">
-                {watchlistData.map((stock, index) => (
-                    <div key={index} className="watchlist-card" role="group" aria-label={`${stock.symbol} card`}>
+                {watchlistData.map((stock, index) => {
+                    // Add different accent colors based on performance
+                    const accentColor = stock.change_percent >= 5 ? 'rgba(0, 217, 36, 0.4)' : 
+                                        stock.change_percent >= 0 ? 'rgba(0, 217, 36, 0.3)' : 
+                                        stock.change_percent >= -5 ? 'rgba(255, 184, 0, 0.3)' : 
+                                        'rgba(255, 59, 48, 0.3)';
+                    
+                    return (
+                    <div key={index} className="watchlist-card" role="group" aria-label={`${stock.symbol} card`} 
+                         style={{ borderLeft: `3px solid ${accentColor}`, boxShadow: `0 2px 20px ${accentColor}40` }}>
                         <div className="card-top">
                             <div className="stock-symbol">{stock.symbol}</div>
                             <button className="more-btn">
@@ -900,7 +908,8 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
                             </button>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
                 {watchlistData.length === 0 && (
                     <div className="empty-watchlist">
                         <i className="fas fa-briefcase"></i>
