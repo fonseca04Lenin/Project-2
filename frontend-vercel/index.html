@@ -180,7 +180,45 @@
     <div id="dashboard-redesign-root" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow: auto; z-index: 9999;"></div>
     <script type="text/babel" src="src/react-dashboard-redesign.js"></script>
     
-    <!-- Pre-override showMainContent BEFORE app.js and make it work with DashboardRedesign -->
+    <!-- Helper Functions for New UI -->
+    <script>
+        // Get auth headers for API calls
+        window.getAuthHeaders = async function() {
+            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+                return {};
+            }
+            try {
+                const token = await window.firebaseAuth.currentUser.getIdToken();
+                return {
+                    'Authorization': `Bearer ${token}`,
+                    'X-User-ID': window.firebaseAuth.currentUser.uid
+                };
+            } catch (error) {
+                console.error('Error getting auth headers:', error);
+                return {};
+            }
+        };
+
+        // Show notification/toast
+        window.showNotification = function(message, type = 'info') {
+            const notificationContainer = document.getElementById('notificationContainer');
+            if (!notificationContainer) return;
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            notification.style.display = 'block';
+            
+            notificationContainer.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        };
+    </script>
+    
+    <!-- Setup new React dashboard -->
     <script>
         // Wait for DashboardRedesign to be available
         const waitForDashboard = setInterval(() => {
@@ -191,7 +229,7 @@
         }, 100);
         
         function setupShowMainContent() {
-            // Override showMainContent before app.js loads
+            // Override showMainContent to use new React dashboard
             window.showMainContent = function(user) {
                 console.log('🎯 Overridden showMainContent called', user);
                 
@@ -251,7 +289,7 @@
         }
     </script>
     
-    <script src="static/js/app.js?v=20250122-SEAMLESS-AUTH&t=1761181421312"></script>
+    <!-- Old UI removed - using new React dashboard only -->
     <script type="text/babel" src="src/react-landing-page.js"></script>
     <script type="text/babel" src="src/react-watchlist.js?v=20250122-SEARCH-BAR-FIX"></script>
     <script type="text/babel" src="src/react-ai-chat.js?v=1.0"></script>
