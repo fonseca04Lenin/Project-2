@@ -32,37 +32,9 @@
 
 .loading-spinner {
     position: relative;
-    width: 80px;
-    height: 80px;
     margin: 0 auto 2rem;
-}
-
-.spinner-ring {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border: 3px solid transparent;
-    border-top: 3px solid var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1.2s linear infinite;
-}
-
-.spinner-ring:nth-child(2) {
-    width: 60px;
-    height: 60px;
-    top: 10px;
-    left: 10px;
-    border-top-color: var(--accent-color);
-    animation-delay: -0.4s;
-}
-
-.spinner-ring:nth-child(3) {
-    width: 40px;
-    height: 40px;
-    top: 20px;
-    left: 20px;
-    border-top-color: var(--success-color);
-    animation-delay: -0.8s;
+    display: flex;
+    justify-content: center;
 }
 
 @keyframes spin {
