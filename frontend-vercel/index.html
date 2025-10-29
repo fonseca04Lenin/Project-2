@@ -22,11 +22,20 @@
     <!-- Landing page styles -->
     <style>
         /* Ensure landing page looks clean */
-        body {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
             background-color: #000000 !important;
             color: #ffffff !important;
+            overflow-x: hidden;
         }
         
         #marketpulse-root {
@@ -37,12 +46,24 @@
         /* Ensure loading screen shows initially */
         #loading-screen {
             background-color: #000000;
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
         }
         
         /* Ensure app container is visible */
         #app {
-            width: 100%;
+            width: 100vw !important;
+            max-width: 100% !important;
             min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Prevent any container from having max-width that causes mobile layout */
+        #dashboard-redesign-root {
+            width: 100vw !important;
+            max-width: 100% !important;
         }
     </style>
     
