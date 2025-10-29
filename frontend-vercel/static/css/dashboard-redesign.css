@@ -331,10 +331,10 @@
 /* Search suggestions dropdown */
 .search-suggestions {
     position: absolute;
-    left: 3.5rem;
-    right: 8.5rem;
+    left: 0;
+    right: 0;
     top: calc(100% + 0.5rem);
-    background: rgba(24, 26, 35, 1);
+    background: rgba(24, entrevista, 35, 1);
     border: 1px solid rgba(255,255,255,0.10);
     border-radius: 12px;
     box-shadow: 0 12px 32px rgba(0,0,0,0.4);
