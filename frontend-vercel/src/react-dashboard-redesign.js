@@ -1148,16 +1148,29 @@ const IntelligenceView = () => {
                         <span className="intel-count">{insider.length}</span>
                     </div>
                     <div className="intel-list">
-                        {(loading ? Array.from({length:5}) : insider).slice(0,5).map((t, i) => (
+                        {(loading ? Array.from({length:5}) : insider).slice(0,5).map((t, i) => {
+                            // Format date if available
+                            let formattedDate = '—';
+                            let formattedTransaction = '—';
+                            if (!loading && t.date) {
+                                const date = new Date(t.date);
+                                formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            }
+                            if (!loading && t.transaction_type && t.shares && t.price) {
+                                formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()} @ $${t.price.toFixed(2)}`;
+                            }
+                            
+                            return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{symbol}</div>
                                 <div className="intel-details">
-                                    <div className="intel-company">{loading ? 'Loading…' : (t.insider || t.name || '—')}</div>
-                                    <div className="intel-date">{loading ? '' : (t.date || t.transactionDate || '—')}</div>
+                                    <div className="intel-company">{loading ? 'Loading…' : (t.filer_name || t.insider || t.name || '—')}</div>
+                                    <div className="intel-date">{loading ? '' : formattedDate}</div>
                                 </div>
-                                <div className="intel-estimate">{loading ? '' : ((t.transaction || t.type || '—'))}</div>
+                                <div className="intel-estimate">{loading ? '' : formattedTransaction}</div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
