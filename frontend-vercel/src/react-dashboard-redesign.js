@@ -374,8 +374,9 @@ const DashboardRedesign = () => {
                     credentials: 'include'
                 });
                 if (resp.ok) {
-                    const res = await resp.json();
-                    // Expect an array of { symbol, name }
+                    const data = await resp.json();
+                    // Extract results array from response (handles both {results: [...]} and direct array)
+                    const res = data.results || data;
                     setSuggestions(Array.isArray(res) ? res.slice(0, 8) : []);
                     setHighlightedIndex(res && res.length > 0 ? 0 : -1);
                 } else {
@@ -388,7 +389,7 @@ const DashboardRedesign = () => {
             } finally {
                 setSearching(false);
             }
-        }, 250);
+        }, 200); // Faster debounce for real-time feel
     };
 
     const refreshData = () => {

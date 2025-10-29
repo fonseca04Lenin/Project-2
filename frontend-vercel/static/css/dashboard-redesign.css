@@ -353,15 +353,25 @@
 
 .suggestion-item .s-symbol {
     font-weight: 700;
+    color: #00D924;
+    min-width: 60px;
 }
 
 .suggestion-item .s-name {
     color: rgba(255,255,255,0.6);
+    flex: 1;
 }
 
 .suggestion-item:hover,
 .suggestion-item.active {
-    background: rgba(255,255,255,0.06);
+    background: rgba(0, 217, 36, 0.1);
+    border-left: 3px solid #00D924;
+    padding-left: calc(1rem - 3px);
+}
+
+.suggestion-item:hover .s-name,
+.suggestion-item.active .s-name {
+    color: rgba(255,255,255,0.9);
 }
 
 /* KPI Cards Grid */
