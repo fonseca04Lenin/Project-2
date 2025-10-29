@@ -1067,7 +1067,7 @@ const IntelligenceView = () => {
             const r = await fetch(`${API_BASE}/api/market/analyst-ratings/${encodeURIComponent(symbol)}`, { headers: authHeaders, credentials: 'include' });
             if (!r.ok) throw new Error('Failed to fetch analyst ratings');
             const data = await r.json();
-            setAnalyst(Array.isArray(data?.ratings) ? data.ratings : Array.isArray(data) ? data : []);
+            setAnalyst(Array.isArray(data?.analysts) ? data.analysts : Array.isArray(data) ? data : []);
         } catch (e) {
             setError('Unable to load analyst ratings');
             setAnalyst([]);
