@@ -1,10 +1,15 @@
 /* Modern Financial Dashboard Redesign - Professional & Interactive */
 
 .dashboard-redesign {
-    width: 100%;
+    width: 100vw !important;
+    max-width: 100% !important;
     min-height: 100vh;
     background: linear-gradient(135deg, #000000 0%, #0D0D0D 50%, #1A1A1A 100%);
     color: #ffffff;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    overflow-x: hidden;
 }
 
 /* Top Navigation */
