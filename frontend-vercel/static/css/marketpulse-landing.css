@@ -797,28 +797,6 @@ body {
   margin-bottom: 2rem;
 }
 
-.loading-screen .spinner-ring {
-  width: 60px !important;
-  height: 60px !important;
-  border: 3px solid rgba(0, 217, 36, 0.2) !important;
-  border-top: 3px solid var(--green-accent) !important;
-  border-right: none !important;
-  border-bottom: none !important;
-  border-left: none !important;
-  border-radius: 50% !important;
-  animation: spin 0.8s linear infinite !important;
-  position: relative !important;
-  margin: 0 auto !important;
-}
-
-.loading-screen .spinner-ring::before,
-.loading-screen .spinner-ring::after,
-.loading-screen .spinner-ring:nth-child(1),
-.loading-screen .spinner-ring:nth-child(2),
-.loading-screen .spinner-ring:nth-child(3) {
-  display: none !important;
-}
-
 .loading-text h2 {
   font-size: 2rem;
   font-weight: 700;
