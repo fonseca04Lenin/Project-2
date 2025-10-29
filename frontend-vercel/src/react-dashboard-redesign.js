@@ -1118,16 +1118,25 @@ const IntelligenceView = () => {
                         <span className="intel-count">{earnings.length} events</span>
                     </div>
                     <div className="intel-list">
-                        {(loading ? Array.from({length:5}) : earnings).slice(0,5).map((item, i) => (
+                        {(loading ? Array.from({length:5}) : earnings).slice(0,5).map((item, i) => {
+                            // Format date if available
+                            let formattedDate = '—';
+                            if (!loading && item.earnings_date) {
+                                const date = new Date(item.earnings_date);
+                                formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            }
+                            
+                            return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{loading ? '—' : (item.symbol || item.ticker || '—')}</div>
                                 <div className="intel-details">
-                                    <div className="intel-company">{loading ? 'Loading…' : (item.company || item.name || '—')}</div>
-                                    <div className="intel-date">{loading ? '' : (item.date || item.reportDate || '—')}</div>
+                                    <div className="intel-company">{loading ? 'Loading…' : (item.company_name || item.company || item.name || '—')}</div>
+                                    <div className="intel-date">{loading ? '' : formattedDate}</div>
                                 </div>
                                 <div className="intel-estimate">{loading ? '' : (item.estimate ? `Est: ${item.estimate}` : '')}</div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
