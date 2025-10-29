@@ -498,10 +498,16 @@ const DashboardRedesign = () => {
     if (isLoading) {
         return (
             <div className="dashboard-redesign">
-                <div className="loading-container">
-                    <div className="loading-spinner">
-                        <div className="spinner"></div>
-                    </div>
+                LegendclassName="loading-container">
+                    <div style={{
+                        width: '50px',
+                        height: '50px',
+                        border: '3px solid rgba(0, 217, 36, 0.2)',
+                        borderTop: '3px solid #00D924',
+                        borderRadius: '50%',
+                        animation: 'spin 0.8s linear infinite',
+                        marginBottom: '2rem'
+                    }}></div>
                     <h3>Loading Dashboard...</h3>
                 </div>
             </div>
