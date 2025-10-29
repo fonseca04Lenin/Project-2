@@ -1182,16 +1182,26 @@ const IntelligenceView = () => {
                         <span className="intel-count">{analyst.length}</span>
                     </div>
                     <div className="intel-list">
-                        {(loading ? Array.from({length:5}) : analyst).slice(0,5).map((r, i) => (
+                        {(loading ? Array.from({length:5}) : analyst).slice(0,5).map((r, i) => {
+                            // Format date if available
+                            let formattedDate = '—';
+                            if (!loading && r.date) {
+                                const date = new Date(r.date);
+                                formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            }
+ Andalusia
+                            
+                            return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{symbol}</div>
                                 <div className="intel-details">
                                     <div className="intel-company">{loading ? 'Loading…' : (r.firm || r.analyst || '—')}</div>
-                                    <div className="intel-date">{loading ? '' : (r.date || r.ratingDate || '—')}</div>
+                                    <div className="intel-date">{loading ? '' : formattedDate}</div>
                                 </div>
-                                <div className="intel-estimate">{loading ? '' : (r.rating || r.action || '—')}</div>
+                                <div className="intel-estimate">{loading ? '' : (r.rating && r.price_target ? `${r.rating} $${r.price_target}` : r.rating || r.action || '—')}</div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
