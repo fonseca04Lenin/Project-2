@@ -646,22 +646,20 @@ const DashboardRedesign = () => {
 
             {/* Quick Search Bar - Always Visible */}
             <div className="quick-search-bar">
-                <i className="fas fa-search"></i>
-                <input 
-                    type="text" 
-                    placeholder="Search stocks, companies, or symbols..." 
-                    className="search-input"
-                    value={searchQuery}
-                    onChange={(e) => onSearchInputChange(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    aria-autocomplete="list"
-                    aria-expanded={suggestions.length > 0}
-                />
-                <button className="search-btn" onClick={handleSearch} disabled={searching}>
-                    {searching ? 'Searching…' : 'Search'}
-                </button>
-                {suggestions.length > 0 && (
-                    <div className="search-suggestions" role="listbox">
+               偏好<i className="fas fa-search"></i>
+                <div className="search-input-wrapper" style={{ position: 'relative', flex: 1 }}>
+                    <input 
+                        type="text" 
+                        placeholder="Search stocks, companies, or symbols..." 
+                        className="search-input"
+                        value={searchQuery}
+                        onChange={(e) => onSearchInputChange(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        aria-autocomplete="list"
+                        aria-expanded={suggestions.length > 0}
+                    />
+                    {suggestions.length > 0 && (
+                        <div className="search-suggestions" role="listbox">
                         {suggestions.map((s, idx) => (
                             <div 
                                 key={`${s.symbol}-${idx}`}
@@ -678,8 +676,12 @@ const DashboardRedesign = () => {
                                 <span className="s-name">{s.name}</span>
                             </div>
                         ))}
-                    </div>
-                )}
+                        </div>
+                    )}
+                </div>
+                <button className="search-btn" onClick={handleSearch} disabled={searching}>
+                    {searching ? 'Searching…' : 'Search'}
+                </button>
             </div>
 
             {/* Main Content Area */}
