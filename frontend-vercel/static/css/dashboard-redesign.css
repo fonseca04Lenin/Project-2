@@ -331,8 +331,8 @@
 /* Search suggestions dropdown */
 .search-suggestions {
     position: absolute;
-    left: 0;
-    right: 0;
+    left: 3.5rem;
+    right: 8.5rem;
     top: calc(100% + 0.5rem);
     background: rgba(24, 26, 35, 1);
     border: 1px solid rgba(255,255,255,0.10);
