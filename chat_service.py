@@ -60,24 +60,36 @@ class ChatService:
                 available_models = [m.name for m in models if 'generateContent' in m.supported_generation_methods]
                 
                 if available_models:
-                    # Prefer lighter models for free tier (flash, nano, or 1.5-flash)
-                    # These have better free tier quotas
-                    preferred_models = ['flash', 'nano', '1.5-flash', '1.0-pro']
+                    # Prefer lighter models for free tier (flash, nano) - these have better quotas
+                    # AVOID experimental (exp) and pro models for free tier
+                    preferred_models = ['flash', 'nano', '1.5-flash']
                     model_name = None
                     
+                    # First, try to find flash or nano models (best for free tier)
                     for preferred in preferred_models:
-                        matching = [m for m in available_models if preferred.lower() in m.lower()]
+                        matching = [m for m in available_models if preferred.lower() in m.lower() and 'exp' not in m.lower()]
                         if matching:
                             model_name = matching[0]
+                            logger.info(f"✅ Found preferred model for free tier: {model_name}")
                             break
                     
-                    # If no preferred model found, use first gemini model
+                    # If no flash/nano found, try 1.0-pro (avoid exp and 2.x)
                     if not model_name:
-                        gemini_models = [m for m in available_models if 'gemini' in m.lower()]
-                        if gemini_models:
-                            model_name = gemini_models[0]
+                        matching = [m for m in available_models if '1.0-pro' in m.lower() and 'exp' not in m.lower()]
+                        if matching:
+                            model_name = matching[0]
+                            logger.info(f"✅ Using 1.0-pro model: {model_name}")
+                    
+                    # If still no preferred model, filter out exp models and use first available
+                    if not model_name:
+                        non_exp_models = [m for m in available_models if 'exp' not in m.lower() and '2.5' not in m.lower()]
+                        if non_exp_models:
+                            model_name = non_exp_models[0]
+                            logger.info(f"✅ Using non-experimental model: {model_name}")
                         else:
+                            # Last resort - use first available
                             model_name = available_models[0]
+                            logger.warning(f"⚠️ Using model (may have quota limits): {model_name}")
                     
                     # Extract just the model name (remove 'models/' prefix if present)
                     if '/' in model_name:
