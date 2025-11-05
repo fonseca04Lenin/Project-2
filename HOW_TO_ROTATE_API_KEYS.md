@@ -87,7 +87,7 @@ class NewsAPI:
 ```
 NEWS_API_KEY=your_new_newsapi_key_here
 FINNHUB_API_KEY=your_new_finnhub_key_here
-GROQ_API_KEY=your_groq_key_here
+GEMINI_API_KEY=your_gemini_key_here
 ```
 
 5. Click "Deploy" to redeploy with new keys
@@ -102,7 +102,7 @@ Create a `.env` file in your project root:
 # .env file
 NEWS_API_KEY=your_new_key_here
 FINNHUB_API_KEY=your_new_key_here
-GROQ_API_KEY=your_groq_key_here
+GEMINI_API_KEY=your_gemini_key_here
 ```
 
 Make sure `.env` is in `.gitignore`!
@@ -255,7 +255,7 @@ if not api_key:
 # .env.example (commit this)
 NEWS_API_KEY=your_newsapi_key_here
 FINNHUB_API_KEY=your_finnhub_key_here
-GROQ_API_KEY=your_groq_key_here
+GEMINI_API_KEY=your_gemini_key_here
 FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
 ```
 
