@@ -54,18 +54,30 @@ class ChatService:
                 return
             
             genai.configure(api_key=api_key)
-            # List available models and use the first one that supports generateContent
+            # List available models and prefer lighter models (flash/nano) for free tier
             try:
                 models = genai.list_models()
                 available_models = [m.name for m in models if 'generateContent' in m.supported_generation_methods]
                 
                 if available_models:
-                    # Prefer models with 'gemini' in the name
-                    gemini_models = [m for m in available_models if 'gemini' in m.lower()]
-                    if gemini_models:
-                        model_name = gemini_models[0]
-                    else:
-                        model_name = available_models[0]
+                    # Prefer lighter models for free tier (flash, nano, or 1.5-flash)
+                    # These have better free tier quotas
+                    preferred_models = ['flash', 'nano', '1.5-flash', '1.0-pro']
+                    model_name = None
+                    
+                    for preferred in preferred_models:
+                        matching = [m for m in available_models if preferred.lower() in m.lower()]
+                        if matching:
+                            model_name = matching[0]
+                            break
+                    
+                    # If no preferred model found, use first gemini model
+                    if not model_name:
+                        gemini_models = [m for m in available_models if 'gemini' in m.lower()]
+                        if gemini_models:
+                            model_name = gemini_models[0]
+                        else:
+                            model_name = available_models[0]
                     
                     # Extract just the model name (remove 'models/' prefix if present)
                     if '/' in model_name:
@@ -926,21 +938,33 @@ CRITICAL RULES:
                 model = self.gemini_client
                 
                 # Generate content (simplified for now - function calling will be added in next iteration)
+                # Use shorter max_output_tokens for free tier
                 response = model.generate_content(
                     full_prompt,
                     generation_config={
                         "temperature": 0.7,
-                        "max_output_tokens": 1000
+                        "max_output_tokens": 500  # Reduced for free tier
                     }
                 )
                 logger.info("Gemini API call successful")
             except Exception as e:
-                logger.error(f"Gemini API call failed: {e}")
+                error_str = str(e)
+                logger.error(f"Gemini API call failed: {error_str}")
+                
+                # Check if it's a quota error
+                if "429" in error_str or "quota" in error_str.lower() or "Quota exceeded" in error_str:
+                    logger.warning("⚠️ Quota exceeded - user may need to wait or upgrade plan")
+                    return {
+                        "success": False,
+                        "error": "I've reached my usage limit for today. Please try again later, or check your Gemini API quota at https://ai.dev/usage?tab=rate-limit",
+                        "response": "I've reached my daily usage limit. Please try again in a few hours, or check your API quota settings."
+                    }
+                
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 return {
                     "success": False,
-                    "error": f"I'm having trouble connecting to my AI service right now. Please try again in a moment. Error: {str(e)}",
+                    "error": f"I'm having trouble connecting to my AI service right now. Please try again in a moment. Error: {str(e)[:200]}",
                     "response": "I'm having trouble connecting right now. Please try again in a moment."
                 }
             
