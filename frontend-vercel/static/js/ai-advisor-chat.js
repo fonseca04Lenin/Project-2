@@ -463,8 +463,8 @@ class AIAdvisorChat {
             
             const statusData = await statusResponse.json();
             
-            // Now test Groq API specifically
-            const groqResponse = await fetch(`${this.apiBaseUrl}/api/chat/test-groq`, {
+            // Now test Gemini API specifically
+            const geminiResponse = await fetch(`${this.apiBaseUrl}/api/chat/test-gemini`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'X-User-ID': this.currentUser.uid
@@ -472,14 +472,14 @@ class AIAdvisorChat {
             });
             
             
-            if (groqResponse.ok) {
-                const groqData = await groqResponse.json();
-                this.showSuccess('✅ API & Groq connection successful!');
+            if (geminiResponse.ok) {
+                const geminiData = await geminiResponse.json();
+                this.showSuccess('✅ API & Gemini connection successful!');
                 return true;
             } else {
-                const errorText = await groqResponse.text();
-                console.error('❌ Groq API Test Error:', groqResponse.status, groqResponse.statusText, errorText);
-                this.showError(`Groq API Error: ${groqResponse.status} ${groqResponse.statusText}`);
+                const errorText = await geminiResponse.text();
+                console.error('❌ Gemini API Test Error:', geminiResponse.status, geminiResponse.statusText, errorText);
+                this.showError(`Gemini API Error: ${geminiResponse.status} ${geminiResponse.statusText}`);
                 return false;
             }
             
