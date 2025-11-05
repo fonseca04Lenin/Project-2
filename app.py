@@ -1908,21 +1908,21 @@ def health_check():
         else:
             print("⚠️ Firebase not initialized")
         
-        # Test Groq API
-        groq_status = False
+        # Test Gemini API
+        gemini_status = False
         try:
             from chat_service import chat_service
-            groq_status = chat_service.groq_client is not None
-            print(f"✅ Groq API status: {groq_status}")
+            gemini_status = chat_service.gemini_client is not None
+            print(f"✅ Gemini API status: {gemini_status}")
         except Exception as e:
-            print(f"❌ Groq API check failed: {e}")
+            print(f"❌ Gemini API check failed: {e}")
         
         response_data = {
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'services': {
                 'firebase': firebase_status,
-                'groq_api': groq_status
+                'gemini_api': gemini_status
             }
         }
         
@@ -2060,7 +2060,7 @@ def chat_status():
         
         return jsonify({
             'success': True,
-            'status': 'available' if chat_service.groq_client else 'unavailable',
+            'status': 'available' if chat_service.gemini_client else 'unavailable',
             'rate_limit': {
                 'can_send': can_send,
                 'max_requests_per_hour': chat_service.max_requests_per_hour
@@ -2074,9 +2074,9 @@ def chat_status():
             'error': 'Could not get chat status'
         }), 500
 
-@app.route('/api/chat/test-groq', methods=['GET'])
-def test_groq_api():
-    """Test Groq API directly"""
+@app.route('/api/chat/test-gemini', methods=['GET'])
+def test_gemini_api():
+    """Test Gemini API directly"""
     try:
         # Authenticate user
         user = authenticate_request()
@@ -2086,40 +2086,37 @@ def test_groq_api():
         # Import chat service
         from chat_service import chat_service
         
-        if not chat_service.groq_client:
+        if not chat_service.gemini_client:
             return jsonify({
                 'success': False,
-                'error': 'Groq client not initialized - API key may be missing',
-                'groq_available': False
+                'error': 'Gemini client not initialized - API key may be missing',
+                'gemini_available': False
             })
         
         # Test a simple API call
-        response = chat_service.groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "user", "content": "Say 'Hello, Groq API is working!'"}
-            ],
-            max_tokens=50
+        import google.generativeai as genai
+        response = chat_service.gemini_client.generate_content(
+            "Say 'Hello, Gemini API is working!'"
         )
         
-        result = response.choices[0].message.content
+        result = response.text if hasattr(response, 'text') else str(response)
         
         return jsonify({
             'success': True,
-            'groq_available': True,
+            'gemini_available': True,
             'test_response': result,
-            'message': 'Groq API is working correctly'
+            'message': 'Gemini API is working correctly'
         })
         
     except Exception as e:
-        print(f"❌ Groq test error: {e}")
+        print(f"❌ Gemini test error: {e}")
         import traceback
         print(f"❌ Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': str(e),
-            'groq_available': False,
-            'message': 'Groq API test failed'
+            'gemini_available': False,
+            'message': 'Gemini API test failed'
         }), 500
 
 # WebSocket event for real-time chat

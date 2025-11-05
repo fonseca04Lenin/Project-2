@@ -1,6 +1,6 @@
 """
 Chat Service for AI Stock Advisor
-Handles Groq API integration and conversation management
+Handles Google Gemini API integration and conversation management
 """
 
 import os
@@ -8,7 +8,7 @@ import json
 import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from groq import Groq
+import google.generativeai as genai
 from firebase_service import FirebaseService, get_firestore_client
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 import logging
@@ -30,8 +30,8 @@ def serialize_datetime(obj):
 
 class ChatService:
     def __init__(self):
-        """Initialize the chat service with Groq API and Firebase"""
-        self.groq_client = None
+        """Initialize the chat service with Gemini API and Firebase"""
+        self.gemini_client = None
         self.firebase_service = FirebaseService()
         self.firestore_client = get_firestore_client()
         self.stock_api = YahooFinanceAPI()
@@ -42,21 +42,22 @@ class ChatService:
         self.user_requests = {}  # Track user request counts
         self.max_requests_per_hour = 5
         
-        # Initialize Groq client
-        self._initialize_groq()
+        # Initialize Gemini client
+        self._initialize_gemini()
     
-    def _initialize_groq(self):
-        """Initialize Groq API client"""
+    def _initialize_gemini(self):
+        """Initialize Gemini API client"""
         try:
-            api_key = os.getenv('GROQ_API_KEY')
+            api_key = os.getenv('GEMINI_API_KEY')
             if not api_key:
-                logger.warning("GROQ_API_KEY not found in environment variables")
+                logger.warning("GEMINI_API_KEY not found in environment variables")
                 return
             
-            self.groq_client = Groq(api_key=api_key)
-            logger.info("✅ Groq API client initialized successfully")
+            genai.configure(api_key=api_key)
+            self.gemini_client = genai.GenerativeModel('gemini-1.5-flash')
+            logger.info("✅ Gemini API client initialized successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Groq API: {e}")
+            logger.error(f"❌ Failed to initialize Gemini API: {e}")
     
     def _check_rate_limit(self, user_id: str) -> bool:
         """Check if user has exceeded rate limit"""
@@ -810,9 +811,9 @@ class ChatService:
                     "response": "I'm getting a lot of requests right now. Please wait a moment before asking another question."
                 }
             
-            # Check if Groq client is available
-            if not self.groq_client:
-                logger.error("Groq client not initialized - API key may be missing")
+            # Check if Gemini client is available
+            if not self.gemini_client:
+                logger.error("Gemini client not initialized - API key may be missing")
                 return {
                     "success": False,
                     "error": "AI service unavailable - API key not configured",
@@ -879,27 +880,85 @@ CRITICAL RULES:
 16. For add/remove operations, provide EITHER symbol OR company_name, not both
 17. **DON'T VERBOSE**: When listing your current watchlist, just give symbols and brief performance - don't analyze every single stock unless asked"""
 
-            # Prepare messages for Groq API
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": message}
-            ]
+            # Prepare messages for Gemini API
+            # Combine system prompt and user message
+            full_prompt = f"{system_prompt}\n\nUser: {message}\nAssistant:"
             
-            # Call Groq API with function calling
-            logger.info("Calling Groq API...")
+            # Convert functions to Gemini's format
+            gemini_functions = []
+            for func in self._get_available_functions():
+                gemini_functions.append({
+                    "name": func["name"],
+                    "description": func["description"],
+                    "parameters": func["parameters"]
+                })
+            
+            # Call Gemini API with function calling
+            logger.info("Calling Gemini API...")
             try:
-                response = self.groq_client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=messages,
-                    tools=[{"type": "function", "function": func} for func in self._get_available_functions()],
-                    tool_choice="auto",
-                    temperature=0.7,
-                    max_tokens=1000,
-                    timeout=30.0
+                # Create model with tools if we have functions
+                if gemini_functions:
+                    # Convert to Gemini tool format
+                    tools = []
+                    for func in gemini_functions:
+                        # Convert JSON schema to protobuf format
+                        from google.generativeai.types import FunctionDeclaration, Schema, Type
+                        
+                        # Map JSON schema types to Gemini types
+                        def convert_property(prop):
+                            prop_type = prop.get("type", "string")
+                            if prop_type == "string":
+                                return Type.STRING
+                            elif prop_type == "number" or prop_type == "integer":
+                                return Type.NUMBER
+                            elif prop_type == "boolean":
+                                return Type.BOOLEAN
+                            elif prop_type == "array":
+                                return Type.ARRAY
+                            elif prop_type == "object":
+                                return Type.OBJECT
+                            else:
+                                return Type.STRING
+                        
+                        properties = {}
+                        for key, value in func["parameters"].get("properties", {}).items():
+                            properties[key] = Schema(
+                                type=convert_property(value),
+                                description=value.get("description", "")
+                            )
+                        
+                        tool = FunctionDeclaration(
+                            name=func["name"],
+                            description=func["description"],
+                            parameters=Schema(
+                                type=Type.OBJECT,
+                                properties=properties,
+                                required=func["parameters"].get("required", [])
+                            )
+                        )
+                        tools.append(tool)
+                    
+                    # Create model with tools
+                    model = genai.GenerativeModel(
+                        model_name='gemini-1.5-flash',
+                        tools=tools
+                    )
+                else:
+                    model = self.gemini_client
+                
+                # Generate content
+                response = model.generate_content(
+                    full_prompt,
+                    generation_config={
+                        "temperature": 0.7,
+                        "max_output_tokens": 1000
+                    }
                 )
-                logger.info("Groq API call successful")
+                logger.info("Gemini API call successful")
             except Exception as e:
-                logger.error(f"Groq API call failed: {e}")
+                logger.error(f"Gemini API call failed: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 return {
                     "success": False,
                     "error": f"I'm having trouble connecting to my AI service right now. Please try again in a moment. Error: {str(e)}",
@@ -907,75 +966,103 @@ CRITICAL RULES:
                 }
             
             # Process response
-            ai_message = response.choices[0].message
+            ai_response = None
+            function_calls = []
+            
+            # Check if response contains function calls
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                
+                # Check for function calls in the response
+                if hasattr(candidate, 'content') and candidate.content:
+                    parts = candidate.content.parts
+                    for part in parts:
+                        if hasattr(part, 'function_call'):
+                            function_calls.append(part.function_call)
+                        elif hasattr(part, 'text'):
+                            ai_response = part.text
             
             # Handle function calls
-            if ai_message.tool_calls:
+            if function_calls:
                 function_results = []
-                for tool_call in ai_message.tool_calls:
+                for func_call in function_calls:
                     try:
-                        function_name = tool_call.function.name
-                        function_args = json.loads(tool_call.function.arguments)
+                        function_name = func_call.name
+                        function_args = {}
+                        
+                        # Parse function arguments
+                        if hasattr(func_call, 'args'):
+                            # Convert args to dict
+                            if hasattr(func_call.args, 'items'):
+                                function_args = dict(func_call.args.items())
+                            else:
+                                function_args = dict(func_call.args) if func_call.args else {}
                         
                         # Execute the function
                         result = self._execute_function(function_name, function_args, user_id)
                         # Serialize datetime objects in result
                         serialized_result = serialize_datetime(result)
                         function_results.append({
-                            "tool_call_id": tool_call.id,
                             "function_name": function_name,
                             "result": serialized_result
                         })
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse function arguments: {e}")
-                        logger.error(f"Raw arguments: {tool_call.function.arguments}")
-                        # Add error result
-                        function_results.append({
-                            "tool_call_id": tool_call.id,
-                            "function_name": tool_call.function.name,
-                            "result": {
-                                "success": False,
-                                "error": f"Failed to parse function arguments: {str(e)}"
-                            }
-                        })
                     except Exception as e:
-                        logger.error(f"Error executing function {tool_call.function.name}: {e}")
+                        logger.error(f"Error executing function {func_call.name}: {e}")
+                        import traceback
+                        logger.error(f"Traceback: {traceback.format_exc()}")
                         function_results.append({
-                            "tool_call_id": tool_call.id,
-                            "function_name": tool_call.function.name,
+                            "function_name": func_call.name,
                             "result": {
                                 "success": False,
                                 "error": f"Function execution failed: {str(e)}"
                             }
                         })
                 
-                # Get final response with function results
-                messages.append(ai_message)
+                # Build context for final response with function results
+                results_context = "\n\nFunction Results:\n"
                 for result in function_results:
-                    # Format the result for better AI understanding
                     formatted_content = self._format_function_result(result["result"], result["function_name"])
-                    logger.info(f"Function {result['function_name']} result: {formatted_content}")
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": result["tool_call_id"],
-                        "content": formatted_content
-                    })
+                    results_context += f"- {result['function_name']}: {formatted_content}\n"
+                
+                final_prompt = f"{system_prompt}\n\nUser: {message}\n{results_context}\nAssistant:"
                 
                 # Get final AI response
                 try:
                     logger.info("Getting final AI response after function execution...")
-                    final_response = self.groq_client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=1000,
-                        timeout=30.0
+                    final_response = model.generate_content(
+                        final_prompt,
+                        generation_config={
+                            "temperature": 0.7,
+                            "max_output_tokens": 1000
+                        }
                     )
-                    ai_response = final_response.choices[0].message.content
+                    
+                    if hasattr(final_response, 'candidates') and final_response.candidates:
+                        candidate = final_response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content:
+                            parts = candidate.content.parts
+                            for part in parts:
+                                if hasattr(part, 'text'):
+                                    ai_response = part.text
+                                    break
+                    
+                    if not ai_response:
+                        # Fallback to function results summary
+                        if function_results:
+                            success_results = [r for r in function_results if r["result"].get("success")]
+                            if success_results:
+                                messages_summary = ", ".join([r["result"].get("message", "") for r in success_results])
+                                ai_response = messages_summary
+                            else:
+                                error_messages = [r["result"].get("message", "Unknown error") for r in function_results]
+                                ai_response = f"Error: {'; '.join(error_messages)}"
+                        else:
+                            ai_response = "I've completed the requested action."
+                    
                     logger.info(f"Final AI response received: {ai_response[:100]}...")
                 except Exception as e:
                     logger.error(f"Failed to get final AI response: {e}")
-                    # If we have function results, create a simple response
+                    # Fallback to function results summary
                     if function_results:
                         success_results = [r for r in function_results if r["result"].get("success")]
                         if success_results:
@@ -987,7 +1074,19 @@ CRITICAL RULES:
                     else:
                         ai_response = "I encountered an error while processing your request. Please try again."
             else:
-                ai_response = ai_message.content
+                # No function calls, just get the text response
+                if not ai_response:
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content:
+                            parts = candidate.content.parts
+                            for part in parts:
+                                if hasattr(part, 'text'):
+                                    ai_response = part.text
+                                    break
+                
+                if not ai_response:
+                    ai_response = "I'm sorry, I didn't receive a response. Please try again."
             
             # Save conversation
             self._save_conversation(user_id, message, ai_response)
