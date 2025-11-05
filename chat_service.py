@@ -54,7 +54,8 @@ class ChatService:
                 return
             
             genai.configure(api_key=api_key)
-            self.gemini_client = genai.GenerativeModel('gemini-1.5-flash')
+            # Use gemini-pro which is widely supported
+            self.gemini_client = genai.GenerativeModel('gemini-pro')
             logger.info("✅ Gemini API client initialized successfully")
         except Exception as e:
             logger.error(f"❌ Failed to initialize Gemini API: {e}")
