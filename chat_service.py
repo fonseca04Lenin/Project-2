@@ -893,60 +893,13 @@ CRITICAL RULES:
                     "parameters": func["parameters"]
                 })
             
-            # Call Gemini API with function calling
+            # Call Gemini API
             logger.info("Calling Gemini API...")
             try:
-                # Create model with tools if we have functions
-                if gemini_functions:
-                    # Convert to Gemini tool format
-                    tools = []
-                    for func in gemini_functions:
-                        # Convert JSON schema to protobuf format
-                        from google.generativeai.types import FunctionDeclaration, Schema, Type
-                        
-                        # Map JSON schema types to Gemini types
-                        def convert_property(prop):
-                            prop_type = prop.get("type", "string")
-                            if prop_type == "string":
-                                return Type.STRING
-                            elif prop_type == "number" or prop_type == "integer":
-                                return Type.NUMBER
-                            elif prop_type == "boolean":
-                                return Type.BOOLEAN
-                            elif prop_type == "array":
-                                return Type.ARRAY
-                            elif prop_type == "object":
-                                return Type.OBJECT
-                            else:
-                                return Type.STRING
-                        
-                        properties = {}
-                        for key, value in func["parameters"].get("properties", {}).items():
-                            properties[key] = Schema(
-                                type=convert_property(value),
-                                description=value.get("description", "")
-                            )
-                        
-                        tool = FunctionDeclaration(
-                            name=func["name"],
-                            description=func["description"],
-                            parameters=Schema(
-                                type=Type.OBJECT,
-                                properties=properties,
-                                required=func["parameters"].get("required", [])
-                            )
-                        )
-                        tools.append(tool)
-                    
-                    # Create model with tools
-                    model = genai.GenerativeModel(
-                        model_name='gemini-1.5-flash',
-                        tools=tools
-                    )
-                else:
-                    model = self.gemini_client
+                # Use the model instance
+                model = self.gemini_client
                 
-                # Generate content
+                # Generate content (simplified for now - function calling will be added in next iteration)
                 response = model.generate_content(
                     full_prompt,
                     generation_config={
@@ -969,7 +922,7 @@ CRITICAL RULES:
             ai_response = None
             function_calls = []
             
-            # Check if response contains function calls
+            # Extract text response from Gemini
             if hasattr(response, 'candidates') and response.candidates:
                 candidate = response.candidates[0]
                 
@@ -977,12 +930,18 @@ CRITICAL RULES:
                 if hasattr(candidate, 'content') and candidate.content:
                     parts = candidate.content.parts
                     for part in parts:
+                        # Check for function calls (Gemini function calling format)
                         if hasattr(part, 'function_call'):
                             function_calls.append(part.function_call)
                         elif hasattr(part, 'text'):
                             ai_response = part.text
+                # Fallback: try to get text directly
+                elif hasattr(response, 'text'):
+                    ai_response = response.text
             
-            # Handle function calls
+            # For now, process without native function calling
+            # We'll parse the response and check if it mentions functions
+            # Handle function calls (if any)
             if function_calls:
                 function_results = []
                 for func_call in function_calls:
