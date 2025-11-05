@@ -54,9 +54,34 @@ class ChatService:
                 return
             
             genai.configure(api_key=api_key)
-            # Use gemini-pro which is widely supported
-            self.gemini_client = genai.GenerativeModel('gemini-pro')
-            logger.info("✅ Gemini API client initialized successfully")
+            # List available models and use the first one that supports generateContent
+            try:
+                models = genai.list_models()
+                available_models = [m.name for m in models if 'generateContent' in m.supported_generation_methods]
+                
+                if available_models:
+                    # Prefer models with 'gemini' in the name
+                    gemini_models = [m for m in available_models if 'gemini' in m.lower()]
+                    if gemini_models:
+                        model_name = gemini_models[0]
+                    else:
+                        model_name = available_models[0]
+                    
+                    # Extract just the model name (remove 'models/' prefix if present)
+                    if '/' in model_name:
+                        model_name = model_name.split('/')[-1]
+                    
+                    self.gemini_client = genai.GenerativeModel(model_name)
+                    logger.info(f"✅ Gemini API client initialized with model: {model_name}")
+                    logger.info(f"📋 Available models: {', '.join(available_models[:5])}")
+                else:
+                    logger.error("❌ No available models found that support generateContent")
+                    self.gemini_client = None
+            except Exception as e:
+                logger.error(f"❌ Failed to list/initialize Gemini models: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                self.gemini_client = None
         except Exception as e:
             logger.error(f"❌ Failed to initialize Gemini API: {e}")
     
