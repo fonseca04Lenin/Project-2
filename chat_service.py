@@ -9,10 +9,18 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import google.generativeai as genai
-from google.generativeai.types import Tool, FunctionDeclaration
 from firebase_service import FirebaseService, get_firestore_client
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 import logging
+
+# Try to import Tool types, but fallback to dict if not available
+try:
+    from google.generativeai.types import Tool, FunctionDeclaration
+    HAS_TOOL_TYPES = True
+except ImportError:
+    HAS_TOOL_TYPES = False
+    logger = logging.getLogger(__name__)
+    logger.info("Tool types not available, will use dictionary format")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -372,8 +380,7 @@ class ChatService:
                         },
                         "limit": {
                             "type": "integer",
-                            "description": "Maximum number of news articles to return",
-                            "default": 5
+                            "description": "Maximum number of news articles to return (default: 5)"
                         }
                     },
                     "required": ["symbols"]
@@ -945,30 +952,16 @@ CRITICAL RULES:
             full_prompt = f"{system_prompt}\n\nUser: {message}\nAssistant:"
             
             # Convert functions to Gemini's tool format
-            try:
-                function_declarations = []
-                for func in self._get_available_functions():
-                    function_declarations.append(
-                        FunctionDeclaration(
-                            name=func["name"],
-                            description=func["description"],
-                            parameters=func["parameters"]
-                        )
-                    )
-                
-                # Create tools list with all function declarations
-                tools = [Tool(function_declarations=function_declarations)] if function_declarations else None
-            except Exception as e:
-                # Fallback to dictionary format if Tool/FunctionDeclaration not available
-                logger.warning(f"Could not use Tool types, falling back to dict format: {e}")
-                function_declarations = []
-                for func in self._get_available_functions():
-                    function_declarations.append({
-                        "name": func["name"],
-                        "description": func["description"],
-                        "parameters": func["parameters"]
-                    })
-                tools = [{"function_declarations": function_declarations}] if function_declarations else None
+            function_declarations = []
+            for func in self._get_available_functions():
+                function_declarations.append({
+                    "name": func["name"],
+                    "description": func["description"],
+                    "parameters": func["parameters"]
+                })
+            
+            # Create tools list - use dictionary format (more compatible)
+            tools = [{"function_declarations": function_declarations}] if function_declarations else None
             
             # Call Gemini API
             logger.info("Calling Gemini API...")
