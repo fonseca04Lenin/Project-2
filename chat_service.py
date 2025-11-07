@@ -9,6 +9,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import google.generativeai as genai
+from google.generativeai.types import Tool, FunctionDeclaration
 from firebase_service import FirebaseService, get_firestore_client
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 import logging
@@ -454,6 +455,15 @@ class ChatService:
     def _execute_function(self, function_name: str, arguments: Dict, user_id: str) -> Dict:
         """Execute a function called by the AI"""
         try:
+            # Validate function name
+            if not function_name or not function_name.strip():
+                logger.error(f"Empty function name provided. Arguments: {arguments}")
+                return {
+                    "success": False,
+                    "data": None,
+                    "message": "Function name is required. Please specify a valid function to call."
+                }
+            
             if function_name == "get_stock_price":
                 symbol = arguments.get("symbol", "").upper()
                 stock_data = self.stock_api.get_real_time_data(symbol)
@@ -934,14 +944,31 @@ CRITICAL RULES:
             # Combine system prompt and user message
             full_prompt = f"{system_prompt}\n\nUser: {message}\nAssistant:"
             
-            # Convert functions to Gemini's format
-            gemini_functions = []
-            for func in self._get_available_functions():
-                gemini_functions.append({
-                    "name": func["name"],
-                    "description": func["description"],
-                    "parameters": func["parameters"]
-                })
+            # Convert functions to Gemini's tool format
+            try:
+                function_declarations = []
+                for func in self._get_available_functions():
+                    function_declarations.append(
+                        FunctionDeclaration(
+                            name=func["name"],
+                            description=func["description"],
+                            parameters=func["parameters"]
+                        )
+                    )
+                
+                # Create tools list with all function declarations
+                tools = [Tool(function_declarations=function_declarations)] if function_declarations else None
+            except Exception as e:
+                # Fallback to dictionary format if Tool/FunctionDeclaration not available
+                logger.warning(f"Could not use Tool types, falling back to dict format: {e}")
+                function_declarations = []
+                for func in self._get_available_functions():
+                    function_declarations.append({
+                        "name": func["name"],
+                        "description": func["description"],
+                        "parameters": func["parameters"]
+                    })
+                tools = [{"function_declarations": function_declarations}] if function_declarations else None
             
             # Call Gemini API
             logger.info("Calling Gemini API...")
@@ -949,10 +976,11 @@ CRITICAL RULES:
                 # Use the model instance
                 model = self.gemini_client
                 
-                # Generate content (simplified for now - function calling will be added in next iteration)
+                # Generate content with tools for function calling
                 # Use shorter max_output_tokens for free tier
                 response = model.generate_content(
                     full_prompt,
+                    tools=tools if tools else None,
                     generation_config={
                         "temperature": 0.7,
                         "max_output_tokens": 500  # Reduced for free tier
@@ -984,7 +1012,7 @@ CRITICAL RULES:
             ai_response = None
             function_calls = []
             
-            # Extract text response from Gemini
+            # Extract text response and function calls from Gemini
             if hasattr(response, 'candidates') and response.candidates:
                 candidate = response.candidates[0]
                 
@@ -993,22 +1021,37 @@ CRITICAL RULES:
                     parts = candidate.content.parts
                     for part in parts:
                         # Check for function calls (Gemini function calling format)
-                        if hasattr(part, 'function_call'):
-                            function_calls.append(part.function_call)
-                        elif hasattr(part, 'text'):
+                        if hasattr(part, 'function_call') and part.function_call:
+                            func_call = part.function_call
+                            # Validate function name exists
+                            if hasattr(func_call, 'name') and func_call.name:
+                                function_calls.append(func_call)
+                            else:
+                                logger.warning(f"Received function call with empty name: {func_call}")
+                        elif hasattr(part, 'text') and part.text:
                             ai_response = part.text
                 # Fallback: try to get text directly
-                elif hasattr(response, 'text'):
+                elif hasattr(response, 'text') and response.text:
                     ai_response = response.text
             
-            # For now, process without native function calling
-            # We'll parse the response and check if it mentions functions
             # Handle function calls (if any)
             if function_calls:
                 function_results = []
                 for func_call in function_calls:
                     try:
-                        function_name = func_call.name
+                        # Get function name
+                        function_name = getattr(func_call, 'name', None)
+                        if not function_name:
+                            logger.error(f"Function call missing name: {func_call}")
+                            function_results.append({
+                                "function_name": "unknown",
+                                "result": {
+                                    "success": False,
+                                    "error": "Function name is missing"
+                                }
+                            })
+                            continue
+                        
                         function_args = {}
                         
                         # Parse function arguments
@@ -1016,8 +1059,18 @@ CRITICAL RULES:
                             # Convert args to dict
                             if hasattr(func_call.args, 'items'):
                                 function_args = dict(func_call.args.items())
+                            elif hasattr(func_call.args, '__dict__'):
+                                function_args = func_call.args.__dict__
+                            elif isinstance(func_call.args, dict):
+                                function_args = func_call.args
                             else:
-                                function_args = dict(func_call.args) if func_call.args else {}
+                                # Try to convert to dict
+                                try:
+                                    function_args = dict(func_call.args) if func_call.args else {}
+                                except:
+                                    function_args = {}
+                        
+                        logger.info(f"Executing function: {function_name} with args: {function_args}")
                         
                         # Execute the function
                         result = self._execute_function(function_name, function_args, user_id)
@@ -1052,6 +1105,7 @@ CRITICAL RULES:
                     logger.info("Getting final AI response after function execution...")
                     final_response = model.generate_content(
                         final_prompt,
+                        tools=tools if tools else None,
                         generation_config={
                             "temperature": 0.7,
                             "max_output_tokens": 1000
