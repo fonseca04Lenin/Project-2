@@ -28,7 +28,8 @@ class NewsAPI:
                         'link': article.get('url', ''),
                         'published_at': article.get('publishedAt', ''),
                         'source': article.get('source', {}).get('name', 'NewsAPI'),
-                        'summary': article.get('description', '')
+                        'summary': article.get('description', ''),
+                        'image_url': article.get('urlToImage', '')
                     })
                 return news_items
             else:
@@ -66,7 +67,8 @@ class NewsAPI:
                         'link': article.get('url', ''),
                         'published_at': article.get('publishedAt', ''),
                         'source': article.get('source', {}).get('name', 'NewsAPI'),
-                        'summary': article.get('description', '')
+                        'summary': article.get('description', ''),
+                        'image_url': article.get('urlToImage', '')
                     })
                 return news_items
             else:
