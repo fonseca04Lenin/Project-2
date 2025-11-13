@@ -1031,9 +1031,6 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
             <div className="view-header">
                 <h2>My Watchlist</h2>
                 <div className="header-actions">
-                    <button className="action-btn" onClick={() => onAdd && onAdd()}>
-                        <i className="fas fa-plus"></i> Add Stock
-                    </button>
                     <button className="action-btn" onClick={() => onFilter && onFilter()}>
                         <i className="fas fa-filter"></i> {isFiltered ? 'Filter (On)' : 'Filter'}
                     </button>
