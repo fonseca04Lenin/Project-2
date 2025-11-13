@@ -459,8 +459,19 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                                 Change Since Added
                                             </span>
                                             <span className={`info-value ${stockData.priceChange >= 0 ? 'positive' : 'negative'}`}>
-                                                <span style={{ marginRight: '4px', fontSize: '14px' }}>
-                                                    {stockData.priceChange >= 0 ? '↗' : '↘'}
+                                                <span style={{ 
+                                                    marginRight: '6px', 
+                                                    fontSize: '16px',
+                                                    fontWeight: '700',
+                                                    color: stockData.priceChange >= 0 ? '#00D924' : '#ef4444',
+                                                    textShadow: stockData.priceChange >= 0 
+                                                        ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
+                                                        : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
+                                                    display: 'inline-block',
+                                                    transform: stockData.priceChange >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
+                                                    lineHeight: '1'
+                                                }}>
+                                                    {stockData.priceChange >= 0 ? '▲' : '▼'}
                                                 </span>
                                                 {stockData.priceChange >= 0 ? '+' : ''}{stockData.priceChange?.toFixed(2)}
                                                 {' '}({stockData.percentageChange?.toFixed(2)}%)
@@ -530,8 +541,19 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         <strong data-icon="trend">Price Change:</strong> <span className={`${stockData.priceChange !== null && stockData.priceChange !== undefined && stockData.priceChange >= 0 ? 'positive' : 'negative'}`}>
                                             {stockData.priceChange !== null && stockData.priceChange !== undefined ? 
                                                 <span>
-                                                    <span style={{ marginRight: '4px' }}>
-                                                        {stockData.priceChange >= 0 ? '↗' : '↘'}
+                                                    <span style={{ 
+                                                        marginRight: '6px',
+                                                        fontSize: '14px',
+                                                        fontWeight: '700',
+                                                        color: stockData.priceChange >= 0 ? '#00D924' : '#ef4444',
+                                                        textShadow: stockData.priceChange >= 0 
+                                                            ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
+                                                            : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
+                                                        display: 'inline-block',
+                                                        transform: stockData.priceChange >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
+                                                        lineHeight: '1'
+                                                    }}>
+                                                        {stockData.priceChange >= 0 ? '▲' : '▼'}
                                                     </span>
                                                     {stockData.priceChange >= 0 ? '+' : ''}${stockData.priceChange.toFixed(2)}
                                                 </span>
@@ -543,8 +565,19 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         <strong data-icon="percent">Percentage Change:</strong> <span className={`${stockData.percentageChange !== null && stockData.percentageChange !== undefined && stockData.percentageChange >= 0 ? 'positive' : 'negative'}`}>
                                             {stockData.percentageChange !== null && stockData.percentageChange !== undefined ? 
                                                 <span>
-                                                    <span style={{ marginRight: '4px' }}>
-                                                        {stockData.percentageChange >= 0 ? '↗' : '↘'}
+                                                    <span style={{ 
+                                                        marginRight: '6px',
+                                                        fontSize: '14px',
+                                                        fontWeight: '700',
+                                                        color: stockData.percentageChange >= 0 ? '#00D924' : '#ef4444',
+                                                        textShadow: stockData.percentageChange >= 0 
+                                                            ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
+                                                            : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
+                                                        display: 'inline-block',
+                                                        transform: stockData.percentageChange >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
+                                                        lineHeight: '1'
+                                                    }}>
+                                                        {stockData.percentageChange >= 0 ? '▲' : '▼'}
                                                     </span>
                                                     {stockData.percentageChange >= 0 ? '+' : ''}{stockData.percentageChange.toFixed(2)}%
                                                 </span>
