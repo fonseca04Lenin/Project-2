@@ -266,7 +266,8 @@ const DashboardRedesign = () => {
                                     name: stockData.name || stock.company_name || stock.name || symbol,
                                     current_price: stockData.price || 0,
                                     change_percent: stockData.priceChangePercent || 0,
-                                    price_change: stockData.priceChange || 0
+                                    price_change: stockData.priceChange || 0,
+                                    category: stock.category || stockData.category || 'General'
                                 };
                             }
                         } catch (e) {
