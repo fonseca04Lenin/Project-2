@@ -8,16 +8,29 @@ class NewsAPI:
         # NewsAPI.org API key
         self.api_key = '4ba3e56d52e54611b9485cdd2e28e679'
 
-    def get_market_news(self, limit=10):
-        """Get general market news using NewsAPI.org"""
+    def get_market_news(self, limit=10, query=None):
+        """Get general market news using NewsAPI.org. If query is provided, search for news."""
         try:
-            url = 'https://newsapi.org/v2/top-headlines'
-            params = {
-                'category': 'business',
-                'language': 'en',
-                'pageSize': limit,
-                'apiKey': self.api_key
-            }
+            if query and query.strip():
+                # Use /everything endpoint for search
+                url = 'https://newsapi.org/v2/everything'
+                params = {
+                    'q': query.strip(),
+                    'language': 'en',
+                    'sortBy': 'publishedAt',
+                    'pageSize': limit,
+                    'apiKey': self.api_key
+                }
+            else:
+                # Use /top-headlines for general market news
+                url = 'https://newsapi.org/v2/top-headlines'
+                params = {
+                    'category': 'business',
+                    'language': 'en',
+                    'pageSize': limit,
+                    'apiKey': self.api_key
+                }
+            
             response = requests.get(url, params=params, timeout=3)
             if response.status_code == 200:
                 articles = response.json().get('articles', [])
