@@ -465,35 +465,48 @@ const DashboardRedesign = () => {
         chartContent.style.cssText = `
             background: linear-gradient(135deg, #10121b 0%, #1a1d2e 100%);
             border-radius: 6px;
-            padding: 2rem;
+            padding: 0;
             max-width: 1000px;
             width: 100%;
             max-height: 90vh;
             position: relative;
-            overflow-y: auto;
+            overflow: visible;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(204, 85, 0, 0.2);
         `;
         
-        // Close button
+        // Close button - positioned outside the chart box
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '✕';
         closeBtn.style.cssText = `
             position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 1.25rem;
+            top: -15px;
+            right: -15px;
+            background: rgba(239, 68, 68, 0.9);
+            color: #ffffff;
+            border: 2px solid rgba(239, 68, 68, 1);
+            padding: 0.5rem 0.75rem;
+            border-radius: 50%;
+            font-size: 1rem;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
-            z-index: 10;
+            z-index: 10001;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         `;
-        closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(239, 68, 68, 0.3)';
-        closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+        closeBtn.onmouseover = () => {
+            closeBtn.style.background = 'rgba(239, 68, 68, 1)';
+            closeBtn.style.transform = 'scale(1.1)';
+        };
+        closeBtn.onmouseout = () => {
+            closeBtn.style.background = 'rgba(239, 68, 68, 0.9)';
+            closeBtn.style.transform = 'scale(1)';
+        };
         
         const closeModal = () => {
             chartModalContainer.remove();
@@ -501,13 +514,18 @@ const DashboardRedesign = () => {
         };
         closeBtn.onclick = closeModal;
         
+        // Chart container wrapper with padding
+        const chartWrapper = document.createElement('div');
+        chartWrapper.style.cssText = 'padding: 2rem; width: 100%; box-sizing: border-box;';
+        
         // Chart container
         const chartContainer = document.createElement('div');
         chartContainer.id = 'chartOnlyContainer';
         chartContainer.style.cssText = 'width: 100%; min-height: 500px;';
         
+        chartWrapper.appendChild(chartContainer);
         chartContent.appendChild(closeBtn);
-        chartContent.appendChild(chartContainer);
+        chartContent.appendChild(chartWrapper);
         chartModalContainer.appendChild(chartContent);
         document.body.appendChild(chartModalContainer);
         document.body.style.overflow = 'hidden';
