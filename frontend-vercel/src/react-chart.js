@@ -441,7 +441,8 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                         }, range.toUpperCase())
                     )
                 ]),
-                React.createElement('button', {
+                // Only show close button if not in modal mode (modal has its own close button)
+                !isModal && React.createElement('button', {
                     key: 'close',
                     onClick: onClose || (() => {
                         const chartSection = document.getElementById('chartSection');
