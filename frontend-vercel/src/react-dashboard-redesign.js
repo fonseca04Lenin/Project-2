@@ -819,10 +819,9 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
                                             ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
                                             : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
                                         display: 'inline-block',
-                                        transform: stock.change_percent >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
                                         lineHeight: '1'
                                     }}>
-                                        {stock.change_percent >= 0 ? '▲' : '▼'}
+                                        {stock.change_percent >= 0 ? '↗' : '↘'}
                                     </span>
                                     {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                                 </div>
@@ -918,10 +917,9 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
                                     ? '0 0 10px rgba(0, 217, 36, 0.7), 0 0 15px rgba(0, 217, 36, 0.5)' 
                                     : '0 0 10px rgba(239, 68, 68, 0.7), 0 0 15px rgba(239, 68, 68, 0.5)',
                                 display: 'inline-block',
-                                transform: stock.change_percent >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
                                 lineHeight: '1'
                             }}>
-                                {stock.change_percent >= 0 ? '▲' : '▼'}
+                                {stock.change_percent >= 0 ? '↗' : '↘'}
                             </span>
                             {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                         </div>

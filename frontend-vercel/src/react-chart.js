@@ -485,11 +485,10 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                         ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
                         : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
                     display: 'inline-block',
-                    transform: priceChange.value >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
                     lineHeight: '1',
                     marginRight: '6px'
                 }
-            }, priceChange.value >= 0 ? '▲' : '▼'),
+            }, priceChange.value >= 0 ? '↗' : '↘'),
             React.createElement('span', {
                 key: 'change-value',
                 style: {
