@@ -571,6 +571,14 @@
     margin-right: 1rem;
 }
 
+.stock-price.positive {
+    color: #00D924;
+}
+
+.stock-price.negative {
+    color: #ef4444;
+}
+
 .stock-change {
     font-weight: 600;
     font-size: 1rem;
@@ -743,12 +751,24 @@
     font-weight: 700;
     margin-bottom: 0.5rem;
     transition: all 0.3s ease;
+}
+
+.stock-price-large.positive {
     color: #00D924;
 }
 
-.stock-price-large.price-updated {
+.stock-price-large.negative {
+    color: #ef4444;
+}
+
+.stock-price-large.price-updated.positive {
     animation: priceFlash 2s ease-in-out;
     color: #00D924;
+}
+
+.stock-price-large.price-updated.negative {
+    animation: priceFlash 2s ease-in-out;
+    color: #ef4444;
 }
 
 @keyframes priceFlash {
