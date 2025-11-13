@@ -1155,30 +1155,70 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
 // News View Component
 const NewsView = () => {
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [articles, setArticles] = useState([]);
+    const [allArticles, setAllArticles] = useState([]);
+    const [displayCount, setDisplayCount] = useState(7); // Show 1 featured + 6 regular initially
     const [query, setQuery] = useState('');
 
     useEffect(() => { loadNews(); }, []);
 
-    const loadNews = async () => {
+    const loadNews = async (isLoadMore = false) => {
         try {
-            setLoading(true); setError('');
+            if (isLoadMore) {
+                setLoadingMore(true);
+            } else {
+                setLoading(true);
+                setDisplayCount(7); // Reset display count on new search
+            }
+            setError('');
             const authHeaders = await window.getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            // If query is empty, just fetch market news without query parameter
+            // Fetch more articles when loading more (increase limit)
+            const limit = isLoadMore ? allArticles.length + 10 : 20; // Fetch 20 initially, then add 10 more each time
             const url = query.trim() 
-                ? `${API_BASE}/api/news/market?q=${encodeURIComponent(query.trim())}`
-                : `${API_BASE}/api/news/market`;
+                ? `${API_BASE}/api/news/market?q=${encodeURIComponent(query.trim())}&limit=${limit}`
+                : `${API_BASE}/api/news/market?limit=${limit}`;
             const r = await fetch(url, { headers: authHeaders, credentials: 'include' });
             if (!r.ok) throw new Error('Failed to fetch news');
             const data = await r.json();
-            setArticles(Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : []);
+            const fetchedArticles = Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : [];
+            if (isLoadMore) {
+                setAllArticles(fetchedArticles);
+                // Update displayed articles if we have more to show
+                if (displayCount < fetchedArticles.length) {
+                    setArticles(fetchedArticles.slice(0, displayCount));
+                }
+            } else {
+                setAllArticles(fetchedArticles);
+                setArticles(fetchedArticles.slice(0, displayCount));
+            }
         } catch (e) {
             setError('Unable to load news right now');
-            setArticles([]);
+            if (!isLoadMore) {
+                setArticles([]);
+                setAllArticles([]);
+            }
         } finally {
-            setLoading(false);
+            if (isLoadMore) {
+                setLoadingMore(false);
+            } else {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleLoadMore = () => {
+        const newCount = displayCount + 6; // Load 6 more articles
+        setDisplayCount(newCount);
+        
+        // Show more articles from existing list
+        if (newCount <= allArticles.length) {
+            setArticles(allArticles.slice(0, newCount));
+        } else {
+            // If we need more articles, fetch from API
+            loadNews(true);
         }
     };
 
@@ -1268,7 +1308,7 @@ const NewsView = () => {
                     );
                 })}
 
-                {(loading ? Array.from({length:6}) : articles.slice(1,7)).map((a, i) => {
+                {(loading ? Array.from({length:6}) : articles.slice(1, displayCount)).map((a, i) => {
                     const articleUrl = a?.url || a?.link;
                     const handleCardClick = (e) => {
                         // Don't navigate if clicking on the "Read More" link
@@ -1300,6 +1340,66 @@ const NewsView = () => {
                     );
                 })}
             </div>
+            
+            {/* Load More Button */}
+            {!loading && articles.length > 0 && (
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: '2rem',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                    <button
+                        onClick={handleLoadMore}
+                        disabled={loadingMore || displayCount >= allArticles.length}
+                        className="load-more-btn"
+                        style={{
+                            padding: '0.875rem 2rem',
+                            background: loadingMore || displayCount >= allArticles.length
+                                ? 'rgba(255, 255, 255, 0.1)'
+                                : 'linear-gradient(135deg, #00D924, #FF6B35)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            color: '#ffffff',
+                            fontWeight: '600',
+                            fontSize: '0.9375rem',
+                            cursor: loadingMore || displayCount >= allArticles.length ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            opacity: loadingMore || displayCount >= allArticles.length ? 0.5 : 1
+                        }}
+                        onMouseOver={(e) => {
+                            if (!loadingMore && displayCount < allArticles.length) {
+                                e.target.style.transform = 'translateY(-2px)';
+                                e.target.style.boxShadow = '0 8px 20px rgba(0, 217, 36, 0.3)';
+                            }
+                        }}
+                        onMouseOut={(e) => {
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = 'none';
+                        }}
+                    >
+                        {loadingMore ? (
+                            <>
+                                <i className="fas fa-spinner fa-spin"></i>
+                                Loading...
+                            </>
+                        ) : displayCount >= allArticles.length ? (
+                            <>
+                                <i className="fas fa-check"></i>
+                                All News Loaded
+                            </>
+                        ) : (
+                            <>
+                                <i className="fas fa-arrow-down"></i>
+                                Load More ({allArticles.length - displayCount} remaining)
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

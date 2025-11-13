@@ -1311,7 +1311,8 @@ def market_status():
 @app.route('/api/news/market')
 def get_market_news():
     try:
-        news = news_api.get_market_news(limit=10)
+        limit = request.args.get('limit', 10, type=int)
+        news = news_api.get_market_news(limit=limit)
         return jsonify(news)
     except Exception as e:
         return jsonify({'error': 'Could not fetch market news'}), 500
