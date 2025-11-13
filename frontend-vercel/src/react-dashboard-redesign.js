@@ -13,7 +13,7 @@ const DashboardRedesign = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const searchDebounceRef = useRef(null);
-    const [filterText, setFilterText] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('All');
     
     // User data state
     const [userData, setUserData] = useState({ name: 'Account', email: 'Loading...' });
@@ -280,7 +280,8 @@ const DashboardRedesign = () => {
                             name: stock.name || stock.company_name || symbol,
                             current_price: stock.current_price || stock.price || 0,
                             change_percent: stock.change_percent || stock.priceChangePercent || 0,
-                            price_change: stock.price_change || stock.priceChange || 0
+                            price_change: stock.price_change || stock.priceChange || 0,
+                            category: stock.category || 'General'
                         };
                     }));
                     
@@ -635,10 +636,8 @@ const DashboardRedesign = () => {
         }
     };
 
-    const openFilterPrompt = () => {
-        const value = window.prompt ? window.prompt('Filter symbols or names (leave blank to clear):', filterText) : '';
-        setFilterText((value || '').trim());
-    };
+    // Category filter options
+    const categories = ['All', 'Technology', 'General', 'Military', 'Agriculture', 'Healthcare', 'Finance', 'Energy', 'Consumer', 'Industrial'];
 
     if (isLoading) {
         return (
@@ -834,15 +833,15 @@ const DashboardRedesign = () => {
                 {activeView === 'watchlist' && (
                     <WatchlistView 
                         watchlistData={watchlistData.filter((s) => {
-                            if (!filterText) return true;
-                            const q = filterText.toLowerCase();
-                            return (s.symbol || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q);
+                            if (selectedCategory === 'All') return true;
+                            return (s.category || 'General') === selectedCategory;
                         })}
                         onOpenDetails={openDetails}
                         onRemove={removeFromWatchlist}
                         onAdd={addToWatchlist}
-                        onFilter={openFilterPrompt}
-                        isFiltered={!!filterText}
+                        selectedCategory={selectedCategory}
+                        onCategoryChange={setSelectedCategory}
+                        categories={categories}
                     />
                 )}
                 {activeView === 'news' && <NewsView />}
@@ -1025,16 +1024,55 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
 };
 
 // Watchlist View Component
-const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter, isFiltered }) => {
+const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories }) => {
     return (
         <div className="watchlist-view">
             <div className="view-header">
                 <h2>My Watchlist</h2>
-                <div className="header-actions">
-                    <button className="action-btn" onClick={() => onFilter && onFilter()}>
-                        <i className="fas fa-filter"></i> {isFiltered ? 'Filter (On)' : 'Filter'}
+            </div>
+            
+            {/* Category Filter Buttons */}
+            <div className="category-filters" style={{
+                display: 'flex',
+                gap: '0.5rem',
+                padding: '1.5rem 2rem',
+                flexWrap: 'wrap',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+                {categories.map(category => (
+                    <button
+                        key={category}
+                        onClick={() => onCategoryChange && onCategoryChange(category)}
+                        className={`filter-btn ${selectedCategory === category ? 'active' : ''}`}
+                        style={{
+                            padding: '0.625rem 1.25rem',
+                            background: selectedCategory === category 
+                                ? 'linear-gradient(135deg, #00D924, #00B01F)' 
+                                : 'rgba(255, 255, 255, 0.05)',
+                            border: `1px solid ${selectedCategory === category ? 'transparent' : 'rgba(255, 255, 255, 0.1)'}`,
+                            borderRadius: '4px',
+                            color: selectedCategory === category ? '#000000' : 'rgba(255, 255, 255, 0.7)',
+                            fontWeight: selectedCategory === category ? '600' : '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            fontSize: '0.875rem'
+                        }}
+                        onMouseOver={(e) => {
+                            if (selectedCategory !== category) {
+                                e.target.style.background = 'rgba(255, 255, 255, 0.08)';
+                                e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                            }
+                        }}
+                        onMouseOut={(e) => {
+                            if (selectedCategory !== category) {
+                                e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                            }
+                        }}
+                    >
+                        {category}
                     </button>
-                </div>
+                ))}
             </div>
             <div className="watchlist-grid">
                 {watchlistData.map((stock, index) => (
