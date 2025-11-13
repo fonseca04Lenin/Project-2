@@ -4,7 +4,7 @@
 .ai-advisor-section {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 6px;
+    border-radius: 8px;
     margin-bottom: 24px;
     overflow: hidden;
     box-shadow: var(--shadow-lg);
@@ -41,7 +41,7 @@
     gap: 8px;
     background: rgba(255, 255, 255, 0.15);
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 500;
 }
@@ -118,7 +118,7 @@
     padding: 24px;
     background: linear-gradient(135deg, var(--bg-surface), var(--card-bg));
     border: 1px solid var(--card-border);
-    border-radius: 4px;
+    border-radius: 6px;
     animation: slideInUp 0.5s ease-out;
     box-shadow: var(--shadow-sm);
 }
@@ -162,7 +162,7 @@
 .suggestion-btn {
     background: var(--bg-elevated);
     border: 1px solid var(--card-border);
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 10px 18px;
     font-size: 12px;
     font-weight: 500;
@@ -240,7 +240,7 @@
 .ai-chat-message-content {
     max-width: 70%;
     padding: 12px 16px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 14px;
     line-height: 1.5;
     word-wrap: break-word;
@@ -249,14 +249,14 @@
 .ai-chat-message.user .ai-chat-message-content {
     background: var(--primary-color);
     color: var(--text-inverse);
-    border-bottom-right-radius: 1px;
+    border-bottom-right-radius: 2px;
 }
 
 .ai-chat-message.ai .ai-chat-message-content {
     background: var(--bg-surface);
     color: var(--text-primary);
     border: 1px solid var(--card-border);
-    border-bottom-left-radius: 1px;
+    border-bottom-left-radius: 2px;
 }
 
 /* Typing Indicator */
@@ -267,8 +267,8 @@
     padding: 12px 16px;
     background: var(--bg-surface);
     border: 1px solid var(--card-border);
-    border-radius: 4px;
-    border-bottom-left-radius: 1px;
+    border-radius: 6px;
+    border-bottom-left-radius: 2px;
     max-width: 70%;
     animation: slideInUp 0.3s ease-out;
 }
