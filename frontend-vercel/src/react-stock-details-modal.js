@@ -283,6 +283,49 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         fetchData();
     }, [isOpen, symbol, isFromWatchlist]);
 
+    // Real-time price updates when modal is open and market is open
+    useEffect(() => {
+        if (!isOpen || !symbol) return;
+        
+        // Check if market is open (simplified check - you might want to get this from context)
+        const updatePrice = async () => {
+            try {
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const authHeaders = await window.getAuthHeaders();
+                const response = await fetch(`${API_BASE}/api/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ symbol: symbol })
+                });
+                
+                if (response.ok) {
+                    const stockData = await response.json();
+                    setStockData(prev => prev ? {
+                        ...prev,
+                        price: stockData.price,
+                        priceChange: stockData.priceChange || 0,
+                        percentageChange: stockData.priceChangePercent || 0,
+                        priceChangePercent: stockData.priceChangePercent || 0
+                    } : prev);
+                }
+            } catch (e) {
+                // Silently handle update errors
+            }
+        };
+        
+        // Initial update
+        updatePrice();
+        
+        // Update every 15 seconds when modal is open
+        const priceInterval = setInterval(updatePrice, 15000);
+        
+        return () => clearInterval(priceInterval);
+    }, [isOpen, symbol]);
+
     // Render chart when chartData is available
     useEffect(() => {
         if (!chartData || !symbol) return;

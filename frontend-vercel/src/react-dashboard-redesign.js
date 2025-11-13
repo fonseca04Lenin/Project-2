@@ -165,16 +165,27 @@ const DashboardRedesign = () => {
                         const stockData = await response.json();
                         const oldPrice = livePricingRef.current.priceCache.get(stock.symbol);
                         const newPrice = stockData.price;
+                        const newChangePercent = stockData.priceChangePercent || 0;
                         
-                        if (oldPrice && Math.abs(oldPrice - newPrice) > 0.01) {
-                            // Trigger animation by updating watchlist data
+                        // Always update the price, even if it hasn't changed much
+                        // This ensures all displays stay in sync
+                        const hasSignificantChange = oldPrice && Math.abs(oldPrice - newPrice) > 0.01;
+                        
+                        // Update watchlist data with new price and change
                             setWatchlistData(prev => prev.map(s => 
                                 s.symbol === stock.symbol 
-                                    ? { ...s, current_price: newPrice, change_percent: stockData.priceChangePercent, _updated: true }
+                                ? { 
+                                    ...s, 
+                                    current_price: newPrice, 
+                                    change_percent: newChangePercent,
+                                    price_change: stockData.priceChange || 0,
+                                    _updated: hasSignificantChange // Only animate on significant changes
+                                }
                                     : s
                             ));
                             
-                            // Add visual flash animation
+                        // Add visual flash animation only for significant changes
+                        if (hasSignificantChange) {
                             setTimeout(() => {
                                 setWatchlistData(prev => prev.map(s => 
                                     s.symbol === stock.symbol ? { ...s, _updated: false } : s
@@ -880,7 +891,8 @@ const DashboardRedesign = () => {
 
 // Overview Tab Component
 const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
-    const totalValue = watchlistData.reduce((sum, stock) => sum + (stock.current_price * 100 || 0), 0);
+    // Use current_price if available, fallback to price for real-time updates
+    const totalValue = watchlistData.reduce((sum, stock) => sum + ((stock.current_price || stock.price || 0) * 100 || 0), 0);
     const totalChange = watchlistData.reduce((sum, stock) => sum + (stock.change_percent || 0), 0);
     const avgChange = watchlistData.length > 0 ? totalChange / watchlistData.length : 0;
 
@@ -970,7 +982,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
                                     <div className="stock-name">{stock.name}</div>
                                 </div>
                                 <div className={`stock-price ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                    ${stock.current_price?.toFixed(2) || '0.00'}
+                                    ${(stock.current_price || stock.price || 0).toFixed(2)}
                                 </div>
                                 <div className={`stock-change ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                                     <i 
@@ -1105,7 +1117,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                         </div>
                         <div className="stock-name">{stock.name}</div>
                         <div className={`stock-price-large ${stock._updated ? 'price-updated' : ''} ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            ${stock.current_price?.toFixed(2) || '0.00'}
+                            ${(stock.current_price || stock.price || 0).toFixed(2)}
                         </div>
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                             <i 
@@ -1197,14 +1209,14 @@ const NewsView = () => {
         } catch (e) {
             setError('Unable to load news right now');
             if (!isLoadMore) {
-                setArticles([]);
+            setArticles([]);
                 setAllArticles([]);
             }
         } finally {
             if (isLoadMore) {
                 setLoadingMore(false);
             } else {
-                setLoading(false);
+            setLoading(false);
             }
         }
     };
@@ -1282,8 +1294,8 @@ const NewsView = () => {
                         >
                             <div className="news-image-container">
                                 {loading ? (
-                                    <div className="news-image-placeholder">
-                                        <i className="fas fa-chart-line"></i>
+                        <div className="news-image-placeholder">
+                            <i className="fas fa-chart-line"></i>
                                     </div>
                                 ) : (
                                     <>
@@ -1305,18 +1317,18 @@ const NewsView = () => {
                                         </div>
                                     </>
                                 )}
-                            </div>
-                            <div className="news-badge">Featured</div>
-                            <div className="news-content">
-                                <span className="news-category">{loading ? 'Loading…' : (a.source || a.category || 'Top Story')}</span>
-                                <h3>{loading ? 'Loading headline…' : (a.title || '—')}</h3>
+                        </div>
+                        <div className="news-badge">Featured</div>
+                        <div className="news-content">
+                            <span className="news-category">{loading ? 'Loading…' : (a.source || a.category || 'Top Story')}</span>
+                            <h3>{loading ? 'Loading headline…' : (a.title || '—')}</h3>
                                 <p>{loading ? '' : (a.description || a.summary || '')}</p>
-                                <div className="news-meta">
-                                    <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
+                            <div className="news-meta">
+                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
                                     {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
-                                </div>
                             </div>
                         </div>
+                    </div>
                     );
                 })}
 
@@ -1339,7 +1351,7 @@ const NewsView = () => {
                             onClick={handleCardClick}
                             style={{ cursor: articleUrl ? 'pointer' : 'default' }}
                         >
-                            <div className="news-content">
+                        <div className="news-content">
                             <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
                             <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
                             <p>{loading ? '' : (a.description || '')}</p>
