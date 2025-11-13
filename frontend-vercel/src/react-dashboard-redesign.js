@@ -810,8 +810,19 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
                                     ${stock.current_price?.toFixed(2) || '0.00'}
                                 </div>
                                 <div className={`stock-change ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                    <span style={{ marginRight: '4px', fontSize: '12px' }}>
-                                        {stock.change_percent >= 0 ? '↗' : '↘'}
+                                    <span style={{ 
+                                        marginRight: '6px', 
+                                        fontSize: '14px',
+                                        fontWeight: '700',
+                                        color: stock.change_percent >= 0 ? '#00D924' : '#ef4444',
+                                        textShadow: stock.change_percent >= 0 
+                                            ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
+                                            : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
+                                        display: 'inline-block',
+                                        transform: stock.change_percent >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
+                                        lineHeight: '1'
+                                    }}>
+                                        {stock.change_percent >= 0 ? '▲' : '▼'}
                                     </span>
                                     {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                                 </div>
@@ -898,8 +909,19 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
                             ${stock.current_price?.toFixed(2) || '0.00'}
                         </div>
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            <span style={{ marginRight: '6px', fontSize: '16px' }}>
-                                {stock.change_percent >= 0 ? '↗' : '↘'}
+                            <span style={{ 
+                                marginRight: '8px', 
+                                fontSize: '18px',
+                                fontWeight: '700',
+                                color: stock.change_percent >= 0 ? '#00D924' : '#ef4444',
+                                textShadow: stock.change_percent >= 0 
+                                    ? '0 0 10px rgba(0, 217, 36, 0.7), 0 0 15px rgba(0, 217, 36, 0.5)' 
+                                    : '0 0 10px rgba(239, 68, 68, 0.7), 0 0 15px rgba(239, 68, 68, 0.5)',
+                                display: 'inline-block',
+                                transform: stock.change_percent >= 0 ? 'rotate(-45deg)' : 'rotate(45deg)',
+                                lineHeight: '1'
+                            }}>
+                                {stock.change_percent >= 0 ? '▲' : '▼'}
                             </span>
                             {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                         </div>
