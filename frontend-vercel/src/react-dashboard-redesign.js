@@ -13,6 +13,7 @@ const DashboardRedesign = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const searchDebounceRef = useRef(null);
+    const searchInputRef = useRef(null);
     const [selectedCategory, setSelectedCategory] = useState('All');
     
     // User data state
@@ -353,6 +354,22 @@ const DashboardRedesign = () => {
             }
             handleSearch();
         }
+    };
+
+    const handleAddFirstStock = () => {
+        // Scroll to search bar smoothly
+        const searchBar = document.querySelector('.quick-search-bar');
+        if (searchBar) {
+            searchBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // Focus the search input after a short delay to ensure scroll completes
+        setTimeout(() => {
+            if (searchInputRef.current) {
+                searchInputRef.current.focus();
+                searchInputRef.current.click();
+            }
+        }, 300);
     };
 
     const onSearchInputChange = (value) => {
@@ -793,6 +810,7 @@ const DashboardRedesign = () => {
                 <i className="fas fa-search"></i>
                 <div className="search-input-wrapper" style={{ position: 'relative', flex: 1 }}>
                     <input 
+                        ref={searchInputRef}
                         type="text" 
                         placeholder="Search stocks, companies, or symbols..." 
                         className="search-input"
@@ -839,6 +857,7 @@ const DashboardRedesign = () => {
                         })}
                         onOpenDetails={openDetails}
                         onRemove={removeFromWatchlist}
+                        onAddFirstStock={handleAddFirstStock}
                         onAdd={addToWatchlist}
                         selectedCategory={selectedCategory}
                         onCategoryChange={setSelectedCategory}
@@ -1025,7 +1044,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
 };
 
 // Watchlist View Component
-const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories }) => {
+const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock }) => {
     return (
         <div className="watchlist-view">
             <div className="view-header">
@@ -1123,7 +1142,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                         <i className="fas fa-briefcase"></i>
                         <h3>Your watchlist is empty</h3>
                         <p>Add stocks to start tracking</p>
-                        <button className="empty-action-btn">
+                        <button className="empty-action-btn" onClick={onAddFirstStock}>
                             Add Your First Stock
                         </button>
                     </div>
