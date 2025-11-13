@@ -475,10 +475,11 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 border: `1px solid ${priceChange.value >= 0 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
             }
         }, [
-            React.createElement('span', {
+            React.createElement('i', {
                 key: 'change-icon',
+                className: priceChange.value >= 0 ? 'fas fa-arrow-trend-up' : 'fas fa-arrow-trend-down',
                 style: {
-                    fontSize: '18px',
+                    fontSize: '16px',
                     fontWeight: '700',
                     color: priceChange.value >= 0 ? '#00D924' : '#ef4444',
                     textShadow: priceChange.value >= 0 
@@ -488,7 +489,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     lineHeight: '1',
                     marginRight: '6px'
                 }
-            }, priceChange.value >= 0 ? '↗' : '↘'),
+            }),
             React.createElement('span', {
                 key: 'change-value',
                 style: {
