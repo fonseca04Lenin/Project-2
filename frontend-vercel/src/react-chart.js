@@ -397,7 +397,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     style: {
                         fontSize: '20px',
                         fontWeight: '700',
-                        color: '#22c55e',
+                        color: '#cc5500',
                         margin: 0
                     }
                 }, symbol),
