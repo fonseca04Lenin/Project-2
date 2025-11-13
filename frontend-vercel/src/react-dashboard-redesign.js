@@ -806,7 +806,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
                                     <div className="stock-symbol">{stock.symbol}</div>
                                     <div className="stock-name">{stock.name}</div>
                                 </div>
-                                <div className="stock-price">
+                                <div className={`stock-price ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                                     ${stock.current_price?.toFixed(2) || '0.00'}
                                 </div>
                                 <div className={`stock-change ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
@@ -905,7 +905,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
                             </button>
                         </div>
                         <div className="stock-name">{stock.name}</div>
-                        <div className={`stock-price-large ${stock._updated ? 'price-updated' : ''}`}>
+                        <div className={`stock-price-large ${stock._updated ? 'price-updated' : ''} ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                             ${stock.current_price?.toFixed(2) || '0.00'}
                         </div>
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
