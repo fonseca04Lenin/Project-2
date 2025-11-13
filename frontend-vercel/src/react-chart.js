@@ -368,7 +368,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
         className: 'modern-stock-chart',
         style: {
             width: '100%',
-            height: isModal ? '300px' : '400px',
+            height: isModal ? '450px' : '500px',
             backgroundColor: 'rgba(16, 18, 27, 0.8)',
             borderRadius: '12px',
             padding: '16px',
@@ -503,8 +503,9 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
         React.createElement('div', {
             key: 'chart',
             style: {
-                height: isModal ? '200px' : '280px',
-                position: 'relative'
+                height: isModal ? '320px' : '380px',
+                position: 'relative',
+                minHeight: isModal ? '320px' : '380px'
             }
         }, [
             isLoadingNewData && React.createElement('div', {
@@ -545,7 +546,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
             ]),
             React.createElement('canvas', {
                 ref: chartRef,
-                style: { width: '100%', height: '100%' }
+                style: { width: '100%', height: '100%', display: 'block' }
             })
         ])
     ]);

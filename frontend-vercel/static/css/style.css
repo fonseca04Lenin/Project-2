@@ -1255,7 +1255,7 @@ body {
 
 .modern-stock-chart {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .chart-tooltip {
@@ -5612,7 +5612,7 @@ body {
 
 #modalChartContainer {
     width: 100% !important;
-    min-height: 400px;
+    min-height: 450px;
     position: relative;
     overflow: visible;
 }
