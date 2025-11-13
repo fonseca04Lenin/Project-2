@@ -22,7 +22,16 @@ const DashboardRedesign = () => {
     // Live pricing state
     const [lastUpdate, setLastUpdate] = useState(null);
     const [marketStatus, setMarketStatus] = useState({ isOpen: false, status: 'Closed' });
-    const livePricingRef = useRef({ interval: null, isActive: false, priceCache: new Map() });
+    const livePricingRef = useRef({ 
+        interval: null, 
+        isActive: false, 
+        priceCache: new Map(),
+        lastCallTime: 0,
+        rateLimitCooldown: false,
+        rateLimitUntil: 0,
+        callCount: 0,
+        callWindowStart: Date.now()
+    });
     const keepAliveRef = useRef(null);
 
     useEffect(() => {
@@ -141,14 +150,59 @@ const DashboardRedesign = () => {
         return () => clearInterval(marketInterval);
     }, []);
 
-    // Live pricing updates
+    // Live pricing updates with rate limiting
     useEffect(() => {
         if (!watchlistData.length || !marketStatus.isOpen) return;
         
         const updateLivePrices = async () => {
+            const now = Date.now();
+            const ref = livePricingRef.current;
+            
+            // Check if we're in rate limit cooldown
+            if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
+                const remainingSeconds = Math.ceil((ref.rateLimitUntil - now) / 1000);
+                console.log(`⏳ Rate limit cooldown active. Resuming in ${remainingSeconds} seconds...`);
+                return;
+            }
+            
+            // Reset cooldown if time has passed
+            if (ref.rateLimitCooldown && now >= ref.rateLimitUntil) {
+                ref.rateLimitCooldown = false;
+                ref.callCount = 0;
+                ref.callWindowStart = now;
+            }
+            
+            // Reset call count if window has passed (1 minute window)
+            if (now - ref.callWindowStart > 60000) {
+                ref.callCount = 0;
+                ref.callWindowStart = now;
+            }
+            
+            // Rate limit: max 20 calls per minute (conservative limit)
+            const MAX_CALLS_PER_MINUTE = 20;
+            const stocksToUpdate = watchlistData.slice(0, Math.min(10, MAX_CALLS_PER_MINUTE - ref.callCount));
+            
+            if (stocksToUpdate.length === 0) {
+                console.log('⏸️ Rate limit reached. Waiting for next window...');
+                return;
+            }
+            
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             
-            for (const stock of watchlistData.slice(0, 10)) { // Limit to 10 stocks for performance
+            // Process stocks with delay between calls to avoid overwhelming the API
+            for (let i = 0; i < stocksToUpdate.length; i++) {
+                const stock = stocksToUpdate[i];
+                
+                // Add delay between calls (500ms = 2 calls per second max)
+                if (i > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                // Check if we've hit the rate limit during processing
+                if (ref.callCount >= MAX_CALLS_PER_MINUTE) {
+                    break;
+                }
+                
                 try {
                     const authHeaders = await window.getAuthHeaders();
                     const response = await fetch(`${API_BASE}/api/search`, {
@@ -161,9 +215,22 @@ const DashboardRedesign = () => {
                         body: JSON.stringify({ symbol: stock.symbol })
                     });
                     
+                    ref.callCount++;
+                    ref.lastCallTime = Date.now();
+                    
+                    // Handle rate limit response (429 Too Many Requests)
+                    if (response.status === 429) {
+                        const retryAfter = response.headers.get('Retry-After');
+                        const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
+                        ref.rateLimitCooldown = true;
+                        ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
+                        console.warn(`⚠️ Rate limit hit. Cooldown for ${cooldownSeconds} seconds.`);
+                        break;
+                    }
+                    
                     if (response.ok) {
                         const stockData = await response.json();
-                        const oldPrice = livePricingRef.current.priceCache.get(stock.symbol);
+                        const oldPrice = ref.priceCache.get(stock.symbol);
                         const newPrice = stockData.price;
                         const newChangePercent = stockData.priceChangePercent || 0;
                         
@@ -193,21 +260,22 @@ const DashboardRedesign = () => {
                             }, 2000);
                         }
                         
-                        livePricingRef.current.priceCache.set(stock.symbol, newPrice);
+                        ref.priceCache.set(stock.symbol, newPrice);
                     }
                 } catch (e) {
                     // Silently handle update errors
+                    console.error(`Error updating price for ${stock.symbol}:`, e);
                 }
             }
             
             setLastUpdate(new Date());
         };
         
-        // Initial update
-        updateLivePrices();
+        // Initial update with delay
+        setTimeout(updateLivePrices, 1000);
         
-        // Update every 15 seconds during market hours
-        livePricingRef.current.interval = setInterval(updateLivePrices, 15000);
+        // Update every 30 seconds during market hours (increased from 15s to reduce API calls)
+        livePricingRef.current.interval = setInterval(updateLivePrices, 30000);
         livePricingRef.current.isActive = true;
         
         return () => {

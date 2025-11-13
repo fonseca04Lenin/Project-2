@@ -283,12 +283,36 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         fetchData();
     }, [isOpen, symbol, isFromWatchlist]);
 
-    // Real-time price updates when modal is open and market is open
+    // Real-time price updates when modal is open with rate limiting
+    const priceUpdateRef = useRef({ 
+        lastCallTime: 0,
+        rateLimitCooldown: false,
+        rateLimitUntil: 0
+    });
+    
     useEffect(() => {
         if (!isOpen || !symbol) return;
         
-        // Check if market is open (simplified check - you might want to get this from context)
         const updatePrice = async () => {
+            const now = Date.now();
+            const ref = priceUpdateRef.current;
+            
+            // Check if we're in rate limit cooldown
+            if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
+                return; // Skip this update
+            }
+            
+            // Reset cooldown if time has passed
+            if (ref.rateLimitCooldown && now >= ref.rateLimitUntil) {
+                ref.rateLimitCooldown = false;
+            }
+            
+            // Throttle: minimum 2 seconds between calls
+            const minDelay = 2000;
+            if (now - ref.lastCallTime < minDelay) {
+                return; // Skip if too soon
+            }
+            
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                 const authHeaders = await window.getAuthHeaders();
@@ -302,6 +326,18 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     body: JSON.stringify({ symbol: symbol })
                 });
                 
+                ref.lastCallTime = Date.now();
+                
+                // Handle rate limit response
+                if (response.status === 429) {
+                    const retryAfter = response.headers.get('Retry-After');
+                    const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
+                    ref.rateLimitCooldown = true;
+                    ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
+                    console.warn(`⚠️ Rate limit hit in modal. Cooldown for ${cooldownSeconds} seconds.`);
+                    return;
+                }
+                
                 if (response.ok) {
                     const stockData = await response.json();
                     setStockData(prev => prev ? {
@@ -314,14 +350,15 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 }
             } catch (e) {
                 // Silently handle update errors
+                console.error('Error updating price in modal:', e);
             }
         };
         
-        // Initial update
-        updatePrice();
+        // Initial update with delay
+        setTimeout(updatePrice, 1000);
         
-        // Update every 15 seconds when modal is open
-        const priceInterval = setInterval(updatePrice, 15000);
+        // Update every 30 seconds when modal is open (increased from 15s)
+        const priceInterval = setInterval(updatePrice, 30000);
         
         return () => clearInterval(priceInterval);
     }, [isOpen, symbol]);
