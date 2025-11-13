@@ -3,7 +3,15 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import login_required, current_user
 from flask_cors import CORS
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    import zoneinfo
+except ImportError:
+    # For Python < 3.9, use backports.zoneinfo or pytz
+    try:
+        from backports import zoneinfo
+    except ImportError:
+        zoneinfo = None
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 from firebase_service import FirebaseService, get_firestore_client, FirebaseUser
 from watchlist_service import get_watchlist_service
@@ -684,26 +692,47 @@ def start_price_updates():
 
 # Market status function
 def get_market_status():
-    """Get current market status"""
+    """Get current market status in Eastern Time"""
     try:
-        now = datetime.now()
-        # Simple market hours check (9:30 AM - 4:00 PM ET, Monday-Friday)
-        is_weekday = now.weekday() < 5
-        is_market_hours = 9 <= now.hour < 16 or (now.hour == 16 and now.minute <= 30)
+        # Get current time in Eastern Time (handles EST/EDT automatically)
+        if zoneinfo:
+            try:
+                et_tz = zoneinfo.ZoneInfo("America/New_York")
+            except:
+                # Fallback: use UTC offset approximation
+                # EST is UTC-5, EDT is UTC-4
+                # Simple approximation: assume EDT (UTC-4) for now
+                et_tz = timezone(timedelta(hours=-4))
+        else:
+            # Fallback for older Python versions - use UTC offset approximation
+            # EST is UTC-5, EDT is UTC-4
+            # Simple approximation: assume EDT (UTC-4) for now
+            et_tz = timezone(timedelta(hours=-4))
+        
+        now_et = datetime.now(et_tz)
+        
+        # Market hours: 9:30 AM - 4:00 PM ET, Monday-Friday
+        is_weekday = now_et.weekday() < 5  # Monday=0, Friday=4
+        current_time = now_et.time()
+        market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0).time()
+        market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0).time()
+        
+        is_market_hours = market_open <= current_time <= market_close
         
         if is_weekday and is_market_hours:
             return {
                 'isOpen': True,
                 'status': 'Market is Open',
-                'last_updated': now.isoformat()
+                'last_updated': now_et.isoformat()
             }
         else:
             return {
                 'isOpen': False,
                 'status': 'Market is Closed',
-                'last_updated': now.isoformat()
+                'last_updated': now_et.isoformat()
             }
     except Exception as e:
+        print(f"Error getting market status: {e}")
         return {
             'isOpen': False,
             'status': 'Market status unknown',
@@ -1297,16 +1326,42 @@ def get_chart_data(symbol):
 
 @app.route('/api/market-status')
 def market_status():
-    now = datetime.now()
-    market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
-    market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
-    
-    is_open = market_open <= now <= market_close and now.weekday() < 5
-    
-    return jsonify({
-        'isOpen': is_open,
-        'status': 'Market is Open' if is_open else 'Market is Closed'
-    })
+    """Get market status using Eastern Time"""
+    try:
+        # Get current time in Eastern Time (handles EST/EDT automatically)
+        if zoneinfo:
+            try:
+                et_tz = zoneinfo.ZoneInfo("America/New_York")
+            except:
+                # Fallback: use UTC offset approximation
+                et_tz = timezone(timedelta(hours=-4))
+        else:
+            # Fallback for older Python versions - use UTC offset approximation
+            et_tz = timezone(timedelta(hours=-4))
+        
+        now_et = datetime.now(et_tz)
+        
+        # Market hours: 9:30 AM - 4:00 PM ET, Monday-Friday
+        is_weekday = now_et.weekday() < 5  # Monday=0, Friday=4
+        current_time = now_et.time()
+        market_open_time = now_et.replace(hour=9, minute=30, second=0, microsecond=0).time()
+        market_close_time = now_et.replace(hour=16, minute=0, second=0, microsecond=0).time()
+        
+        is_market_hours = market_open_time <= current_time <= market_close_time
+        is_open = is_weekday and is_market_hours
+        
+        return jsonify({
+            'isOpen': is_open,
+            'is_open': is_open,  # Support both naming conventions
+            'status': 'Market is Open' if is_open else 'Market is Closed'
+        })
+    except Exception as e:
+        print(f"Error in market_status endpoint: {e}")
+        return jsonify({
+            'isOpen': False,
+            'is_open': False,
+            'status': 'Market status unknown'
+        }), 500
 
 @app.route('/api/news/market')
 def get_market_news():
