@@ -1312,7 +1312,8 @@ def market_status():
 def get_market_news():
     try:
         limit = request.args.get('limit', 10, type=int)
-        news = news_api.get_market_news(limit=limit)
+        query = request.args.get('q', '').strip()
+        news = news_api.get_market_news(limit=limit, query=query if query else None)
         return jsonify(news)
     except Exception as e:
         return jsonify({'error': 'Could not fetch market news'}), 500

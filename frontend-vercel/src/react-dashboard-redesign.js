@@ -1232,8 +1232,20 @@ const NewsView = () => {
                         style={{ maxWidth:'240px' }} 
                         value={query}
                         onChange={(e)=>setQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                loadNews();
+                            }
+                        }}
                         placeholder="Search news" />
-                    <button className="search-btn" onClick={loadNews} disabled={loading}>Refresh</button>
+                    <button 
+                        className="search-btn" 
+                        onClick={loadNews} 
+                        disabled={loading || loadingMore}
+                    >
+                        {query.trim() ? 'Search' : 'Refresh'}
+                    </button>
                     {error && <span style={{ color:'#FF6B35', fontSize:'0.9rem' }}>{error}</span>}
                 </div>
             </div>
