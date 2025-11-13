@@ -810,6 +810,9 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
                                     ${stock.current_price?.toFixed(2) || '0.00'}
                                 </div>
                                 <div className={`stock-change ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
+                                    <span style={{ marginRight: '4px', fontSize: '12px' }}>
+                                        {stock.change_percent >= 0 ? '↗' : '↘'}
+                                    </span>
                                     {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                                 </div>
                             </div>
@@ -895,6 +898,9 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, onFilter
                             ${stock.current_price?.toFixed(2) || '0.00'}
                         </div>
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
+                            <span style={{ marginRight: '6px', fontSize: '16px' }}>
+                                {stock.change_percent >= 0 ? '↗' : '↘'}
+                            </span>
                             {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                         </div>
                         <div className="card-actions">
