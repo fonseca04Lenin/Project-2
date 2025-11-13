@@ -425,12 +425,138 @@ const DashboardRedesign = () => {
         }
     };
 
-    // Expose chart viewing globally
+    // Expose chart viewing globally - opens chart-only modal
     window.viewChart = async (symbol) => {
-        if (window.openStockDetailsModalReact) {
-            window.openStockDetailsModalReact(symbol);
-            // Chart will be shown in the modal
+        if (!symbol) return;
+        
+        // Create chart-only modal
+        const chartModalContainer = document.createElement('div');
+        chartModalContainer.id = 'chart-only-modal-container';
+        chartModalContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        `;
+        
+        // Add fadeIn animation if not exists
+        if (!document.getElementById('chart-modal-styles')) {
+            const style = document.createElement('style');
+            style.id = 'chart-modal-styles';
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
         }
+        
+        const chartContent = document.createElement('div');
+        chartContent.style.cssText = `
+            background: linear-gradient(135deg, #10121b 0%, #1a1d2e 100%);
+            border-radius: 6px;
+            padding: 2rem;
+            max-width: 1000px;
+            width: 100%;
+            max-height: 90vh;
+            position: relative;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(204, 85, 0, 0.2);
+        `;
+        
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '✕';
+        closeBtn.style.cssText = `
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+        `;
+        closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(239, 68, 68, 0.3)';
+        closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+        
+        const closeModal = () => {
+            chartModalContainer.remove();
+            document.body.style.overflow = '';
+        };
+        closeBtn.onclick = closeModal;
+        
+        // Chart container
+        const chartContainer = document.createElement('div');
+        chartContainer.id = 'chartOnlyContainer';
+        chartContainer.style.cssText = 'width: 100%; min-height: 500px;';
+        
+        chartContent.appendChild(closeBtn);
+        chartContent.appendChild(chartContainer);
+        chartModalContainer.appendChild(chartContent);
+        document.body.appendChild(chartModalContainer);
+        document.body.style.overflow = 'hidden';
+        
+        // Fetch chart data and render
+        try {
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=30d`, {
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const chartData = await response.json();
+                
+                // Wait for StockChart to be available
+                const maxRetries = 10;
+                let retries = 0;
+                const renderChart = () => {
+                    if (window.StockChart && chartContainer) {
+                        const chartRoot = ReactDOM.createRoot(chartContainer);
+                        chartRoot.render(React.createElement(window.StockChart, {
+                            symbol: symbol,
+                            data: chartData,
+                            isModal: true,
+                            onClose: closeModal
+                        }));
+                    } else if (retries < maxRetries) {
+                        retries++;
+                        setTimeout(renderChart, 200);
+                    } else {
+                        chartContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ef4444;"><i class="fas fa-exclamation-circle"></i><p>Chart component not available</p></div>';
+                    }
+                };
+                renderChart();
+            } else {
+                chartContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ef4444;"><i class="fas fa-exclamation-circle"></i><p>Failed to load chart data</p></div>';
+            }
+        } catch (error) {
+            chartContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #ef4444;"><i class="fas fa-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+        }
+        
+        // Close on escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
     };
 
     const removeFromWatchlist = async (symbol) => {
