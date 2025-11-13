@@ -907,17 +907,37 @@
 
 .news-card.featured {
     grid-column: 1 / -1;
+    position: relative;
+}
+
+.news-image-container {
+    width: 100%;
+    height: 400px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(0, 217, 36, 0.15), rgba(255, 107, 53, 0.15));
+}
+
+.news-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
 }
 
 .news-image-placeholder {
     width: 100%;
-    height: 200px;
+    height: 100%;
     background: linear-gradient(135deg, rgba(0, 217, 36, 0.15), rgba(255, 107, 53, 0.15));
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 4rem;
     color: #00D924;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .news-badge {

@@ -1157,7 +1157,7 @@ const NewsView = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [articles, setArticles] = useState([]);
-    const [query, setQuery] = useState('markets');
+    const [query, setQuery] = useState('');
 
     useEffect(() => { loadNews(); }, []);
 
@@ -1166,7 +1166,11 @@ const NewsView = () => {
             setLoading(true); setError('');
             const authHeaders = await window.getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            const r = await fetch(`${API_BASE}/api/news/market?q=${encodeURIComponent(query)}`, { headers: authHeaders, credentials: 'include' });
+            // If query is empty, just fetch market news without query parameter
+            const url = query.trim() 
+                ? `${API_BASE}/api/news/market?q=${encodeURIComponent(query.trim())}`
+                : `${API_BASE}/api/news/market`;
+            const r = await fetch(url, { headers: authHeaders, credentials: 'include' });
             if (!r.ok) throw new Error('Failed to fetch news');
             const data = await r.json();
             setArticles(Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : []);
@@ -1194,37 +1198,107 @@ const NewsView = () => {
                 </div>
             </div>
             <div className="news-grid">
-                {(loading ? Array.from({length:1}) : articles.slice(0,1)).map((a, idx) => (
-                    <div key={`feat-${idx}`} className="news-card featured">
-                        <div className="news-image-placeholder">
-                            <i className="fas fa-chart-line"></i>
-                        </div>
-                        <div className="news-badge">Featured</div>
-                        <div className="news-content">
-                            <span className="news-category">{loading ? 'Loading…' : (a.source || a.category || 'Top Story')}</span>
-                            <h3>{loading ? 'Loading headline…' : (a.title || '—')}</h3>
-                            <p>{loading ? '' : (a.description || '')}</p>
-                            <div className="news-meta">
-                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                {a?.url && <a className="read-more" href={a.url} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                {(loading ? Array.from({length:1}) : articles.slice(0,1)).map((a, idx) => {
+                    // Generate fallback image URL using Unsplash Source API (generic financial/stock market image)
+                    const getImageUrl = () => {
+                        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
+                            return a.image_url;
+                        }
+                        // Fallback: Use Unsplash Source API for generic financial images
+                        // Using a 16:9 aspect ratio (1920x1080) which matches typical news image ratios
+                        const seed = a?.title ? encodeURIComponent(a.title.substring(0, 20)) : 'stock-market';
+                        return `https://source.unsplash.com/1920x1080/?finance,stock-market,business,${seed}`;
+                    };
+                    
+                    const articleUrl = a?.url || a?.link;
+                    const handleCardClick = (e) => {
+                        // Don't navigate if clicking on the "Read More" link
+                        if (e.target.closest('.read-more')) {
+                            return;
+                        }
+                        if (articleUrl) {
+                            window.open(articleUrl, '_blank', 'noopener,noreferrer');
+                        }
+                    };
+                    
+                    return (
+                        <div 
+                            key={`feat-${idx}`} 
+                            className="news-card featured"
+                            onClick={handleCardClick}
+                            style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                        >
+                            <div className="news-image-container">
+                                {loading ? (
+                                    <div className="news-image-placeholder">
+                                        <i className="fas fa-chart-line"></i>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <img 
+                                            src={getImageUrl()} 
+                                            alt={a?.title || 'News image'}
+                                            className="news-image"
+                                            onError={(e) => {
+                                                // If image fails to load, hide image and show placeholder
+                                                e.target.style.display = 'none';
+                                                const placeholder = e.target.parentElement.querySelector('.news-image-placeholder');
+                                                if (placeholder) {
+                                                    placeholder.style.display = 'flex';
+                                                }
+                                            }}
+                                        />
+                                        <div className="news-image-placeholder" style={{ display: 'none' }}>
+                                            <i className="fas fa-chart-line"></i>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="news-badge">Featured</div>
+                            <div className="news-content">
+                                <span className="news-category">{loading ? 'Loading…' : (a.source || a.category || 'Top Story')}</span>
+                                <h3>{loading ? 'Loading headline…' : (a.title || '—')}</h3>
+                                <p>{loading ? '' : (a.description || a.summary || '')}</p>
+                                <div className="news-meta">
+                                    <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
+                                    {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
 
-                {(loading ? Array.from({length:6}) : articles.slice(1,7)).map((a, i) => (
-                    <div key={`card-${i}`} className="news-card">
-                        <div className="news-content">
+                {(loading ? Array.from({length:6}) : articles.slice(1,7)).map((a, i) => {
+                    const articleUrl = a?.url || a?.link;
+                    const handleCardClick = (e) => {
+                        // Don't navigate if clicking on the "Read More" link
+                        if (e.target.closest('.read-more')) {
+                            return;
+                        }
+                        if (articleUrl) {
+                            window.open(articleUrl, '_blank', 'noopener,noreferrer');
+                        }
+                    };
+                    
+                    return (
+                        <div 
+                            key={`card-${i}`} 
+                            className="news-card"
+                            onClick={handleCardClick}
+                            style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                        >
+                            <div className="news-content">
                             <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
                             <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
                             <p>{loading ? '' : (a.description || '')}</p>
                             <div className="news-meta">
                                 <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                {a?.url && <a className="read-more" href={a.url} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                                {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
                             </div>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
