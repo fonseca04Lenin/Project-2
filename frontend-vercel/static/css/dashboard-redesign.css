@@ -557,6 +557,7 @@
     font-weight: 700;
     font-size: 1.125rem;
     margin-bottom: 0.25rem;
+    color: #cc5500;
 }
 
 .stock-name {
@@ -720,6 +721,7 @@
 .stock-symbol {
     font-size: 1.5rem;
     font-weight: 700;
+    color: #cc5500;
 }
 
 .more-btn {
