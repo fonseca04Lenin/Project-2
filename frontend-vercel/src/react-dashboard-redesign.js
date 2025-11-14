@@ -30,7 +30,10 @@ const DashboardRedesign = () => {
         rateLimitCooldown: false,
         rateLimitUntil: 0,
         callCount: 0,
-        callWindowStart: Date.now()
+        callWindowStart: Date.now(),
+        visibleStocks: new Set(),
+        hoveredStocks: new Set(),
+        stockRefs: new Map()
     });
     const keepAliveRef = useRef(null);
 
@@ -150,18 +153,123 @@ const DashboardRedesign = () => {
         return () => clearInterval(marketInterval);
     }, []);
 
-    // Live pricing updates with rate limiting
+    // Helper function to update a single stock's price
+    const updateStockPrice = async (symbol, ref) => {
+        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+        
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const response = await fetch(`${API_BASE}/api/search`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders
+                },
+                credentials: 'include',
+                body: JSON.stringify({ symbol: symbol })
+            });
+            
+            ref.callCount++;
+            ref.lastCallTime = Date.now();
+            
+            // Handle rate limit response (429 Too Many Requests)
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After');
+                const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
+                ref.rateLimitCooldown = true;
+                ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
+                console.warn(`⚠️ Rate limit hit. Cooldown for ${cooldownSeconds} seconds.`);
+                return false;
+            }
+            
+            if (response.ok) {
+                const stockData = await response.json();
+                const oldPrice = ref.priceCache.get(symbol);
+                const newPrice = stockData.price;
+                const newChangePercent = stockData.priceChangePercent || 0;
+                
+                const hasSignificantChange = oldPrice && Math.abs(oldPrice - newPrice) > 0.01;
+                
+                // Update watchlist data with new price and change
+                setWatchlistData(prev => prev.map(s => 
+                    s.symbol === symbol 
+                        ? { 
+                            ...s, 
+                            current_price: newPrice, 
+                            change_percent: newChangePercent,
+                            price_change: stockData.priceChange || 0,
+                            _updated: hasSignificantChange
+                        }
+                        : s
+                ));
+                
+                if (hasSignificantChange) {
+                    setTimeout(() => {
+                        setWatchlistData(prev => prev.map(s => 
+                            s.symbol === symbol ? { ...s, _updated: false } : s
+                        ));
+                    }, 2000);
+                }
+                
+                ref.priceCache.set(symbol, newPrice);
+                return true;
+            }
+        } catch (e) {
+            console.error(`Error updating price for ${symbol}:`, e);
+        }
+        return false;
+    };
+
+    // Live pricing updates with visibility detection and rate limiting
     useEffect(() => {
         if (!watchlistData.length || !marketStatus.isOpen) return;
         
+        const ref = livePricingRef.current;
+        
+        // Set up Intersection Observer to track visible stocks
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const symbol = entry.target.getAttribute('data-stock-symbol');
+                if (!symbol) return;
+                
+                if (entry.isIntersecting) {
+                    ref.visibleStocks.add(symbol);
+                } else {
+                    ref.visibleStocks.delete(symbol);
+                }
+            });
+        }, {
+            root: null,
+            rootMargin: '50px', // Start loading slightly before visible
+            threshold: 0.1
+        });
+        
+        // Observe all stock elements
+        const observeStocks = () => {
+            watchlistData.forEach(stock => {
+                const elements = document.querySelectorAll(`[data-stock-symbol="${stock.symbol}"]`);
+                elements.forEach(el => {
+                    // Only observe if not already observed
+                    if (!el.hasAttribute('data-observed')) {
+                        observer.observe(el);
+                        el.setAttribute('data-observed', 'true');
+                    }
+                });
+            });
+        };
+        
+        // Initial observation with delay to ensure DOM is ready
+        const observeTimeout = setTimeout(observeStocks, 500);
+        
+        // Re-observe when watchlist changes
+        const reobserveInterval = setInterval(observeStocks, 2000);
+        
         const updateLivePrices = async () => {
             const now = Date.now();
-            const ref = livePricingRef.current;
             
             // Check if we're in rate limit cooldown
             if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
                 const remainingSeconds = Math.ceil((ref.rateLimitUntil - now) / 1000);
-                console.log(`⏳ Rate limit cooldown active. Resuming in ${remainingSeconds} seconds...`);
                 return;
             }
             
@@ -178,94 +286,34 @@ const DashboardRedesign = () => {
                 ref.callWindowStart = now;
             }
             
-            // Rate limit: max 20 calls per minute (conservative limit)
-            const MAX_CALLS_PER_MINUTE = 20;
-            const stocksToUpdate = watchlistData.slice(0, Math.min(10, MAX_CALLS_PER_MINUTE - ref.callCount));
+            // Get stocks that are visible or hovered
+            const stocksToUpdate = watchlistData.filter(stock => 
+                ref.visibleStocks.has(stock.symbol) || ref.hoveredStocks.has(stock.symbol)
+            );
             
-            if (stocksToUpdate.length === 0) {
-                console.log('⏸️ Rate limit reached. Waiting for next window...');
-                return;
-            }
+            if (stocksToUpdate.length === 0) return;
             
-            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            // Rate limit: max 30 calls per minute (increased since we're only updating visible stocks)
+            const MAX_CALLS_PER_MINUTE = 30;
+            const availableCalls = MAX_CALLS_PER_MINUTE - ref.callCount;
+            const stocksToProcess = stocksToUpdate.slice(0, availableCalls);
             
-            // Process stocks with delay between calls to avoid overwhelming the API
-            for (let i = 0; i < stocksToUpdate.length; i++) {
-                const stock = stocksToUpdate[i];
+            if (stocksToProcess.length === 0) return;
+            
+            // Process stocks with delay between calls
+            for (let i = 0; i < stocksToProcess.length; i++) {
+                const stock = stocksToProcess[i];
                 
-                // Add delay between calls (500ms = 2 calls per second max)
+                // Add delay between calls (300ms = ~3 calls per second max)
                 if (i > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 
-                // Check if we've hit the rate limit during processing
                 if (ref.callCount >= MAX_CALLS_PER_MINUTE) {
                     break;
                 }
                 
-                try {
-                    const authHeaders = await window.getAuthHeaders();
-                    const response = await fetch(`${API_BASE}/api/search`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...authHeaders
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify({ symbol: stock.symbol })
-                    });
-                    
-                    ref.callCount++;
-                    ref.lastCallTime = Date.now();
-                    
-                    // Handle rate limit response (429 Too Many Requests)
-                    if (response.status === 429) {
-                        const retryAfter = response.headers.get('Retry-After');
-                        const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
-                        ref.rateLimitCooldown = true;
-                        ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
-                        console.warn(`⚠️ Rate limit hit. Cooldown for ${cooldownSeconds} seconds.`);
-                        break;
-                    }
-                    
-                    if (response.ok) {
-                        const stockData = await response.json();
-                        const oldPrice = ref.priceCache.get(stock.symbol);
-                        const newPrice = stockData.price;
-                        const newChangePercent = stockData.priceChangePercent || 0;
-                        
-                        // Always update the price, even if it hasn't changed much
-                        // This ensures all displays stay in sync
-                        const hasSignificantChange = oldPrice && Math.abs(oldPrice - newPrice) > 0.01;
-                        
-                        // Update watchlist data with new price and change
-                            setWatchlistData(prev => prev.map(s => 
-                                s.symbol === stock.symbol 
-                                ? { 
-                                    ...s, 
-                                    current_price: newPrice, 
-                                    change_percent: newChangePercent,
-                                    price_change: stockData.priceChange || 0,
-                                    _updated: hasSignificantChange // Only animate on significant changes
-                                }
-                                    : s
-                            ));
-                            
-                        // Add visual flash animation only for significant changes
-                        if (hasSignificantChange) {
-                            setTimeout(() => {
-                                setWatchlistData(prev => prev.map(s => 
-                                    s.symbol === stock.symbol ? { ...s, _updated: false } : s
-                                ));
-                            }, 2000);
-                        }
-                        
-                        ref.priceCache.set(stock.symbol, newPrice);
-                    }
-                } catch (e) {
-                    // Silently handle update errors
-                    console.error(`Error updating price for ${stock.symbol}:`, e);
-                }
+                await updateStockPrice(stock.symbol, ref);
             }
             
             setLastUpdate(new Date());
@@ -274,17 +322,45 @@ const DashboardRedesign = () => {
         // Initial update with delay
         setTimeout(updateLivePrices, 1000);
         
-        // Update every 30 seconds during market hours (increased from 15s to reduce API calls)
-        livePricingRef.current.interval = setInterval(updateLivePrices, 30000);
-        livePricingRef.current.isActive = true;
+        // Update every 10 seconds during market hours
+        ref.interval = setInterval(updateLivePrices, 10000);
+        ref.isActive = true;
         
         return () => {
-            if (livePricingRef.current.interval) {
-                clearInterval(livePricingRef.current.interval);
+            if (ref.interval) {
+                clearInterval(ref.interval);
             }
-            livePricingRef.current.isActive = false;
+            clearTimeout(observeTimeout);
+            clearInterval(reobserveInterval);
+            observer.disconnect();
+            ref.isActive = false;
         };
     }, [watchlistData, marketStatus.isOpen]);
+    
+    // Function to handle hover updates for off-screen stocks
+    const handleStockHover = async (symbol) => {
+        const ref = livePricingRef.current;
+        
+        // Only update if not visible and not recently updated
+        if (ref.visibleStocks.has(symbol)) return;
+        
+        ref.hoveredStocks.add(symbol);
+        
+        // Check rate limits
+        const now = Date.now();
+        if (ref.rateLimitCooldown && now < ref.rateLimitUntil) return;
+        if (ref.callCount >= 30) return;
+        
+        // Small delay to avoid rapid hover updates
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        await updateStockPrice(symbol, ref);
+        
+        // Remove from hovered after a delay
+        setTimeout(() => {
+            ref.hoveredStocks.delete(symbol);
+        }, 5000);
+    };
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -927,7 +1003,7 @@ const DashboardRedesign = () => {
 
             {/* Main Content Area */}
             <div className="dashboard-content">
-                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} />}
+                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} />}
                 {activeView === 'watchlist' && (
                     <WatchlistView 
                         watchlistData={watchlistData.filter((s) => {
@@ -941,6 +1017,7 @@ const DashboardRedesign = () => {
                         selectedCategory={selectedCategory}
                         onCategoryChange={setSelectedCategory}
                         categories={categories}
+                        onStockHover={handleStockHover}
                     />
                 )}
                 {activeView === 'news' && <NewsView />}
@@ -958,7 +1035,7 @@ const DashboardRedesign = () => {
 };
 
 // Overview Tab Component
-const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
+const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover }) => {
     // Use current_price if available, fallback to price for real-time updates
     const totalValue = watchlistData.reduce((sum, stock) => sum + ((stock.current_price || stock.price || 0) * 100 || 0), 0);
     const totalChange = watchlistData.reduce((sum, stock) => sum + (stock.change_percent || 0), 0);
@@ -1035,8 +1112,10 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
                             <div 
                                 key={index} 
                                 className="stock-row"
+                                data-stock-symbol={stock.symbol}
                                 role="button"
                                 tabIndex={0}
+                                onMouseEnter={() => onStockHover && onStockHover(stock.symbol)}
                                 onClick={() => window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
@@ -1124,7 +1203,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate }) => {
 };
 
 // Watchlist View Component
-const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock }) => {
+const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover }) => {
     return (
         <div className="watchlist-view">
             <div className="view-header">
@@ -1176,7 +1255,14 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
             </div>
             <div className="watchlist-grid">
                 {watchlistData.map((stock, index) => (
-                    <div key={index} className="watchlist-card" role="group" aria-label={`${stock.symbol} card`}>
+                    <div 
+                        key={index} 
+                        className="watchlist-card" 
+                        data-stock-symbol={stock.symbol}
+                        role="group" 
+                        aria-label={`${stock.symbol} card`}
+                        onMouseEnter={() => onStockHover && onStockHover(stock.symbol)}
+                    >
                         <div className="card-top">
                             <div className="stock-symbol">{stock.symbol}</div>
                             <button className="more-btn">
