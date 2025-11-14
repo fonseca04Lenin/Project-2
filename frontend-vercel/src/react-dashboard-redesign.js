@@ -322,8 +322,8 @@ const DashboardRedesign = () => {
         // Initial update with delay
         setTimeout(updateLivePrices, 1000);
         
-        // Update every 10 seconds during market hours
-        ref.interval = setInterval(updateLivePrices, 10000);
+        // Update every 5 seconds during market hours
+        ref.interval = setInterval(updateLivePrices, 5000);
         ref.isActive = true;
         
         return () => {
