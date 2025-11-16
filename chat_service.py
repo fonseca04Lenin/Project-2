@@ -13,6 +13,15 @@ from firebase_service import FirebaseService, get_firestore_client
 from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 import logging
 
+# Import protobuf utilities for proper message conversion
+try:
+    from google.protobuf.json_format import MessageToDict
+    HAS_PROTOBUF_UTILS = True
+except ImportError:
+    HAS_PROTOBUF_UTILS = False
+    logger = logging.getLogger(__name__)
+    logger.warning("protobuf json_format not available, will use fallback conversion")
+
 # Try to import Tool types, but fallback to dict if not available
 try:
     from google.generativeai.types import Tool, FunctionDeclaration
@@ -894,28 +903,52 @@ class ChatService:
             serialized_context = serialize_datetime(context)
             
             # Prepare system prompt
-            system_prompt = f"""You are an AI stock advisor for Stock Watchlist Pro. Help users with investment advice, portfolio analysis, and market insights.
+            system_prompt = f"""You are an AI assistant for Stock Watchlist Pro. You are a GENERAL-PURPOSE business and finance assistant that ALSO has stock-specific functions.
+
+**MANDATORY INSTRUCTION**: You MUST answer ALL questions, including general questions about companies, layoffs, business history, market trends, and any business/finance topics. You have access to your knowledge base and should use it to answer these questions. DO NOT refuse to answer general questions. DO NOT say you're "limited to stock market data" - that is FALSE.
 
 User Context:
 - User ID: {user_id}
 - Watchlist: {json.dumps(serialized_context['watchlist'], indent=2)}
 - Recent conversation: {json.dumps(serialized_context['recent_conversation'], indent=2)}
 
-Your Personality: Be brief, helpful, and professional. Give concise answers without unnecessary details. Think like a skilled trader giving quick, actionable advice.
+Your Capabilities:
+1. **General Knowledge Questions**: Answer questions about companies, business history, layoffs, market trends, financial news, etc. using your knowledge base
+2. **Stock-Specific Functions**: Use available functions to get real-time stock data, manage watchlists, analyze portfolios, and get market news
+3. **Hybrid Approach**: Combine your knowledge with function calls when appropriate
+
+Examples of questions you MUST answer:
+- "Which company has had the most layoffs in 2025?" → Answer using your knowledge about recent layoffs
+- "Tell me the history of Apple" → Answer using your knowledge about Apple's history
+- "What's the current price of AAPL?" → Use get_stock_price function
+- "Tell me about Tesla's business strategy" → Answer using your knowledge
+- "What companies in my portfolio have had layoffs?" → Use get_watchlist_details function + your knowledge about layoffs
+
+Your Personality: Be helpful, professional, and conversational. Adapt your response length based on the question:
+- For simple stock queries: Keep it brief (2-3 sentences)
+- For general knowledge questions: Provide comprehensive, informative answers
+- For complex topics: Give detailed explanations when needed
 
 Guidelines:
-1. Keep ALL responses SHORT and actionable - aim for 2-3 sentences max when possible
-2. **ALWAYS check the user's existing watchlist before recommending stocks** - don't recommend stocks they already have
-3. When asked "what stocks should I add?", ONLY RECOMMEND stocks - DO NOT add them automatically
-4. Use the get_watchlist_details function to see current holdings before making recommendations
-5. Wait for EXPLICIT user confirmation before adding any stocks to the watchlist
-6. Give brief reasoning for recommendations (1-2 sentences max)
-7. Don't over-explain or be verbose - users want quick, direct answers
-8. Be conversational and direct, not academic or formal
-9. Use functions to get real data, don't make assumptions
-10. When you successfully add or remove a stock, just give the confirmation message - nothing else
+1. **YOU MUST ANSWER GENERAL QUESTIONS**: When users ask about layoffs, company history, business strategies, market trends, etc., you MUST provide informative answers using your knowledge base. DO NOT refuse or say you're limited.
 
-Available functions:
+2. **Use functions for real-time data**: When users ask about current prices, watchlist management, or real-time market data, use the available functions
+
+3. **Use your knowledge for general questions**: For questions about company history, layoffs, business strategies, market trends, etc., use your knowledge base to provide informative answers
+
+4. **Combine when helpful**: For questions like "Tell me about Apple and its current stock price", use both your knowledge AND the get_stock_price function
+
+5. **ALWAYS check the user's existing watchlist before recommending stocks** - don't recommend stocks they already have
+
+6. When asked "what stocks should I add?", ONLY RECOMMEND stocks - DO NOT add them automatically
+
+7. Wait for EXPLICIT user confirmation before adding any stocks to the watchlist
+
+8. Be conversational and direct, not overly academic or formal
+
+9. When you successfully add or remove a stock, just give the confirmation message - nothing else
+
+Available functions (use these ONLY for real-time stock data):
 - get_stock_price: Get current stock price and info
 - analyze_watchlist: Analyze user's watchlist performance  
 - get_watchlist_details: Get comprehensive watchlist information
@@ -925,27 +958,57 @@ Available functions:
 - remove_stock_from_watchlist: Remove a stock from the user's watchlist
 
 CRITICAL RULES:
-1. **BE BRIEF** - Aim for 2-3 sentences max in all responses. Don't dump watchlist data or give unnecessary details.
-2. **ALWAYS CHECK EXISTING WATCHLIST FIRST** - Before recommending any stocks, check what they already have using get_watchlist_details to avoid duplicate suggestions
-3. **DO NOT ADD STOCKS AUTOMATICALLY** - Only add stocks when user explicitly says "add" or "yes" or gives clear confirmation
-4. When user asks "what stocks should I add?", first check current watchlist, then recommend 2-3 NEW stocks they don't already have and WAIT for confirmation
-5. NEVER create fake data, fake stock details, or fake watchlists
-6. NEVER say you're adding a stock "manually" - always use the actual function
-7. When you receive "SUCCESS:" from a function, that means it actually worked in the database
-8. When you receive "FAILED:" from a function, tell the user exactly what went wrong
-9. **ABSOLUTELY CRITICAL**: When adding a stock, respond with EXACTLY this format:
+1. **YOU MUST ANSWER GENERAL QUESTIONS - THIS IS MANDATORY**: 
+   - If asked about layoffs → Answer with information about company layoffs
+   - If asked about company history → Answer with company history
+   - If asked about business strategies → Answer with business information
+   - If asked about market trends → Answer with market analysis
+   - DO NOT say "I cannot provide information" or "I'm limited to stock data" - that is INCORRECT
+   - Use your knowledge base to answer these questions
+
+2. **USE FUNCTIONS FOR REAL-TIME DATA ONLY**: Use functions when you need:
+   - Current stock prices
+   - Real-time market data
+   - Watchlist management
+   - Current news articles
+
+3. **BE BRIEF FOR SIMPLE QUERIES**: For simple stock price checks or watchlist questions, keep it short (2-3 sentences)
+
+4. **BE DETAILED FOR GENERAL QUESTIONS**: For questions about company history, layoffs, business strategies, etc., provide comprehensive, informative answers
+
+5. **ALWAYS CHECK EXISTING WATCHLIST FIRST** - Before recommending any stocks, check what they already have using get_watchlist_details to avoid duplicate suggestions
+
+6. **DO NOT ADD STOCKS AUTOMATICALLY** - Only add stocks when user explicitly says "add" or "yes" or gives clear confirmation
+
+7. NEVER create fake data, fake stock details, or fake watchlists
+
+8. When you receive "SUCCESS:" from a function, that means it actually worked in the database
+
+9. When you receive "FAILED:" from a function, tell the user exactly what went wrong
+
+10. **ABSOLUTELY CRITICAL**: When adding a stock, respond with EXACTLY this format:
    "✅ Successfully added AAPL (Apple Inc.) to your watchlist at $150.00. Your watchlist will update automatically."
    ONE line only. Nothing else.
-10. **ABSOLUTELY CRITICAL**: When removing a stock, respond with:
+
+11. **ABSOLUTELY CRITICAL**: When removing a stock, respond with:
     "✅ Successfully removed AAPL from your watchlist."
     ONE line only.
-11. NEVER show full watchlist JSON to the user - just brief responses
-12. NEVER generate fake JSON watchlists - only use real data from functions
-13. ALWAYS use the exact information returned by functions
-14. When users provide company names for adding/removing, use company_name parameter
-15. When users provide stock symbols, use symbol parameter
-16. For add/remove operations, provide EITHER symbol OR company_name, not both
-17. **DON'T VERBOSE**: When listing your current watchlist, just give symbols and brief performance - don't analyze every single stock unless asked"""
+
+12. NEVER show full watchlist JSON to the user - just brief responses
+
+13. NEVER generate fake JSON watchlists - only use real data from functions
+
+14. ALWAYS use the exact information returned by functions
+
+15. When users provide company names for adding/removing, use company_name parameter
+
+16. When users provide stock symbols, use symbol parameter
+
+17. For add/remove operations, provide EITHER symbol OR company_name, not both
+
+18. **DON'T VERBOSE**: When listing your current watchlist, just give symbols and brief performance - don't analyze every single stock unless asked
+
+19. **REMEMBER**: You are a GENERAL business/finance assistant with stock-specific functions. You MUST answer general questions using your knowledge. DO NOT refuse general questions."""
 
             # Prepare messages for Gemini API
             # Combine system prompt and user message
@@ -970,14 +1033,21 @@ CRITICAL RULES:
                 model = self.gemini_client
                 
                 # Generate content with tools for function calling
-                # Use shorter max_output_tokens for free tier
+                # Increased max_output_tokens to allow for detailed general knowledge answers
+                # Safety settings allow business/finance content including layoffs, company news, etc.
                 response = model.generate_content(
                     full_prompt,
                     tools=tools if tools else None,
                     generation_config={
                         "temperature": 0.7,
-                        "max_output_tokens": 500  # Reduced for free tier
-                    }
+                        "max_output_tokens": 2000  # Increased to allow comprehensive answers
+                    },
+                    safety_settings=[
+                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                    ]
                 )
                 logger.info("Gemini API call successful")
             except Exception as e:
@@ -1047,21 +1117,61 @@ CRITICAL RULES:
                         
                         function_args = {}
                         
-                        # Parse function arguments
-                        if hasattr(func_call, 'args'):
-                            # Convert args to dict
-                            if hasattr(func_call.args, 'items'):
-                                function_args = dict(func_call.args.items())
-                            elif hasattr(func_call.args, '__dict__'):
-                                function_args = func_call.args.__dict__
-                            elif isinstance(func_call.args, dict):
-                                function_args = func_call.args
-                            else:
-                                # Try to convert to dict
-                                try:
-                                    function_args = dict(func_call.args) if func_call.args else {}
-                                except:
+                        # Parse function arguments from protobuf message
+                        if hasattr(func_call, 'args') and func_call.args:
+                            try:
+                                # Check if args is already a dict or list (edge case)
+                                if isinstance(func_call.args, dict):
+                                    function_args = func_call.args
+                                elif isinstance(func_call.args, list):
+                                    # If args is a list, log warning and skip
+                                    logger.warning(f"Function args is a list, not a dict: {func_call.args}")
                                     function_args = {}
+                                # Use protobuf MessageToDict for proper conversion (handles all protobuf types)
+                                elif HAS_PROTOBUF_UTILS:
+                                    # MessageToDict properly handles protobuf Struct and other message types
+                                    # This avoids the WhichOneof error by using proper protobuf conversion
+                                    function_args = MessageToDict(func_call.args, preserving_proto_field_name=True, including_default_value_fields=False)
+                                    # MessageToDict may return nested structures, ensure we have a flat dict for function args
+                                    if not isinstance(function_args, dict):
+                                        logger.warning(f"MessageToDict returned non-dict: {type(function_args)}")
+                                        function_args = {}
+                                # Fallback: try accessing as attributes (for simple protobuf messages)
+                                else:
+                                    # Try to get args as a dict by accessing fields
+                                    try:
+                                        # Some protobuf messages expose fields directly
+                                        if hasattr(func_call.args, 'fields'):
+                                            # It's a Struct message, access fields
+                                            function_args = {}
+                                            for key, value in func_call.args.fields.items():
+                                                # Convert protobuf Value to Python type
+                                                if hasattr(value, 'string_value'):
+                                                    function_args[key] = value.string_value
+                                                elif hasattr(value, 'number_value'):
+                                                    function_args[key] = value.number_value
+                                                elif hasattr(value, 'bool_value'):
+                                                    function_args[key] = value.bool_value
+                                                elif hasattr(value, 'list_value'):
+                                                    # Handle list values
+                                                    function_args[key] = [
+                                                        item.string_value if hasattr(item, 'string_value') else 
+                                                        item.number_value if hasattr(item, 'number_value') else item
+                                                        for item in value.list_value.values
+                                                    ]
+                                                else:
+                                                    function_args[key] = str(value)
+                                        else:
+                                            logger.warning(f"Could not parse function args: {type(func_call.args)}")
+                                            function_args = {}
+                                    except Exception as fallback_error:
+                                        logger.error(f"Fallback parsing failed: {fallback_error}")
+                                        function_args = {}
+                            except Exception as parse_error:
+                                logger.error(f"Error parsing function arguments: {parse_error}")
+                                import traceback
+                                logger.error(f"Traceback: {traceback.format_exc()}")
+                                function_args = {}
                         
                         logger.info(f"Executing function: {function_name} with args: {function_args}")
                         
@@ -1101,8 +1211,14 @@ CRITICAL RULES:
                         tools=tools if tools else None,
                         generation_config={
                             "temperature": 0.7,
-                            "max_output_tokens": 1000
-                        }
+                            "max_output_tokens": 2000  # Increased to allow comprehensive answers
+                        },
+                        safety_settings=[
+                            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                        ]
                     )
                     
                     if hasattr(final_response, 'candidates') and final_response.candidates:
