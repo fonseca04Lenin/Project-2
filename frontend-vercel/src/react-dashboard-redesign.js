@@ -1161,10 +1161,10 @@ const SectorAllocationChart = ({ watchlistData }) => {
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Colors for sectors
+        // Colors for sectors - elegant blue/teal palette
         const colors = [
-            '#00D924', '#00B01F', '#008F1A', '#006E15',
-            '#4CAF50', '#66BB6A', '#81C784', '#A5D6A7'
+            '#60A5FA', '#3B82F6', '#2563EB', '#1D4ED8',
+            '#10B981', '#059669', '#047857', '#065F46'
         ];
         
         let currentAngle = -Math.PI / 2;
