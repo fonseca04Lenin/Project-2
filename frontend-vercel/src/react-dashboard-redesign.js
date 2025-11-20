@@ -1034,84 +1034,373 @@ const DashboardRedesign = () => {
     );
 };
 
+// Sparkline Component for Mini Charts
+const SparklineChart = ({ symbol, data, isPositive }) => {
+    const canvasRef = useRef(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [chartData, setChartData] = useState(null);
+
+    useEffect(() => {
+        if (!symbol) return;
+        
+        // Fetch 7-day chart data for sparkline
+        const fetchSparklineData = async () => {
+            try {
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=7d`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.length > 0) {
+                        setChartData(data.map(d => d.price));
+                        setIsLoading(false);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error fetching sparkline for ${symbol}:`, error);
+                setIsLoading(false);
+            }
+        };
+
+        fetchSparklineData();
+    }, [symbol]);
+
+    useEffect(() => {
+        if (!chartData || !canvasRef.current || chartData.length === 0) return;
+
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width = 80;
+        const height = canvas.height = 30;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Calculate points
+        const min = Math.min(...chartData);
+        const max = Math.max(...chartData);
+        const range = max - min || 1;
+        const stepX = width / (chartData.length - 1);
+        
+        // Draw line
+        ctx.beginPath();
+        ctx.strokeStyle = isPositive ? '#00D924' : '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        chartData.forEach((price, index) => {
+            const x = index * stepX;
+            const y = height - ((price - min) / range) * height;
+            
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+        
+        // Add gradient fill
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, isPositive ? 'rgba(0, 217, 36, 0.2)' : 'rgba(239, 68, 68, 0.2)');
+        gradient.addColorStop(1, isPositive ? 'rgba(0, 217, 36, 0)' : 'rgba(239, 68, 68, 0)');
+        
+        ctx.lineTo(width, height);
+        ctx.lineTo(0, height);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+    }, [chartData, isPositive]);
+
+    if (isLoading) {
+        return <div className="sparkline-loading" style={{ width: '80px', height: '30px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}></div>;
+    }
+
+    return <canvas ref={canvasRef} className="sparkline-chart" style={{ width: '80px', height: '30px' }} />;
+};
+
+// Sector Allocation Pie Chart Component
+const SectorAllocationChart = ({ watchlistData }) => {
+    const canvasRef = useRef(null);
+    
+    // Simple sector mapping (can be enhanced with actual API data)
+    const sectorMap = {
+        'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology', 'META': 'Technology',
+        'AMZN': 'Consumer Cyclical', 'TSLA': 'Consumer Cyclical', 'NFLX': 'Communication',
+        'NVDA': 'Technology', 'AMD': 'Technology', 'INTC': 'Technology',
+        'JPM': 'Financial', 'BAC': 'Financial', 'GS': 'Financial',
+        'JNJ': 'Healthcare', 'PFE': 'Healthcare', 'UNH': 'Healthcare',
+        'WMT': 'Consumer Defensive', 'KO': 'Consumer Defensive', 'PG': 'Consumer Defensive',
+        'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy'
+    };
+    
+    useEffect(() => {
+        if (!watchlistData || watchlistData.length === 0 || !canvasRef.current) return;
+        
+        // Calculate sector allocation
+        const sectorCounts = {};
+        watchlistData.forEach(stock => {
+            const sector = sectorMap[stock.symbol] || 'Other';
+            sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
+        });
+        
+        const sectors = Object.keys(sectorCounts);
+        if (sectors.length === 0) return;
+        
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const size = Math.min(canvas.width, canvas.height);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = size / 2 - 10;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Colors for sectors
+        const colors = [
+            '#00D924', '#00B01F', '#008F1A', '#006E15',
+            '#4CAF50', '#66BB6A', '#81C784', '#A5D6A7'
+        ];
+        
+        let currentAngle = -Math.PI / 2;
+        const total = Object.values(sectorCounts).reduce((sum, count) => sum + count, 0);
+        
+        sectors.forEach((sector, index) => {
+            const count = sectorCounts[sector];
+            const sliceAngle = (count / total) * 2 * Math.PI;
+            
+            // Draw slice
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+            ctx.closePath();
+            ctx.fillStyle = colors[index % colors.length];
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            currentAngle += sliceAngle;
+        });
+    }, [watchlistData]);
+    
+    if (!watchlistData || watchlistData.length === 0) {
+        return (
+            <div className="sector-chart-empty">
+                <i className="fas fa-chart-pie"></i>
+                <p>Add stocks to see sector allocation</p>
+            </div>
+        );
+    }
+    
+    return <canvas ref={canvasRef} className="sector-chart" width="200" height="200" />;
+};
+
+// Performance Timeline Component
+const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) => {
+    const [performanceData, setPerformanceData] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    
+    useEffect(() => {
+        if (!watchlistData || watchlistData.length === 0) return;
+        
+        const fetchPerformanceData = async () => {
+            setIsLoading(true);
+            try {
+                // Calculate portfolio performance for selected range
+                // For now, we'll use current change_percent as approximation
+                // In production, you'd fetch historical data for each stock
+                const totalChange = watchlistData.reduce((sum, stock) => {
+                    return sum + (stock.change_percent || 0);
+                }, 0);
+                const avgChange = totalChange / watchlistData.length;
+                
+                setPerformanceData({
+                    change: avgChange,
+                    value: watchlistData.reduce((sum, stock) => {
+                        const price = stock.current_price || stock.price || 0;
+                        const shares = 100; // Assuming 100 shares per stock
+                        return sum + (price * shares);
+                    }, 0)
+                });
+            } catch (error) {
+                console.error('Error fetching performance data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        
+        fetchPerformanceData();
+    }, [watchlistData, selectedRange]);
+    
+    const ranges = ['1D', '1W', '1M', '3M', '1Y'];
+    
+    return (
+        <div className="performance-timeline">
+            <div className="timeline-header">
+                <h4>Portfolio Performance</h4>
+                <div className="range-selector">
+                    {ranges.map(range => (
+                        <button
+                            key={range}
+                            className={`range-btn ${selectedRange === range ? 'active' : ''}`}
+                            onClick={() => onRangeChange && onRangeChange(range)}
+                        >
+                            {range}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            {isLoading ? (
+                <div className="performance-loading">Loading...</div>
+            ) : performanceData ? (
+                <div className="performance-display">
+                    <div className="performance-value">
+                        <span className="value-label">Total Value</span>
+                        <span className="value-amount">${(performanceData.value / 1000).toFixed(1)}K</span>
+                    </div>
+                    <div className={`performance-change ${performanceData.change >= 0 ? 'positive' : 'negative'}`}>
+                        <i className={`fas fa-arrow-${performanceData.change >= 0 ? 'trend-up' : 'trend-down'}`}></i>
+                        <span>{performanceData.change >= 0 ? '+' : ''}{performanceData.change.toFixed(2)}%</span>
+                    </div>
+                </div>
+            ) : (
+                <div className="performance-empty">No data available</div>
+            )}
+        </div>
+    );
+};
+
 // Overview Tab Component
 const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover }) => {
-    // Use current_price if available, fallback to price for real-time updates
-    const totalValue = watchlistData.reduce((sum, stock) => sum + ((stock.current_price || stock.price || 0) * 100 || 0), 0);
-    const totalChange = watchlistData.reduce((sum, stock) => sum + (stock.change_percent || 0), 0);
-    const avgChange = watchlistData.length > 0 ? totalChange / watchlistData.length : 0;
+    const [selectedRange, setSelectedRange] = useState('1M');
+    const [sparklineData, setSparklineData] = useState({});
+    
+    // Enhanced portfolio calculations
+    const calculatePortfolioMetrics = () => {
+        if (watchlistData.length === 0) {
+            return {
+                totalValue: 0,
+                dayChange: 0,
+                dayChangePercent: 0,
+                bestPerformer: null,
+                worstPerformer: null,
+                totalPositions: 0
+            };
+        }
+        
+        // Calculate total value (assuming 100 shares per stock for demo)
+        const sharesPerStock = 100;
+        const totalValue = watchlistData.reduce((sum, stock) => {
+            const price = stock.current_price || stock.price || 0;
+            return sum + (price * sharesPerStock);
+        }, 0);
+        
+        // Calculate day change
+        const dayChange = watchlistData.reduce((sum, stock) => {
+            const price = stock.current_price || stock.price || 0;
+            const changePercent = stock.change_percent || 0;
+            return sum + (price * sharesPerStock * changePercent / 100);
+        }, 0);
+        
+        const dayChangePercent = totalValue > 0 ? (dayChange / totalValue) * 100 : 0;
+        
+        // Find best and worst performers
+        const bestPerformer = watchlistData.reduce((best, stock) => {
+            const change = stock.change_percent || 0;
+            return (change > (best.change_percent || 0)) ? stock : best;
+        }, watchlistData[0]);
+        
+        const worstPerformer = watchlistData.reduce((worst, stock) => {
+            const change = stock.change_percent || 0;
+            return (change < (worst.change_percent || 0)) ? stock : worst;
+        }, watchlistData[0]);
+        
+        return {
+            totalValue,
+            dayChange,
+            dayChangePercent,
+            bestPerformer,
+            worstPerformer,
+            totalPositions: watchlistData.length
+        };
+    };
+    
+    const metrics = calculatePortfolioMetrics();
 
     return (
         <div className="overview-view">
-            {/* Top KPI Cards */}
-            <div className="kpi-grid">
-                <div className="kpi-card">
-                    <div className="kpi-icon portfolio">
-                        <i className="fas fa-dollar-sign"></i>
+            {/* Enhanced Portfolio Summary Card */}
+            <div className="portfolio-summary-card">
+                <div className="summary-header">
+                    <h2><i className="fas fa-chart-line"></i> Portfolio Performance</h2>
+                    <PerformanceTimeline 
+                        watchlistData={watchlistData} 
+                        selectedRange={selectedRange}
+                        onRangeChange={setSelectedRange}
+                    />
+                </div>
+                
+                <div className="summary-metrics">
+                    <div className="metric-group">
+                        <div className="metric-item primary">
+                            <span className="metric-label">Total Value</span>
+                            <span className="metric-value">${(metrics.totalValue / 1000).toFixed(2)}K</span>
+                        </div>
+                        <div className={`metric-item ${metrics.dayChangePercent >= 0 ? 'positive' : 'negative'}`}>
+                            <span className="metric-label">Day Change</span>
+                            <span className="metric-value">
+                                {metrics.dayChangePercent >= 0 ? '+' : ''}{metrics.dayChangePercent.toFixed(2)}%
+                            </span>
+                            <span className="metric-amount">
+                                {metrics.dayChange >= 0 ? '+' : ''}${Math.abs(metrics.dayChange).toFixed(2)}
+                            </span>
+                        </div>
                     </div>
-                    <div className="kpi-content">
-                        <p className="kpi-label">Total Value</p>
-                        <h2 className="kpi-value">${(totalValue / 1000).toFixed(0)}K</h2>
-                        <span className={`kpi-change ${avgChange >= 0 ? 'positive' : 'negative'}`}>
-                            {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
-                        </span>
+                    
+                    <div className="metric-group">
+                        <div className="metric-item">
+                            <span className="metric-label">Best Performer</span>
+                            <div className="performer-info">
+                                <span className="performer-symbol">{metrics.bestPerformer?.symbol || 'N/A'}</span>
+                                <span className={`performer-change positive`}>
+                                    +{metrics.bestPerformer?.change_percent?.toFixed(2) || '0.00'}%
+                                </span>
+                            </div>
+                        </div>
+                        <div className="metric-item">
+                            <span className="metric-label">Worst Performer</span>
+                            <div className="performer-info">
+                                <span className="performer-symbol">{metrics.worstPerformer?.symbol || 'N/A'}</span>
+                                <span className={`performer-change negative`}>
+                                    {metrics.worstPerformer?.change_percent?.toFixed(2) || '0.00'}%
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div className="kpi-card">
-                    <div className="kpi-icon positions">
-                        <i className="fas fa-cubes"></i>
-                    </div>
-                    <div className="kpi-content">
-                        <p className="kpi-label">Positions</p>
-                        <h2 className="kpi-value">{watchlistData.length}</h2>
-                        <span className="kpi-change">Tracked</span>
-                    </div>
-                </div>
-
-                <div className="kpi-card">
-                    <div className="kpi-icon performance">
-                        <i className="fas fa-arrow-trend-up"></i>
-                    </div>
-                    <div className="kpi-content">
-                        <p className="kpi-label">Top Gainer</p>
-                        <h2 className="kpi-value">
-                            {watchlistData.length > 0 ? 
-                                watchlistData.reduce((max, stock) => 
-                                    (stock.change_percent || 0) > (max.change_percent || 0) ? stock : max, 
-                                    watchlistData[0]
-                                ).symbol : 'N/A'
-                            }
-                        </h2>
-                        <span className="kpi-change">
-                            {watchlistData.length > 0 ?
-                                `${(watchlistData.reduce((max, stock) => 
-                                    (stock.change_percent || 0) > (max.change_percent || 0) ? stock : max, 
-                                    watchlistData[0]
-                                ).change_percent || 0).toFixed(2)}%` : ''
-                            }
-                        </span>
-                    </div>
-                </div>
-
-                <MarketStatusCard marketStatus={marketStatus} />
             </div>
 
-            {/* Two Column Layout */}
-            <div className="main-grid">
-                {/* Left Column - Portfolio Quick View */}
-                <div className="main-card">
+            {/* Three Column Layout */}
+            <div className="main-grid-enhanced">
+                {/* Left Column - Watchlist with Sparklines */}
+                <div className="main-card enhanced">
                     <div className="card-header">
                         <h3><i className="fas fa-table"></i> Watchlist</h3>
                         <button className="view-all-btn" onClick={() => onNavigate('watchlist')}>
                             See All <i className="fas fa-arrow-right"></i>
                         </button>
                     </div>
-                    <div className="watchlist-quick">
-                        {watchlistData.slice(0, 5).map((stock, index) => (
+                    <div className="watchlist-quick-enhanced">
+                        {watchlistData.slice(0, 6).map((stock, index) => (
                             <div 
                                 key={index} 
-                                className="stock-row"
+                                className="stock-row-enhanced"
                                 data-stock-symbol={stock.symbol}
                                 role="button"
                                 tabIndex={0}
@@ -1124,29 +1413,23 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                     }
                                 }}
                             >
-                                <div className="stock-info">
-                                    <div className="stock-symbol">{stock.symbol}</div>
-                                    <div className="stock-name">{stock.name}</div>
+                                <div className="stock-info-enhanced">
+                                    <div className="stock-symbol-enhanced">{stock.symbol}</div>
+                                    <div className="stock-name-enhanced">{stock.name}</div>
                                 </div>
-                                <div className={`stock-price ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                    ${(stock.current_price || stock.price || 0).toFixed(2)}
-                                </div>
-                                <div className={`stock-change ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                    <i 
-                                        className={stock.change_percent >= 0 ? 'fas fa-arrow-trend-up' : 'fas fa-arrow-trend-down'}
-                                        style={{ 
-                                            marginRight: '6px', 
-                                            fontSize: '14px',
-                                            fontWeight: '700',
-                                            color: stock.change_percent >= 0 ? '#00D924' : '#ef4444',
-                                            textShadow: stock.change_percent >= 0 
-                                                ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
-                                                : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
-                                            display: 'inline-block',
-                                            lineHeight: '1'
-                                        }}
+                                <div className="stock-sparkline">
+                                    <SparklineChart 
+                                        symbol={stock.symbol} 
+                                        isPositive={(stock.change_percent || 0) >= 0}
                                     />
-                                    {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
+                                </div>
+                                <div className="stock-price-group">
+                                    <div className={`stock-price-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
+                                        ${(stock.current_price || stock.price || 0).toFixed(2)}
+                                    </div>
+                                    <div className={`stock-change-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
+                                        {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1159,8 +1442,26 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                     </div>
                 </div>
 
+                {/* Middle Column - Sector Allocation */}
+                <div className="main-card enhanced">
+                    <div className="card-header">
+                        <h3><i className="fas fa-chart-pie"></i> Sector Allocation</h3>
+                    </div>
+                    <div className="sector-allocation-container">
+                        <SectorAllocationChart watchlistData={watchlistData} />
+                        <div className="sector-legend">
+                            {watchlistData.length > 0 && (
+                                <div className="legend-item">
+                                    <span className="legend-dot"></span>
+                                    <span>Technology</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Right Column - Market Intelligence Quick Look */}
-                <div className="main-card">
+                <div className="main-card enhanced">
                     <div className="card-header">
                         <h3><i className="fas fa-database"></i> Market Intelligence</h3>
                         <button className="view-all-btn" onClick={() => onNavigate('intelligence')}>
