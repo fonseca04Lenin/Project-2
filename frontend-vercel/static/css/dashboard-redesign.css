@@ -1491,13 +1491,14 @@
 
 /* Portfolio Summary Card */
 .portfolio-summary-card {
-    background: linear-gradient(135deg, rgba(0, 217, 36, 0.1) 0%, rgba(0, 176, 31, 0.05) 100%);
-    border: 1px solid rgba(0, 217, 36, 0.2);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     padding: 2rem;
     margin-bottom: 2rem;
     backdrop-filter: blur(10px);
     animation: fadeInUp 0.6s ease-out;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes fadeInUp {
@@ -1530,7 +1531,7 @@
 }
 
 .summary-header h2 i {
-    color: #00D924;
+    color: #60A5FA;
 }
 
 .summary-metrics {
@@ -1562,16 +1563,16 @@
 }
 
 .metric-item.primary {
-    background: linear-gradient(135deg, rgba(0, 217, 36, 0.15) 0%, rgba(0, 176, 31, 0.1) 100%);
-    border-color: rgba(0, 217, 36, 0.3);
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%);
+    border-color: rgba(96, 165, 250, 0.25);
 }
 
 .metric-item.positive {
-    border-left: 3px solid #00D924;
+    border-left: 3px solid #10B981;
 }
 
 .metric-item.negative {
-    border-left: 3px solid #ef4444;
+    border-left: 3px solid #EF4444;
 }
 
 .metric-label {
@@ -1589,11 +1590,11 @@
 }
 
 .metric-item.positive .metric-value {
-    color: #00D924;
+    color: #10B981;
 }
 
 .metric-item.negative .metric-value {
-    color: #ef4444;
+    color: #EF4444;
 }
 
 .metric-amount {
@@ -1622,12 +1623,12 @@
 }
 
 .performer-change.positive {
-    color: #00D924;
-    background: rgba(0, 217, 36, 0.15);
+    color: #10B981;
+    background: rgba(16, 185, 129, 0.15);
 }
 
 .performer-change.negative {
-    color: #ef4444;
+    color: #EF4444;
     background: rgba(239, 68, 68, 0.15);
 }
 
@@ -1673,9 +1674,9 @@
 }
 
 .range-btn.active {
-    background: linear-gradient(135deg, #00D924, #00B01F);
+    background: linear-gradient(135deg, #60A5FA, #3B82F6);
     border-color: transparent;
-    color: #000000;
+    color: #ffffff;
     font-weight: 600;
 }
 
@@ -1717,11 +1718,11 @@
 }
 
 .performance-change.positive {
-    color: #00D924;
+    color: #10B981;
 }
 
 .performance-change.negative {
-    color: #ef4444;
+    color: #EF4444;
 }
 
 .performance-amount {
@@ -1840,11 +1841,11 @@
 }
 
 .stock-price-enhanced.positive {
-    color: #00D924;
+    color: #10B981;
 }
 
 .stock-price-enhanced.negative {
-    color: #ef4444;
+    color: #EF4444;
 }
 
 .stock-change-enhanced {
@@ -1855,12 +1856,12 @@
 }
 
 .stock-change-enhanced.positive {
-    color: #00D924;
-    background: rgba(0, 217, 36, 0.15);
+    color: #10B981;
+    background: rgba(16, 185, 129, 0.15);
 }
 
 .stock-change-enhanced.negative {
-    color: #ef4444;
+    color: #EF4444;
     background: rgba(239, 68, 68, 0.15);
 }
 
@@ -1916,7 +1917,7 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #00D924;
+    background: #60A5FA;
 }
 
 /* Responsive Design */
