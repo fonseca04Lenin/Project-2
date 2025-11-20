@@ -1086,7 +1086,7 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
         
         // Draw line
         ctx.beginPath();
-        ctx.strokeStyle = isPositive ? '#00D924' : '#ef4444';
+        ctx.strokeStyle = isPositive ? '#10B981' : '#EF4444';
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -1106,8 +1106,8 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
         
         // Add gradient fill
         const gradient = ctx.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0, isPositive ? 'rgba(0, 217, 36, 0.2)' : 'rgba(239, 68, 68, 0.2)');
-        gradient.addColorStop(1, isPositive ? 'rgba(0, 217, 36, 0)' : 'rgba(239, 68, 68, 0)');
+        gradient.addColorStop(0, isPositive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)');
+        gradient.addColorStop(1, isPositive ? 'rgba(16, 185, 129, 0)' : 'rgba(239, 68, 68, 0)');
         
         ctx.lineTo(width, height);
         ctx.lineTo(0, height);
@@ -1522,7 +1522,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                         selectedRange={selectedRange}
                         onRangeChange={setSelectedRange}
                     />
-                </div>
+                    </div>
                 
                 <div className="summary-metrics">
                     <div className="metric-group">
@@ -1539,10 +1539,10 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                             </span>
                             <span className="metric-amount">
                                 {metrics.dayChange >= 0 ? '+' : ''}${Math.abs(metrics.dayChange).toFixed(2)}
-                            </span>
-                        </div>
+                        </span>
                     </div>
-                    
+                </div>
+
                     <div className="metric-group">
                         <div className="metric-item">
                             <span className="metric-label">Best Performer</span>
@@ -1562,8 +1562,8 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                         return change.toFixed(2);
                                     })()}%
                                 </span>
-                            </div>
-                        </div>
+                    </div>
+                    </div>
                         <div className="metric-item">
                             <span className="metric-label">Worst Performer</span>
                             <div className="performer-info">
@@ -1576,8 +1576,8 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                         return change.toFixed(2);
                                     })()}%
                                 </span>
-                            </div>
-                        </div>
+                </div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -1621,10 +1621,10 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                 </div>
                                 <div className="stock-price-group">
                                     <div className={`stock-price-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                        ${(stock.current_price || stock.price || 0).toFixed(2)}
-                                    </div>
+                                    ${(stock.current_price || stock.price || 0).toFixed(2)}
+                                </div>
                                     <div className={`stock-change-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                        {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
+                                    {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                                     </div>
                                 </div>
                             </div>
