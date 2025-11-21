@@ -1346,9 +1346,8 @@ def get_chart_data(symbol):
     
     end_date = now.strftime("%Y-%m-%d")
     
-        stock = get_stock_with_fallback(symbol)
-        if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+    # Charts use Yahoo Finance for historical data (as per migration plan)
+    stock = Stock(symbol, yahoo_finance_api)
     dates, prices = stock.retrieve_historical_data(start_date, end_date)
     
     if dates and prices:
