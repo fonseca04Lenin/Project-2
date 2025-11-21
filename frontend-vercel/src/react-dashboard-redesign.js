@@ -1126,29 +1126,86 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
 // Sector Allocation Pie Chart Component
 const SectorAllocationChart = ({ watchlistData }) => {
     const canvasRef = useRef(null);
+    const [sectorData, setSectorData] = useState(null);
+    const [sectorAllocation, setSectorAllocation] = useState(null);
     
-    // Simple sector mapping (can be enhanced with actual API data)
-    const sectorMap = {
-        'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology', 'META': 'Technology',
-        'AMZN': 'Consumer Cyclical', 'TSLA': 'Consumer Cyclical', 'NFLX': 'Communication',
-        'NVDA': 'Technology', 'AMD': 'Technology', 'INTC': 'Technology',
-        'JPM': 'Financial', 'BAC': 'Financial', 'GS': 'Financial',
-        'JNJ': 'Healthcare', 'PFE': 'Healthcare', 'UNH': 'Healthcare',
-        'WMT': 'Consumer Defensive', 'KO': 'Consumer Defensive', 'PG': 'Consumer Defensive',
-        'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy'
-    };
-    
+    // Fetch sector information for all stocks
     useEffect(() => {
-        if (!watchlistData || watchlistData.length === 0 || !canvasRef.current) return;
+        if (!watchlistData || watchlistData.length === 0) {
+            setSectorData(null);
+            setSectorAllocation(null);
+            return;
+        }
         
-        // Calculate sector allocation
-        const sectorCounts = {};
-        watchlistData.forEach(stock => {
-            const sector = sectorMap[stock.symbol] || 'Other';
-            sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
-        });
+        const fetchSectors = async () => {
+            try {
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const authHeaders = await window.getAuthHeaders();
+                
+                const symbols = watchlistData.map(stock => stock.symbol).filter(Boolean);
+                if (symbols.length === 0) return;
+                
+                const response = await fetch(`${API_BASE}/api/sectors/batch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeaders
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ symbols })
+                });
+                
+                if (response.ok) {
+                    const sectors = await response.json();
+                    setSectorData(sectors);
+                    
+                    // Calculate allocation by portfolio value
+                    const allocation = {};
+                    let totalValue = 0;
+                    
+                    watchlistData.forEach(stock => {
+                        const symbol = stock.symbol;
+                        const price = stock.current_price || stock.price || 0;
+                        const shares = stock.shares || 1; // Default to 1 share if not specified
+                        const value = price * shares;
+                        const sector = sectors[symbol] || 'Other';
+                        
+                        if (!allocation[sector]) {
+                            allocation[sector] = { value: 0, count: 0 };
+                        }
+                        allocation[sector].value += value;
+                        allocation[sector].count += 1;
+                        totalValue += value;
+                    });
+                    
+                    // Convert to percentages
+                    const allocationPercent = {};
+                    Object.keys(allocation).forEach(sector => {
+                        allocationPercent[sector] = {
+                            percentage: totalValue > 0 ? (allocation[sector].value / totalValue) * 100 : 0,
+                            value: allocation[sector].value,
+                            count: allocation[sector].count
+                        };
+                    });
+                    
+                    setSectorAllocation(allocationPercent);
+                }
+            } catch (error) {
+                console.error('Error fetching sectors:', error);
+            }
+        };
         
-        const sectors = Object.keys(sectorCounts);
+        fetchSectors();
+    }, [watchlistData]);
+    
+    // Draw pie chart
+    useEffect(() => {
+        if (!sectorAllocation || !canvasRef.current) return;
+        
+        const sectors = Object.keys(sectorAllocation).sort((a, b) => 
+            sectorAllocation[b].percentage - sectorAllocation[a].percentage
+        );
+        
         if (sectors.length === 0) return;
         
         const canvas = canvasRef.current;
@@ -1161,18 +1218,18 @@ const SectorAllocationChart = ({ watchlistData }) => {
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Colors for sectors - elegant blue/teal palette
+        // Colors for sectors - muted, natural palette
         const colors = [
-            '#60A5FA', '#3B82F6', '#2563EB', '#1D4ED8',
-            '#10B981', '#059669', '#047857', '#065F46'
+            '#8B9DC3', '#6B7FA8', '#5A6B8F', '#4A5A7A',
+            '#5DB896', '#4A9B7F', '#3A7A68', '#2A5A4A',
+            '#9B8BA8', '#7A6B8F', '#6A5A7A', '#5A4A6A'
         ];
         
         let currentAngle = -Math.PI / 2;
-        const total = Object.values(sectorCounts).reduce((sum, count) => sum + count, 0);
         
         sectors.forEach((sector, index) => {
-            const count = sectorCounts[sector];
-            const sliceAngle = (count / total) * 2 * Math.PI;
+            const percentage = sectorAllocation[sector].percentage;
+            const sliceAngle = (percentage / 100) * 2 * Math.PI;
             
             // Draw slice
             ctx.beginPath();
@@ -1181,24 +1238,52 @@ const SectorAllocationChart = ({ watchlistData }) => {
             ctx.closePath();
             ctx.fillStyle = colors[index % colors.length];
             ctx.fill();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.lineWidth = 1.5;
             ctx.stroke();
             
             currentAngle += sliceAngle;
         });
-    }, [watchlistData]);
+    }, [sectorAllocation]);
     
     if (!watchlistData || watchlistData.length === 0) {
-        return (
+    return (
             <div className="sector-chart-empty">
                 <i className="fas fa-chart-pie"></i>
                 <p>Add stocks to see sector allocation</p>
-            </div>
+                    </div>
         );
     }
     
-    return <canvas ref={canvasRef} className="sector-chart" width="200" height="200" />;
+    return (
+        <>
+            <canvas ref={canvasRef} className="sector-chart" width="200" height="200" />
+            {sectorAllocation && (
+                <div className="sector-legend">
+                    {Object.keys(sectorAllocation)
+                        .sort((a, b) => sectorAllocation[b].percentage - sectorAllocation[a].percentage)
+                        .map((sector, index) => {
+                            const data = sectorAllocation[sector];
+                            const colors = [
+                                '#8B9DC3', '#6B7FA8', '#5A6B8F', '#4A5A7A',
+                                '#5DB896', '#4A9B7F', '#3A7A68', '#2A5A4A',
+                                '#9B8BA8', '#7A6B8F', '#6A5A7A', '#5A4A6A'
+                            ];
+                            return (
+                                <div key={sector} className="legend-item">
+                                    <span 
+                                        className="legend-dot" 
+                                        style={{ backgroundColor: colors[index % colors.length] }}
+                                    ></span>
+                                    <span className="legend-label">{sector}</span>
+                                    <span className="legend-percentage">{data.percentage.toFixed(1)}%</span>
+                    </div>
+                            );
+                        })}
+                </div>
+            )}
+        </>
+    );
 };
 
 // Performance Timeline Component
@@ -1333,8 +1418,8 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                             {range}
                         </button>
                     ))}
-                </div>
-            </div>
+                    </div>
+                    </div>
             {isLoading ? (
                 <div className="performance-loading">Loading...</div>
             ) : performanceData ? (
@@ -1342,7 +1427,7 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                     <div className="performance-value">
                         <span className="value-label">Total Value</span>
                         <span className="value-amount">${(performanceData.value / 1000).toFixed(1)}K</span>
-                    </div>
+                </div>
                     <div className={`performance-change ${performanceData.change >= 0 ? 'positive' : 'negative'}`}>
                         <i className={`fas fa-arrow-${performanceData.change >= 0 ? 'trend-up' : 'trend-down'}`}></i>
                         <span>{performanceData.change >= 0 ? '+' : ''}{performanceData.change.toFixed(2)}%</span>
