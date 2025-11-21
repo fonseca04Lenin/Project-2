@@ -12,7 +12,7 @@ except ImportError:
         from backports import zoneinfo
     except ImportError:
         zoneinfo = None
-from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
+from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI, AlpacaAPI
 from firebase_service import FirebaseService, get_firestore_client, FirebaseUser
 from watchlist_service import get_watchlist_service
 from auth import auth, login_manager
@@ -98,6 +98,35 @@ yahoo_finance_api = YahooFinanceAPI()
 news_api = NewsAPI()
 finnhub_api = FinnhubAPI()
 
+# Initialize Alpaca API (if keys are provided)
+USE_ALPACA_API = os.getenv('USE_ALPACA_API', 'false').lower() == 'true'
+alpaca_api = AlpacaAPI() if USE_ALPACA_API else None
+
+if USE_ALPACA_API:
+    print("✅ Alpaca API enabled - will use Alpaca for price data with Yahoo fallback")
+else:
+    print("ℹ️ Alpaca API disabled - using Yahoo Finance only")
+
+def get_price_api():
+    """Get the appropriate API for price lookups. Returns Alpaca if enabled, otherwise Yahoo."""
+    return alpaca_api if USE_ALPACA_API and alpaca_api else yahoo_finance_api
+
+def get_stock_with_fallback(symbol):
+    """Get stock data, trying Alpaca first if enabled, then falling back to Yahoo."""
+    stock = None
+    
+    # Try Alpaca first if enabled
+    if USE_ALPACA_API and alpaca_api:
+        try:
+            stock = Stock(symbol, alpaca_api)
+            stock.retrieve_data()
+            # If we got valid data, return it
+            if stock.name and stock.price and 'not found' not in stock.name.lower():
+                return stock
+        except Exception as e:
+            print(f"⚠️ Alpaca API failed for {symbol}, falling back to Yahoo: {e}")
+    
+    # Fallback to Yahoo Finance
 # Initialize Watchlist Service with proper Firestore client
 print("🔍 Initializing WatchlistService...")
 try:
@@ -567,9 +596,10 @@ def update_stock_prices():
                     # Add small delay to prevent rate limiting
                     time.sleep(0.2)  # Reduced delay
                     
-                    # Get fresh data
-                    stock = Stock(symbol, yahoo_finance_api)
-                    stock.retrieve_data()
+                    # Get fresh data (with Alpaca fallback if enabled)
+                    stock = get_stock_with_fallback(symbol)
+                    if not stock:
+                        continue
                     
                     if stock.name and 'not found' not in stock.name.lower():
                         stock_data = {
@@ -760,8 +790,9 @@ def search_stock():
     if not validate_stock_symbol(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
     
-    stock = Stock(symbol, yahoo_finance_api)
-    stock.retrieve_data()
+    stock = get_stock_with_fallback(symbol)
+    if not stock:
+        return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     
     if stock.name and 'not found' not in stock.name.lower():
         #last month's price
@@ -818,8 +849,9 @@ def get_stock_data(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     try:
-        stock = Stock(symbol, yahoo_finance_api)
-        stock.retrieve_data()
+        stock = get_stock_with_fallback(symbol)
+        if not stock:
+            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
         if stock.name and 'not found' not in stock.name.lower():
             # Get last month's price for change calculation
@@ -1106,9 +1138,8 @@ def add_to_watchlist():
         # Get current stock price to store as original price
         current_price = None
         try:
-            stock = Stock(symbol, yahoo_finance_api)
-            stock.retrieve_data()
-            if stock.price and stock.price > 0:
+            stock = get_stock_with_fallback(symbol)
+            if stock and stock.price and stock.price > 0:
                 current_price = stock.price
                 print(f"💰 Current price for {symbol}: ${current_price}")
             else:
@@ -1461,10 +1492,12 @@ def get_top_performer_by_date():
 @app.route('/api/company/<symbol>')
 def get_company_info(symbol):
     symbol = symbol.upper()
-    stock = Stock(symbol, yahoo_finance_api)
-    stock.retrieve_data()
+    stock = get_stock_with_fallback(symbol)
+    if not stock:
+        return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+    
     finnhub_info = finnhub_api.get_company_profile(symbol)
-    info = yahoo_finance_api.get_info(symbol)
+    info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
     if stock.name and 'not found' not in stock.name.lower():
         return jsonify({
             'symbol': stock.symbol,
@@ -1502,10 +1535,12 @@ def get_watchlist_stock_details(symbol):
         print(f"✅ Found watchlist item for {symbol}")
         
         # Get current stock data
-        stock = Stock(symbol, yahoo_finance_api)
-        stock.retrieve_data()
+        stock = get_stock_with_fallback(symbol)
+        if not stock:
+            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+        
         finnhub_info = finnhub_api.get_company_profile(symbol)
-        info = yahoo_finance_api.get_info(symbol)
+        info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
         
         if not stock.name or 'not found' in stock.name.lower():
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -1674,10 +1709,8 @@ def get_insider_trading(symbol):
         today = datetime.now()
         
         # Get current stock price for realistic data
-        stock = Stock(symbol, yahoo_finance_api)
-        stock.retrieve_data()
-        
-        if not stock.name or 'not found' in stock.name.lower():
+        stock = get_stock_with_fallback(symbol)
+        if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
         
         current_price = stock.price
@@ -1770,10 +1803,8 @@ def get_analyst_ratings(symbol):
         today = datetime.now()
         
         # Get current stock price for realistic data
-        stock = Stock(symbol, yahoo_finance_api)
-        stock.retrieve_data()
-        
-        if not stock.name or 'not found' in stock.name.lower():
+        stock = get_stock_with_fallback(symbol)
+        if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
         
         current_price = stock.price
@@ -1849,10 +1880,8 @@ def get_options_data(symbol):
         today = datetime.now()
         
         # Get current stock price for realistic data
-        stock = Stock(symbol, yahoo_finance_api)
-        stock.retrieve_data()
-        
-        if not stock.name or 'not found' in stock.name.lower():
+        stock = get_stock_with_fallback(symbol)
+        if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
         
         current_price = stock.price
