@@ -156,6 +156,24 @@ body {
     min-height: 100vh;
     line-height: 1.6;
 }
+
+/* Exclude Font Awesome and other icon fonts */
+i[class*="fa-"],
+i[class*="fas"],
+i[class*="far"],
+i[class*="fab"],
+i[class*="fal"],
+[class*="fa-"]:before,
+[class*="fa-"]:after,
+[data-icon]:before,
+[data-icon]:after,
+.fa,
+.fas,
+.far,
+.fab,
+.fal {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro", "FontAwesome" !important;
+}
 #app {
     min-height: 100vh;
     width: 100vw;
