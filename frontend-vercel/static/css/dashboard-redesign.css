@@ -1,5 +1,10 @@
 /* Modern Financial Dashboard Redesign - Professional & Interactive */
 
+/* Baskerville Font for all text */
+* {
+    font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif !important;
+}
+
 .dashboard-redesign {
     width: 100vw !important;
     max-width: 100% !important;
@@ -10,6 +15,7 @@
     padding: 0;
     position: relative;
     overflow-x: hidden;
+    font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 /* Top Navigation */
