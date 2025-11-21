@@ -36,16 +36,18 @@
 
 **✅ API Keys Received - Ready to Configure**
 
-Add these environment variables in Railway:
+Add these environment variables in Railway (see Railway Setup Instructions below):
 
 ```bash
 USE_ALPACA_API=true
-ALPACA_API_KEY=PKVJEKT7EYXUGNSHJF4JGQYNJE
-ALPACA_SECRET_KEY=3A3hxG2y6z8zQP6vUEMoxrpeNCYtzHch368DEdNFFk5b
+ALPACA_API_KEY=<your_api_key>
+ALPACA_SECRET_KEY=<your_secret_key>
 ALPACA_DATA_URL=https://paper-api.alpaca.markets/v2
 ```
 
-**⚠️ Important**: These keys are for paper trading. For production, you may want to use the data API endpoint: `https://data.alpaca.markets/v2`
+**⚠️ Important**: 
+- API keys should be added directly in Railway dashboard (NOT in code)
+- These keys are for paper trading. For production, you may want to use the data API endpoint: `https://data.alpaca.markets/v2`
 
 ### How It Works:
 
@@ -85,8 +87,8 @@ ALPACA_DATA_URL=https://paper-api.alpaca.markets/v2
    - Go to **Variables** tab
    - Click **+ New Variable** and add each:
      - **Variable**: `USE_ALPACA_API` → **Value**: `true`
-     - **Variable**: `ALPACA_API_KEY` → **Value**: `PKVJEKT7EYXUGNSHJF4JGQYNJE`
-     - **Variable**: `ALPACA_SECRET_KEY` → **Value**: `3A3hxG2y6z8zQP6vUEMoxrpeNCYtzHch368DEdNFFk5b`
+     - **Variable**: `ALPACA_API_KEY` → **Value**: `PKVJEKT7EYXUGNSHJF4JGQYNJE` (your key)
+     - **Variable**: `ALPACA_SECRET_KEY` → **Value**: `3A3hxG2y6z8zQP6vUEMoxrpeNCYtzHch368DEdNFFk5b` (your secret)
      - **Variable**: `ALPACA_DATA_URL` → **Value**: `https://paper-api.alpaca.markets/v2`
 
 3. **Redeploy**
