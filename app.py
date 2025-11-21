@@ -127,6 +127,14 @@ def get_stock_with_fallback(symbol):
             print(f"⚠️ Alpaca API failed for {symbol}, falling back to Yahoo: {e}")
     
     # Fallback to Yahoo Finance
+    try:
+        stock = Stock(symbol, yahoo_finance_api)
+        stock.retrieve_data()
+        return stock
+    except Exception as e:
+        print(f"⚠️ Yahoo Finance also failed for {symbol}: {e}")
+        return None
+
 # Initialize Watchlist Service with proper Firestore client
 print("🔍 Initializing WatchlistService...")
 try:
