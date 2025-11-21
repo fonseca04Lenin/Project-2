@@ -1898,6 +1898,14 @@ i[class*="fal"],
     padding: 1.5rem;
 }
 
+.sector-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 250px;
+}
+
 .sector-chart {
     width: 200px;
     height: 200px;

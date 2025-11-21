@@ -1523,6 +1523,35 @@ def get_company_info(symbol):
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
+@app.route('/api/sectors/batch', methods=['POST'])
+def get_sectors_batch():
+    """Get sector information for multiple stocks at once"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.get_json()
+    symbols = data.get('symbols', [])
+    
+    if not symbols or not isinstance(symbols, list):
+        return jsonify({'error': 'Please provide a list of symbols'}), 400
+    
+    sectors = {}
+    for symbol in symbols:
+        try:
+            symbol = symbol.upper()
+            info = yahoo_finance_api.get_info(symbol)
+            sector = info.get('sector', 'Other')
+            if sector and sector != 'None' and sector != '-':
+                sectors[symbol] = sector
+            else:
+                sectors[symbol] = 'Other'
+        except Exception as e:
+            print(f"Error getting sector for {symbol}: {e}")
+            sectors[symbol] = 'Other'
+    
+    return jsonify(sectors)
+
 @app.route('/api/watchlist/<symbol>/details')
 def get_watchlist_stock_details(symbol):
     """Get detailed information for a stock in user's watchlist including watchlist-specific data"""
