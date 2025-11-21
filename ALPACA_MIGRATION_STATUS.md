@@ -87,8 +87,8 @@ ALPACA_DATA_URL=https://paper-api.alpaca.markets/v2
    - Go to **Variables** tab
    - Click **+ New Variable** and add each:
      - **Variable**: `USE_ALPACA_API` → **Value**: `true`
-     - **Variable**: `ALPACA_API_KEY` → **Value**: `PKVJEKT7EYXUGNSHJF4JGQYNJE` (your key)
-     - **Variable**: `ALPACA_SECRET_KEY` → **Value**: `3A3hxG2y6z8zQP6vUEMoxrpeNCYtzHch368DEdNFFk5b` (your secret)
+     - **Variable**: `ALPACA_API_KEY` → **Value**: (your Alpaca API key)
+     - **Variable**: `ALPACA_SECRET_KEY` → **Value**: (your Alpaca secret key)
      - **Variable**: `ALPACA_DATA_URL` → **Value**: `https://paper-api.alpaca.markets/v2`
 
 3. **Redeploy**
