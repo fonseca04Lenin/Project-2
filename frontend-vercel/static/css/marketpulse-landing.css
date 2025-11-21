@@ -18,7 +18,7 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   background-color: var(--background) !important;
   color: var(--foreground) !important;
   line-height: 1.6;
@@ -69,7 +69,7 @@ body {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--foreground);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 .landing-header-right {
@@ -90,7 +90,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   transition: color 0.2s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 .landing-nav-link:hover {
@@ -159,7 +159,7 @@ body {
   margin-bottom: 2rem;
   color: var(--foreground);
   text-transform: uppercase;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   animation: fadeInUp 1s ease-out;
 }
 
@@ -171,7 +171,7 @@ body {
   margin-bottom: 2rem;
   color: var(--foreground-muted);
   text-transform: uppercase;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   animation: fadeInUp 1s ease-out 0.2s both;
 }
 
@@ -182,7 +182,7 @@ body {
   margin: 0 auto 3rem auto;
   max-width: 800px;
   color: var(--foreground-muted);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   animation: fadeInUp 1s ease-out 0.4s both;
 }
 
@@ -207,7 +207,7 @@ body {
   border-radius: 8px;
   font-size: 1rem;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   cursor: pointer;
   transition: all 0.3s ease;
   border: none;
@@ -272,7 +272,7 @@ body {
   letter-spacing: 0.3em;
   color: var(--foreground-muted);
   text-transform: uppercase;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   animation: float 3s ease-in-out infinite;
 }
 
@@ -346,7 +346,7 @@ body {
   font-weight: 700;
   color: #ffffff;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   letter-spacing: -0.02em;
 }
 
@@ -393,7 +393,7 @@ body {
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   position: relative;
 }
 
@@ -434,7 +434,7 @@ body {
   margin-bottom: 0.5rem;
   visibility: visible !important;
   opacity: 1 !important;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 .auth-field input {
@@ -446,7 +446,7 @@ body {
   color: #ffffff;
   font-size: 0.9375rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -477,7 +477,7 @@ body {
   font-size: 0.8125rem;
   font-weight: 600;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 .forgot-password-link:hover {
@@ -493,7 +493,7 @@ body {
   border-radius: 5px;
   font-size: 0.8125rem;
   margin-bottom: 0.75rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   line-height: 1.4;
 }
 
@@ -512,7 +512,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   box-shadow: 0 4px 12px rgba(0, 217, 36, 0.3);
   margin-top: 0.25rem;
 }
@@ -570,7 +570,7 @@ body {
   background-color: #000000;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 .auth-google-btn {
@@ -588,7 +588,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.625rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -634,7 +634,7 @@ body {
   color: #808080;
   font-size: 0.875rem;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 .auth-switch-link {
@@ -646,7 +646,7 @@ body {
   cursor: pointer;
   text-decoration: none;
   transition: color 0.2s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   padding: 0;
   margin-left: 0.25rem;
 }
@@ -805,7 +805,7 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-bottom: 0.5rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
   letter-spacing: 0.05em;
 }
 
