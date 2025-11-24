@@ -401,11 +401,13 @@ const DashboardRedesign = () => {
                         
                         try {
                             // Use the same /api/search endpoint as old UI for consistent data
-                            console.log(`🔵 [FRONTEND] Fetching price for ${symbol} from API...`);
+                            // Mark as watchlist request so backend uses Alpaca-only (no Yahoo fallback)
+                            console.log(`🔵 [FRONTEND] Fetching price for ${symbol} from API (watchlist request)...`);
                             const priceResponse = await fetch(`${API_BASE}/api/search`, {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
+                                    'X-Request-Source': 'watchlist',  // Mark as watchlist request
                                     ...authHeaders
                                 },
                                 credentials: 'include',
