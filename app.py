@@ -128,8 +128,11 @@ def get_price_api():
     return alpaca_api if USE_ALPACA_API and alpaca_api else yahoo_finance_api
 
 def get_stock_with_fallback(symbol):
-    """Get stock data, trying Alpaca first if enabled, then falling back to Yahoo."""
+    """Get stock data, trying Alpaca first if enabled, then falling back to Yahoo.
+    Returns tuple: (stock, api_used) where api_used is 'alpaca' or 'yahoo'
+    """
     stock = None
+    api_used = None
     
     # Try Alpaca first if enabled
     if USE_ALPACA_API and alpaca_api:
@@ -140,7 +143,11 @@ def get_stock_with_fallback(symbol):
             # If we got valid data, return it
             if stock.name and stock.price and 'not found' not in stock.name.lower():
                 print(f"✅ [ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
-                return stock
+                api_used = 'alpaca'
+                # Add metadata to stock object
+                if not hasattr(stock, '_api_source'):
+                    stock._api_source = 'alpaca'
+                return stock, api_used
             else:
                 print(f"⚠️ [ALPACA] Got data for {symbol} but it's invalid, falling back to Yahoo")
         except Exception as e:
@@ -153,10 +160,14 @@ def get_stock_with_fallback(symbol):
         stock.retrieve_data()
         if stock.name and stock.price:
             print(f"✅ [YAHOO] Successfully fetched {symbol} from Yahoo: ${stock.price:.2f} ({stock.name})")
-        return stock
+        api_used = 'yahoo'
+        # Add metadata to stock object
+        if not hasattr(stock, '_api_source'):
+            stock._api_source = 'yahoo'
+        return stock, api_used
     except Exception as e:
         print(f"❌ [YAHOO] Also failed for {symbol}: {e}")
-        return None
+        return None, None
 
 # Initialize Watchlist Service with proper Firestore client
 print("🔍 Initializing WatchlistService...")
@@ -629,11 +640,11 @@ def update_stock_prices():
                     
                     # Get fresh data (with Alpaca fallback if enabled)
                     print(f"🔄 [BACKGROUND] Updating price for {symbol}...")
-                    stock = get_stock_with_fallback(symbol)
+                    stock, api_used = get_stock_with_fallback(symbol)
                     if not stock:
                         print(f"⚠️ [BACKGROUND] Failed to update {symbol}, skipping")
                         continue
-                    print(f"✅ [BACKGROUND] Updated {symbol}: ${stock.price:.2f}")
+                    print(f"✅ [BACKGROUND] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'UNKNOWN'})")
                     
                     if stock.name and 'not found' not in stock.name.lower():
                         stock_data = {
@@ -824,7 +835,7 @@ def search_stock():
     if not validate_stock_symbol(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
     
-    stock = get_stock_with_fallback(symbol)
+    stock, api_used = get_stock_with_fallback(symbol)
     if not stock:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     
@@ -851,15 +862,21 @@ def search_stock():
                 'alert_type': alert['alert_type']
             } for alert in triggered_alerts]
         
-        return jsonify({
+        response_data = {
             'symbol': stock.symbol,
             'name': stock.name,
             'price': stock.price,
             'lastMonthPrice': last_month_price,
             'priceChange': price_change,
             'priceChangePercent': price_change_percent,
-            'triggeredAlerts': alerts_data
-        })
+            'triggeredAlerts': alerts_data,
+            'apiSource': api_used  # Add API source to response
+        }
+        
+        response = jsonify(response_data)
+        # Add custom header to show which API was used
+        response.headers['X-API-Source'] = api_used.upper() if api_used else 'UNKNOWN'
+        return response
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
@@ -883,7 +900,7 @@ def get_stock_data(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     try:
-        stock = get_stock_with_fallback(symbol)
+        stock, api_used = get_stock_with_fallback(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
@@ -1172,7 +1189,7 @@ def add_to_watchlist():
         # Get current stock price to store as original price
         current_price = None
         try:
-            stock = get_stock_with_fallback(symbol)
+            stock, api_used = get_stock_with_fallback(symbol)
             if stock and stock.price and stock.price > 0:
                 current_price = stock.price
                 print(f"💰 Current price for {symbol}: ${current_price}")
@@ -1527,7 +1544,7 @@ def get_top_performer_by_date():
 @app.route('/api/company/<symbol>')
 def get_company_info(symbol):
     symbol = symbol.upper()
-    stock = get_stock_with_fallback(symbol)
+    stock, api_used = get_stock_with_fallback(symbol)
     if not stock:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     
@@ -1599,7 +1616,7 @@ def get_watchlist_stock_details(symbol):
         print(f"✅ Found watchlist item for {symbol}")
         
         # Get current stock data
-        stock = get_stock_with_fallback(symbol)
+        stock, api_used = get_stock_with_fallback(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
         
@@ -1773,7 +1790,7 @@ def get_insider_trading(symbol):
         today = datetime.now()
         
         # Get current stock price for realistic data
-        stock = get_stock_with_fallback(symbol)
+        stock, api_used = get_stock_with_fallback(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
         
@@ -1867,7 +1884,7 @@ def get_analyst_ratings(symbol):
         today = datetime.now()
         
         # Get current stock price for realistic data
-        stock = get_stock_with_fallback(symbol)
+        stock, api_used = get_stock_with_fallback(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
         
@@ -1944,7 +1961,7 @@ def get_options_data(symbol):
         today = datetime.now()
         
         # Get current stock price for realistic data
-        stock = get_stock_with_fallback(symbol)
+        stock, api_used = get_stock_with_fallback(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
         
