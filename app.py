@@ -62,9 +62,9 @@ print(f"🚀 Railway deployment - CORS configured for Vercel frontend")
 CORS(app,
      origins=allowed_origins,
      supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-User-ID', 'Cache-Control'],  # Added Cache-Control for news refresh
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-User-ID', 'Cache-Control', 'X-Request-Source'],  # Added X-Request-Source for watchlist detection
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-     expose_headers=['Content-Type', 'Authorization'],
+     expose_headers=['Content-Type', 'Authorization', 'X-API-Source'],
      vary_header=False)
 
 # Configuration
