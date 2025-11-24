@@ -118,21 +118,28 @@ def get_stock_with_fallback(symbol):
     # Try Alpaca first if enabled
     if USE_ALPACA_API and alpaca_api:
         try:
+            print(f"🔵 [ALPACA] Attempting to fetch {symbol} from Alpaca API...")
             stock = Stock(symbol, alpaca_api)
             stock.retrieve_data()
             # If we got valid data, return it
             if stock.name and stock.price and 'not found' not in stock.name.lower():
+                print(f"✅ [ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
                 return stock
+            else:
+                print(f"⚠️ [ALPACA] Got data for {symbol} but it's invalid, falling back to Yahoo")
         except Exception as e:
-            print(f"⚠️ Alpaca API failed for {symbol}, falling back to Yahoo: {e}")
+            print(f"❌ [ALPACA] Failed for {symbol}, falling back to Yahoo: {e}")
     
     # Fallback to Yahoo Finance
     try:
+        print(f"🟡 [YAHOO] Fetching {symbol} from Yahoo Finance (fallback)...")
         stock = Stock(symbol, yahoo_finance_api)
         stock.retrieve_data()
+        if stock.name and stock.price:
+            print(f"✅ [YAHOO] Successfully fetched {symbol} from Yahoo: ${stock.price:.2f} ({stock.name})")
         return stock
     except Exception as e:
-        print(f"⚠️ Yahoo Finance also failed for {symbol}: {e}")
+        print(f"❌ [YAHOO] Also failed for {symbol}: {e}")
         return None
 
 # Initialize Watchlist Service with proper Firestore client
@@ -605,9 +612,12 @@ def update_stock_prices():
                     time.sleep(0.2)  # Reduced delay
                     
                     # Get fresh data (with Alpaca fallback if enabled)
+                    print(f"🔄 [BACKGROUND] Updating price for {symbol}...")
                     stock = get_stock_with_fallback(symbol)
                     if not stock:
+                        print(f"⚠️ [BACKGROUND] Failed to update {symbol}, skipping")
                         continue
+                    print(f"✅ [BACKGROUND] Updated {symbol}: ${stock.price:.2f}")
                     
                     if stock.name and 'not found' not in stock.name.lower():
                         stock_data = {
