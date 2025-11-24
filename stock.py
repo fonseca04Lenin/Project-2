@@ -2,6 +2,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import json
 import requests
+import os
 
 class NewsAPI:
     def __init__(self):
@@ -445,6 +446,168 @@ class Stock:
         return f"{self.name} Price: ${self.price:.2f}"
 
 # Helper to fetch CEO and description from Finnhub
+class AlpacaAPI:
+    def __init__(self, api_key=None, secret_key=None, base_url=None):
+        """Initialize Alpaca API client"""
+        self.api_key = api_key or os.getenv('ALPACA_API_KEY')
+        self.secret_key = secret_key or os.getenv('ALPACA_SECRET_KEY')
+        # Use data API for market data (not trading API)
+        self.base_url = base_url or os.getenv('ALPACA_DATA_URL', 'https://data.alpaca.markets/v2')
+        
+        if not self.api_key or not self.secret_key:
+            print("⚠️ Warning: Alpaca API keys not set. Alpaca API will not work.")
+    
+    def _get_headers(self):
+        """Get authentication headers for Alpaca API"""
+        return {
+            'APCA-API-KEY-ID': self.api_key,
+            'APCA-API-SECRET-KEY': self.secret_key
+        }
+    
+    def get_real_time_data(self, symbol):
+        """Get real-time stock data from Alpaca"""
+        if not self.api_key or not self.secret_key:
+            print(f"⚠️ [ALPACA] API keys not set for {symbol}")
+            return None
+            
+        try:
+            print(f"🔵 [ALPACA] Fetching real-time data for {symbol}...")
+            # Try snapshot endpoint first (most reliable for current price)
+            snapshot_data = self._get_snapshot_data(symbol)
+            if snapshot_data:
+                print(f"✅ [ALPACA] Got snapshot data for {symbol}: ${snapshot_data.get('price', 0):.2f}")
+                return snapshot_data
+            
+            # Fallback: try latest quote endpoint
+            print(f"🔄 [ALPACA] Trying latest quote endpoint for {symbol}...")
+            url = f'{self.base_url}/stocks/{symbol}/quotes/latest'
+            headers = self._get_headers()
+            response = requests.get(url, headers=headers, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                quote = data.get('quote', {})
+                
+                # Get price (use ask price, bid price, or last price)
+                price = quote.get('ap') or quote.get('bp') or quote.get('p')
+                
+                if price:
+                    # Get company name from ticker info
+                    name = self._get_company_name(symbol)
+                    print(f"✅ [ALPACA] Got quote data for {symbol}: ${float(price):.2f} ({name or symbol})")
+                    return {
+                        'name': name or symbol,
+                        'price': float(price)
+                    }
+            elif response.status_code == 404:
+                # Stock not found on Alpaca
+                print(f"⚠️ [ALPACA] Stock {symbol} not found (404)")
+                return None
+            else:
+                print(f"❌ [ALPACA] API error for {symbol}: {response.status_code} {response.text}")
+                return None
+                
+        except Exception as e:
+            print(f"❌ [ALPACA] Exception retrieving data for {symbol}: {e}")
+            return None
+    
+    def _get_snapshot_data(self, symbol):
+        """Get snapshot data (most reliable for current price)"""
+        try:
+            url = f'{self.base_url}/stocks/{symbol}/snapshot'
+            headers = self._get_headers()
+            response = requests.get(url, headers=headers, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Snapshot contains latestTrade with price
+                latest_trade = data.get('latestTrade', {})
+                price = latest_trade.get('p')
+                
+                # If no latest trade, try daily bar
+                if not price:
+                    daily_bar = data.get('dailyBar', {})
+                    price = daily_bar.get('c')  # Close price
+                
+                if price:
+                    name = self._get_company_name(symbol)
+                    print(f"✅ [ALPACA] Got snapshot for {symbol}: ${float(price):.2f} ({name or symbol})")
+                    return {
+                        'name': name or symbol,
+                        'price': float(price)
+                    }
+                else:
+                    print(f"⚠️ [ALPACA] Snapshot for {symbol} has no price data")
+            else:
+                print(f"⚠️ [ALPACA] Snapshot request for {symbol} returned {response.status_code}")
+        except Exception as e:
+            print(f"❌ [ALPACA] Error getting snapshot for {symbol}: {e}")
+        
+        return None
+    
+    def _get_company_name(self, symbol):
+        """Get company name from Alpaca assets endpoint"""
+        try:
+            url = f'{self.base_url}/assets/{symbol}'
+            headers = self._get_headers()
+            response = requests.get(url, headers=headers, timeout=3)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('name', symbol)
+        except:
+            pass
+        return None
+    
+    def get_info(self, symbol):
+        """Get company information from Alpaca (limited compared to Yahoo)"""
+        if not self.api_key or not self.secret_key:
+            return {}
+            
+        try:
+            # Get asset info
+            url = f'{self.base_url}/assets/{symbol}'
+            headers = self._get_headers()
+            response = requests.get(url, headers=headers, timeout=3)
+            
+            if response.status_code == 200:
+                asset_data = response.json()
+                
+                # Get latest trade for price info
+                snapshot_url = f'{self.base_url}/stocks/{symbol}/snapshot'
+                snapshot_response = requests.get(snapshot_url, headers=headers, timeout=3)
+                
+                info = {
+                    'name': asset_data.get('name', symbol),
+                    'exchange': asset_data.get('exchange', ''),
+                    'class': asset_data.get('class', ''),
+                    'status': asset_data.get('status', ''),
+                }
+                
+                if snapshot_response.status_code == 200:
+                    snapshot = snapshot_response.json()
+                    latest_trade = snapshot.get('latestTrade', {})
+                    prev_close = snapshot.get('prevDailyBar', {})
+                    
+                    if latest_trade.get('p'):
+                        info['currentPrice'] = latest_trade.get('p')
+                    if prev_close.get('c'):
+                        info['regularMarketPreviousClose'] = prev_close.get('c')
+                
+                return info
+        except Exception as e:
+            print(f"Error getting Alpaca info for {symbol}: {e}")
+        
+        return {}
+    
+    def search_stocks(self, query, limit=10):
+        """Search stocks using Alpaca (limited - Alpaca doesn't have great search)
+        For now, we'll keep using Yahoo Finance for search"""
+        # Alpaca doesn't have a good search endpoint, so we'll fall back to Yahoo
+        # This method is kept for interface compatibility but will return empty
+        # The app should use YahooFinanceAPI.search_stocks() for search
+        return []
+
 class FinnhubAPI:
     def __init__(self, api_key=None):
         self.api_key = api_key or 'c34391qad3i8edlcgrgg'  # Demo key, replace with your own for production
