@@ -401,6 +401,7 @@ const DashboardRedesign = () => {
                         
                         try {
                             // Use the same /api/search endpoint as old UI for consistent data
+                            console.log(`🔵 [FRONTEND] Fetching price for ${symbol} from API...`);
                             const priceResponse = await fetch(`${API_BASE}/api/search`, {
                                 method: 'POST',
                                 headers: {
@@ -413,7 +414,8 @@ const DashboardRedesign = () => {
                             
                             if (priceResponse.ok) {
                                 const stockData = await priceResponse.json();
-                                console.log(`✅ Fetched price for ${symbol}:`, stockData);
+                                console.log(`✅ [FRONTEND] Fetched price for ${symbol}: $${stockData.price || 0} (${stockData.name || symbol})`);
+                                console.log(`📊 [FRONTEND] Full response for ${symbol}:`, stockData);
                                 
                                 // Map the response to match expected fields
                                 return {
