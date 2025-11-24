@@ -414,7 +414,9 @@ const DashboardRedesign = () => {
                             
                             if (priceResponse.ok) {
                                 const stockData = await priceResponse.json();
+                                const apiSource = priceResponse.headers.get('X-API-Source') || stockData.apiSource || 'UNKNOWN';
                                 console.log(`✅ [FRONTEND] Fetched price for ${symbol}: $${stockData.price || 0} (${stockData.name || symbol})`);
+                                console.log(`🔵 [FRONTEND] API Source: ${apiSource}`);
                                 console.log(`📊 [FRONTEND] Full response for ${symbol}:`, stockData);
                                 
                                 // Map the response to match expected fields
