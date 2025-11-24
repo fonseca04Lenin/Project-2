@@ -103,9 +103,25 @@ USE_ALPACA_API = os.getenv('USE_ALPACA_API', 'false').lower() == 'true'
 alpaca_api = AlpacaAPI() if USE_ALPACA_API else None
 
 if USE_ALPACA_API:
-    print("✅ Alpaca API enabled - will use Alpaca for price data with Yahoo fallback")
+    has_keys = alpaca_api and alpaca_api.api_key and alpaca_api.secret_key
+    print("=" * 60)
+    print("🔵 ALPACA API CONFIGURATION")
+    print("=" * 60)
+    print(f"✅ Alpaca API enabled: {USE_ALPACA_API}")
+    print(f"🔑 API keys configured: {has_keys}")
+    if alpaca_api:
+        print(f"🌐 Base URL: {alpaca_api.base_url}")
+        if has_keys:
+            print(f"🔑 API Key: {alpaca_api.api_key[:8]}...{alpaca_api.api_key[-4:] if len(alpaca_api.api_key) > 12 else '***'}")
+    print("📊 Will use Alpaca for price data with Yahoo fallback")
+    print("=" * 60)
 else:
+    print("=" * 60)
+    print("🟡 YAHOO FINANCE ONLY MODE")
+    print("=" * 60)
     print("ℹ️ Alpaca API disabled - using Yahoo Finance only")
+    print("💡 To enable Alpaca, set USE_ALPACA_API=true in environment variables")
+    print("=" * 60)
 
 def get_price_api():
     """Get the appropriate API for price lookups. Returns Alpaca if enabled, otherwise Yahoo."""
