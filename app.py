@@ -167,7 +167,7 @@ def get_stock_with_fallback(symbol):
         return stock, api_used
     except Exception as e:
         print(f"❌ [YAHOO] Also failed for {symbol}: {e}")
-        return None, None
+        return None, 'none'  # Return 'none' instead of None to avoid issues
 
 # Initialize Watchlist Service with proper Firestore client
 print("🔍 Initializing WatchlistService...")
@@ -835,9 +835,15 @@ def search_stock():
     if not validate_stock_symbol(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
     
+    print(f"🔍 [API] /api/search called for symbol: {symbol}")
+    print(f"🔧 [API] USE_ALPACA_API = {USE_ALPACA_API}, alpaca_api available = {alpaca_api is not None}")
+    
     stock, api_used = get_stock_with_fallback(symbol)
     if not stock:
+        print(f"❌ [API] Could not retrieve stock data for {symbol}")
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+    
+    print(f"✅ [API] Returning stock data for {symbol}: ${stock.price:.2f} ({stock.name}) - Source: {api_used.upper() if api_used else 'UNKNOWN'}")
     
     if stock.name and 'not found' not in stock.name.lower():
         #last month's price
@@ -870,12 +876,14 @@ def search_stock():
             'priceChange': price_change,
             'priceChangePercent': price_change_percent,
             'triggeredAlerts': alerts_data,
-            'apiSource': api_used  # Add API source to response
+            'apiSource': api_used if api_used else 'yahoo'  # Default to yahoo if None (fallback case)
         }
         
         response = jsonify(response_data)
         # Add custom header to show which API was used
-        response.headers['X-API-Source'] = api_used.upper() if api_used else 'UNKNOWN'
+        api_source_header = api_used.upper() if api_used else 'YAHOO'
+        response.headers['X-API-Source'] = api_source_header
+        print(f"📤 [API] Sending response for {symbol} with apiSource: {response_data['apiSource']}, header: {api_source_header}")
         return response
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
