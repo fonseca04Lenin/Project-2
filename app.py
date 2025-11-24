@@ -169,6 +169,34 @@ def get_stock_with_fallback(symbol):
         print(f"❌ [YAHOO] Also failed for {symbol}: {e}")
         return None, 'none'  # Return 'none' instead of None to avoid issues
 
+def get_stock_alpaca_only(symbol):
+    """Get stock data using ONLY Alpaca API (no Yahoo fallback).
+    Used specifically for watchlist requests.
+    Returns tuple: (stock, api_used) where api_used is 'alpaca' or None if failed
+    """
+    if not USE_ALPACA_API or not alpaca_api:
+        print(f"❌ [WATCHLIST] Alpaca API not enabled or not available for {symbol}")
+        return None, None
+    
+    try:
+        print(f"🔵 [WATCHLIST-ALPACA] Fetching {symbol} from Alpaca API only (no Yahoo fallback)...")
+        stock = Stock(symbol, alpaca_api)
+        stock.retrieve_data()
+        
+        # If we got valid data, return it
+        if stock.name and stock.price and 'not found' not in stock.name.lower():
+            print(f"✅ [WATCHLIST-ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
+            api_used = 'alpaca'
+            if not hasattr(stock, '_api_source'):
+                stock._api_source = 'alpaca'
+            return stock, api_used
+        else:
+            print(f"❌ [WATCHLIST-ALPACA] Got invalid data for {symbol}, returning None")
+            return None, None
+    except Exception as e:
+        print(f"❌ [WATCHLIST-ALPACA] Failed for {symbol}: {e}")
+        return None, None
+
 # Initialize Watchlist Service with proper Firestore client
 print("🔍 Initializing WatchlistService...")
 try:
@@ -638,13 +666,13 @@ def update_stock_prices():
                     # Add small delay to prevent rate limiting
                     time.sleep(0.2)  # Reduced delay
                     
-                    # Get fresh data (with Alpaca fallback if enabled)
-                    print(f"🔄 [BACKGROUND] Updating price for {symbol}...")
-                    stock, api_used = get_stock_with_fallback(symbol)
+                    # Get fresh data for watchlist (Alpaca only, no Yahoo fallback)
+                    print(f"🔄 [BACKGROUND-WATCHLIST] Updating price for {symbol}...")
+                    stock, api_used = get_stock_alpaca_only(symbol)
                     if not stock:
-                        print(f"⚠️ [BACKGROUND] Failed to update {symbol}, skipping")
+                        print(f"⚠️ [BACKGROUND-WATCHLIST] Failed to update {symbol} from Alpaca, skipping (no Yahoo fallback)")
                         continue
-                    print(f"✅ [BACKGROUND] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'UNKNOWN'})")
+                    print(f"✅ [BACKGROUND-WATCHLIST] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
                     
                     if stock.name and 'not found' not in stock.name.lower():
                         stock_data = {
@@ -838,7 +866,21 @@ def search_stock():
     print(f"🔍 [API] /api/search called for symbol: {symbol}")
     print(f"🔧 [API] USE_ALPACA_API = {USE_ALPACA_API}, alpaca_api available = {alpaca_api is not None}")
     
-    stock, api_used = get_stock_with_fallback(symbol)
+    # Check if this is a watchlist request (from frontend dashboard)
+    # For watchlist requests, use Alpaca only (no Yahoo fallback)
+    is_watchlist_request = request.headers.get('X-Request-Source') == 'watchlist' or \
+                          request.referrer and 'dashboard' in request.referrer.lower()
+    
+    if is_watchlist_request:
+        print(f"📋 [WATCHLIST] Using Alpaca-only for watchlist request: {symbol}")
+        stock, api_used = get_stock_alpaca_only(symbol)
+        if not stock:
+            # If Alpaca fails for watchlist, return error instead of falling back to Yahoo
+            print(f"❌ [WATCHLIST] Alpaca failed for {symbol}, returning error (no Yahoo fallback)")
+            return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
+    else:
+        # For non-watchlist requests, use fallback
+        stock, api_used = get_stock_with_fallback(symbol)
     if not stock:
         print(f"❌ [API] Could not retrieve stock data for {symbol}")
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -908,9 +950,11 @@ def get_stock_data(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     try:
-        stock, api_used = get_stock_with_fallback(symbol)
+        # This endpoint is used for watchlist price updates, so use Alpaca only
+        print(f"📋 [WATCHLIST] /api/stock/{symbol} - Using Alpaca-only for watchlist price update")
+        stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+            return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
 
         if stock.name and 'not found' not in stock.name.lower():
             # Get last month's price for change calculation
@@ -1194,17 +1238,20 @@ def add_to_watchlist():
     try:
         print(f"🔍 POST watchlist request - User: {user.id}, Symbol: {symbol}, Company: {company_name}")
         
-        # Get current stock price to store as original price
+        # Get current stock price to store as original price (Alpaca only for watchlist)
         current_price = None
         try:
-            stock, api_used = get_stock_with_fallback(symbol)
+            print(f"📋 [WATCHLIST] Using Alpaca-only for adding stock to watchlist: {symbol}")
+            stock, api_used = get_stock_alpaca_only(symbol)
             if stock and stock.price and stock.price > 0:
                 current_price = stock.price
-                print(f"💰 Current price for {symbol}: ${current_price}")
+                print(f"💰 Current price for {symbol} from Alpaca: ${current_price}")
             else:
-                print(f"⚠️ Could not get current price for {symbol}")
+                print(f"❌ Could not get current price for {symbol} from Alpaca (no Yahoo fallback)")
+                return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
         except Exception as price_error:
-            print(f"⚠️ Error getting current price for {symbol}: {price_error}")
+            print(f"❌ Error getting current price for {symbol} from Alpaca: {price_error}")
+            return jsonify({'error': f'Failed to fetch stock data from Alpaca API: {str(price_error)}'}), 500
         
         # Re-enabled with proper watchlist service
         result = watchlist_service.add_stock(
@@ -1623,10 +1670,11 @@ def get_watchlist_stock_details(symbol):
         
         print(f"✅ Found watchlist item for {symbol}")
         
-        # Get current stock data
-        stock, api_used = get_stock_with_fallback(symbol)
+        # Get current stock data (Alpaca only for watchlist)
+        print(f"📋 [WATCHLIST] Using Alpaca-only for watchlist details: {symbol}")
+        stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+            return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
         
         finnhub_info = finnhub_api.get_company_profile(symbol)
         info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
