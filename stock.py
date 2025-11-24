@@ -455,7 +455,12 @@ class AlpacaAPI:
         self.base_url = base_url or os.getenv('ALPACA_DATA_URL', 'https://data.alpaca.markets/v2')
         
         if not self.api_key or not self.secret_key:
-            print("⚠️ Warning: Alpaca API keys not set. Alpaca API will not work.")
+            print("⚠️ [ALPACA INIT] Warning: Alpaca API keys not set. Alpaca API will not work.")
+            print(f"   Looking for: ALPACA_API_KEY and ALPACA_SECRET_KEY")
+        else:
+            print(f"✅ [ALPACA INIT] Alpaca API client initialized")
+            print(f"   Base URL: {self.base_url}")
+            print(f"   API Key: {self.api_key[:8]}...{self.api_key[-4:] if len(self.api_key) > 12 else '***'}")
     
     def _get_headers(self):
         """Get authentication headers for Alpaca API"""
