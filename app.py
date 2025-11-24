@@ -842,6 +842,16 @@ def get_market_status():
             'last_updated': datetime.now().isoformat()
         }
 
+@app.route('/api/search', methods=['OPTIONS'])
+def search_stock_options():
+    """Handle CORS preflight for /api/search"""
+    response = jsonify({})
+    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
 @app.route('/api/search', methods=['POST'])
 def search_stock():
     from utils import sanitize_stock_symbol, validate_stock_symbol
