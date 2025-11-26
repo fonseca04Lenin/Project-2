@@ -10,6 +10,11 @@ const DashboardRedesign = () => {
     const userDropdownRef = useRef(null);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
     const [preferencesOpen, setPreferencesOpen] = useState(false);
+    const [alpacaStatus, setAlpacaStatus] = useState({ connected: false, loading: true });
+    const [alpacaPositions, setAlpacaPositions] = useState([]);
+    const [showAlpacaForm, setShowAlpacaForm] = useState(false);
+    const [alpacaFormData, setAlpacaFormData] = useState({ api_key: '', secret_key: '', use_paper: true });
+    const [syncingPositions, setSyncingPositions] = useState(false);
     
     // Preferences state
     const [preferences, setPreferences] = useState({
@@ -85,10 +90,165 @@ const DashboardRedesign = () => {
         }
     };
 
+    // Load Alpaca connection status
+    const loadAlpacaStatus = async () => {
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/alpaca/status`, {
+                headers: authHeaders,
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const newStatus = { ...data, loading: false };
+                setAlpacaStatus(newStatus);
+                // If connected, load positions
+                if (data.connected) {
+                    await loadAlpacaPositions();
+                }
+                return newStatus;
+            } else {
+                setAlpacaStatus({ connected: false, loading: false });
+                return { connected: false, loading: false };
+            }
+        } catch (e) {
+            setAlpacaStatus({ connected: false, loading: false });
+            return { connected: false, loading: false };
+        }
+    };
+
+    // Connect Alpaca account
+    const connectAlpaca = async () => {
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/alpaca/connect`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeaders
+                },
+                credentials: 'include',
+                body: JSON.stringify(alpacaFormData)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (window.showNotification) {
+                    window.showNotification('Alpaca account connected successfully!', 'success');
+                }
+                setAlpacaStatus({ ...data, connected: true });
+                setShowAlpacaForm(false);
+                setAlpacaFormData({ api_key: '', secret_key: '', use_paper: true });
+                await loadAlpacaStatus();
+            } else {
+                const error = await response.json();
+                if (window.showNotification) {
+                    window.showNotification(error.error || 'Failed to connect Alpaca account', 'error');
+                }
+            }
+        } catch (e) {
+            if (window.showNotification) {
+                window.showNotification('Error connecting Alpaca account', 'error');
+            }
+        }
+    };
+
+    // Disconnect Alpaca account
+    const disconnectAlpaca = async () => {
+        if (!confirm('Are you sure you want to disconnect your Alpaca account?')) {
+            return;
+        }
+        
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/alpaca/disconnect`, {
+                method: 'POST',
+                headers: authHeaders,
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                if (window.showNotification) {
+                    window.showNotification('Alpaca account disconnected', 'success');
+                }
+                setAlpacaStatus({ connected: false });
+                setAlpacaPositions([]);
+            }
+        } catch (e) {
+            if (window.showNotification) {
+                window.showNotification('Error disconnecting Alpaca account', 'error');
+            }
+        }
+    };
+
+    // Load Alpaca positions
+    const loadAlpacaPositions = async () => {
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/alpaca/positions`, {
+                headers: authHeaders,
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setAlpacaPositions(data.positions || []);
+            }
+        } catch (e) {
+            console.error('Error loading Alpaca positions:', e);
+        }
+    };
+
+    // Sync positions to watchlist
+    const syncPositionsToWatchlist = async () => {
+        setSyncingPositions(true);
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const response = await fetch(`${API_BASE}/api/alpaca/sync-positions`, {
+                method: 'POST',
+                headers: authHeaders,
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (window.showNotification) {
+                    window.showNotification(data.message || `Synced ${data.added} positions to watchlist`, 'success');
+                }
+                await loadWatchlistData();
+            } else {
+                const error = await response.json();
+                if (window.showNotification) {
+                    window.showNotification(error.error || 'Failed to sync positions', 'error');
+                }
+            }
+        } catch (e) {
+            if (window.showNotification) {
+                window.showNotification('Error syncing positions', 'error');
+            }
+        } finally {
+            setSyncingPositions(false);
+        }
+    };
+
+    // Load Alpaca status when preferences modal opens
+    useEffect(() => {
+        if (preferencesOpen) {
+            loadAlpacaStatus();
+        }
+    }, [preferencesOpen]);
+
     useEffect(() => {
         loadWatchlistData();
         loadUserData();
         loadPreferences();
+        loadAlpacaStatus();
         
         // Listen for auth state changes
         if (window.firebaseAuth) {
@@ -2877,6 +3037,269 @@ const AIAssistantView = () => {
                                         <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                                     </select>
                                 </div>
+                            </div>
+                            
+                            {/* Alpaca Account Connection */}
+                            <div className="preferences-section">
+                                <h3><i className="fas fa-link"></i> Alpaca Account</h3>
+                                
+                                {alpacaStatus.loading ? (
+                                    <div className="preference-item">
+                                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Loading connection status...</span>
+                                    </div>
+                                ) : alpacaStatus.connected ? (
+                                    <>
+                                        <div className="preference-item">
+                                            <div style={{ 
+                                                padding: '1rem', 
+                                                background: 'rgba(0, 217, 36, 0.1)', 
+                                                border: '1px solid rgba(0, 217, 36, 0.3)',
+                                                borderRadius: '6px',
+                                                marginBottom: '1rem'
+                                            }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                    <span style={{ color: '#00D924', fontWeight: 600 }}>
+                                                        <i className="fas fa-check-circle"></i> Connected
+                                                    </span>
+                                                    <button 
+                                                        onClick={disconnectAlpaca}
+                                                        style={{
+                                                            padding: '0.5rem 1rem',
+                                                            background: 'transparent',
+                                                            border: '1px solid rgba(239, 68, 68, 0.5)',
+                                                            borderRadius: '4px',
+                                                            color: '#ef4444',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.85rem'
+                                                        }}
+                                                    >
+                                                        Disconnect
+                                                    </button>
+                                                </div>
+                                                {alpacaStatus.account_number && (
+                                                    <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginTop: '0.5rem' }}>
+                                                        Account: {alpacaStatus.account_number} ({alpacaStatus.use_paper ? 'Paper Trading' : 'Live Trading'})
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="preference-item">
+                                            <button 
+                                                onClick={loadAlpacaPositions}
+                                                style={{
+                                                    padding: '0.75rem 1.5rem',
+                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                    borderRadius: '6px',
+                                                    color: '#ffffff',
+                                                    cursor: 'pointer',
+                                                    marginRight: '0.5rem'
+                                                }}
+                                            >
+                                                <i className="fas fa-sync-alt"></i> Load Positions
+                                            </button>
+                                            {alpacaPositions.length > 0 && (
+                                                <button 
+                                                    onClick={syncPositionsToWatchlist}
+                                                    disabled={syncingPositions}
+                                                    style={{
+                                                        padding: '0.75rem 1.5rem',
+                                                        background: '#00D924',
+                                                        border: 'none',
+                                                        borderRadius: '6px',
+                                                        color: '#000000',
+                                                        cursor: syncingPositions ? 'not-allowed' : 'pointer',
+                                                        fontWeight: 600
+                                                    }}
+                                                >
+                                                    {syncingPositions ? 'Syncing...' : `Sync ${alpacaPositions.length} Positions to Watchlist`}
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        {alpacaPositions.length > 0 && (
+                                            <div className="preference-item" style={{ marginTop: '1rem' }}>
+                                                <div style={{ 
+                                                    maxHeight: '200px', 
+                                                    overflowY: 'auto',
+                                                    background: 'rgba(255, 255, 255, 0.03)',
+                                                    borderRadius: '6px',
+                                                    padding: '1rem'
+                                                }}>
+                                                    <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>
+                                                        Your Positions ({alpacaPositions.length}):
+                                                    </div>
+                                                    {alpacaPositions.map((pos, idx) => (
+                                                        <div key={idx} style={{ 
+                                                            padding: '0.75rem',
+                                                            background: 'rgba(255, 255, 255, 0.05)',
+                                                            borderRadius: '4px',
+                                                            marginBottom: '0.5rem',
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center'
+                                                        }}>
+                                                            <div>
+                                                                <div style={{ fontWeight: 600, color: '#cc5500' }}>{pos.symbol}</div>
+                                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
+                                                                    {pos.qty} shares @ ${pos.avg_entry_price.toFixed(2)}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ textAlign: 'right' }}>
+                                                                <div style={{ 
+                                                                    color: pos.unrealized_pl >= 0 ? '#00D924' : '#ef4444',
+                                                                    fontWeight: 600
+                                                                }}>
+                                                                    {pos.unrealized_pl >= 0 ? '+' : ''}${pos.unrealized_pl.toFixed(2)}
+                                                                </div>
+                                                                <div style={{ 
+                                                                    fontSize: '0.75rem',
+                                                                    color: pos.unrealized_plpc >= 0 ? '#00D924' : '#ef4444'
+                                                                }}>
+                                                                    {pos.unrealized_plpc >= 0 ? '+' : ''}{pos.unrealized_plpc.toFixed(2)}%
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        {!showAlpacaForm ? (
+                                            <div className="preference-item">
+                                                <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1rem' }}>
+                                                    Connect your Alpaca account to import your positions and enable trading features.
+                                                </p>
+                                                <button 
+                                                    onClick={() => setShowAlpacaForm(true)}
+                                                    style={{
+                                                        padding: '0.75rem 1.5rem',
+                                                        background: '#00D924',
+                                                        border: 'none',
+                                                        borderRadius: '6px',
+                                                        color: '#000000',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 600
+                                                    }}
+                                                >
+                                                    <i className="fas fa-link"></i> Connect Alpaca Account
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="preference-item">
+                                                <div style={{ 
+                                                    padding: '1rem', 
+                                                    background: 'rgba(255, 255, 255, 0.05)', 
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                                                }}>
+                                                    <div style={{ marginBottom: '1rem' }}>
+                                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                                                            API Key
+                                                        </label>
+                                                        <input 
+                                                            type="password"
+                                                            value={alpacaFormData.api_key}
+                                                            onChange={(e) => setAlpacaFormData({...alpacaFormData, api_key: e.target.value})}
+                                                            placeholder="Enter your Alpaca API Key"
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '0.75rem',
+                                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                                borderRadius: '4px',
+                                                                color: '#ffffff',
+                                                                fontSize: '0.9rem'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    
+                                                    <div style={{ marginBottom: '1rem' }}>
+                                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                                                            Secret Key
+                                                        </label>
+                                                        <input 
+                                                            type="password"
+                                                            value={alpacaFormData.secret_key}
+                                                            onChange={(e) => setAlpacaFormData({...alpacaFormData, secret_key: e.target.value})}
+                                                            placeholder="Enter your Alpaca Secret Key"
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '0.75rem',
+                                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                                borderRadius: '4px',
+                                                                color: '#ffffff',
+                                                                fontSize: '0.9rem'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    
+                                                    <div style={{ marginBottom: '1rem' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                                            <input 
+                                                                type="checkbox"
+                                                                checked={alpacaFormData.use_paper}
+                                                                onChange={(e) => setAlpacaFormData({...alpacaFormData, use_paper: e.target.checked})}
+                                                            />
+                                                            Use Paper Trading Account
+                                                        </label>
+                                                    </div>
+                                                    
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <button 
+                                                            onClick={connectAlpaca}
+                                                            disabled={!alpacaFormData.api_key || !alpacaFormData.secret_key}
+                                                            style={{
+                                                                padding: '0.75rem 1.5rem',
+                                                                background: '#00D924',
+                                                                border: 'none',
+                                                                borderRadius: '6px',
+                                                                color: '#000000',
+                                                                cursor: (!alpacaFormData.api_key || !alpacaFormData.secret_key) ? 'not-allowed' : 'pointer',
+                                                                fontWeight: 600,
+                                                                opacity: (!alpacaFormData.api_key || !alpacaFormData.secret_key) ? 0.5 : 1
+                                                            }}
+                                                        >
+                                                            Connect
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setShowAlpacaForm(false);
+                                                                setAlpacaFormData({ api_key: '', secret_key: '', use_paper: true });
+                                                            }}
+                                                            style={{
+                                                                padding: '0.75rem 1.5rem',
+                                                                background: 'transparent',
+                                                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                                borderRadius: '6px',
+                                                                color: '#ffffff',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div style={{ 
+                                                        marginTop: '1rem', 
+                                                        padding: '0.75rem', 
+                                                        background: 'rgba(255, 255, 255, 0.03)',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.8rem',
+                                                        color: 'rgba(255,255,255,0.6)'
+                                                    }}>
+                                                        <i className="fas fa-info-circle"></i> Your API keys are encrypted and stored securely. 
+                                                        Get your keys from <a href="https://app.alpaca.markets/paper/dashboard/overview" target="_blank" rel="noopener noreferrer" style={{ color: '#00D924' }}>Alpaca Dashboard</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                         
