@@ -176,6 +176,7 @@ i[class*="fal"],
 
 .user-menu-wrapper {
     position: relative;
+    z-index: 999999;
 }
 
 .user-menu-btn {
@@ -211,13 +212,15 @@ i[class*="fal"],
     top: calc(100% + 0.5rem);
     right: 0;
     width: 280px;
-    background: #0a0a0a !important;
+    background: #000000 !important;
     opacity: 1 !important;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     padding: 1rem 0;
-    z-index: 1000;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.5);
+    z-index: 999999 !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(0, 0, 0, 0.8);
+    isolation: isolate;
+    will-change: transform;
 }
 
 .user-dropdown-header {
