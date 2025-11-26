@@ -418,6 +418,7 @@ const DashboardRedesign = () => {
                                     ...stock,
                                     symbol: stockData.symbol || symbol,
                                     name: stockData.name || stock.company_name || stock.name || symbol,
+                                    company_name: stock.company_name || stockData.name || stock.name || symbol,
                                     current_price: stockData.price || 0,
                                     change_percent: stockData.priceChangePercent || 0,
                                     price_change: stockData.priceChange || 0,
@@ -1706,7 +1707,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                             >
                                 <div className="stock-info-enhanced">
                                     <div className="stock-symbol-enhanced">{stock.symbol}</div>
-                                    <div className="stock-name-enhanced">{stock.name}</div>
+                                    <div className="stock-name-enhanced">{stock.company_name || stock.name || stock.symbol}</div>
                                 </div>
                                 <div className="stock-sparkline">
                                     <SparklineChart 
