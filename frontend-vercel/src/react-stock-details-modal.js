@@ -190,10 +190,10 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             setNews([]);
 
             try {
+                // First check if stock is in watchlist if not explicitly from watchlist
                 let isInWatchlist = isFromWatchlist;
                 let authHeaders = null;
 
-                // Only check watchlist if not explicitly from watchlist
                 if (!isFromWatchlist) {
                     try {
                         authHeaders = await window.getAuthHeaders();
@@ -208,77 +208,74 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     }
                 }
 
-                // Prepare auth headers for watchlist requests
+                // Fetch stock details
+                let response, data;
                 if (isInWatchlist || isFromWatchlist) {
                     authHeaders = authHeaders || await window.getAuthHeaders();
-                }
-
-                // Fetch stock details, chart, and news in parallel for faster loading
-                const [stockResponse, chartResponse, newsResponse] = await Promise.allSettled([
-                    // Stock details
-                    isInWatchlist || isFromWatchlist
-                        ? fetch(`${API_BASE}/api/watchlist/${symbol}/details`, {
-                            method: 'GET',
-                            headers: authHeaders,
-                            credentials: 'include'
-                        })
-                        : fetch(`${API_BASE}/api/company/${symbol}`, {
-                            credentials: 'include'
-                        }),
-                    // Chart data (fetch in parallel)
-                    fetch(`${API_BASE}/api/chart/${symbol}`, {
+                    response = await fetch(`${API_BASE}/api/watchlist/${symbol}/details`, {
+                        method: 'GET',
+                        headers: authHeaders,
                         credentials: 'include'
-                    }),
-                    // News (fetch in parallel)
-                    fetch(`${API_BASE}/api/news/${symbol}`, {
-                        credentials: 'include'
-                    })
-                ]);
-
-                // Process stock details response
-                if (stockResponse.status === 'fulfilled' && stockResponse.value.ok) {
-                    const data = await stockResponse.value.json();
-                    setStockData({
-                        ...data,
-                        isInWatchlist: isInWatchlist || isFromWatchlist,
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to load stock data: HTTP ${response.status}`);
+                    }
+                    
+                    data = await response.json();
+                        setStockData({
+                            ...data,
+                            isInWatchlist: true,
                         // Map snake_case to camelCase
                         dateAdded: data.date_added || data.dateAdded,
                         originalPrice: data.original_price || data.originalPrice,
                         priceChange: data.price_change !== null && data.price_change !== undefined ? data.price_change : data.priceChange,
                         percentageChange: data.percentage_change !== null && data.percentage_change !== undefined ? data.percentage_change : data.percentageChange,
-                        category: data.category,
-                        notes: data.notes
-                    });
-                    // Set loading to false as soon as main data is loaded
-                    setLoading(false);
-                } else if (stockResponse.status === 'fulfilled' && !stockResponse.value.ok) {
-                    throw new Error(`Failed to load stock data: HTTP ${stockResponse.value.status}`);
+                            category: data.category,
+                            notes: data.notes
+                        });
                 } else {
-                    throw new Error('Failed to load stock data');
+                    response = await fetch(`${API_BASE}/api/company/${symbol}`, {
+                        credentials: 'include'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to load stock data: HTTP ${response.status}`);
                 }
 
-                // Process chart data (non-blocking)
-                if (chartResponse.status === 'fulfilled' && chartResponse.value.ok) {
-                    try {
-                        const chartRespData = await chartResponse.value.json();
-                        setChartData(chartRespData);
-                    } catch (err) {
-                        // Silently fail
-                    }
+                    data = await response.json();
+                    setStockData({ ...data, isInWatchlist: false });
                 }
 
-                // Process news (non-blocking)
-                if (newsResponse.status === 'fulfilled' && newsResponse.value.ok) {
-                    try {
-                        const newsRespData = await newsResponse.value.json();
-                        setNews(newsRespData.slice(0, 5)); // Limit to 5 articles
-                    } catch (err) {
-                        // Silently fail
+                // Fetch chart data
+                try {
+                    const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
+                    credentials: 'include'
+                });
+                    if (chartResp.ok) {
+                const chartRespData = await chartResp.json();
+                    setChartData(chartRespData);
                     }
+                } catch (err) {
+                    // Silently fail for chart/news
+                }
+
+                // Fetch news
+                try {
+                    const newsResp = await fetch(`${API_BASE}/api/news/${symbol}`, {
+                    credentials: 'include'
+                });
+                    if (newsResp.ok) {
+                const newsRespData = await newsResp.json();
+                    setNews(newsRespData.slice(0, 5)); // Limit to 5 articles
+                    }
+                } catch (err) {
+                    // Silently fail
                 }
 
             } catch (err) {
                 setError(err.message || 'Failed to load stock details');
+            } finally {
                 setLoading(false);
             }
         };
@@ -337,6 +334,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
                     ref.rateLimitCooldown = true;
                     ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
+                    console.warn(`⚠️ Rate limit hit in modal. Cooldown for ${cooldownSeconds} seconds.`);
                     return;
                 }
                 
@@ -352,6 +350,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 }
             } catch (e) {
                 // Silently handle update errors
+                console.error('Error updating price in modal:', e);
             }
         };
         

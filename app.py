@@ -24,7 +24,6 @@ import time
 import signal
 from functools import wraps
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
 
@@ -1611,23 +1610,12 @@ def get_top_performer_by_date():
 @app.route('/api/company/<symbol>')
 def get_company_info(symbol):
     symbol = symbol.upper()
-    
-    # Fetch stock data and additional info in parallel for faster response
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        stock_future = executor.submit(get_stock_with_fallback, symbol)
-        finnhub_future = executor.submit(finnhub_api.get_company_profile, symbol)
-        yahoo_future = executor.submit(yahoo_finance_api.get_info, symbol)
-        
-        # Wait for all to complete
-        stock_result_tuple = stock_future.result()
-        finnhub_info = finnhub_future.result() or {}
-        info = yahoo_future.result() or {}
-    
-    if not stock_result_tuple or not stock_result_tuple[0]:
+    stock, api_used = get_stock_with_fallback(symbol)
+    if not stock:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     
-    stock, api_used = stock_result_tuple
-    
+    finnhub_info = finnhub_api.get_company_profile(symbol)
+    info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
     if stock.name and 'not found' not in stock.name.lower():
         return jsonify({
             'symbol': stock.symbol,
@@ -1693,23 +1681,14 @@ def get_watchlist_stock_details(symbol):
         
         print(f"✅ Found watchlist item for {symbol}")
         
-        # Fetch all API data in parallel for faster response
+        # Get current stock data (Alpaca only for watchlist)
         print(f"📋 [WATCHLIST] Using Alpaca-only for watchlist details: {symbol}")
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            # Submit all API calls in parallel
-            stock_future = executor.submit(get_stock_alpaca_only, symbol)
-            finnhub_future = executor.submit(finnhub_api.get_company_profile, symbol)
-            yahoo_future = executor.submit(yahoo_finance_api.get_info, symbol)
-            
-            # Wait for all to complete
-            stock_result_tuple = stock_future.result()
-            finnhub_info = finnhub_future.result() or {}
-            info = yahoo_future.result() or {}
-        
-        if not stock_result_tuple or not stock_result_tuple[0]:
+        stock, api_used = get_stock_alpaca_only(symbol)
+        if not stock:
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
         
-        stock, api_used = stock_result_tuple
+        finnhub_info = finnhub_api.get_company_profile(symbol)
+        info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
         
         if not stock.name or 'not found' in stock.name.lower():
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
