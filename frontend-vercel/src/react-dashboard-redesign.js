@@ -2683,91 +2683,88 @@ const TradingView = () => {
                 <div className="trading-icon-wrapper">
                     <i className="fas fa-exchange-alt"></i>
                 </div>
-                <h1>Trading Coming Soon</h1>
+                <h1>Trading</h1>
                 <p className="trading-subtitle">
-                    Seamlessly trade stocks directly from your watchlist
+                    Coming soon: Trade directly from your watchlist
                 </p>
             </div>
 
-            <div className="trading-features">
-                <div className="trading-feature-card">
-                    <div className="trading-feature-icon" style={{ background: 'rgba(0, 217, 36, 0.1)' }}>
-                        <i className="fas fa-link" style={{ color: '#00D924' }}></i>
-                    </div>
-                    <h3>Connect Your Alpaca Account</h3>
-                    <p>Link your Alpaca trading account securely. Your API keys are encrypted and stored safely, giving you full control over your trading activities.</p>
-                </div>
+            <div className="trading-content">
+                <div className="trading-section">
+                    <h2>What's Coming</h2>
+                    <div className="trading-features">
+                        <div className="trading-feature-card">
+                            <div className="trading-feature-icon">
+                                <i className="fas fa-link"></i>
+                            </div>
+                            <h3>Alpaca Integration</h3>
+                            <p>Link your Alpaca account to import positions and execute trades. Your API keys stay encrypted and secure.</p>
+                        </div>
 
-                <div className="trading-feature-card">
-                    <div className="trading-feature-icon" style={{ background: 'rgba(204, 85, 0, 0.1)' }}>
-                        <i className="fas fa-chart-line" style={{ color: '#cc5500' }}></i>
-                    </div>
-                    <h3>Trade from Your Watchlist</h3>
-                    <p>Buy and sell stocks directly from your watchlist. No need to switch between platforms - everything you need is in one place.</p>
-                </div>
+                        <div className="trading-feature-card">
+                            <div className="trading-feature-icon">
+                                <i className="fas fa-chart-line"></i>
+                            </div>
+                            <h3>Trade from Watchlist</h3>
+                            <p>Buy and sell stocks directly from your watchlist without leaving the app.</p>
+                        </div>
 
-                <div className="trading-feature-card">
-                    <div className="trading-feature-icon" style={{ background: 'rgba(0, 217, 36, 0.1)' }}>
-                        <i className="fas fa-sync-alt" style={{ color: '#00D924' }}></i>
-                    </div>
-                    <h3>Auto-Sync Positions</h3>
-                    <p>Your Alpaca positions automatically sync to your watchlist. Track your portfolio performance alongside your watchlist stocks.</p>
-                </div>
-            </div>
-
-            <div className="trading-benefits">
-                <h2>Why Trade Here?</h2>
-                <div className="trading-benefits-grid">
-                    <div className="trading-benefit-item">
-                        <i className="fas fa-check-circle"></i>
-                        <div>
-                            <strong>Unified Platform</strong>
-                            <p>Research, analyze, and trade all in one place. No more switching between multiple apps.</p>
-                        </div>
-                    </div>
-                    <div className="trading-benefit-item">
-                        <i className="fas fa-check-circle"></i>
-                        <div>
-                            <strong>Real-Time Data</strong>
-                            <p>Get live market data and instant price updates to make informed trading decisions.</p>
-                        </div>
-                    </div>
-                    <div className="trading-benefit-item">
-                        <i className="fas fa-check-circle"></i>
-                        <div>
-                            <strong>Advanced Analytics</strong>
-                            <p>Access insider trading data, analyst ratings, and options flow to inform your trades.</p>
-                        </div>
-                    </div>
-                    <div className="trading-benefit-item">
-                        <i className="fas fa-check-circle"></i>
-                        <div>
-                            <strong>AI-Powered Insights</strong>
-                            <p>Get trading recommendations and market analysis from our AI assistant.</p>
-                        </div>
-                    </div>
-                    <div className="trading-benefit-item">
-                        <i className="fas fa-check-circle"></i>
-                        <div>
-                            <strong>Portfolio Tracking</strong>
-                            <p>Monitor your positions alongside your watchlist with comprehensive performance metrics.</p>
-                        </div>
-                    </div>
-                    <div className="trading-benefit-item">
-                        <i className="fas fa-check-circle"></i>
-                        <div>
-                            <strong>Secure & Encrypted</strong>
-                            <p>Your trading credentials are encrypted and stored securely. We never see your API keys.</p>
+                        <div className="trading-feature-card">
+                            <div className="trading-feature-icon">
+                                <i className="fas fa-sync-alt"></i>
+                            </div>
+                            <h3>Position Syncing</h3>
+                            <p>Your Alpaca positions automatically appear in your watchlist for easy tracking.</p>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="trading-cta">
-                <p>Stay tuned! Trading functionality will be available soon.</p>
-                <div className="trading-notify">
-                    <i className="fas fa-bell"></i>
-                    <span>We'll notify you when it's ready</span>
+                <div className="trading-section">
+                    <h2>Why Trade Here</h2>
+                    <div className="trading-benefits-list">
+                        <div className="trading-benefit-item">
+                            <i className="fas fa-check"></i>
+                            <div>
+                                <strong>Everything in One Place</strong>
+                                <p>Research, analyze, and trade without switching apps.</p>
+                            </div>
+                        </div>
+                        <div className="trading-benefit-item">
+                            <i className="fas fa-check"></i>
+                            <div>
+                                <strong>Live Market Data</strong>
+                                <p>Real-time prices and instant updates for better decisions.</p>
+                            </div>
+                        </div>
+                        <div className="trading-benefit-item">
+                            <i className="fas fa-check"></i>
+                            <div>
+                                <strong>Market Intelligence</strong>
+                                <p>Insider trades, analyst ratings, and options flow at your fingertips.</p>
+                            </div>
+                        </div>
+                        <div className="trading-benefit-item">
+                            <i className="fas fa-check"></i>
+                            <div>
+                                <strong>AI Trading Assistant</strong>
+                                <p>Get personalized recommendations and market insights.</p>
+                            </div>
+                        </div>
+                        <div className="trading-benefit-item">
+                            <i className="fas fa-check"></i>
+                            <div>
+                                <strong>Portfolio Overview</strong>
+                                <p>Track positions and watchlist stocks together in one view.</p>
+                            </div>
+                        </div>
+                        <div className="trading-benefit-item">
+                            <i className="fas fa-check"></i>
+                            <div>
+                                <strong>Bank-Level Security</strong>
+                                <p>Your credentials are encrypted. We never see your API keys.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
