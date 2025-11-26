@@ -1555,7 +1555,7 @@ i[class*="fal"],
 }
 
 .summary-header h2 i {
-    color: #8B9DC3;
+    color: #cc5500;
 }
 
 .summary-metrics {
@@ -1592,11 +1592,11 @@ i[class*="fal"],
 }
 
 .metric-item.positive {
-    border-left: 3px solid #4A9B7F;
+    border-left: 3px solid #00D924;
 }
 
 .metric-item.negative {
-    border-left: 3px solid #C85A5A;
+    border-left: 3px solid #ef4444;
 }
 
 .metric-label {
@@ -1614,11 +1614,11 @@ i[class*="fal"],
 }
 
 .metric-item.positive .metric-value {
-    color: #5DB896;
+    color: #00D924;
 }
 
 .metric-item.negative .metric-value {
-    color: #D67A7A;
+    color: #ef4444;
 }
 
 .metric-amount {
@@ -1636,7 +1636,7 @@ i[class*="fal"],
 .performer-symbol {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #ffffff;
+    color: #cc5500;
 }
 
 .performer-change {
@@ -1647,13 +1647,13 @@ i[class*="fal"],
 }
 
 .performer-change.positive {
-    color: #5DB896;
-    background: rgba(93, 184, 150, 0.12);
+    color: #00D924;
+    background: rgba(0, 217, 36, 0.15);
 }
 
 .performer-change.negative {
-    color: #D67A7A;
-    background: rgba(214, 122, 122, 0.12);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
 }
 
 /* Performance Timeline */
@@ -1742,11 +1742,11 @@ i[class*="fal"],
 }
 
 .performance-change.positive {
-    color: #5DB896;
+    color: #00D924;
 }
 
 .performance-change.negative {
-    color: #D67A7A;
+    color: #ef4444;
 }
 
 .performance-amount {
