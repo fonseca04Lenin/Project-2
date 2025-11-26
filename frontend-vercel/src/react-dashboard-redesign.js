@@ -245,10 +245,15 @@ const DashboardRedesign = () => {
     }, [preferencesOpen]);
 
     useEffect(() => {
-        loadWatchlistData();
+        // Load critical data first (non-blocking)
         loadUserData();
         loadPreferences();
-        loadAlpacaStatus();
+        
+        // Defer Alpaca status check - only needed when Preferences opens
+        // loadAlpacaStatus() removed from initial load
+        
+        // Load watchlist data (this is the main data we need)
+        loadWatchlistData();
         
         // Listen for auth state changes
         if (window.firebaseAuth) {
@@ -297,7 +302,7 @@ const DashboardRedesign = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Backend keep-alive mechanism
+    // Backend keep-alive mechanism (deferred to not block initial load)
     useEffect(() => {
         const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
         
@@ -313,10 +318,12 @@ const DashboardRedesign = () => {
             }
         };
         
-        // Wake up backend immediately
-        wakeUpBackend();
+        // Defer backend wake-up to not block initial load
+        setTimeout(() => {
+            wakeUpBackend();
+        }, 2000); // Wait 2 seconds after initial load
         
-        // Then ping every 5 minutes to keep Heroku awake
+        // Then ping every 5 minutes to keep backend awake
         keepAliveRef.current = setInterval(wakeUpBackend, 300000); // 5 minutes
         
         return () => {
@@ -631,57 +638,25 @@ const DashboardRedesign = () => {
             if (response.ok) {
                 let data = await response.json();
                 
-                // Fetch current prices for each stock using same method as old UI
+                // Backend already provides prices, so we don't need to fetch individually
+                // This was causing N API calls on initial load (very slow!)
                 if (Array.isArray(data) && data.length > 0) {
-                    const stocksWithPrices = await Promise.all(data.map(async (stock) => {
+                    // Map the data to match expected fields
+                    const formattedData = data.map((stock) => {
                         const symbol = stock.symbol || stock.id;
-                        
-                        try {
-                            // Use the same /api/search endpoint as old UI for consistent data
-                            // Mark as watchlist request so backend uses Alpaca-only (no Yahoo fallback)
-                            const priceResponse = await fetch(`${API_BASE}/api/search`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-Request-Source': 'watchlist',  // Mark as watchlist request
-                                    ...authHeaders
-                                },
-                                credentials: 'include',
-                                body: JSON.stringify({ symbol: symbol })
-                            });
-                            
-                            if (priceResponse.ok) {
-                                const stockData = await priceResponse.json();
-                                
-                                // Map the response to match expected fields
-                                return {
-                                    ...stock,
-                                    symbol: stockData.symbol || symbol,
-                                    name: stockData.name || stock.company_name || stock.name || symbol,
-                                    company_name: stock.company_name || stockData.name || stock.name || symbol,
-                                    current_price: stockData.price || 0,
-                                    change_percent: stockData.priceChangePercent || 0,
-                                    price_change: stockData.priceChange || 0,
-                                    category: stock.category || stockData.category || 'General'
-                                };
-                            }
-                        } catch (e) {
-                            // Silently handle fetch errors
-                        }
-                        
-                        // Return stock with fallback data if fetch failed
                         return {
                             ...stock,
                             symbol: symbol,
                             name: stock.name || stock.company_name || symbol,
+                            company_name: stock.company_name || stock.name || symbol,
                             current_price: stock.current_price || stock.price || 0,
                             change_percent: stock.change_percent || stock.priceChangePercent || 0,
                             price_change: stock.price_change || stock.priceChange || 0,
                             category: stock.category || 'General'
                         };
-                    }));
+                    });
                     
-                    setWatchlistData(stocksWithPrices);
+                    setWatchlistData(formattedData);
                 } else {
                     setWatchlistData([]);
                 }
@@ -689,6 +664,7 @@ const DashboardRedesign = () => {
                 setWatchlistData([]);
             }
         } catch (error) {
+            console.error('Error loading watchlist:', error);
             setWatchlistData([]);
         } finally {
             setIsLoading(false);
@@ -2961,482 +2937,6 @@ const AIAssistantView = () => {
                     </button>
                 </div>
             </div>
-            
-            {/* Preferences Modal */}
-            {preferencesOpen && ReactDOM.createPortal(
-                <div className="preferences-modal-overlay" onClick={() => setPreferencesOpen(false)}>
-                    <div className="preferences-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="preferences-header">
-                            <h2><i className="fas fa-cog"></i> Preferences</h2>
-                            <button className="preferences-close" onClick={() => setPreferencesOpen(false)}>
-                                <i className="fas fa-times"></i>
-                            </button>
-                        </div>
-                        
-                        <div className="preferences-content">
-                            {/* Display Settings */}
-                            <div className="preferences-section">
-                                <h3><i className="fas fa-desktop"></i> Display Settings</h3>
-                                
-                                <div className="preference-item">
-                                    <label>Default Time Range</label>
-                                    <select 
-                                        value={preferences.defaultTimeRange}
-                                        onChange={(e) => savePreferences({...preferences, defaultTimeRange: e.target.value})}
-                                    >
-                                        <option value="1D">1 Day</option>
-                                        <option value="1W">1 Week</option>
-                                        <option value="1M">1 Month</option>
-                                        <option value="3M">3 Months</option>
-                                        <option value="1Y">1 Year</option>
-                                    </select>
-                                </div>
-                                
-                                <div className="preference-item">
-                                    <label>Price Format</label>
-                                    <select 
-                                        value={preferences.priceFormat}
-                                        onChange={(e) => savePreferences({...preferences, priceFormat: e.target.value})}
-                                    >
-                                        <option value="standard">Standard ($1,234.56)</option>
-                                        <option value="compact">Compact ($1.23K)</option>
-                                    </select>
-                                </div>
-                                
-                                <div className="preference-item">
-                                    <label>
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.showSparklines}
-                                            onChange={(e) => savePreferences({...preferences, showSparklines: e.target.checked})}
-                                        />
-                                        Show Sparkline Charts
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            {/* Data Refresh Settings */}
-                            <div className="preferences-section">
-                                <h3><i className="fas fa-sync-alt"></i> Data Refresh</h3>
-                                
-                                <div className="preference-item">
-                                    <label>
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.autoRefresh}
-                                            onChange={(e) => savePreferences({...preferences, autoRefresh: e.target.checked})}
-                                        />
-                                        Enable Auto-Refresh
-                                    </label>
-                                </div>
-                                
-                                {preferences.autoRefresh && (
-                                    <div className="preference-item">
-                                        <label>Refresh Interval (seconds)</label>
-                                        <input 
-                                            type="number"
-                                            min="10"
-                                            max="300"
-                                            value={preferences.refreshInterval}
-                                            onChange={(e) => savePreferences({...preferences, refreshInterval: parseInt(e.target.value) || 30})}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                            
-                            {/* Watchlist Settings */}
-                            <div className="preferences-section">
-                                <h3><i className="fas fa-briefcase"></i> Watchlist Settings</h3>
-                                
-                                <div className="preference-item">
-                                    <label>Default Category for New Stocks</label>
-                                    <select 
-                                        value={preferences.defaultCategory}
-                                        onChange={(e) => savePreferences({...preferences, defaultCategory: e.target.value})}
-                                    >
-                                        <option value="General">General</option>
-                                        <option value="Technology">Technology</option>
-                                        <option value="Healthcare">Healthcare</option>
-                                        <option value="Finance">Finance</option>
-                                        <option value="Energy">Energy</option>
-                                        <option value="Consumer">Consumer</option>
-                                        <option value="Industrial">Industrial</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            {/* Notification Settings */}
-                            <div className="preferences-section">
-                                <h3><i className="fas fa-bell"></i> Notifications</h3>
-                                
-                                <div className="preference-item">
-                                    <label>
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.notifications.priceAlerts}
-                                            onChange={(e) => savePreferences({
-                                                ...preferences, 
-                                                notifications: {...preferences.notifications, priceAlerts: e.target.checked}
-                                            })}
-                                        />
-                                        Price Alert Notifications
-                                    </label>
-                                </div>
-                                
-                                <div className="preference-item">
-                                    <label>
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.notifications.emailAlerts}
-                                            onChange={(e) => savePreferences({
-                                                ...preferences, 
-                                                notifications: {...preferences.notifications, emailAlerts: e.target.checked}
-                                            })}
-                                        />
-                                        Email Notifications
-                                    </label>
-                                </div>
-                                
-                                <div className="preference-item">
-                                    <label>
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.notifications.soundAlerts}
-                                            onChange={(e) => savePreferences({
-                                                ...preferences, 
-                                                notifications: {...preferences.notifications, soundAlerts: e.target.checked}
-                                            })}
-                                        />
-                                        Sound Alerts
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            {/* General Settings */}
-                            <div className="preferences-section">
-                                <h3><i className="fas fa-globe"></i> General</h3>
-                                
-                                <div className="preference-item">
-                                    <label>Currency</label>
-                                    <select 
-                                        value={preferences.currency}
-                                        onChange={(e) => savePreferences({...preferences, currency: e.target.value})}
-                                    >
-                                        <option value="USD">USD ($)</option>
-                                        <option value="EUR">EUR (€)</option>
-                                        <option value="GBP">GBP (£)</option>
-                                        <option value="JPY">JPY (¥)</option>
-                                    </select>
-                                </div>
-                                
-                                <div className="preference-item">
-                                    <label>Date Format</label>
-                                    <select 
-                                        value={preferences.dateFormat}
-                                        onChange={(e) => savePreferences({...preferences, dateFormat: e.target.value})}
-                                    >
-                                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            {/* Alpaca Account Connection - Hidden for now */}
-                            {false && (
-                            <div className="preferences-section">
-                                <h3><i className="fas fa-link"></i> Alpaca Account</h3>
-                                
-                                {alpacaStatus.loading ? (
-                                    <div className="preference-item">
-                                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Loading connection status...</span>
-                                    </div>
-                                ) : alpacaStatus.connected ? (
-                                    <>
-                                        <div className="preference-item">
-                                            <div style={{ 
-                                                padding: '1rem', 
-                                                background: 'rgba(0, 217, 36, 0.1)', 
-                                                border: '1px solid rgba(0, 217, 36, 0.3)',
-                                                borderRadius: '6px',
-                                                marginBottom: '1rem'
-                                            }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                    <span style={{ color: '#00D924', fontWeight: 600 }}>
-                                                        <i className="fas fa-check-circle"></i> Connected
-                                                    </span>
-                                                    <button 
-                                                        onClick={disconnectAlpaca}
-                                                        style={{
-                                                            padding: '0.5rem 1rem',
-                                                            background: 'transparent',
-                                                            border: '1px solid rgba(239, 68, 68, 0.5)',
-                                                            borderRadius: '4px',
-                                                            color: '#ef4444',
-                                                            cursor: 'pointer',
-                                                            fontSize: '0.85rem'
-                                                        }}
-                                                    >
-                                                        Disconnect
-                                                    </button>
-                                                </div>
-                                                {alpacaStatus.account_number && (
-                                                    <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginTop: '0.5rem' }}>
-                                                        Account: {alpacaStatus.account_number} ({alpacaStatus.use_paper ? 'Paper Trading' : 'Live Trading'})
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="preference-item">
-                                            <button 
-                                                onClick={loadAlpacaPositions}
-                                                style={{
-                                                    padding: '0.75rem 1.5rem',
-                                                    background: 'rgba(255, 255, 255, 0.05)',
-                                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                    borderRadius: '6px',
-                                                    color: '#ffffff',
-                                                    cursor: 'pointer',
-                                                    marginRight: '0.5rem'
-                                                }}
-                                            >
-                                                <i className="fas fa-sync-alt"></i> Load Positions
-                                            </button>
-                                            {alpacaPositions.length > 0 && (
-                                                <button 
-                                                    onClick={syncPositionsToWatchlist}
-                                                    disabled={syncingPositions}
-                                                    style={{
-                                                        padding: '0.75rem 1.5rem',
-                                                        background: '#00D924',
-                                                        border: 'none',
-                                                        borderRadius: '6px',
-                                                        color: '#000000',
-                                                        cursor: syncingPositions ? 'not-allowed' : 'pointer',
-                                                        fontWeight: 600
-                                                    }}
-                                                >
-                                                    {syncingPositions ? 'Syncing...' : `Sync ${alpacaPositions.length} Positions to Watchlist`}
-                                                </button>
-                                            )}
-                                        </div>
-                                        
-                                        {alpacaPositions.length > 0 && (
-                                            <div className="preference-item" style={{ marginTop: '1rem' }}>
-                                                <div style={{ 
-                                                    maxHeight: '200px', 
-                                                    overflowY: 'auto',
-                                                    background: 'rgba(255, 255, 255, 0.03)',
-                                                    borderRadius: '6px',
-                                                    padding: '1rem'
-                                                }}>
-                                                    <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>
-                                                        Your Positions ({alpacaPositions.length}):
-                                                    </div>
-                                                    {alpacaPositions.map((pos, idx) => (
-                                                        <div key={idx} style={{ 
-                                                            padding: '0.75rem',
-                                                            background: 'rgba(255, 255, 255, 0.05)',
-                                                            borderRadius: '4px',
-                                                            marginBottom: '0.5rem',
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center'
-                                                        }}>
-                                                            <div>
-                                                                <div style={{ fontWeight: 600, color: '#cc5500' }}>{pos.symbol}</div>
-                                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
-                                                                    {pos.qty} shares @ ${pos.avg_entry_price.toFixed(2)}
-                                                                </div>
-                                                            </div>
-                                                            <div style={{ textAlign: 'right' }}>
-                                                                <div style={{ 
-                                                                    color: pos.unrealized_pl >= 0 ? '#00D924' : '#ef4444',
-                                                                    fontWeight: 600
-                                                                }}>
-                                                                    {pos.unrealized_pl >= 0 ? '+' : ''}${pos.unrealized_pl.toFixed(2)}
-                                                                </div>
-                                                                <div style={{ 
-                                                                    fontSize: '0.75rem',
-                                                                    color: pos.unrealized_plpc >= 0 ? '#00D924' : '#ef4444'
-                                                                }}>
-                                                                    {pos.unrealized_plpc >= 0 ? '+' : ''}{pos.unrealized_plpc.toFixed(2)}%
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <>
-                                        {!showAlpacaForm ? (
-                                            <div className="preference-item">
-                                                <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1rem' }}>
-                                                    Connect your Alpaca account to import your positions and enable trading features.
-                                                </p>
-                                                <button 
-                                                    onClick={() => setShowAlpacaForm(true)}
-                                                    style={{
-                                                        padding: '0.75rem 1.5rem',
-                                                        background: '#00D924',
-                                                        border: 'none',
-                                                        borderRadius: '6px',
-                                                        color: '#000000',
-                                                        cursor: 'pointer',
-                                                        fontWeight: 600
-                                                    }}
-                                                >
-                                                    <i className="fas fa-link"></i> Connect Alpaca Account
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="preference-item">
-                                                <div style={{ 
-                                                    padding: '1rem', 
-                                                    background: 'rgba(255, 255, 255, 0.05)', 
-                                                    borderRadius: '6px',
-                                                    border: '1px solid rgba(255, 255, 255, 0.1)'
-                                                }}>
-                                                    <div style={{ marginBottom: '1rem' }}>
-                                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                                                            API Key
-                                                        </label>
-                                                        <input 
-                                                            type="password"
-                                                            value={alpacaFormData.api_key}
-                                                            onChange={(e) => setAlpacaFormData({...alpacaFormData, api_key: e.target.value})}
-                                                            placeholder="Enter your Alpaca API Key"
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '0.75rem',
-                                                                background: 'rgba(255, 255, 255, 0.05)',
-                                                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                                borderRadius: '4px',
-                                                                color: '#ffffff',
-                                                                fontSize: '0.9rem'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    
-                                                    <div style={{ marginBottom: '1rem' }}>
-                                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                                                            Secret Key
-                                                        </label>
-                                                        <input 
-                                                            type="password"
-                                                            value={alpacaFormData.secret_key}
-                                                            onChange={(e) => setAlpacaFormData({...alpacaFormData, secret_key: e.target.value})}
-                                                            placeholder="Enter your Alpaca Secret Key"
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '0.75rem',
-                                                                background: 'rgba(255, 255, 255, 0.05)',
-                                                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                                borderRadius: '4px',
-                                                                color: '#ffffff',
-                                                                fontSize: '0.9rem'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    
-                                                    <div style={{ marginBottom: '1rem' }}>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                                                            <input 
-                                                                type="checkbox"
-                                                                checked={alpacaFormData.use_paper}
-                                                                onChange={(e) => setAlpacaFormData({...alpacaFormData, use_paper: e.target.checked})}
-                                                            />
-                                                            Use Paper Trading Account
-                                                        </label>
-                                                    </div>
-                                                    
-                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                        <button 
-                                                            onClick={connectAlpaca}
-                                                            disabled={!alpacaFormData.api_key || !alpacaFormData.secret_key}
-                                                            style={{
-                                                                padding: '0.75rem 1.5rem',
-                                                                background: '#00D924',
-                                                                border: 'none',
-                                                                borderRadius: '6px',
-                                                                color: '#000000',
-                                                                cursor: (!alpacaFormData.api_key || !alpacaFormData.secret_key) ? 'not-allowed' : 'pointer',
-                                                                fontWeight: 600,
-                                                                opacity: (!alpacaFormData.api_key || !alpacaFormData.secret_key) ? 0.5 : 1
-                                                            }}
-                                                        >
-                                                            Connect
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => {
-                                                                setShowAlpacaForm(false);
-                                                                setAlpacaFormData({ api_key: '', secret_key: '', use_paper: true });
-                                                            }}
-                                                            style={{
-                                                                padding: '0.75rem 1.5rem',
-                                                                background: 'transparent',
-                                                                border: '1px solid rgba(255, 255, 255, 0.2)',
-                                                                borderRadius: '6px',
-                                                                color: '#ffffff',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    <div style={{ 
-                                                        marginTop: '1rem', 
-                                                        padding: '0.75rem', 
-                                                        background: 'rgba(255, 255, 255, 0.03)',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.8rem',
-                                                        color: 'rgba(255,255,255,0.6)'
-                                                    }}>
-                                                        <i className="fas fa-info-circle"></i> Your API keys are encrypted and stored securely. 
-                                                        Get your keys from <a href="https://app.alpaca.markets/paper/dashboard/overview" target="_blank" rel="noopener noreferrer" style={{ color: '#00D924' }}>Alpaca Dashboard</a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                            )}
-                        </div>
-                        
-                        <div className="preferences-footer">
-                            <button className="preferences-reset" onClick={() => {
-                                const defaults = {
-                                    defaultTimeRange: '1M',
-                                    autoRefresh: true,
-                                    refreshInterval: 30,
-                                    priceFormat: 'standard',
-                                    showSparklines: true,
-                                    defaultCategory: 'General',
-                                    currency: 'USD',
-                                    dateFormat: 'MM/DD/YYYY',
-                                    notifications: {
-                                        priceAlerts: true,
-                                        emailAlerts: false,
-                                        soundAlerts: false
-                                    }
-                                };
-                                savePreferences(defaults);
-                            }}>
-                                Reset to Defaults
-                            </button>
-                            <button className="preferences-close-btn" onClick={() => setPreferencesOpen(false)}>
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
         </div>
     );
 };
