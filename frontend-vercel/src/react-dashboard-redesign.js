@@ -58,7 +58,6 @@ const DashboardRedesign = () => {
         
         // Listen for watchlist changes from chatbot or other sources
         const handleWatchlistChange = () => {
-            console.log('🔄 Watchlist changed, refreshing data...');
             loadWatchlistData();
         };
         
@@ -178,7 +177,6 @@ const DashboardRedesign = () => {
                 const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
                 ref.rateLimitCooldown = true;
                 ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
-                console.warn(`⚠️ Rate limit hit. Cooldown for ${cooldownSeconds} seconds.`);
                 return false;
             }
             
@@ -215,7 +213,7 @@ const DashboardRedesign = () => {
                 return true;
             }
         } catch (e) {
-            console.error(`Error updating price for ${symbol}:`, e);
+            // Silently handle update errors
         }
         return false;
     };
@@ -392,7 +390,6 @@ const DashboardRedesign = () => {
             
             if (response.ok) {
                 let data = await response.json();
-                console.log('📋 Raw watchlist data:', data);
                 
                 // Fetch current prices for each stock using same method as old UI
                 if (Array.isArray(data) && data.length > 0) {
@@ -402,7 +399,6 @@ const DashboardRedesign = () => {
                         try {
                             // Use the same /api/search endpoint as old UI for consistent data
                             // Mark as watchlist request so backend uses Alpaca-only (no Yahoo fallback)
-                            console.log(`🔵 [FRONTEND] Fetching price for ${symbol} from API (watchlist request)...`);
                             const priceResponse = await fetch(`${API_BASE}/api/search`, {
                                 method: 'POST',
                                 headers: {
@@ -416,10 +412,6 @@ const DashboardRedesign = () => {
                             
                             if (priceResponse.ok) {
                                 const stockData = await priceResponse.json();
-                                const apiSource = priceResponse.headers.get('X-API-Source') || stockData.apiSource || 'UNKNOWN';
-                                console.log(`✅ [FRONTEND] Fetched price for ${symbol}: $${stockData.price || 0} (${stockData.name || symbol})`);
-                                console.log(`🔵 [FRONTEND] API Source: ${apiSource}`);
-                                console.log(`📊 [FRONTEND] Full response for ${symbol}:`, stockData);
                                 
                                 // Map the response to match expected fields
                                 return {
@@ -433,7 +425,7 @@ const DashboardRedesign = () => {
                                 };
                             }
                         } catch (e) {
-                            console.error(`Error fetching price for ${symbol}:`, e);
+                            // Silently handle fetch errors
                         }
                         
                         // Return stock with fallback data if fetch failed
@@ -448,7 +440,6 @@ const DashboardRedesign = () => {
                         };
                     }));
                     
-                    console.log('📊 Processed stocks with prices:', stocksWithPrices);
                     setWatchlistData(stocksWithPrices);
                 } else {
                     setWatchlistData([]);
@@ -457,7 +448,6 @@ const DashboardRedesign = () => {
                 setWatchlistData([]);
             }
         } catch (error) {
-            console.error('Error loading watchlist:', error);
             setWatchlistData([]);
         } finally {
             setIsLoading(false);
@@ -594,7 +584,6 @@ const DashboardRedesign = () => {
             // Redirect to home
             window.location.href = '/';
         } catch (error) {
-            console.error('Logout error:', error);
             window.location.href = '/';
         }
     };
@@ -1065,7 +1054,6 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
                     }
                 }
             } catch (error) {
-                console.error(`Error fetching sparkline for ${symbol}:`, error);
                 setIsLoading(false);
             }
         };
@@ -1078,28 +1066,48 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const width = canvas.width = 80;
-        const height = canvas.height = 30;
+        
+        // Get device pixel ratio for high-DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Display size (CSS pixels)
+        const displayWidth = 80;
+        const displayHeight = 30;
+        
+        // Set actual canvas size in memory (scaled for high-DPI)
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+        
+        // Scale the canvas context to match device pixel ratio
+        ctx.scale(dpr, dpr);
+        
+        // Enable high-quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Set CSS size to display size
+        canvas.style.width = displayWidth + 'px';
+        canvas.style.height = displayHeight + 'px';
         
         // Clear canvas
-        ctx.clearRect(0, 0, width, height);
+        ctx.clearRect(0, 0, displayWidth, displayHeight);
         
         // Calculate points
         const min = Math.min(...chartData);
         const max = Math.max(...chartData);
         const range = max - min || 1;
-        const stepX = width / (chartData.length - 1);
+        const stepX = displayWidth / (chartData.length - 1);
         
-        // Draw line
+        // Draw line with improved quality
         ctx.beginPath();
         ctx.strokeStyle = isPositive ? '#10B981' : '#EF4444';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5; // Slightly thicker for better visibility at high resolution
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
         chartData.forEach((price, index) => {
             const x = index * stepX;
-            const y = height - ((price - min) / range) * height;
+            const y = displayHeight - ((price - min) / range) * displayHeight;
             
             if (index === 0) {
                 ctx.moveTo(x, y);
@@ -1111,12 +1119,12 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
         ctx.stroke();
         
         // Add gradient fill
-        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        const gradient = ctx.createLinearGradient(0, 0, 0, displayHeight);
         gradient.addColorStop(0, isPositive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)');
         gradient.addColorStop(1, isPositive ? 'rgba(16, 185, 129, 0)' : 'rgba(239, 68, 68, 0)');
         
-        ctx.lineTo(width, height);
-        ctx.lineTo(0, height);
+        ctx.lineTo(displayWidth, displayHeight);
+        ctx.lineTo(0, displayHeight);
         ctx.closePath();
         ctx.fillStyle = gradient;
         ctx.fill();
@@ -1197,7 +1205,7 @@ const SectorAllocationChart = ({ watchlistData }) => {
                     setSectorAllocation(allocationPercent);
                 }
             } catch (error) {
-                console.error('Error fetching sectors:', error);
+                // Silently handle sector fetch errors
             }
         };
         
@@ -1364,7 +1372,6 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                             shares: 100
                         };
                     } catch (error) {
-                        console.error(`Error fetching performance for ${stock.symbol}:`, error);
                         // Fallback
                         return {
                             symbol: stock.symbol,
@@ -1398,7 +1405,6 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                     historicalValue: historicalValue
                 });
             } catch (error) {
-                console.error('Error fetching performance data:', error);
                 setPerformanceData(null);
             } finally {
                 setIsLoading(false);
@@ -1519,7 +1525,6 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                             rangeChange: 0
                         };
                     } catch (error) {
-                        console.error(`Error fetching range data for ${stock.symbol}:`, error);
                         return {
                             ...stock,
                             historicalPrice: stock.current_price || stock.price || 0,
@@ -1532,7 +1537,6 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                 const stocksWithRangeData = await Promise.all(performancePromises);
                 setRangePerformanceData(stocksWithRangeData);
             } catch (error) {
-                console.error('Error fetching range performance:', error);
                 setRangePerformanceData(null);
             } finally {
                 setIsLoadingRangeData(false);
@@ -2501,7 +2505,6 @@ const AIAssistantView = () => {
                     responseText.includes('added') && responseText.includes('watchlist') ||
                     responseText.includes('removed') && responseText.includes('watchlist')) {
                     // Dispatch watchlist change event to trigger refresh
-                    console.log('📡 Stock added/removed via chatbot, refreshing watchlist...');
                     const event = new CustomEvent('watchlistChanged', {
                         detail: { action: 'add' }
                     });
@@ -2511,7 +2514,6 @@ const AIAssistantView = () => {
                 showError(data.error || data.response || 'Failed to get response from AI');
             }
         } catch (error) {
-            console.error('❌ Chat API error:', error);
             setIsTyping(false);
             showError(`Failed to connect to AI service: ${error.message}`);
         }
