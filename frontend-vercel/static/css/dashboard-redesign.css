@@ -34,6 +34,7 @@ i[class*="fal"],
     position: relative;
     overflow-x: hidden;
     font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+    isolation: isolate;
 }
 
 /* Top Navigation */
@@ -215,11 +216,12 @@ i[class*="fal"],
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     padding: 1rem 0;
-    z-index: 9999999 !important;
+    z-index: 2147483647 !important; /* Maximum z-index value */
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(0, 0, 0, 0.8);
     isolation: isolate;
     will-change: transform;
     pointer-events: auto;
+    transform: translateZ(0); /* Force hardware acceleration and new stacking context */
 }
 
 .user-dropdown-header {
