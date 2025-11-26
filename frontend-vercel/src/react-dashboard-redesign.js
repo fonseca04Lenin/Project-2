@@ -6,6 +6,9 @@ const DashboardRedesign = () => {
     const [watchlistData, setWatchlistData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const userMenuBtnRef = useRef(null);
+    const userDropdownRef = useRef(null);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearchResults, setShowSearchResults] = useState(false);
@@ -360,20 +363,45 @@ const DashboardRedesign = () => {
         }, 5000);
     };
 
+    // Calculate dropdown position when it opens
+    useEffect(() => {
+        if (userMenuOpen && userMenuBtnRef.current) {
+            const buttonRect = userMenuBtnRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: buttonRect.bottom + 8,
+                right: window.innerWidth - buttonRect.right
+            });
+        }
+    }, [userMenuOpen]);
+
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (userMenuOpen && !event.target.closest('.user-menu-wrapper')) {
+            if (userMenuOpen && 
+                !event.target.closest('.user-menu-wrapper') && 
+                !event.target.closest('.user-dropdown')) {
                 setUserMenuOpen(false);
+            }
+        };
+
+        const handleResize = () => {
+            if (userMenuOpen && userMenuBtnRef.current) {
+                const buttonRect = userMenuBtnRef.current.getBoundingClientRect();
+                setDropdownPosition({
+                    top: buttonRect.bottom + 8,
+                    right: window.innerWidth - buttonRect.right
+                });
             }
         };
 
         if (userMenuOpen) {
             document.addEventListener('click', handleClickOutside);
+            window.addEventListener('resize', handleResize);
         }
 
         return () => {
             document.removeEventListener('click', handleClickOutside);
+            window.removeEventListener('resize', handleResize);
         };
     }, [userMenuOpen]);
 
@@ -895,6 +923,7 @@ const DashboardRedesign = () => {
                     </button>
                     <div className="user-menu-wrapper">
                         <button 
+                            ref={userMenuBtnRef}
                             className="user-menu-btn"
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                         >
@@ -903,7 +932,14 @@ const DashboardRedesign = () => {
                             <i className={`fas fa-chevron-down ${userMenuOpen ? 'open' : ''}`}></i>
                         </button>
                         {userMenuOpen && (
-                            <div className="user-dropdown">
+                            <div 
+                                ref={userDropdownRef}
+                                className="user-dropdown"
+                                style={{
+                                    top: `${dropdownPosition.top}px`,
+                                    right: `${dropdownPosition.right}px`
+                                }}
+                            >
                                 <div className="user-dropdown-header">
                                     <div className="user-info">
                                         <div className="user-avatar">
