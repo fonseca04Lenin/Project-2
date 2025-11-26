@@ -211,12 +211,13 @@ i[class*="fal"],
     top: calc(100% + 0.5rem);
     right: 0;
     width: 280px;
-    background: #1a1a1a;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #0a0a0a !important;
+    opacity: 1 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     padding: 1rem 0;
     z-index: 1000;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
 .user-dropdown-header {
