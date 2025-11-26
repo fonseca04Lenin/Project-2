@@ -931,7 +931,7 @@ const DashboardRedesign = () => {
                             <span>Account</span>
                             <i className={`fas fa-chevron-down ${userMenuOpen ? 'open' : ''}`}></i>
                         </button>
-                        {userMenuOpen && (
+                        {userMenuOpen && ReactDOM.createPortal(
                             <div 
                                 ref={userDropdownRef}
                                 className="user-dropdown"
@@ -986,7 +986,8 @@ const DashboardRedesign = () => {
                                     <i className="fas fa-sign-out-alt"></i>
                                     <span>Log Out</span>
                                 </div>
-                            </div>
+                            </div>,
+                            document.body
                         )}
                     </div>
                 </div>
