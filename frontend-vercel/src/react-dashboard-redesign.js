@@ -9,6 +9,24 @@ const DashboardRedesign = () => {
     const userMenuBtnRef = useRef(null);
     const userDropdownRef = useRef(null);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+    const [preferencesOpen, setPreferencesOpen] = useState(false);
+    
+    // Preferences state
+    const [preferences, setPreferences] = useState({
+        defaultTimeRange: '1M',
+        autoRefresh: true,
+        refreshInterval: 30, // seconds
+        priceFormat: 'standard', // standard, compact
+        showSparklines: true,
+        defaultCategory: 'General',
+        currency: 'USD',
+        dateFormat: 'MM/DD/YYYY',
+        notifications: {
+            priceAlerts: true,
+            emailAlerts: false,
+            soundAlerts: false
+        }
+    });
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearchResults, setShowSearchResults] = useState(false);
@@ -40,9 +58,37 @@ const DashboardRedesign = () => {
     });
     const keepAliveRef = useRef(null);
 
+    // Load preferences from localStorage
+    const loadPreferences = () => {
+        try {
+            const saved = localStorage.getItem('userPreferences');
+            if (saved) {
+                setPreferences(JSON.parse(saved));
+            }
+        } catch (e) {
+            // Use defaults if loading fails
+        }
+    };
+
+    // Save preferences to localStorage
+    const savePreferences = (newPreferences) => {
+        try {
+            localStorage.setItem('userPreferences', JSON.stringify(newPreferences));
+            setPreferences(newPreferences);
+            if (window.showNotification) {
+                window.showNotification('Preferences saved successfully', 'success');
+            }
+        } catch (e) {
+            if (window.showNotification) {
+                window.showNotification('Failed to save preferences', 'error');
+            }
+        }
+    };
+
     useEffect(() => {
         loadWatchlistData();
         loadUserData();
+        loadPreferences();
         
         // Listen for auth state changes
         if (window.firebaseAuth) {
@@ -956,7 +1002,7 @@ const DashboardRedesign = () => {
                                     <i className="fas fa-user"></i>
                                     <span>Profile Settings</span>
                                 </div>
-                                <div className="dropdown-item">
+                                <div className="dropdown-item" onClick={() => { setPreferencesOpen(true); setUserMenuOpen(false); }}>
                                     <i className="fas fa-cog"></i>
                                     <span>Preferences</span>
                                 </div>
@@ -2638,6 +2684,217 @@ const AIAssistantView = () => {
                     </button>
                 </div>
             </div>
+            
+            {/* Preferences Modal */}
+            {preferencesOpen && ReactDOM.createPortal(
+                <div className="preferences-modal-overlay" onClick={() => setPreferencesOpen(false)}>
+                    <div className="preferences-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="preferences-header">
+                            <h2><i className="fas fa-cog"></i> Preferences</h2>
+                            <button className="preferences-close" onClick={() => setPreferencesOpen(false)}>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <div className="preferences-content">
+                            {/* Display Settings */}
+                            <div className="preferences-section">
+                                <h3><i className="fas fa-desktop"></i> Display Settings</h3>
+                                
+                                <div className="preference-item">
+                                    <label>Default Time Range</label>
+                                    <select 
+                                        value={preferences.defaultTimeRange}
+                                        onChange={(e) => savePreferences({...preferences, defaultTimeRange: e.target.value})}
+                                    >
+                                        <option value="1D">1 Day</option>
+                                        <option value="1W">1 Week</option>
+                                        <option value="1M">1 Month</option>
+                                        <option value="3M">3 Months</option>
+                                        <option value="1Y">1 Year</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="preference-item">
+                                    <label>Price Format</label>
+                                    <select 
+                                        value={preferences.priceFormat}
+                                        onChange={(e) => savePreferences({...preferences, priceFormat: e.target.value})}
+                                    >
+                                        <option value="standard">Standard ($1,234.56)</option>
+                                        <option value="compact">Compact ($1.23K)</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="preference-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={preferences.showSparklines}
+                                            onChange={(e) => savePreferences({...preferences, showSparklines: e.target.checked})}
+                                        />
+                                        Show Sparkline Charts
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            {/* Data Refresh Settings */}
+                            <div className="preferences-section">
+                                <h3><i className="fas fa-sync-alt"></i> Data Refresh</h3>
+                                
+                                <div className="preference-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={preferences.autoRefresh}
+                                            onChange={(e) => savePreferences({...preferences, autoRefresh: e.target.checked})}
+                                        />
+                                        Enable Auto-Refresh
+                                    </label>
+                                </div>
+                                
+                                {preferences.autoRefresh && (
+                                    <div className="preference-item">
+                                        <label>Refresh Interval (seconds)</label>
+                                        <input 
+                                            type="number"
+                                            min="10"
+                                            max="300"
+                                            value={preferences.refreshInterval}
+                                            onChange={(e) => savePreferences({...preferences, refreshInterval: parseInt(e.target.value) || 30})}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Watchlist Settings */}
+                            <div className="preferences-section">
+                                <h3><i className="fas fa-briefcase"></i> Watchlist Settings</h3>
+                                
+                                <div className="preference-item">
+                                    <label>Default Category for New Stocks</label>
+                                    <select 
+                                        value={preferences.defaultCategory}
+                                        onChange={(e) => savePreferences({...preferences, defaultCategory: e.target.value})}
+                                    >
+                                        <option value="General">General</option>
+                                        <option value="Technology">Technology</option>
+                                        <option value="Healthcare">Healthcare</option>
+                                        <option value="Finance">Finance</option>
+                                        <option value="Energy">Energy</option>
+                                        <option value="Consumer">Consumer</option>
+                                        <option value="Industrial">Industrial</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            {/* Notification Settings */}
+                            <div className="preferences-section">
+                                <h3><i className="fas fa-bell"></i> Notifications</h3>
+                                
+                                <div className="preference-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={preferences.notifications.priceAlerts}
+                                            onChange={(e) => savePreferences({
+                                                ...preferences, 
+                                                notifications: {...preferences.notifications, priceAlerts: e.target.checked}
+                                            })}
+                                        />
+                                        Price Alert Notifications
+                                    </label>
+                                </div>
+                                
+                                <div className="preference-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={preferences.notifications.emailAlerts}
+                                            onChange={(e) => savePreferences({
+                                                ...preferences, 
+                                                notifications: {...preferences.notifications, emailAlerts: e.target.checked}
+                                            })}
+                                        />
+                                        Email Notifications
+                                    </label>
+                                </div>
+                                
+                                <div className="preference-item">
+                                    <label>
+                                        <input 
+                                            type="checkbox"
+                                            checked={preferences.notifications.soundAlerts}
+                                            onChange={(e) => savePreferences({
+                                                ...preferences, 
+                                                notifications: {...preferences.notifications, soundAlerts: e.target.checked}
+                                            })}
+                                        />
+                                        Sound Alerts
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            {/* General Settings */}
+                            <div className="preferences-section">
+                                <h3><i className="fas fa-globe"></i> General</h3>
+                                
+                                <div className="preference-item">
+                                    <label>Currency</label>
+                                    <select 
+                                        value={preferences.currency}
+                                        onChange={(e) => savePreferences({...preferences, currency: e.target.value})}
+                                    >
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                        <option value="JPY">JPY (¥)</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="preference-item">
+                                    <label>Date Format</label>
+                                    <select 
+                                        value={preferences.dateFormat}
+                                        onChange={(e) => savePreferences({...preferences, dateFormat: e.target.value})}
+                                    >
+                                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="preferences-footer">
+                            <button className="preferences-reset" onClick={() => {
+                                const defaults = {
+                                    defaultTimeRange: '1M',
+                                    autoRefresh: true,
+                                    refreshInterval: 30,
+                                    priceFormat: 'standard',
+                                    showSparklines: true,
+                                    defaultCategory: 'General',
+                                    currency: 'USD',
+                                    dateFormat: 'MM/DD/YYYY',
+                                    notifications: {
+                                        priceAlerts: true,
+                                        emailAlerts: false,
+                                        soundAlerts: false
+                                    }
+                                };
+                                savePreferences(defaults);
+                            }}>
+                                Reset to Defaults
+                            </button>
+                            <button className="preferences-close-btn" onClick={() => setPreferencesOpen(false)}>
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
