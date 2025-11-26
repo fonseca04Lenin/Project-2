@@ -1196,7 +1196,7 @@ def authenticate_request():
 
 @app.route('/api/watchlist', methods=['GET'])
 def get_watchlist_route():
-    """Lightweight watchlist endpoint with fallback"""
+    """Lightweight watchlist endpoint with current prices"""
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
@@ -1209,13 +1209,76 @@ def get_watchlist_route():
     try:
         print(f"🔍 GET watchlist request for user: {user.id}")
         
-        # Re-enabled with memory optimizations
+        # Get watchlist items from Firestore
         watchlist = watchlist_service.get_watchlist(user.id, limit=25)  # Limit to 25 items
         print(f"📋 Retrieved {len(watchlist)} items from watchlist")
-        return jsonify(watchlist)
+        
+        # Fetch current prices for each stock
+        watchlist_with_prices = []
+        for item in watchlist:
+            symbol = item.get('symbol') or item.get('id', '')
+            if not symbol:
+                continue
+                
+            try:
+                # Get current stock data (use Alpaca for watchlist)
+                stock, api_used = get_stock_alpaca_only(symbol)
+                if stock and stock.name and stock.price:
+                    # Calculate price change if we have original price
+                    original_price = item.get('original_price')
+                    current_price = stock.price
+                    price_change = None
+                    change_percent = None
+                    
+                    if original_price and current_price and original_price > 0:
+                        price_change = current_price - original_price
+                        change_percent = (price_change / original_price) * 100
+                    else:
+                        # If no original price, use current price as baseline
+                        price_change = 0
+                        change_percent = 0
+                    
+                    # Merge watchlist item data with current stock data
+                    watchlist_with_prices.append({
+                        **item,
+                        'symbol': symbol,
+                        'company_name': stock.name,
+                        'current_price': current_price,
+                        'price': current_price,  # Alias for compatibility
+                        'price_change': price_change,
+                        'change_percent': change_percent,
+                        'priceChangePercent': change_percent,  # Alias for compatibility
+                        'priceChange': price_change  # Alias for compatibility
+                    })
+                else:
+                    # If stock fetch fails, return item without price data
+                    watchlist_with_prices.append({
+                        **item,
+                        'symbol': symbol,
+                        'current_price': item.get('original_price') or 0,
+                        'price': item.get('original_price') or 0,
+                        'price_change': 0,
+                        'change_percent': 0
+                    })
+            except Exception as e:
+                print(f"⚠️ Error fetching price for {symbol}: {e}")
+                # Return item without price data on error
+                watchlist_with_prices.append({
+                    **item,
+                    'symbol': symbol,
+                    'current_price': item.get('original_price') or 0,
+                    'price': item.get('original_price') or 0,
+                    'price_change': 0,
+                    'change_percent': 0
+                })
+        
+        print(f"✅ Returning {len(watchlist_with_prices)} items with prices")
+        return jsonify(watchlist_with_prices)
             
     except Exception as e:
         print(f"❌ Error in get_watchlist_route: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         # Fallback to empty list on error
         return jsonify([]), 500
 

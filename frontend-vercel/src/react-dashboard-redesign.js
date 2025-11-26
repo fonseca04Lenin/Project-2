@@ -629,14 +629,19 @@ const DashboardRedesign = () => {
             const authHeaders = await window.getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             
+            console.log('📊 Loading watchlist data from:', `${API_BASE}/api/watchlist`);
+            
             const response = await fetch(`${API_BASE}/api/watchlist?t=${Date.now()}`, {
                 method: 'GET',
                 headers: authHeaders,
                 credentials: 'include'
             });
             
+            console.log('📊 Watchlist response status:', response.status, response.statusText);
+            
             if (response.ok) {
                 let data = await response.json();
+                console.log('📊 Watchlist data received:', data?.length || 0, 'items');
                 
                 // Backend already provides prices, so we don't need to fetch individually
                 // This was causing N API calls on initial load (very slow!)
@@ -656,15 +661,20 @@ const DashboardRedesign = () => {
                         };
                     });
                     
+                    console.log('📊 Formatted watchlist data:', formattedData.length, 'items');
                     setWatchlistData(formattedData);
                 } else {
+                    console.warn('⚠️ Watchlist data is empty or not an array');
                     setWatchlistData([]);
                 }
             } else {
+                const errorText = await response.text();
+                console.error('❌ Watchlist API error:', response.status, errorText);
                 setWatchlistData([]);
             }
         } catch (error) {
-            console.error('Error loading watchlist:', error);
+            console.error('❌ Error loading watchlist:', error);
+            console.error('❌ Error details:', error.message, error.stack);
             setWatchlistData([]);
         } finally {
             setIsLoading(false);
