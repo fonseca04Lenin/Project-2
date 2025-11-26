@@ -423,9 +423,15 @@ const DashboardRedesign = () => {
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
+            // Don't close if clicking on a dropdown item (let it handle its own click)
+            if (event.target.closest('.dropdown-item')) {
+                return;
+            }
+            
             if (userMenuOpen && 
                 !event.target.closest('.user-menu-wrapper') && 
-                !event.target.closest('.user-dropdown')) {
+                !event.target.closest('.user-dropdown') &&
+                !event.target.closest('.preferences-modal')) {
                 setUserMenuOpen(false);
             }
         };
@@ -1002,7 +1008,15 @@ const DashboardRedesign = () => {
                                     <i className="fas fa-user"></i>
                                     <span>Profile Settings</span>
                                 </div>
-                                <div className="dropdown-item" onClick={() => { setPreferencesOpen(true); setUserMenuOpen(false); }}>
+                                <div 
+                                    className="dropdown-item" 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setPreferencesOpen(true);
+                                        setUserMenuOpen(false);
+                                    }}
+                                >
                                     <i className="fas fa-cog"></i>
                                     <span>Preferences</span>
                                 </div>
