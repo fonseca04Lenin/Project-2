@@ -586,7 +586,7 @@ i[class*="fal"],
 
 .stock-name {
     font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: #cc5500;
 }
 
 .stock-price {
@@ -766,7 +766,7 @@ i[class*="fal"],
 
 .stock-name {
     font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: #cc5500;
     margin-bottom: 1rem;
 }
 
@@ -1826,7 +1826,7 @@ i[class*="fal"],
 
 .stock-name-enhanced {
     font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: #cc5500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
