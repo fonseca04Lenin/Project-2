@@ -24,6 +24,7 @@ import time
 import signal
 from functools import wraps
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
 
@@ -1213,12 +1214,11 @@ def get_watchlist_route():
         watchlist = watchlist_service.get_watchlist(user.id, limit=25)  # Limit to 25 items
         print(f"📋 Retrieved {len(watchlist)} items from watchlist")
         
-        # Fetch current prices for each stock
-        watchlist_with_prices = []
-        for item in watchlist:
+        # Helper function to fetch price for a single stock
+        def fetch_stock_price(item):
             symbol = item.get('symbol') or item.get('id', '')
             if not symbol:
-                continue
+                return None
                 
             try:
                 # Get current stock data (use Alpaca for watchlist)
@@ -1239,7 +1239,7 @@ def get_watchlist_route():
                         change_percent = 0
                     
                     # Merge watchlist item data with current stock data
-                    watchlist_with_prices.append({
+                    return {
                         **item,
                         'symbol': symbol,
                         'company_name': stock.name,
@@ -1249,30 +1249,44 @@ def get_watchlist_route():
                         'change_percent': change_percent,
                         'priceChangePercent': change_percent,  # Alias for compatibility
                         'priceChange': price_change  # Alias for compatibility
-                    })
+                    }
                 else:
                     # If stock fetch fails, return item without price data
-                    watchlist_with_prices.append({
+                    return {
                         **item,
                         'symbol': symbol,
                         'current_price': item.get('original_price') or 0,
                         'price': item.get('original_price') or 0,
                         'price_change': 0,
                         'change_percent': 0
-                    })
+                    }
             except Exception as e:
                 print(f"⚠️ Error fetching price for {symbol}: {e}")
                 # Return item without price data on error
-                watchlist_with_prices.append({
+                return {
                     **item,
                     'symbol': symbol,
                     'current_price': item.get('original_price') or 0,
                     'price': item.get('original_price') or 0,
                     'price_change': 0,
                     'change_percent': 0
-                })
+                }
         
-        print(f"✅ Returning {len(watchlist_with_prices)} items with prices")
+        # Fetch current prices for each stock IN PARALLEL for faster loading
+        watchlist_with_prices = []
+        if watchlist:
+            # Use ThreadPoolExecutor to fetch prices in parallel (max 10 concurrent requests)
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                # Submit all price fetch tasks
+                future_to_item = {executor.submit(fetch_stock_price, item): item for item in watchlist}
+                
+                # Collect results as they complete
+                for future in as_completed(future_to_item):
+                    result = future.result()
+                    if result:
+                        watchlist_with_prices.append(result)
+        
+        print(f"✅ Returning {len(watchlist_with_prices)} items with prices (fetched in parallel)")
         return jsonify(watchlist_with_prices)
             
     except Exception as e:

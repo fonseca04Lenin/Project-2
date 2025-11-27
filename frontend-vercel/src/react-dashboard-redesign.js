@@ -649,20 +649,90 @@ const DashboardRedesign = () => {
                     // Map the data to match expected fields
                     const formattedData = data.map((stock) => {
                         const symbol = stock.symbol || stock.id;
+                        // Use original_price as fallback if current_price is 0 or missing
+                        const currentPrice = (stock.current_price && stock.current_price > 0) 
+                            ? stock.current_price 
+                            : (stock.price && stock.price > 0) 
+                                ? stock.price 
+                                : (stock.original_price && stock.original_price > 0)
+                                    ? stock.original_price
+                                    : 0;
+                        const changePercent = stock.change_percent || stock.priceChangePercent || 0;
+                        const priceChange = stock.price_change || stock.priceChange || 0;
+                        // Mark if we need to fetch the price (current_price is 0 and we're using original_price)
+                        const needsPriceFetch = (stock.current_price === 0 || !stock.current_price) && 
+                                               (stock.price === 0 || !stock.price) && 
+                                               (stock.original_price && stock.original_price > 0);
+                        
                         return {
                             ...stock,
                             symbol: symbol,
                             name: stock.name || stock.company_name || symbol,
                             company_name: stock.company_name || stock.name || symbol,
-                            current_price: stock.current_price || stock.price || 0,
-                            change_percent: stock.change_percent || stock.priceChangePercent || 0,
-                            price_change: stock.price_change || stock.priceChange || 0,
-                            category: stock.category || 'General'
+                            current_price: currentPrice,
+                            change_percent: changePercent,
+                            price_change: priceChange,
+                            category: stock.category || 'General',
+                            _priceLoading: needsPriceFetch
                         };
                     });
                     
                     console.log('📊 Formatted watchlist data:', formattedData.length, 'items');
                     setWatchlistData(formattedData);
+                    
+                    // Immediately fetch prices for stocks that need price updates
+                    // Prioritize visible stocks (first 10 stocks) to show prices instantly
+                    const stocksNeedingPrices = formattedData.filter(s => s._priceLoading);
+                    
+                    if (stocksNeedingPrices.length > 0) {
+                        console.log(`💰 Immediately fetching prices for ${stocksNeedingPrices.length} stocks`);
+                        
+                        // Helper function to fetch a single stock price
+                        const fetchStockPrice = async (symbol) => {
+                            try {
+                                const authHeaders = await window.getAuthHeaders();
+                                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                                const response = await fetch(`${API_BASE}/api/search`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        ...authHeaders
+                                    },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ symbol: symbol })
+                                });
+                                
+                                if (response.ok) {
+                                    const stockData = await response.json();
+                                    // Update watchlist data with new price
+                                    setWatchlistData(prev => prev.map(s => {
+                                        if (s.symbol === symbol) {
+                                            const newPrice = stockData.price && stockData.price > 0 ? stockData.price : s.current_price;
+                                            return {
+                                                ...s,
+                                                current_price: newPrice,
+                                                change_percent: stockData.priceChangePercent || s.change_percent || 0,
+                                                price_change: stockData.priceChange || s.price_change || 0,
+                                                _priceLoading: false
+                                            };
+                                        }
+                                        return s;
+                                    }));
+                                    return true;
+                                }
+                            } catch (e) {
+                                console.warn(`Failed to fetch price for ${symbol}:`, e);
+                            }
+                            return false;
+                        };
+                        
+                        // Fetch prices for all stocks in parallel (up to 10 at a time)
+                        const stocksToFetch = stocksNeedingPrices.slice(0, 10);
+                        Promise.all(stocksToFetch.map(stock => fetchStockPrice(stock.symbol)))
+                            .then(() => {
+                                console.log('✅ Initial price fetch completed');
+                            });
+                    }
                 } else {
                     console.warn('⚠️ Watchlist data is empty or not an array');
                     setWatchlistData([]);
