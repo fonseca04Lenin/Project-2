@@ -719,6 +719,53 @@ const DashboardRedesign = () => {
                                                (stock.price === 0 || !stock.price) && 
                                                (stock.original_price && stock.original_price > 0);
                         
+                        // Normalize category to match filter options (capitalize first letter, handle variations)
+                        let normalizedCategory = (stock.category || 'General').toString().trim();
+                        // Map common variations to standard categories
+                        const categoryMap = {
+                            'tech': 'Technology',
+                            'tech stocks': 'Technology',
+                            'technology stocks': 'Technology',
+                            'technology': 'Technology',
+                            'agri': 'Agriculture',
+                            'agriculture stocks': 'Agriculture',
+                            'agriculture': 'Agriculture',
+                            'farming': 'Agriculture',
+                            'health': 'Healthcare',
+                            'healthcare stocks': 'Healthcare',
+                            'healthcare': 'Healthcare',
+                            'medical': 'Healthcare',
+                            'financial': 'Finance',
+                            'finance stocks': 'Finance',
+                            'finance': 'Finance',
+                            'banking': 'Finance',
+                            'energy stocks': 'Energy',
+                            'energy': 'Energy',
+                            'oil': 'Energy',
+                            'consumer goods': 'Consumer',
+                            'consumer stocks': 'Consumer',
+                            'consumer': 'Consumer',
+                            'industrial stocks': 'Industrial',
+                            'industrial': 'Industrial',
+                            'defense': 'Military',
+                            'military stocks': 'Military',
+                            'military': 'Military',
+                            'general stocks': 'General',
+                            'general': 'General'
+                        };
+                        
+                        // Normalize to title case and check map
+                        const lowerCategory = normalizedCategory.toLowerCase();
+                        normalizedCategory = categoryMap[lowerCategory] || 
+                                            (normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1).toLowerCase());
+                        
+                        // Ensure it matches one of our valid categories, otherwise default to General
+                        const validCategories = ['All', 'Technology', 'General', 'Military', 'Agriculture', 'Healthcare', 'Finance', 'Energy', 'Consumer', 'Industrial'];
+                        if (!validCategories.includes(normalizedCategory)) {
+                            console.warn(`⚠️ Invalid category "${normalizedCategory}" for ${symbol}, defaulting to General`);
+                            normalizedCategory = 'General';
+                        }
+                        
                         return {
                             ...stock,
                             symbol: symbol,
@@ -727,7 +774,7 @@ const DashboardRedesign = () => {
                             current_price: currentPrice,
                             change_percent: changePercent,
                             price_change: priceChange,
-                            category: stock.category || 'General',
+                            category: normalizedCategory,
                             _priceLoading: needsPriceFetch
                         };
                     });
@@ -1397,7 +1444,22 @@ const DashboardRedesign = () => {
                     <WatchlistView 
                         watchlistData={watchlistData.filter((s) => {
                             if (selectedCategory === 'All') return true;
-                            return (s.category || 'General') === selectedCategory;
+                            // Normalize category comparison (case-insensitive, trim whitespace)
+                            const stockCategory = (s.category || 'General').toString().trim();
+                            const selectedCat = selectedCategory.toString().trim();
+                            const matches = stockCategory.toLowerCase() === selectedCat.toLowerCase();
+                            
+                            // Debug logging
+                            if (process.env.NODE_ENV === 'development') {
+                                console.log('🔍 Filter check:', {
+                                    symbol: s.symbol,
+                                    stockCategory,
+                                    selectedCat,
+                                    matches
+                                });
+                            }
+                            
+                            return matches;
                         })}
                         onOpenDetails={openDetails}
                         onRemove={removeFromWatchlist}
@@ -2191,10 +2253,28 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
 
 // Watchlist View Component
 const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover }) => {
+    // Count stocks per category for display
+    const categoryCounts = {};
+    watchlistData.forEach(stock => {
+        const cat = stock.category || 'General';
+        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    });
+    
+    // Log category distribution for debugging
+    console.log('📊 Category distribution:', categoryCounts);
+    console.log('📊 Selected category:', selectedCategory);
+    console.log('📊 Filtered watchlist count:', watchlistData.length);
+    
     return (
         <div className="watchlist-view">
             <div className="view-header">
                 <h2>My Watchlist</h2>
+                {watchlistData.length > 0 && (
+                    <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem', marginLeft: '1rem' }}>
+                        {watchlistData.length} {watchlistData.length === 1 ? 'stock' : 'stocks'}
+                        {selectedCategory !== 'All' && ` in ${selectedCategory}`}
+                    </span>
+                )}
             </div>
             
             {/* Category Filter Buttons */}
@@ -2205,10 +2285,18 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                 flexWrap: 'wrap',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
             }}>
-                {categories.map(category => (
+                {categories.map(category => {
+                    const count = category === 'All' 
+                        ? watchlistData.length 
+                        : (categoryCounts[category] || 0);
+                    
+                    return (
                     <button
                         key={category}
-                        onClick={() => onCategoryChange && onCategoryChange(category)}
+                        onClick={() => {
+                            console.log(`🔍 Category filter clicked: ${category}`);
+                            onCategoryChange && onCategoryChange(category);
+                        }}
                         className={`filter-btn ${selectedCategory === category ? 'active' : ''}`}
                         style={{
                             padding: '0.625rem 1.25rem',
@@ -2237,9 +2325,36 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                         }}
                     >
                         {category}
+                        {count > 0 && (
+                            <span style={{
+                                marginLeft: '0.5rem',
+                                opacity: selectedCategory === category ? 1 : 0.6,
+                                fontSize: '0.75rem'
+                            }}>
+                                ({count})
+                            </span>
+                        )}
                     </button>
-                ))}
+                    );
+                })}
             </div>
+            
+            {/* Show message if no stocks match filter */}
+            {watchlistData.length === 0 && selectedCategory !== 'All' && (
+                <div style={{
+                    padding: '3rem 2rem',
+                    textAlign: 'center',
+                    color: 'rgba(255, 255, 255, 0.5)'
+                }}>
+                    <p style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
+                        No stocks found in <strong>{selectedCategory}</strong> category
+                    </p>
+                    <p style={{ fontSize: '0.875rem' }}>
+                        Try selecting a different category or add stocks to this category
+                    </p>
+                </div>
+            )}
+            
             <div className="watchlist-grid">
                 {watchlistData.map((stock, index) => (
                     <div 
