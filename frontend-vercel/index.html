@@ -13,14 +13,14 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="Stock Watchlist Pro – Modern Market Intelligence">
     <meta property="og:description" content="Track stocks, news, and market intelligence in a beautiful, high‑performance dashboard.">
-    <meta property="og:image" content="/favicon.svg">
+    <meta property="og:image" content="/web_logo-min.png">
     <meta property="og:url" content="/">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Stock Watchlist Pro – Modern Market Intelligence">
     <meta name="twitter:description" content="Real‑time watchlists, market news, and intelligence in an elegant UI.">
-    <meta name="twitter:image" content="/favicon.svg">
+    <meta name="twitter:image" content="/web_logo-min.png">
 
     <!-- Dynamic canonical + JSON‑LD (uses current origin) -->
     <script>
@@ -49,7 +49,7 @@
             '@type': 'Organization',
             name: 'Stock Watchlist Pro',
             url: origin + '/',
-            logo: origin + '/favicon.svg'
+            logo: origin + '/web_logo-min.png'
           };
           var script1 = document.createElement('script');
           script1.type = 'application/ld+json';
@@ -65,9 +65,8 @@
     <title>Stock Watchlist Pro - The Future of Market Intelligence</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="icon" type="image/svg+xml" href="/favicon-16x16.svg" sizes="16x16">
-    <link rel="apple-touch-icon" href="/favicon.svg">
+    <link rel="icon" type="image/png" href="/web_logo-min.png">
+    <link rel="apple-touch-icon" href="/web_logo-min.png">
     <meta name="theme-color" content="#22c55e">
     
     <!-- Fonts -->
@@ -253,7 +252,6 @@
                     'X-User-ID': window.firebaseAuth.currentUser.uid
                 };
             } catch (error) {
-                console.error('Error getting auth headers:', error);
                 return {};
             }
         };
@@ -290,8 +288,6 @@
         function setupShowMainContent() {
             // Override showMainContent to use new React dashboard
             window.showMainContent = function(user) {
-                console.log('🎯 Overridden showMainContent called', user);
-                
                 // Hide loading screen immediately
                 const loadingScreen = document.getElementById('loading-screen');
                 if (loadingScreen) {
@@ -314,9 +310,6 @@
                     if (window.DashboardRedesign) {
                         root.render(React.createElement(window.DashboardRedesign));
                         redesignRoot.setAttribute('rendered', 'true');
-                        console.log('✅ New dashboard rendered!');
-                    } else {
-                        console.error('❌ DashboardRedesign not available');
                     }
                 }
                 if (redesignRoot) {
@@ -333,7 +326,6 @@
             
             // Also listen for the userAuthenticated event from React landing page
             window.addEventListener('userAuthenticated', function(event) {
-                console.log('📡 Received userAuthenticated event');
                 if (event.detail && event.detail.user) {
                     // Call showMainContent with the user data
                     setTimeout(() => {
@@ -362,8 +354,6 @@
     <script type="text/babel">
         // Make showNewDashboard available globally
         window.showNewDashboard = function() {
-            console.log('🔵 showNewDashboard called');
-            
             // Hide landing page completely
             const marketpulseRoot = document.getElementById('marketpulse-root');
             if (marketpulseRoot) {
@@ -412,10 +402,8 @@
             if (typeof firebase !== 'undefined' && firebase.auth) {
                 firebase.auth().onAuthStateChanged((user) => {
                     if (user) {
-                        console.log('👤 Firebase auth state changed - user logged in');
                         window.showNewDashboard();
                     } else {
-                        console.log('❌ Firebase auth state changed - no user');
                         window.hideNewDashboard();
                     }
                 });
