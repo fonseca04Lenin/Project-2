@@ -2573,48 +2573,16 @@ def api_root():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint for Railway"""
+    """Health check endpoint for Railway - simplified for faster response"""
     try:
-        print("🏥 Health check requested")
-        
-        # Test Firebase connection (if available)
-        firebase_status = False
-        if firestore_client:
-            try:
-                # Simple test to see if Firebase is working
-                firebase_status = True
-                print("✅ Firebase connection OK")
-            except Exception as e:
-                print(f"❌ Firebase connection failed: {e}")
-                firebase_status = False
-        else:
-            print("⚠️ Firebase not initialized")
-        
-        # Test Gemini API
-        gemini_status = False
-        try:
-            from chat_service import chat_service
-            gemini_status = chat_service.gemini_client is not None
-            print(f"✅ Gemini API status: {gemini_status}")
-        except Exception as e:
-            print(f"❌ Gemini API check failed: {e}")
-        
-        response_data = {
+        # Simplified health check - just return healthy status
+        # Don't test services to avoid delays that cause health check timeouts
+        return jsonify({
             'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'services': {
-                'firebase': firebase_status,
-                'gemini_api': gemini_status
-            }
-        }
-        
-        print(f"🏥 Health check response: {response_data}")
-        return jsonify(response_data), 200
-        
+            'timestamp': datetime.now().isoformat()
+        }), 200
     except Exception as e:
         print(f"❌ Health check failed: {e}")
-        import traceback
-        print(f"❌ Health check traceback: {traceback.format_exc()}")
         return jsonify({
             'status': 'unhealthy',
             'error': str(e),
