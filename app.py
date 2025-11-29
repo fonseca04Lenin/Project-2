@@ -69,6 +69,21 @@ CORS(app,
      expose_headers=['Content-Type', 'Authorization', 'X-API-Source'],
      vary_header=False)
 
+# Custom CORS handler for Vercel preview deployments
+@app.after_request
+def after_request(response):
+    """Add CORS headers for Vercel preview deployments"""
+    origin = request.headers.get('Origin', '')
+    
+    # Allow all Vercel domains (including preview deployments)
+    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source')
+    
+    return response
+
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 
@@ -1195,6 +1210,18 @@ def authenticate_request():
         # Start cleanup in background thread
         threading.Thread(target=delayed_cleanup, daemon=True, name=f"cleanup-{request_id}").start()
 
+@app.route('/api/watchlist', methods=['OPTIONS'])
+def watchlist_options():
+    """Handle CORS preflight for /api/watchlist"""
+    response = jsonify({})
+    origin = request.headers.get('Origin', '')
+    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source')
+    return response
+
 @app.route('/api/watchlist', methods=['GET'])
 def get_watchlist_route():
     """Lightweight watchlist endpoint with current prices"""
@@ -1549,6 +1576,18 @@ def get_chart_data(symbol):
         return jsonify(chart_data)
     else:
         return jsonify({'error': 'Could not retrieve chart data'}), 404
+
+@app.route('/api/market-status', methods=['OPTIONS'])
+def market_status_options():
+    """Handle CORS preflight for /api/market-status"""
+    response = jsonify({})
+    origin = request.headers.get('Origin', '')
+    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID')
+    return response
 
 @app.route('/api/market-status')
 def market_status():
