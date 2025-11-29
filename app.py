@@ -74,13 +74,24 @@ CORS(app,
 def after_request(response):
     """Add CORS headers for Vercel preview deployments"""
     origin = request.headers.get('Origin', '')
+    path = request.path
+    
+    # Log CORS handling
+    print(f"🌐 CORS after_request - Origin: {origin}, Path: {path}, Method: {request.method}")
     
     # Allow all Vercel domains (including preview deployments)
     if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source')
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
+        print(f"✅ CORS headers added for origin: {origin}")
+    else:
+        print(f"⚠️ CORS origin not matched: {origin}")
+    
+    # Log response headers for debugging
+    cors_origin = response.headers.get('Access-Control-Allow-Origin', 'NOT SET')
+    print(f"📋 Response CORS headers - Allow-Origin: {cors_origin}, Status: {response.status_code}")
     
     return response
 
@@ -1213,20 +1224,31 @@ def authenticate_request():
 @app.route('/api/watchlist', methods=['OPTIONS'])
 def watchlist_options():
     """Handle CORS preflight for /api/watchlist"""
-    response = jsonify({})
     origin = request.headers.get('Origin', '')
+    print(f"🔵 OPTIONS preflight for /api/watchlist from origin: {origin}")
+    
+    response = jsonify({})
     if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source')
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
+        print(f"✅ OPTIONS response headers set for origin: {origin}")
+    else:
+        print(f"⚠️ OPTIONS origin not matched: {origin}")
+    
     return response
 
 @app.route('/api/watchlist', methods=['GET'])
 def get_watchlist_route():
     """Lightweight watchlist endpoint with current prices"""
+    origin = request.headers.get('Origin', '')
+    print(f"📥 GET /api/watchlist request from origin: {origin}")
+    print(f"📥 Request headers - Authorization: {bool(request.headers.get('Authorization'))}, X-User-ID: {request.headers.get('X-User-ID')}")
+    
     user = authenticate_request()
     if not user:
+        print(f"❌ Authentication failed for /api/watchlist")
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check rate limit
@@ -1580,18 +1602,27 @@ def get_chart_data(symbol):
 @app.route('/api/market-status', methods=['OPTIONS'])
 def market_status_options():
     """Handle CORS preflight for /api/market-status"""
-    response = jsonify({})
     origin = request.headers.get('Origin', '')
+    print(f"🔵 OPTIONS preflight for /api/market-status from origin: {origin}")
+    
+    response = jsonify({})
     if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID')
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID'
+        print(f"✅ OPTIONS response headers set for origin: {origin}")
+    else:
+        print(f"⚠️ OPTIONS origin not matched: {origin}")
+    
     return response
 
 @app.route('/api/market-status')
 def market_status():
     """Get market status using Eastern Time"""
+    origin = request.headers.get('Origin', '')
+    print(f"📥 GET /api/market-status request from origin: {origin}")
+    
     try:
         # Get current time in Eastern Time (handles EST/EDT automatically)
         if zoneinfo:
