@@ -263,7 +263,13 @@ const DashboardRedesign = () => {
                         name: user.displayName || user.email.split('@')[0] || 'Account',
                         email: user.email || 'user@example.com'
                     });
+                    // Reload watchlist when user is authenticated
+                    console.log('✅ User authenticated, loading watchlist...');
+                    loadWatchlistData();
                 } else {
+                    // Clear watchlist if user is signed out
+                    setWatchlistData([]);
+                    setIsLoading(false);
                     // Redirect if user is signed out
                     window.location.href = '/';
                 }
@@ -626,10 +632,28 @@ const DashboardRedesign = () => {
 
     const loadWatchlistData = async () => {
         try {
+            // Check if user is authenticated before making request
+            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+                console.warn('⚠️ User not authenticated, cannot load watchlist');
+                setWatchlistData([]);
+                setIsLoading(false);
+                return;
+            }
+            
             const authHeaders = await window.getAuthHeaders();
+            
+            // Verify we have auth headers
+            if (!authHeaders || !authHeaders['Authorization']) {
+                console.error('❌ Failed to get authentication headers');
+                setWatchlistData([]);
+                setIsLoading(false);
+                return;
+            }
+            
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             
             console.log('📊 Loading watchlist data from:', `${API_BASE}/api/watchlist`);
+            console.log('📊 Auth headers present:', !!authHeaders['Authorization']);
             
             const response = await fetch(`${API_BASE}/api/watchlist?t=${Date.now()}`, {
                 method: 'GET',
@@ -740,6 +764,24 @@ const DashboardRedesign = () => {
             } else {
                 const errorText = await response.text();
                 console.error('❌ Watchlist API error:', response.status, errorText);
+                
+                // If 401, user might need to re-authenticate
+                if (response.status === 401) {
+                    console.error('❌ Authentication failed - user may need to log in again');
+                    // Try to refresh the token
+                    if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+                        try {
+                            await window.firebaseAuth.currentUser.getIdToken(true); // Force refresh
+                            console.log('🔄 Token refreshed, retrying...');
+                            // Retry once after token refresh
+                            setTimeout(() => loadWatchlistData(), 1000);
+                            return;
+                        } catch (refreshError) {
+                            console.error('❌ Failed to refresh token:', refreshError);
+                        }
+                    }
+                }
+                
                 setWatchlistData([]);
             }
         } catch (error) {
