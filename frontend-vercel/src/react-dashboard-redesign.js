@@ -1442,25 +1442,7 @@ const DashboardRedesign = () => {
                 {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} />}
                 {activeView === 'watchlist' && (
                     <WatchlistView 
-                        watchlistData={watchlistData.filter((s) => {
-                            if (selectedCategory === 'All') return true;
-                            // Normalize category comparison (case-insensitive, trim whitespace)
-                            const stockCategory = (s.category || 'General').toString().trim();
-                            const selectedCat = selectedCategory.toString().trim();
-                            const matches = stockCategory.toLowerCase() === selectedCat.toLowerCase();
-                            
-                            // Debug logging
-                            if (process.env.NODE_ENV === 'development') {
-                                console.log('🔍 Filter check:', {
-                                    symbol: s.symbol,
-                                    stockCategory,
-                                    selectedCat,
-                                    matches
-                                });
-                            }
-                            
-                            return matches;
-                        })}
+                        watchlistData={watchlistData}
                         onOpenDetails={openDetails}
                         onRemove={removeFromWatchlist}
                         onAddFirstStock={handleAddFirstStock}
@@ -2253,25 +2235,35 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
 
 // Watchlist View Component
 const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover }) => {
-    // Count stocks per category for display
+    // Count stocks per category from unfiltered data
     const categoryCounts = {};
     watchlistData.forEach(stock => {
         const cat = stock.category || 'General';
         categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
     });
     
+    // Filter watchlist based on selected category
+    const filteredWatchlist = watchlistData.filter((s) => {
+        if (selectedCategory === 'All') return true;
+        // Normalize category comparison (case-insensitive, trim whitespace)
+        const stockCategory = (s.category || 'General').toString().trim();
+        const selectedCat = selectedCategory.toString().trim();
+        return stockCategory.toLowerCase() === selectedCat.toLowerCase();
+    });
+    
     // Log category distribution for debugging
     console.log('📊 Category distribution:', categoryCounts);
     console.log('📊 Selected category:', selectedCategory);
-    console.log('📊 Filtered watchlist count:', watchlistData.length);
+    console.log('📊 Total watchlist count:', watchlistData.length);
+    console.log('📊 Filtered watchlist count:', filteredWatchlist.length);
     
     return (
         <div className="watchlist-view">
             <div className="view-header">
                 <h2>My Watchlist</h2>
-                {watchlistData.length > 0 && (
+                {filteredWatchlist.length > 0 && (
                     <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem', marginLeft: '1rem' }}>
-                        {watchlistData.length} {watchlistData.length === 1 ? 'stock' : 'stocks'}
+                        {filteredWatchlist.length} {filteredWatchlist.length === 1 ? 'stock' : 'stocks'}
                         {selectedCategory !== 'All' && ` in ${selectedCategory}`}
                     </span>
                 )}
@@ -2293,9 +2285,17 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                     return (
                     <button
                         key={category}
-                        onClick={() => {
-                            console.log(`🔍 Category filter clicked: ${category}`);
-                            onCategoryChange && onCategoryChange(category);
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            try {
+                                console.log(`🔍 Category filter clicked: ${category}`);
+                                if (onCategoryChange) {
+                                    onCategoryChange(category);
+                                }
+                            } catch (error) {
+                                console.error('❌ Error changing category:', error);
+                            }
                         }}
                         className={`filter-btn ${selectedCategory === category ? 'active' : ''}`}
                         style={{
@@ -2340,7 +2340,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
             </div>
             
             {/* Show message if no stocks match filter */}
-            {watchlistData.length === 0 && selectedCategory !== 'All' && (
+            {filteredWatchlist.length === 0 && selectedCategory !== 'All' && (
                 <div style={{
                     padding: '3rem 2rem',
                     textAlign: 'center',
@@ -2356,7 +2356,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
             )}
             
             <div className="watchlist-grid">
-                {watchlistData.map((stock, index) => (
+                {filteredWatchlist.map((stock, index) => (
                     <div 
                         key={index} 
                         className="watchlist-card" 
