@@ -654,14 +654,45 @@ const DashboardRedesign = () => {
             
             console.log('📊 Loading watchlist data from:', `${API_BASE}/api/watchlist`);
             console.log('📊 Auth headers present:', !!authHeaders['Authorization']);
-            
-            const response = await fetch(`${API_BASE}/api/watchlist?t=${Date.now()}`, {
-                method: 'GET',
-                headers: authHeaders,
-                credentials: 'include'
+            console.log('📊 Current origin:', window.location.origin);
+            console.log('📊 Auth headers:', {
+                hasAuth: !!authHeaders['Authorization'],
+                hasUserId: !!authHeaders['X-User-ID'],
+                authPreview: authHeaders['Authorization'] ? authHeaders['Authorization'].substring(0, 20) + '...' : 'none'
             });
             
-            console.log('📊 Watchlist response status:', response.status, response.statusText);
+            const fetchOptions = {
+                method: 'GET',
+                headers: authHeaders,
+                credentials: 'include',
+                mode: 'cors'
+            };
+            
+            console.log('📊 Fetch options:', {
+                method: fetchOptions.method,
+                hasHeaders: !!fetchOptions.headers,
+                credentials: fetchOptions.credentials,
+                mode: fetchOptions.mode
+            });
+            
+            let response;
+            try {
+                response = await fetch(`${API_BASE}/api/watchlist?t=${Date.now()}`, fetchOptions);
+                console.log('📊 Watchlist response received:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    headers: Object.fromEntries(response.headers.entries())
+                });
+            } catch (fetchError) {
+                console.error('❌ Fetch error details:', {
+                    name: fetchError.name,
+                    message: fetchError.message,
+                    stack: fetchError.stack,
+                    type: typeof fetchError
+                });
+                throw fetchError;
+            }
             
             if (response.ok) {
                 let data = await response.json();
