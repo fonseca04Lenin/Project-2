@@ -62,6 +62,8 @@ const DashboardRedesign = () => {
         stockRefs: new Map()
     });
     const keepAliveRef = useRef(null);
+    const socketRef = useRef(null);
+    const viewedStocksRef = useRef(new Set()); // Track stocks user is viewing
 
     // Load preferences from localStorage
     const loadPreferences = () => {
@@ -200,7 +202,7 @@ const DashboardRedesign = () => {
                 setAlpacaPositions(data.positions || []);
             }
         } catch (e) {
-            console.error('Error loading Alpaca positions:', e);
+            // Error loading Alpaca positions
         }
     };
 
@@ -264,7 +266,7 @@ const DashboardRedesign = () => {
                         email: user.email || 'user@example.com'
                     });
                     // Reload watchlist when user is authenticated
-                    console.log('✅ User authenticated, loading watchlist...');
+                    // User authenticated, loading watchlist
                     loadWatchlistData();
                 } else {
                     // Clear watchlist if user is signed out
@@ -338,6 +340,139 @@ const DashboardRedesign = () => {
             }
         };
     }, []);
+
+    // WebSocket connection for real-time updates
+    useEffect(() => {
+        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+        
+        // Initialize Socket.IO connection
+        if (typeof io !== 'undefined') {
+            socketRef.current = io(API_BASE, {
+                transports: ['websocket', 'polling'],
+                withCredentials: true
+            });
+            
+            socketRef.current.on('connect', () => {
+                console.log('✅ WebSocket connected for real-time updates');
+                
+                // Join watchlist updates room when user is available
+                const setupRooms = async () => {
+                    try {
+                        const authHeaders = await window.getAuthHeaders();
+                        if (authHeaders['X-User-ID']) {
+                            const userId = authHeaders['X-User-ID'];
+                            socketRef.current.emit('join_watchlist_updates', { user_id: userId });
+                            socketRef.current.emit('join_user_room', { user_id: userId });
+                            // Joined WebSocket rooms for user
+                        }
+                    } catch (e) {
+                        // Error setting up WebSocket rooms
+                    }
+                };
+                
+                setupRooms();
+            });
+            
+            // Listen for real-time watchlist price updates
+            socketRef.current.on('watchlist_updated', (data) => {
+                // Real-time price update received
+                if (data.prices && Array.isArray(data.prices)) {
+                    // Update watchlist data with new prices
+                    setWatchlistData(prevData => {
+                        const updatedData = prevData.map(stock => {
+                            const update = data.prices.find(p => p.symbol === stock.symbol);
+                            if (update) {
+                                return {
+                                    ...stock,
+                                    price: update.price,
+                                    change: update.price_change || 0,
+                                    change_percent: update.price_change_percent || 0,
+                                    _updated: true // Flag for animation
+                                };
+                            }
+                            return stock;
+                        });
+                        return updatedData;
+                    });
+                    
+                    // Clear update flag after animation
+                    setTimeout(() => {
+                        setWatchlistData(prevData => 
+                            prevData.map(stock => ({ ...stock, _updated: false }))
+                        );
+                    }, 1000);
+                }
+            });
+            
+            socketRef.current.on('disconnect', () => {
+                // WebSocket disconnected
+            });
+            
+            socketRef.current.on('connect_error', (error) => {
+                // WebSocket connection error
+            });
+        }
+        
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
+        };
+    }, []);
+
+    // Track viewed stocks for priority updates (exposed globally)
+    const trackStockView = (symbol) => {
+        if (!socketRef.current || !socketRef.current.connected) return;
+        
+        const trackView = async () => {
+            try {
+                const authHeaders = await window.getAuthHeaders();
+                const userId = authHeaders['X-User-ID'];
+                if (userId && symbol) {
+                    viewedStocksRef.current.add(symbol);
+                    socketRef.current.emit('track_stock_view', {
+                        user_id: userId,
+                        symbol: symbol.toUpperCase()
+                    });
+                    // Tracking stock view
+                }
+            } catch (e) {
+                // Error tracking stock view
+            }
+        };
+        
+        trackView();
+    };
+    
+    const untrackStockView = (symbol) => {
+        if (!socketRef.current || !socketRef.current.connected) return;
+        
+        const untrackView = async () => {
+            try {
+                const authHeaders = await window.getAuthHeaders();
+                const userId = authHeaders['X-User-ID'];
+                if (userId && symbol) {
+                    viewedStocksRef.current.delete(symbol);
+                    socketRef.current.emit('untrack_stock_view', {
+                        user_id: userId,
+                        symbol: symbol.toUpperCase()
+                    });
+                    // Untracking stock view
+                }
+            } catch (e) {
+                console.error('Error untracking stock view:', e);
+            }
+        };
+        
+        untrackView();
+    };
+    
+    // Expose tracking functions globally for modal access
+    if (typeof window !== 'undefined') {
+        window.DashboardRedesign = window.DashboardRedesign || {};
+        window.DashboardRedesign.trackStockView = trackStockView;
+        window.DashboardRedesign.untrackStockView = untrackStockView;
+    }
 
     // Market status updates
     useEffect(() => {
@@ -634,7 +769,7 @@ const DashboardRedesign = () => {
         try {
             // Check if user is authenticated before making request
             if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-                console.warn('⚠️ User not authenticated, cannot load watchlist');
+                // User not authenticated, cannot load watchlist
                 setWatchlistData([]);
                 setIsLoading(false);
                 return;
@@ -652,15 +787,6 @@ const DashboardRedesign = () => {
             
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             
-            console.log('📊 Loading watchlist data from:', `${API_BASE}/api/watchlist`);
-            console.log('📊 Auth headers present:', !!authHeaders['Authorization']);
-            console.log('📊 Current origin:', window.location.origin);
-            console.log('📊 Auth headers:', {
-                hasAuth: !!authHeaders['Authorization'],
-                hasUserId: !!authHeaders['X-User-ID'],
-                authPreview: authHeaders['Authorization'] ? authHeaders['Authorization'].substring(0, 20) + '...' : 'none'
-            });
-            
             const fetchOptions = {
                 method: 'GET',
                 headers: authHeaders,
@@ -668,35 +794,18 @@ const DashboardRedesign = () => {
                 mode: 'cors'
             };
             
-            console.log('📊 Fetch options:', {
-                method: fetchOptions.method,
-                hasHeaders: !!fetchOptions.headers,
-                credentials: fetchOptions.credentials,
-                mode: fetchOptions.mode
-            });
-            
             let response;
             try {
                 response = await fetch(`${API_BASE}/api/watchlist?t=${Date.now()}`, fetchOptions);
-                console.log('📊 Watchlist response received:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    ok: response.ok,
-                    headers: Object.fromEntries(response.headers.entries())
-                });
+                // Watchlist response received
             } catch (fetchError) {
-                console.error('❌ Fetch error details:', {
-                    name: fetchError.name,
-                    message: fetchError.message,
-                    stack: fetchError.stack,
-                    type: typeof fetchError
-                });
+                // Fetch error occurred
                 throw fetchError;
             }
             
             if (response.ok) {
                 let data = await response.json();
-                console.log('📊 Watchlist data received:', data?.length || 0, 'items');
+                // Watchlist data received
                 
                 // Backend already provides prices, so we don't need to fetch individually
                 // This was causing N API calls on initial load (very slow!)
@@ -762,7 +871,7 @@ const DashboardRedesign = () => {
                         // Ensure it matches one of our valid categories, otherwise default to General
                         const validCategories = ['All', 'Technology', 'General', 'Military', 'Agriculture', 'Healthcare', 'Finance', 'Energy', 'Consumer', 'Industrial'];
                         if (!validCategories.includes(normalizedCategory)) {
-                            console.warn(`⚠️ Invalid category "${normalizedCategory}" for ${symbol}, defaulting to General`);
+                            // Invalid category, defaulting to General
                             normalizedCategory = 'General';
                         }
                         
@@ -779,7 +888,7 @@ const DashboardRedesign = () => {
                         };
                     });
                     
-                    console.log('📊 Formatted watchlist data:', formattedData.length, 'items');
+                    // Formatted watchlist data
                     setWatchlistData(formattedData);
                     
                     // Immediately fetch prices for stocks that need price updates
@@ -787,7 +896,7 @@ const DashboardRedesign = () => {
                     const stocksNeedingPrices = formattedData.filter(s => s._priceLoading);
                     
                     if (stocksNeedingPrices.length > 0) {
-                        console.log(`💰 Immediately fetching prices for ${stocksNeedingPrices.length} stocks`);
+                        // Fetching prices for stocks
                         
                         // Helper function to fetch a single stock price
                         const fetchStockPrice = async (symbol) => {
@@ -832,7 +941,7 @@ const DashboardRedesign = () => {
                         const stocksToFetch = stocksNeedingPrices.slice(0, 10);
                         Promise.all(stocksToFetch.map(stock => fetchStockPrice(stock.symbol)))
                             .then(() => {
-                                console.log('✅ Initial price fetch completed');
+                                // Initial price fetch completed
                             });
                     }
                 } else {
@@ -841,21 +950,21 @@ const DashboardRedesign = () => {
                 }
             } else {
                 const errorText = await response.text();
-                console.error('❌ Watchlist API error:', response.status, errorText);
+                // Watchlist API error
                 
                 // If 401, user might need to re-authenticate
                 if (response.status === 401) {
-                    console.error('❌ Authentication failed - user may need to log in again');
+                    // Authentication failed - user may need to log in again
                     // Try to refresh the token
                     if (window.firebaseAuth && window.firebaseAuth.currentUser) {
                         try {
                             await window.firebaseAuth.currentUser.getIdToken(true); // Force refresh
-                            console.log('🔄 Token refreshed, retrying...');
+                            // Token refreshed, retrying
                             // Retry once after token refresh
                             setTimeout(() => loadWatchlistData(), 1000);
                             return;
                         } catch (refreshError) {
-                            console.error('❌ Failed to refresh token:', refreshError);
+                            // Failed to refresh token
                         }
                     }
                 }
@@ -863,8 +972,7 @@ const DashboardRedesign = () => {
                 setWatchlistData([]);
             }
         } catch (error) {
-            console.error('❌ Error loading watchlist:', error);
-            console.error('❌ Error details:', error.message, error.stack);
+            // Error loading watchlist
             setWatchlistData([]);
         } finally {
             setIsLoading(false);
@@ -888,6 +996,30 @@ const DashboardRedesign = () => {
                 const data = await response.json();
                 setSearchResults([data]);
                 setShowSearchResults(true);
+                
+                // Track searched stock for priority real-time updates
+                const symbol = searchQuery.toUpperCase();
+                trackStockView(symbol);
+                
+                // Track search results for priority updates
+                if (socketRef.current && socketRef.current.connected) {
+                    const trackSearch = async () => {
+                        try {
+                            const authHeaders = await window.getAuthHeaders();
+                            const userId = authHeaders['X-User-ID'];
+                            if (userId) {
+                                socketRef.current.emit('track_search_stock', {
+                                    user_id: userId,
+                                    symbols: [symbol]
+                                });
+                            }
+                        } catch (e) {
+                            // Error tracking search stock
+                        }
+                    };
+                    trackSearch();
+                }
+                
                 window.openStockDetailsModalReact && window.openStockDetailsModalReact(searchQuery.toUpperCase());
                 setSuggestions([]);
                 setHighlightedIndex(-1);
@@ -2252,10 +2384,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
     });
     
     // Log category distribution for debugging
-    console.log('📊 Category distribution:', categoryCounts);
-    console.log('📊 Selected category:', selectedCategory);
-    console.log('📊 Total watchlist count:', watchlistData.length);
-    console.log('📊 Filtered watchlist count:', filteredWatchlist.length);
+    // Category filtering applied
     
     return (
         <div className="watchlist-view">
@@ -2289,12 +2418,12 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                             e.preventDefault();
                             e.stopPropagation();
                             try {
-                                console.log(`🔍 Category filter clicked: ${category}`);
+                                // Category filter clicked
                                 if (onCategoryChange) {
                                     onCategoryChange(category);
                                 }
                             } catch (error) {
-                                console.error('❌ Error changing category:', error);
+                                // Error changing category
                             }
                         }}
                         className={`filter-btn ${selectedCategory === category ? 'active' : ''}`}
