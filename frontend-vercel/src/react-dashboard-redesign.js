@@ -59,7 +59,8 @@ const DashboardRedesign = () => {
         callWindowStart: Date.now(),
         visibleStocks: new Set(),
         hoveredStocks: new Set(),
-        stockRefs: new Map()
+        stockRefs: new Map(),
+        updateIndex: 0 // For rotating through stocks when updating all (watchlist <= 30)
     });
     const keepAliveRef = useRef(null);
     const socketRef = useRef(null);
