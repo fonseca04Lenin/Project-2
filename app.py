@@ -775,6 +775,7 @@ def update_stock_prices():
             all_symbols_to_fetch = priority_to_fetch + symbols_to_fetch
             
             # Use batch API call if Alpaca is enabled (much more efficient!)
+            batch_failed_symbols = set()  # Track symbols that failed in batch
             if all_symbols_to_fetch and USE_ALPACA_API and alpaca_api:
                 try:
                     print(f"🔄 [REALTIME] Batch updating {len(all_symbols_to_fetch)} symbols ({len(priority_to_fetch)} priority) via Alpaca batch API...")
@@ -784,9 +785,12 @@ def update_stock_prices():
                         batch = all_symbols_to_fetch[i:i+batch_size]
                         batch_results = alpaca_api.get_batch_snapshots(batch)
                         
+                        # Track which symbols succeeded
+                        batch_success_symbols = set()
+                        
                         # Process batch results
                         for symbol, data in batch_results.items():
-                            if data and 'price' in data:
+                            if data and 'price' in data and data.get('price') and data['price'] > 0:
                                 stock_data = {
                                     'symbol': symbol,
                                     'name': data.get('name', symbol),
@@ -800,22 +804,50 @@ def update_stock_prices():
                                 price_cache[symbol] = stock_data
                                 cache_expiry[symbol] = current_time + cache_duration
                                 updated_symbols[symbol] = stock_data
+                                batch_success_symbols.add(symbol)
+                        
+                        # Track symbols that failed in batch (not in results or invalid price)
+                        for symbol in batch:
+                            if symbol not in batch_success_symbols:
+                                batch_failed_symbols.add(symbol)
                         
                         # Small delay between batches to respect rate limits
                         if i + batch_size < len(all_symbols_to_fetch):
                             time.sleep(0.1)  # Reduced delay for real-time (was 0.5s)
                     
                     print(f"✅ [REALTIME] Batch updated {len(updated_symbols)} symbols ({len(priority_to_fetch)} priority)")
+                    if batch_failed_symbols:
+                        print(f"⚠️ [REALTIME] {len(batch_failed_symbols)} symbols failed in batch, will retry individually: {list(batch_failed_symbols)[:10]}")
                     
                 except Exception as e:
                     print(f"⚠️ [REALTIME] Batch update failed, falling back to individual calls: {e}")
-                    # Fallback to individual calls if batch fails
-                    all_symbols_to_fetch = all_symbols_to_fetch  # Keep original list
+                    import traceback
+                    print(f"⚠️ [REALTIME] Batch error traceback: {traceback.format_exc()}")
+                    # If batch completely failed, mark all symbols as failed
+                    batch_failed_symbols = set(all_symbols_to_fetch)
             
-            # Fallback: individual API calls (if batch failed or Alpaca not enabled)
-            if all_symbols_to_fetch and not (USE_ALPACA_API and alpaca_api and len(updated_symbols) > 0):
-                # Process priority symbols first
-                symbols_to_process = priority_to_fetch + symbols_to_fetch
+            # Fallback: individual API calls for symbols that failed in batch or if batch wasn't used
+            # Only run individual calls if:
+            # 1. Batch failed for some symbols (batch_failed_symbols is not empty), OR
+            # 2. Batch wasn't used at all (Alpaca not enabled or not available)
+            if batch_failed_symbols:
+                # Some symbols failed in batch, fetch them individually
+                symbols_needing_individual_fetch = batch_failed_symbols
+            elif not (USE_ALPACA_API and alpaca_api):
+                # Batch wasn't used, fetch all symbols individually
+                symbols_needing_individual_fetch = all_symbols_to_fetch
+            else:
+                # Batch succeeded for all symbols, no individual calls needed
+                symbols_needing_individual_fetch = []
+            
+            if symbols_needing_individual_fetch:
+                # Process priority symbols first, then failed batch symbols
+                priority_failed = [s for s in symbols_needing_individual_fetch if s in priority_symbols]
+                regular_failed = [s for s in symbols_needing_individual_fetch if s not in priority_symbols]
+                symbols_to_process = priority_failed + regular_failed
+                
+                print(f"🔄 [REALTIME] Fetching {len(symbols_to_process)} symbols individually ({len(priority_failed)} priority)...")
+                
                 for symbol in symbols_to_process[:50]:  # Increased limit for real-time
                     try:
                         # Add small delay to prevent rate limiting (shorter for priority)
@@ -900,10 +932,13 @@ def update_stock_prices():
                             print(f"⚠️ [REALTIME] Symbol {symbol} not in updated_symbols for user {user_id}, may need fallback fetch")
                     
                     if user_updates:
+                        room_name = f"watchlist_{user_id}"
                         socketio.emit('watchlist_updated', {
                             'prices': user_updates
-                        }, room=f"watchlist_{user_id}")
-                        print(f"✅ [REALTIME] Sent {len(user_updates)} stock updates to user {user_id}")
+                        }, room=room_name)
+                        print(f"✅ [REALTIME] Sent {len(user_updates)} stock updates to user {user_id} in room {room_name}")
+                    else:
+                        print(f"⚠️ [REALTIME] No updates to send for user {user_id} (watchlist has {len(watchlist)} stocks, updated_symbols has {len(updated_symbols)} symbols)")
                         
                 except Exception as e:
                     print(f"⚠️ Error sending updates to user {user_id}: {e}")
