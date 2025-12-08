@@ -822,13 +822,27 @@ def update_stock_prices():
                         delay = 0.05 if symbol in priority_symbols else 0.1
                         time.sleep(delay)
                         
-                        # Get fresh data for watchlist (Alpaca only, no Yahoo fallback)
+                        # Get fresh data for watchlist - try Alpaca first, then Yahoo fallback
                         print(f"🔄 [REALTIME] Updating price for {symbol} {'(PRIORITY)' if symbol in priority_symbols else ''}...")
                         stock, api_used = get_stock_alpaca_only(symbol)
-                        if not stock:
-                            print(f"⚠️ [BACKGROUND-WATCHLIST] Failed to update {symbol} from Alpaca, skipping (no Yahoo fallback)")
-                            continue
-                        print(f"✅ [BACKGROUND-WATCHLIST] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
+                        
+                        # Fallback to Yahoo if Alpaca fails - NEVER skip stocks, always get fresh price
+                        if not stock or not stock.price or stock.price == 0:
+                            print(f"⚠️ [REALTIME] Alpaca failed for {symbol}, trying Yahoo fallback...")
+                            try:
+                                stock = Stock(symbol, yahoo_finance_api)
+                                stock.retrieve_data()
+                                api_used = 'yahoo'
+                                if stock and stock.price:
+                                    print(f"✅ [REALTIME] Yahoo fallback successful for {symbol}: ${stock.price:.2f}")
+                                else:
+                                    print(f"❌ [REALTIME] Yahoo fallback also failed for {symbol}")
+                                    continue
+                            except Exception as yahoo_error:
+                                print(f"❌ [REALTIME] Yahoo fallback failed for {symbol}: {yahoo_error}")
+                                continue
+                        
+                        print(f"✅ [REALTIME] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
                         
                         if stock.name and 'not found' not in stock.name.lower():
                             stock_data = {
@@ -849,35 +863,47 @@ def update_stock_prices():
                         print(f"⚠️ Error updating {symbol}: {e}")
                         continue
             
-            # Send updates to users
+            # Send updates to users - ensure ALL watchlist stocks get updates
             for user_id, watchlist in user_watchlists.items():
                 try:
                     user_updates = []
                     for item in watchlist:
                         symbol = item['symbol']
+                        
+                        # Always include stock in updates if we have fresh data
                         if symbol in updated_symbols:
                             stock_data = updated_symbols[symbol]
                             
-                            # Calculate price change
+                            # Calculate price change from original price (not last_price)
+                            original_price = item.get('original_price', 0)
+                            current_price = stock_data.get('price', 0)
                             price_change = 0
                             price_change_percent = 0
-                            if 'last_price' in item:
-                                price_change = stock_data['price'] - item['last_price']
-                                price_change_percent = (price_change / item['last_price'] * 100) if item['last_price'] > 0 else 0
+                            
+                            if original_price and original_price > 0 and current_price > 0:
+                                price_change = current_price - original_price
+                                price_change_percent = (price_change / original_price) * 100
                             
                             user_updates.append({
                                 **stock_data,
                                 'price_change': price_change,
                                 'price_change_percent': price_change_percent,
+                                'change_percent': price_change_percent,  # Alias
+                                'priceChangePercent': price_change_percent,  # Alias
                                 'category': item.get('category', 'General'),
-                                'priority': item.get('priority', 'medium')
+                                'priority': item.get('priority', 'medium'),
+                                '_fresh': True  # Flag to indicate fresh data
                             })
+                        else:
+                            # If stock wasn't updated in this cycle, still send current data
+                            # This ensures frontend knows the stock exists even if update failed
+                            print(f"⚠️ [REALTIME] Symbol {symbol} not in updated_symbols for user {user_id}, may need fallback fetch")
                     
                     if user_updates:
                         socketio.emit('watchlist_updated', {
                             'prices': user_updates
                         }, room=f"watchlist_{user_id}")
-                        print(f"✅ Updated {len(user_updates)} stocks for user {user_id}")
+                        print(f"✅ [REALTIME] Sent {len(user_updates)} stock updates to user {user_id}")
                         
                 except Exception as e:
                     print(f"⚠️ Error sending updates to user {user_id}: {e}")
@@ -1395,61 +1421,75 @@ def get_watchlist_route():
         print(f"📋 Retrieved {len(watchlist)} items from watchlist")
         
         # Helper function to fetch price for a single stock
+        # ALWAYS fetches fresh prices - never returns stale cached prices
         def fetch_stock_price(item):
             symbol = item.get('symbol') or item.get('id', '')
             if not symbol:
                 return None
                 
+            original_price = item.get('original_price')
+            
+            # Try Alpaca first, then Yahoo fallback to ensure we ALWAYS get fresh price
+            stock = None
+            api_used = None
+            
+            # Try Alpaca first
             try:
-                # Get current stock data (use Alpaca for watchlist)
                 stock, api_used = get_stock_alpaca_only(symbol)
-                if stock and stock.name and stock.price:
-                    # Calculate price change if we have original price
-                    original_price = item.get('original_price')
-                    current_price = stock.price
-                    price_change = None
-                    change_percent = None
-                    
-                    if original_price and current_price and original_price > 0:
-                        price_change = current_price - original_price
-                        change_percent = (price_change / original_price) * 100
-                    else:
-                        # If no original price, use current price as baseline
-                        price_change = 0
-                        change_percent = 0
-                    
-                    # Merge watchlist item data with current stock data
-                    return {
-                        **item,
-                        'symbol': symbol,
-                        'company_name': stock.name,
-                        'current_price': current_price,
-                        'price': current_price,  # Alias for compatibility
-                        'price_change': price_change,
-                        'change_percent': change_percent,
-                        'priceChangePercent': change_percent,  # Alias for compatibility
-                        'priceChange': price_change  # Alias for compatibility
-                    }
-                else:
-                    # If stock fetch fails, return item without price data
-                    return {
-                        **item,
-                        'symbol': symbol,
-                        'current_price': item.get('original_price') or 0,
-                        'price': item.get('original_price') or 0,
-                        'price_change': 0,
-                        'change_percent': 0
-                    }
             except Exception as e:
-                print(f"⚠️ Error fetching price for {symbol}: {e}")
-                # Return item without price data on error
+                print(f"⚠️ Alpaca fetch failed for {symbol}, trying Yahoo fallback: {e}")
+            
+            # Fallback to Yahoo if Alpaca fails or returns no price
+            if not stock or not stock.price or stock.price == 0:
+                try:
+                    print(f"🔄 Falling back to Yahoo Finance for {symbol}")
+                    stock = Stock(symbol, yahoo_finance_api)
+                    stock.retrieve_data()
+                    api_used = 'yahoo'
+                except Exception as e:
+                    print(f"⚠️ Yahoo fallback also failed for {symbol}: {e}")
+            
+            # Only return data if we have a valid fresh price
+            if stock and stock.name and stock.price and stock.price > 0:
+                current_price = stock.price
+                price_change = None
+                change_percent = None
+                
+                if original_price and original_price > 0:
+                    price_change = current_price - original_price
+                    change_percent = (price_change / original_price) * 100
+                else:
+                    # If no original price, use current price as baseline
+                    price_change = 0
+                    change_percent = 0
+                
+                # Merge watchlist item data with FRESH current stock data
                 return {
                     **item,
                     'symbol': symbol,
-                    'current_price': item.get('original_price') or 0,
-                    'price': item.get('original_price') or 0,
+                    'company_name': stock.name,
+                    'current_price': current_price,  # ALWAYS fresh price
+                    'price': current_price,  # ALWAYS fresh price
+                    'price_change': price_change,
+                    'change_percent': change_percent,
+                    'priceChangePercent': change_percent,
+                    'priceChange': price_change,
+                    '_fresh': True,  # Flag to indicate this is fresh data
+                    '_api_source': api_used
+                }
+            else:
+                # If ALL fetches fail, log error but don't return stale price
+                print(f"❌ Failed to fetch fresh price for {symbol} from all sources")
+                # Return item with zero price to indicate fetch failure (not stale cache)
+                return {
+                    **item,
+                    'symbol': symbol,
+                    'current_price': 0,  # Zero indicates fetch failure, not stale cache
+                    'price': 0,
                     'price_change': 0,
-                    'change_percent': 0
+                    'change_percent': 0,
+                    '_fresh': False,  # Flag to indicate fetch failed
+                    '_error': 'Failed to fetch fresh price'
                 }
         
         # Fetch current prices for each stock IN PARALLEL for faster loading
