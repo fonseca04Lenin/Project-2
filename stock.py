@@ -737,6 +737,240 @@ class FinnhubAPI:
             print(f'Error fetching Finnhub profile for {symbol}: {e}')
             return {'ceo': '-', 'description': '-'}
 
+class AlphaVantageAPI:
+    """Alpha Vantage API - Free tier: 5 calls/minute, 500 calls/day"""
+    def __init__(self, api_key=None):
+        self.api_key = api_key or os.getenv('ALPHA_VANTAGE_API_KEY', 'demo')
+        self.base_url = 'https://www.alphavantage.co/query'
+    
+    def get_company_overview(self, symbol):
+        """Get company overview including market cap, P/E ratio, etc."""
+        try:
+            params = {
+                'function': 'OVERVIEW',
+                'symbol': symbol,
+                'apikey': self.api_key
+            }
+            response = requests.get(self.base_url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if data and 'Symbol' in data:
+                    return {
+                        'marketCap': data.get('MarketCapitalization', ''),
+                        'peRatio': data.get('PERatio', ''),
+                        'dividendYield': data.get('DividendYield', ''),
+                        'description': data.get('Description', ''),
+                        'sector': data.get('Sector', ''),
+                        'industry': data.get('Industry', ''),
+                        'address': data.get('Address', ''),
+                        'ceo': data.get('CEO', ''),
+                        'website': data.get('Website', '')
+                    }
+        except Exception as e:
+            print(f'Alpha Vantage error for {symbol}: {e}')
+        return {}
+
+class FinancialModelingPrepAPI:
+    """Financial Modeling Prep API - Free tier available"""
+    def __init__(self, api_key=None):
+        self.api_key = api_key or os.getenv('FMP_API_KEY', 'demo')
+        self.base_url = 'https://financialmodelingprep.com/api/v3'
+    
+    def get_company_profile(self, symbol):
+        """Get company profile"""
+        try:
+            url = f'{self.base_url}/profile/{symbol}'
+            params = {'apikey': self.api_key}
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    company = data[0]
+                    return {
+                        'marketCap': company.get('mktCap', ''),
+                        'peRatio': company.get('pe', ''),
+                        'dividendYield': company.get('lastDiv', ''),
+                        'description': company.get('description', ''),
+                        'sector': company.get('sector', ''),
+                        'industry': company.get('industry', ''),
+                        'ceo': company.get('ceo', ''),
+                        'website': company.get('website', ''),
+                        'address': company.get('address', ''),
+                        'city': company.get('city', ''),
+                        'state': company.get('state', ''),
+                        'country': company.get('country', '')
+                    }
+        except Exception as e:
+            print(f'Financial Modeling Prep error for {symbol}: {e}')
+        return {}
+
+class CompanyInfoService:
+    """Service that aggregates company info from multiple APIs with fallbacks"""
+    def __init__(self):
+        self.finnhub = FinnhubAPI()
+        self.alpha_vantage = AlphaVantageAPI()
+        self.fmp = FinancialModelingPrepAPI()
+    
+    def get_comprehensive_info(self, symbol, yahoo_info=None):
+        """Get comprehensive company info trying multiple APIs"""
+        result = {
+            'ceo': '-',
+            'marketCap': '-',
+            'peRatio': '-',
+            'dividendYield': '-',
+            'website': '-',
+            'headquarters': '-',
+            'description': '-'
+        }
+        
+        # Try Yahoo Finance first (most reliable for comprehensive data)
+        if yahoo_info:
+            result['ceo'] = self._extract_ceo_from_yahoo(yahoo_info) or '-'
+            result['marketCap'] = self._format_market_cap(yahoo_info.get('marketCap')) or '-'
+            result['peRatio'] = self._format_pe_ratio(yahoo_info.get('trailingPE') or yahoo_info.get('forwardPE')) or '-'
+            result['dividendYield'] = self._format_dividend_yield(yahoo_info.get('dividendYield')) or '-'
+            result['website'] = self._format_website(yahoo_info.get('website')) or '-'
+            result['headquarters'] = self._format_headquarters(
+                yahoo_info.get('city'),
+                yahoo_info.get('state'),
+                yahoo_info.get('country')
+            ) or '-'
+            result['description'] = yahoo_info.get('longBusinessSummary') or yahoo_info.get('sector') or '-'
+        
+        # Fill in missing data with Alpha Vantage
+        if result['ceo'] == '-' or result['marketCap'] == '-' or result['peRatio'] == '-':
+            av_data = self.alpha_vantage.get_company_overview(symbol)
+            if av_data:
+                if result['ceo'] == '-' and av_data.get('ceo'):
+                    result['ceo'] = av_data['ceo']
+                if result['marketCap'] == '-' and av_data.get('marketCap'):
+                    result['marketCap'] = self._format_market_cap(av_data['marketCap']) or '-'
+                if result['peRatio'] == '-' and av_data.get('peRatio'):
+                    result['peRatio'] = self._format_pe_ratio(av_data['peRatio']) or '-'
+                if result['dividendYield'] == '-' and av_data.get('dividendYield'):
+                    result['dividendYield'] = self._format_dividend_yield(av_data['dividendYield']) or '-'
+                if result['website'] == '-' and av_data.get('website'):
+                    result['website'] = self._format_website(av_data['website']) or '-'
+                if result['headquarters'] == '-' and av_data.get('address'):
+                    result['headquarters'] = av_data['address']
+                if result['description'] == '-' and av_data.get('description'):
+                    result['description'] = av_data['description']
+        
+        # Fill remaining gaps with Financial Modeling Prep
+        if result['ceo'] == '-' or result['marketCap'] == '-' or result['peRatio'] == '-':
+            fmp_data = self.fmp.get_company_profile(symbol)
+            if fmp_data:
+                if result['ceo'] == '-' and fmp_data.get('ceo'):
+                    result['ceo'] = fmp_data['ceo']
+                if result['marketCap'] == '-' and fmp_data.get('marketCap'):
+                    result['marketCap'] = self._format_market_cap(fmp_data['marketCap']) or '-'
+                if result['peRatio'] == '-' and fmp_data.get('peRatio'):
+                    result['peRatio'] = self._format_pe_ratio(fmp_data['peRatio']) or '-'
+                if result['dividendYield'] == '-' and fmp_data.get('dividendYield'):
+                    result['dividendYield'] = self._format_dividend_yield(fmp_data['dividendYield']) or '-'
+                if result['website'] == '-' and fmp_data.get('website'):
+                    result['website'] = self._format_website(fmp_data['website']) or '-'
+                if result['headquarters'] == '-' and (fmp_data.get('city') or fmp_data.get('address')):
+                    result['headquarters'] = self._format_headquarters(
+                        fmp_data.get('city'),
+                        fmp_data.get('state'),
+                        fmp_data.get('country')
+                    ) or fmp_data.get('address', '-')
+                if result['description'] == '-' and fmp_data.get('description'):
+                    result['description'] = fmp_data['description']
+        
+        # Try Finnhub for CEO if still missing
+        if result['ceo'] == '-':
+            finnhub_data = self.finnhub.get_company_profile(symbol)
+            if finnhub_data.get('ceo') and finnhub_data['ceo'] != '-':
+                result['ceo'] = finnhub_data['ceo']
+            if result['description'] == '-' and finnhub_data.get('description') and finnhub_data['description'] != '-':
+                result['description'] = finnhub_data['description']
+        
+        return result
+    
+    def _extract_ceo_from_yahoo(self, yahoo_info):
+        """Extract CEO from Yahoo company officers"""
+        officers = yahoo_info.get('companyOfficers', [])
+        for officer in officers:
+            if isinstance(officer, dict):
+                title = officer.get('title', '').upper()
+                if 'CEO' in title or 'CHIEF EXECUTIVE OFFICER' in title:
+                    return officer.get('name', '-')
+        return None
+    
+    def _format_market_cap(self, value):
+        """Format market cap value"""
+        if not value:
+            return None
+        try:
+            if isinstance(value, str):
+                value = value.replace(',', '').replace('$', '')
+                value = float(value)
+            if isinstance(value, (int, float)) and value > 0:
+                if value >= 1e12:
+                    return f"${value/1e12:.2f}T"
+                elif value >= 1e9:
+                    return f"${value/1e9:.2f}B"
+                elif value >= 1e6:
+                    return f"${value/1e6:.2f}M"
+                else:
+                    return f"${value:,.0f}"
+        except:
+            return str(value) if value else None
+        return None
+    
+    def _format_pe_ratio(self, value):
+        """Format P/E ratio"""
+        if not value:
+            return None
+        try:
+            if isinstance(value, str):
+                value = float(value)
+            if isinstance(value, (int, float)) and value > 0:
+                return f"{value:.2f}"
+        except:
+            return str(value) if value else None
+        return None
+    
+    def _format_dividend_yield(self, value):
+        """Format dividend yield"""
+        if not value:
+            return None
+        try:
+            if isinstance(value, str):
+                value = value.replace('%', '')
+                value = float(value)
+            # If value is already a percentage (0-1), multiply by 100
+            if isinstance(value, (int, float)):
+                if value < 1 and value > 0:
+                    return f"{value*100:.2f}%"
+                elif value >= 1:
+                    return f"{value:.2f}%"
+        except:
+            return str(value) + '%' if value else None
+        return None
+    
+    def _format_website(self, value):
+        """Format website URL"""
+        if not value or value == '-':
+            return None
+        value = str(value).strip()
+        if value and not value.startswith('http'):
+            return f"https://{value}"
+        return value
+    
+    def _format_headquarters(self, city, state, country):
+        """Format headquarters address"""
+        if not city:
+            return None
+        parts = [city]
+        if state:
+            parts.append(state)
+        elif country:
+            parts.append(country)
+        return ', '.join(parts)
+
     def get_index_constituents(self, index_symbol: str) -> list:
         """Fetch index constituents from Finnhub. Example index_symbol: '^GSPC' for S&P 500.
         Returns a list of symbols or empty list on failure.
