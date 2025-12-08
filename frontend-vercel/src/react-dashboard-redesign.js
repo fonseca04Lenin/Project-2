@@ -376,23 +376,61 @@ const DashboardRedesign = () => {
             
             // Listen for real-time watchlist price updates
             socketRef.current.on('watchlist_updated', (data) => {
-                // Real-time price update received
+                // Real-time price update received - ALWAYS use fresh prices
                 if (data.prices && Array.isArray(data.prices)) {
-                    // Update watchlist data with new prices
+                    // Update watchlist data with FRESH prices from WebSocket
                     setWatchlistData(prevData => {
                         const updatedData = prevData.map(stock => {
                             const update = data.prices.find(p => p.symbol === stock.symbol);
-                            if (update) {
+                            if (update && update.price && update.price > 0) {
+                                // ALWAYS use fresh price from WebSocket, never cache
+                                const freshPrice = update.price;
+                                const priceChange = update.price_change || update.priceChange || 0;
+                                const priceChangePercent = update.price_change_percent || update.priceChangePercent || update.change_percent || 0;
+                                
+                                // Update price cache with fresh price
+                                if (livePricingRef.current) {
+                                    livePricingRef.current.priceCache.set(stock.symbol, freshPrice);
+                                }
+                                
                                 return {
                                     ...stock,
-                                    price: update.price,
-                                    change: update.price_change || 0,
-                                    change_percent: update.price_change_percent || 0,
-                                    _updated: true // Flag for animation
+                                    // Update ALL price fields to ensure consistency
+                                    price: freshPrice,
+                                    current_price: freshPrice,  // Ensure current_price is updated
+                                    price_change: priceChange,
+                                    change: priceChange,
+                                    change_percent: priceChangePercent,
+                                    priceChangePercent: priceChangePercent,
+                                    _updated: true, // Flag for animation
+                                    _fresh: true,   // Flag to indicate fresh data
+                                    _last_updated: new Date().toISOString()
                                 };
                             }
                             return stock;
                         });
+                        
+                        // Also add any new stocks that weren't in prevData
+                        data.prices.forEach(update => {
+                            if (update.price && update.price > 0) {
+                                const exists = updatedData.find(s => s.symbol === update.symbol);
+                                if (!exists) {
+                                    updatedData.push({
+                                        symbol: update.symbol,
+                                        name: update.name || update.symbol,
+                                        price: update.price,
+                                        current_price: update.price,
+                                        price_change: update.price_change || 0,
+                                        change: update.price_change || 0,
+                                        change_percent: update.price_change_percent || 0,
+                                        priceChangePercent: update.price_change_percent || 0,
+                                        _fresh: true,
+                                        _last_updated: new Date().toISOString()
+                                    });
+                                }
+                            }
+                        });
+                        
                         return updatedData;
                     });
                     
