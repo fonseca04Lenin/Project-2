@@ -249,6 +249,11 @@ connection_timestamps = {}  # Track when users connected
 MAX_CONNECTIONS = 500  # Limit concurrent connections
 CONNECTION_TIMEOUT = 3600  # 1 hour timeout for inactive connections
 
+# Track actively viewed/searched stocks for priority updates
+active_stocks = defaultdict(set)  # user_id -> set of symbols they're viewing
+active_stocks_timestamps = defaultdict(dict)  # user_id -> {symbol: timestamp}
+ACTIVE_STOCK_TIMEOUT = 60  # Remove from active after 60 seconds of inactivity
+
 def cleanup_inactive_connections():
     """Clean up inactive WebSocket connections"""
     current_time = time.time()
@@ -638,6 +643,50 @@ def handle_join_news_updates():
     except Exception as e:
         print(f"Error joining news updates: {e}")
 
+@socketio.on('track_stock_view')
+def handle_track_stock_view(data):
+    """Track which stock a user is actively viewing for priority updates"""
+    try:
+        user_id = data.get('user_id')
+        symbol = data.get('symbol', '').upper()
+        
+        if user_id and symbol:
+            active_stocks[user_id].add(symbol)
+            active_stocks_timestamps[user_id][symbol] = time.time()
+            print(f"👁️ User {user_id} is viewing {symbol} - adding to priority queue")
+    except Exception as e:
+        print(f"Error tracking stock view: {e}")
+
+@socketio.on('untrack_stock_view')
+def handle_untrack_stock_view(data):
+    """Stop tracking a stock when user stops viewing it"""
+    try:
+        user_id = data.get('user_id')
+        symbol = data.get('symbol', '').upper()
+        
+        if user_id and symbol:
+            active_stocks[user_id].discard(symbol)
+            active_stocks_timestamps[user_id].pop(symbol, None)
+            print(f"👁️ User {user_id} stopped viewing {symbol}")
+    except Exception as e:
+        print(f"Error untracking stock view: {e}")
+
+@socketio.on('track_search_stock')
+def handle_track_search_stock(data):
+    """Track stocks being searched for priority updates"""
+    try:
+        user_id = data.get('user_id')
+        symbols = data.get('symbols', [])
+        
+        if user_id and symbols:
+            for symbol in symbols:
+                symbol = symbol.upper()
+                active_stocks[user_id].add(symbol)
+                active_stocks_timestamps[user_id][symbol] = time.time()
+            print(f"🔍 User {user_id} searching {len(symbols)} stocks - adding to priority queue")
+    except Exception as e:
+        print(f"Error tracking search stocks: {e}")
+
 # Optimized real-time stock price updates with memory management
 def update_stock_prices():
     """Memory-optimized background task to update stock prices"""
@@ -646,7 +695,7 @@ def update_stock_prices():
     # Cache for stock data to reduce API calls
     price_cache = {}
     cache_expiry = {}
-    CACHE_DURATION = 60  # Cache for 60 seconds
+    CACHE_DURATION = 3  # Cache for 3 seconds (reduced for real-time updates)
     
     while True:
         try:
@@ -664,16 +713,36 @@ def update_stock_prices():
             # Collect unique symbols across all users to batch API calls
             all_symbols = set()
             user_watchlists = {}
+            priority_symbols = set()  # Stocks being actively viewed/searched
             
+            # Clean up inactive active stocks
+            current_time = time.time()
+            for user_id in list(active_stocks_timestamps.keys()):
+                expired_symbols = [
+                    sym for sym, ts in active_stocks_timestamps[user_id].items()
+                    if current_time - ts > ACTIVE_STOCK_TIMEOUT
+                ]
+                for sym in expired_symbols:
+                    active_stocks[user_id].discard(sym)
+                    active_stocks_timestamps[user_id].pop(sym, None)
+            
+            # Collect watchlist symbols and priority symbols
             for sid, user_id in list(connected_users.items()):  # Use list() to avoid dict change during iteration
                 if user_id:
                     try:
                         # Use lightweight watchlist retrieval to avoid memory issues
-                        watchlist = watchlist_service.get_watchlist(user_id, limit=10)  # Limit to 10 stocks
+                        watchlist = watchlist_service.get_watchlist(user_id, limit=50)  # Increased limit for real-time
                         if watchlist:
                             user_watchlists[user_id] = watchlist
                             for item in watchlist:
-                                all_symbols.add(item['symbol'])
+                                symbol = item['symbol']
+                                all_symbols.add(symbol)
+                        
+                        # Add actively viewed/searched stocks to priority queue
+                        if user_id in active_stocks:
+                            for symbol in active_stocks[user_id]:
+                                priority_symbols.add(symbol)
+                                all_symbols.add(symbol)  # Also add to regular update queue
                     except Exception as e:
                         print(f"⚠️ Error getting watchlist for user {user_id}: {e}")
                         continue
@@ -682,42 +751,102 @@ def update_stock_prices():
             current_time = time.time()
             updated_symbols = {}
             
-            for symbol in list(all_symbols)[:20]:  # Limit to 20 symbols max per cycle
+            # Separate cached vs uncached symbols
+            # Priority: Always fetch priority symbols (actively viewed), cache others
+            symbols_to_fetch = []
+            priority_to_fetch = []
+            
+            for symbol in list(all_symbols)[:100]:  # Increased limit for real-time updates
+                is_priority = symbol in priority_symbols
+                
+                # Check cache first (but skip cache for priority symbols to ensure real-time)
+                if not is_priority and (symbol in price_cache and 
+                    symbol in cache_expiry and 
+                    current_time < cache_expiry[symbol]):
+                    updated_symbols[symbol] = price_cache[symbol]
+                else:
+                    if is_priority:
+                        priority_to_fetch.append(symbol)
+                    else:
+                        symbols_to_fetch.append(symbol)
+            
+            # Fetch priority symbols first (actively viewed/searched stocks)
+            all_symbols_to_fetch = priority_to_fetch + symbols_to_fetch
+            
+            # Use batch API call if Alpaca is enabled (much more efficient!)
+            if all_symbols_to_fetch and USE_ALPACA_API and alpaca_api:
                 try:
-                    # Check cache first
-                    if (symbol in price_cache and 
-                        symbol in cache_expiry and 
-                        current_time < cache_expiry[symbol]):
-                        updated_symbols[symbol] = price_cache[symbol]
-                        continue
-                    
-                    # Add small delay to prevent rate limiting
-                    time.sleep(0.2)  # Reduced delay
-                    
-                    # Get fresh data for watchlist (Alpaca only, no Yahoo fallback)
-                    print(f"🔄 [BACKGROUND-WATCHLIST] Updating price for {symbol}...")
-                    stock, api_used = get_stock_alpaca_only(symbol)
-                    if not stock:
-                        print(f"⚠️ [BACKGROUND-WATCHLIST] Failed to update {symbol} from Alpaca, skipping (no Yahoo fallback)")
-                        continue
-                    print(f"✅ [BACKGROUND-WATCHLIST] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
-                    
-                    if stock.name and 'not found' not in stock.name.lower():
-                        stock_data = {
-                            'symbol': symbol,
-                            'name': stock.name,
-                            'price': stock.price,
-                            'last_updated': datetime.now().isoformat()
-                        }
+                    print(f"🔄 [REALTIME] Batch updating {len(all_symbols_to_fetch)} symbols ({len(priority_to_fetch)} priority) via Alpaca batch API...")
+                    # Fetch in batches of 50 (Alpaca supports up to 100, but 50 is safer)
+                    batch_size = 50
+                    for i in range(0, len(all_symbols_to_fetch), batch_size):
+                        batch = all_symbols_to_fetch[i:i+batch_size]
+                        batch_results = alpaca_api.get_batch_snapshots(batch)
                         
-                        # Cache the result
-                        price_cache[symbol] = stock_data
-                        cache_expiry[symbol] = current_time + CACHE_DURATION
-                        updated_symbols[symbol] = stock_data
+                        # Process batch results
+                        for symbol, data in batch_results.items():
+                            if data and 'price' in data:
+                                stock_data = {
+                                    'symbol': symbol,
+                                    'name': data.get('name', symbol),
+                                    'price': data['price'],
+                                    'last_updated': datetime.now().isoformat(),
+                                    'is_priority': symbol in priority_symbols
+                                }
+                                
+                                # Cache the result (shorter cache for priority symbols)
+                                cache_duration = 2 if symbol in priority_symbols else CACHE_DURATION
+                                price_cache[symbol] = stock_data
+                                cache_expiry[symbol] = current_time + cache_duration
+                                updated_symbols[symbol] = stock_data
+                        
+                        # Small delay between batches to respect rate limits
+                        if i + batch_size < len(all_symbols_to_fetch):
+                            time.sleep(0.1)  # Reduced delay for real-time (was 0.5s)
+                    
+                    print(f"✅ [REALTIME] Batch updated {len(updated_symbols)} symbols ({len(priority_to_fetch)} priority)")
                     
                 except Exception as e:
-                    print(f"⚠️ Error updating {symbol}: {e}")
-                    continue
+                    print(f"⚠️ [REALTIME] Batch update failed, falling back to individual calls: {e}")
+                    # Fallback to individual calls if batch fails
+                    all_symbols_to_fetch = all_symbols_to_fetch  # Keep original list
+            
+            # Fallback: individual API calls (if batch failed or Alpaca not enabled)
+            if all_symbols_to_fetch and not (USE_ALPACA_API and alpaca_api and len(updated_symbols) > 0):
+                # Process priority symbols first
+                symbols_to_process = priority_to_fetch + symbols_to_fetch
+                for symbol in symbols_to_process[:50]:  # Increased limit for real-time
+                    try:
+                        # Add small delay to prevent rate limiting (shorter for priority)
+                        delay = 0.05 if symbol in priority_symbols else 0.1
+                        time.sleep(delay)
+                        
+                        # Get fresh data for watchlist (Alpaca only, no Yahoo fallback)
+                        print(f"🔄 [REALTIME] Updating price for {symbol} {'(PRIORITY)' if symbol in priority_symbols else ''}...")
+                        stock, api_used = get_stock_alpaca_only(symbol)
+                        if not stock:
+                            print(f"⚠️ [BACKGROUND-WATCHLIST] Failed to update {symbol} from Alpaca, skipping (no Yahoo fallback)")
+                            continue
+                        print(f"✅ [BACKGROUND-WATCHLIST] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
+                        
+                        if stock.name and 'not found' not in stock.name.lower():
+                            stock_data = {
+                                'symbol': symbol,
+                                'name': stock.name,
+                                'price': stock.price,
+                                'last_updated': datetime.now().isoformat(),
+                                'is_priority': symbol in priority_symbols
+                            }
+                            
+                            # Cache the result (shorter cache for priority)
+                            cache_duration = 2 if symbol in priority_symbols else CACHE_DURATION
+                            price_cache[symbol] = stock_data
+                            cache_expiry[symbol] = current_time + cache_duration
+                            updated_symbols[symbol] = stock_data
+                        
+                    except Exception as e:
+                        print(f"⚠️ Error updating {symbol}: {e}")
+                        continue
             
             # Send updates to users
             for user_id, watchlist in user_watchlists.items():
@@ -770,8 +899,9 @@ def update_stock_prices():
                 print(f"⚠️ Error updating market status: {market_error}")
             
             # Sleep before next update
-            print("😴 Sleeping for 90 seconds before next update...")
-            time.sleep(90)  # Reduced to 90 seconds
+            # Real-time updates: 2 seconds for watchlist stocks
+            print("😴 Sleeping for 2 seconds before next update...")
+            time.sleep(2)  # Real-time: 2 seconds (was 20 seconds)
             
         except Exception as e:
             print(f"❌ Error in price update loop: {e}")
@@ -1761,20 +1891,101 @@ def get_company_info(symbol):
     if not stock:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     
+    # Fetch company information from multiple sources
     finnhub_info = finnhub_api.get_company_profile(symbol)
     info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
+    
     if stock.name and 'not found' not in stock.name.lower():
+        # Format market cap - handle different formats from Yahoo
+        market_cap = '-'
+        if info.get('marketCap'):
+            try:
+                mc = info.get('marketCap')
+                if isinstance(mc, (int, float)) and mc > 0:
+                    if mc >= 1e12:
+                        market_cap = f"${mc/1e12:.2f}T"
+                    elif mc >= 1e9:
+                        market_cap = f"${mc/1e9:.2f}B"
+                    elif mc >= 1e6:
+                        market_cap = f"${mc/1e6:.2f}M"
+                    else:
+                        market_cap = f"${mc:,.0f}"
+            except:
+                market_cap = str(info.get('marketCap', '-'))
+        
+        # Format P/E ratio
+        pe_ratio = '-'
+        if info.get('trailingPE'):
+            try:
+                pe = info.get('trailingPE')
+                if isinstance(pe, (int, float)) and pe > 0:
+                    pe_ratio = f"{pe:.2f}"
+            except:
+                pass
+        if pe_ratio == '-' and info.get('forwardPE'):
+            try:
+                pe = info.get('forwardPE')
+                if isinstance(pe, (int, float)) and pe > 0:
+                    pe_ratio = f"{pe:.2f}"
+            except:
+                pass
+        
+        # Format dividend yield
+        dividend_yield = '-'
+        if info.get('dividendYield'):
+            try:
+                dy = info.get('dividendYield')
+                if isinstance(dy, (int, float)) and dy > 0:
+                    dividend_yield = f"{dy*100:.2f}%"
+            except:
+                pass
+        
+        # Format headquarters
+        headquarters = '-'
+        city = info.get('city', '')
+        state = info.get('state', '')
+        country = info.get('country', '')
+        if city:
+            parts = [city]
+            if state:
+                parts.append(state)
+            elif country:
+                parts.append(country)
+            headquarters = ', '.join(parts)
+        
+        # Get CEO - try Finnhub first, then Yahoo
+        ceo = finnhub_info.get('ceo', '-') or '-'
+        if ceo == '-' and info.get('companyOfficers'):
+            # Try to find CEO from company officers
+            officers = info.get('companyOfficers', [])
+            for officer in officers:
+                if isinstance(officer, dict) and officer.get('title', '').upper() in ['CEO', 'CHIEF EXECUTIVE OFFICER']:
+                    ceo = officer.get('name', '-')
+                    break
+        
+        # Get description - try Finnhub industry, then Yahoo description
+        description = finnhub_info.get('description', '-') or '-'
+        if description == '-' and info.get('longBusinessSummary'):
+            description = info.get('longBusinessSummary', '-')
+        elif description == '-' and info.get('sector'):
+            description = info.get('sector', '-')
+        
+        # Get website
+        website = info.get('website', '-') or '-'
+        if website and website != '-' and not website.startswith('http'):
+            website = f"https://{website}"
+        
         return jsonify({
             'symbol': stock.symbol,
             'name': stock.name,
-            'ceo': finnhub_info.get('ceo', '-') or '-',
-            'description': finnhub_info.get('description', '-') or '-',
+            'ceo': ceo,
+            'description': description,
             'price': stock.price,
-            'marketCap': info.get('marketCap', '-'),
-            'peRatio': info.get('trailingPE', '-') or info.get('forwardPE', '-'),
-            'dividendYield': info.get('dividendYield', '-'),
-            'website': info.get('website', '-'),
-            'headquarters': (info.get('city', '-') + (', ' + info.get('state', '-') if info.get('state') else '')) if info.get('city') else '-',
+            'marketCap': market_cap,
+            'peRatio': pe_ratio,
+            'dividendYield': dividend_yield,
+            'website': website,
+            'headquarters': headquarters,
         })
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -1834,11 +2045,91 @@ def get_watchlist_stock_details(symbol):
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
         
+        # Fetch company information from multiple sources
         finnhub_info = finnhub_api.get_company_profile(symbol)
         info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
         
         if not stock.name or 'not found' in stock.name.lower():
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+        
+        # Format market cap - handle different formats from Yahoo
+        market_cap = '-'
+        if info.get('marketCap'):
+            try:
+                mc = info.get('marketCap')
+                if isinstance(mc, (int, float)) and mc > 0:
+                    if mc >= 1e12:
+                        market_cap = f"${mc/1e12:.2f}T"
+                    elif mc >= 1e9:
+                        market_cap = f"${mc/1e9:.2f}B"
+                    elif mc >= 1e6:
+                        market_cap = f"${mc/1e6:.2f}M"
+                    else:
+                        market_cap = f"${mc:,.0f}"
+            except:
+                market_cap = str(info.get('marketCap', '-'))
+        
+        # Format P/E ratio
+        pe_ratio = '-'
+        if info.get('trailingPE'):
+            try:
+                pe = info.get('trailingPE')
+                if isinstance(pe, (int, float)) and pe > 0:
+                    pe_ratio = f"{pe:.2f}"
+            except:
+                pass
+        if pe_ratio == '-' and info.get('forwardPE'):
+            try:
+                pe = info.get('forwardPE')
+                if isinstance(pe, (int, float)) and pe > 0:
+                    pe_ratio = f"{pe:.2f}"
+            except:
+                pass
+        
+        # Format dividend yield
+        dividend_yield = '-'
+        if info.get('dividendYield'):
+            try:
+                dy = info.get('dividendYield')
+                if isinstance(dy, (int, float)) and dy > 0:
+                    dividend_yield = f"{dy*100:.2f}%"
+            except:
+                pass
+        
+        # Format headquarters
+        headquarters = '-'
+        city = info.get('city', '')
+        state = info.get('state', '')
+        country = info.get('country', '')
+        if city:
+            parts = [city]
+            if state:
+                parts.append(state)
+            elif country:
+                parts.append(country)
+            headquarters = ', '.join(parts)
+        
+        # Get CEO - try Finnhub first, then Yahoo
+        ceo = finnhub_info.get('ceo', '-') or '-'
+        if ceo == '-' and info.get('companyOfficers'):
+            # Try to find CEO from company officers
+            officers = info.get('companyOfficers', [])
+            for officer in officers:
+                if isinstance(officer, dict) and officer.get('title', '').upper() in ['CEO', 'CHIEF EXECUTIVE OFFICER']:
+                    ceo = officer.get('name', '-')
+                    break
+        
+        # Get description - try Finnhub industry, then Yahoo description
+        description = finnhub_info.get('description', '-') or '-'
+        if description == '-' and info.get('longBusinessSummary'):
+            description = info.get('longBusinessSummary', '-')
+        elif description == '-' and info.get('sector'):
+            description = info.get('sector', '-')
+        
+        # Get website
+        website = info.get('website', '-') or '-'
+        if website and website != '-' and not website.startswith('http'):
+            website = f"https://{website}"
         
         # Calculate percentage change if we have original price
         percentage_change = None
@@ -1866,14 +2157,14 @@ def get_watchlist_stock_details(symbol):
         return jsonify({
             'symbol': stock.symbol,
             'name': stock.name,
-            'ceo': finnhub_info.get('ceo', '-') or '-',
-            'description': finnhub_info.get('description', '-') or '-',
+            'ceo': ceo,
+            'description': description,
             'price': stock.price,
-            'marketCap': info.get('marketCap', '-'),
-            'peRatio': info.get('trailingPE', '-') or info.get('forwardPE', '-'),
-            'dividendYield': info.get('dividendYield', '-'),
-            'website': info.get('website', '-'),
-            'headquarters': (info.get('city', '-') + (', ' + info.get('state', '-') if info.get('state') else '')) if info.get('city') else '-',
+            'marketCap': market_cap,
+            'peRatio': pe_ratio,
+            'dividendYield': dividend_yield,
+            'website': website,
+            'headquarters': headquarters,
             # Watchlist-specific data
             'date_added': date_added_str,
             'original_price': original_price,

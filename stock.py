@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import json
 import requests
 import os
+import time
 
 class NewsAPI:
     def __init__(self):
@@ -346,9 +347,27 @@ class YahooFinanceAPI:
             return None
 
     def get_info(self, symbol):
+        """Get comprehensive company information from Yahoo Finance"""
         try:
             stock = yf.Ticker(symbol)
-            return stock.info
+            # Add a small delay to ensure data is loaded
+            time.sleep(0.2)
+            
+            info = stock.info
+            
+            # Handle case where info might be empty or have errors
+            if not info or len(info) == 0:
+                # Try fetching again with a longer timeout
+                time.sleep(0.5)
+                info = stock.info
+            
+            # Return info if we got valid data
+            if info and isinstance(info, dict) and len(info) > 0:
+                return info
+            else:
+                print(f"Warning: Empty or invalid info returned for {symbol}")
+                return {}
+                
         except Exception as e:
             print(f"Error retrieving info for {symbol}: {e}")
             return {}
@@ -550,6 +569,74 @@ class AlpacaAPI:
         
         return None
     
+    def get_batch_snapshots(self, symbols):
+        """Get snapshot data for multiple symbols in a single API call (much more efficient!)
+        
+        Args:
+            symbols: List of stock symbols (e.g., ['AAPL', 'TSLA', 'MSFT'])
+            
+        Returns:
+            Dictionary mapping symbol to {'name': str, 'price': float} or None if not found
+        """
+        if not self.api_key or not self.secret_key:
+            print(f"⚠️ [ALPACA] API keys not set for batch snapshots")
+            return {}
+        
+        if not symbols:
+            return {}
+        
+        try:
+            # Alpaca supports batch snapshots: /stocks/snapshots?symbols=AAPL,TSLA,MSFT
+            symbols_str = ','.join(symbols)
+            url = f'{self.base_url}/stocks/snapshots'
+            params = {'symbols': symbols_str}
+            headers = self._get_headers()
+            
+            print(f"🔵 [ALPACA BATCH] Fetching snapshots for {len(symbols)} symbols: {symbols_str[:50]}...")
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                results = {}
+                
+                # Response is a dictionary where keys are symbols
+                for symbol in symbols:
+                    symbol_data = data.get(symbol, {})
+                    if not symbol_data:
+                        continue
+                    
+                    # Extract price from latestTrade or dailyBar
+                    latest_trade = symbol_data.get('latestTrade', {})
+                    price = latest_trade.get('p')
+                    
+                    if not price:
+                        daily_bar = symbol_data.get('dailyBar', {})
+                        price = daily_bar.get('c')  # Close price
+                    
+                    if price:
+                        # Get company name (cache this if needed for performance)
+                        name = self._get_company_name(symbol)
+                        results[symbol] = {
+                            'name': name or symbol,
+                            'price': float(price)
+                        }
+                        print(f"✅ [ALPACA BATCH] {symbol}: ${float(price):.2f}")
+                    else:
+                        print(f"⚠️ [ALPACA BATCH] {symbol}: No price data available")
+                
+                print(f"✅ [ALPACA BATCH] Successfully fetched {len(results)}/{len(symbols)} symbols")
+                return results
+            elif response.status_code == 429:
+                print(f"❌ [ALPACA BATCH] Rate limit exceeded (429)")
+                return {}
+            else:
+                print(f"❌ [ALPACA BATCH] API error: {response.status_code} {response.text[:200]}")
+                return {}
+                
+        except Exception as e:
+            print(f"❌ [ALPACA BATCH] Exception fetching batch snapshots: {e}")
+            return {}
+    
     def _get_company_name(self, symbol):
         """Get company name from Alpaca assets endpoint"""
         try:
@@ -619,19 +706,33 @@ class FinnhubAPI:
         self.base_url = 'https://finnhub.io/api/v1/'
 
     def get_company_profile(self, symbol):
+        """Get company profile from Finnhub API"""
         try:
             url = f'{self.base_url}stock/profile2'
             params = {'symbol': symbol, 'token': self.api_key}
-            response = requests.get(url, params=params, timeout=3)
+            response = requests.get(url, params=params, timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                return {
-                    'ceo': data.get('ceo', '-'),
-                    'description': data.get('finnhubIndustry', '-')  # Finnhub does not provide full description, but industry
-                }
+                # Check if we got valid data (not empty dict)
+                if data and isinstance(data, dict) and len(data) > 0:
+                    ceo = data.get('ceo', '') or data.get('ceo', '-')
+                    description = data.get('finnhubIndustry', '') or data.get('finnhubIndustry', '-')
+                    # Also try to get full description if available
+                    if not description or description == '-':
+                        description = data.get('description', '-')
+                    return {
+                        'ceo': ceo if ceo else '-',
+                        'description': description if description else '-'
+                    }
+                else:
+                    print(f'Finnhub returned empty data for {symbol}')
+                    return {'ceo': '-', 'description': '-'}
             else:
                 print(f'Finnhub error: {response.status_code} {response.text}')
                 return {'ceo': '-', 'description': '-'}
+        except requests.exceptions.Timeout:
+            print(f'Finnhub timeout for {symbol}')
+            return {'ceo': '-', 'description': '-'}
         except Exception as e:
             print(f'Error fetching Finnhub profile for {symbol}: {e}')
             return {'ceo': '-', 'description': '-'}
