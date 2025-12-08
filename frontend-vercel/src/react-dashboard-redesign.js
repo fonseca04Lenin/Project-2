@@ -590,13 +590,19 @@ const DashboardRedesign = () => {
         return false;
     };
 
-    // Live pricing updates with visibility detection and rate limiting
+    // Live pricing updates with smart visibility detection and rate limiting
+    // Strategy:
+    // - Watchlist <= 30 stocks: Update ALL stocks live (every 2 seconds)
+    // - Watchlist > 30 stocks: Only update visible stocks (to respect API limits)
+    // - Stocks continue updating while visible
+    // - Always respects API rate limits (30 calls/minute)
     useEffect(() => {
         if (!watchlistData.length || !marketStatus.isOpen) return;
         
         const ref = livePricingRef.current;
         
         // Set up Intersection Observer to track visible stocks
+        // This is used when watchlist exceeds 30 stocks to optimize API usage
         const observer = new IntersectionObserver((entries) => {
             const newlyVisible = [];
             entries.forEach(entry => {
@@ -675,16 +681,47 @@ const DashboardRedesign = () => {
                 ref.callWindowStart = now;
             }
             
-            // Get stocks that are visible or hovered
-            const stocksToUpdate = watchlistData.filter(stock => 
-                ref.visibleStocks.has(stock.symbol) || ref.hoveredStocks.has(stock.symbol)
-            );
+            // Rate limit: max 30 calls per minute
+            const MAX_CALLS_PER_MINUTE = 30;
+            const availableCalls = MAX_CALLS_PER_MINUTE - ref.callCount;
+            
+            // Determine which stocks to update:
+            // - If watchlist <= 30 stocks: update ALL stocks (live updates, rotating batches)
+            // - If watchlist > 30 stocks: only update visible stocks (to respect API limits)
+            const WATCHLIST_LIMIT = 30;
+            let stocksToUpdate;
+            
+            if (watchlistData.length <= WATCHLIST_LIMIT) {
+                // Update ALL stocks in watchlist (live updates)
+                // Rotate through stocks in batches to respect API limits
+                // Each cycle updates a batch, rotating through all stocks
+                const BATCH_SIZE = Math.min(10, availableCalls); // Update up to 10 stocks per cycle
+                const startIndex = ref.updateIndex || 0;
+                const endIndex = Math.min(startIndex + BATCH_SIZE, watchlistData.length);
+                
+                // Get batch of stocks to update (rotating)
+                stocksToUpdate = watchlistData.slice(startIndex, endIndex);
+                
+                // If we've reached the end, also include stocks from the beginning
+                if (endIndex < watchlistData.length) {
+                    const remaining = BATCH_SIZE - stocksToUpdate.length;
+                    if (remaining > 0) {
+                        stocksToUpdate = stocksToUpdate.concat(watchlistData.slice(0, remaining));
+                    }
+                }
+                
+                // Update index for next cycle (rotate)
+                ref.updateIndex = (endIndex >= watchlistData.length) ? 0 : endIndex;
+            } else {
+                // Only update visible stocks when watchlist exceeds limit
+                stocksToUpdate = watchlistData.filter(stock => 
+                    ref.visibleStocks.has(stock.symbol) || ref.hoveredStocks.has(stock.symbol)
+                );
+            }
             
             if (stocksToUpdate.length === 0) return;
             
-            // Rate limit: max 30 calls per minute (increased since we're only updating visible stocks)
-            const MAX_CALLS_PER_MINUTE = 30;
-            const availableCalls = MAX_CALLS_PER_MINUTE - ref.callCount;
+            // Limit to available API calls to respect rate limits
             const stocksToProcess = stocksToUpdate.slice(0, availableCalls);
             
             if (stocksToProcess.length === 0) return;
@@ -711,8 +748,13 @@ const DashboardRedesign = () => {
         // Initial update with minimal delay
         setTimeout(updateLivePrices, 200);
         
-        // Update more frequently during market hours (every 2 seconds for visible stocks)
-        ref.interval = setInterval(updateLivePrices, 2000);
+        // Update frequency:
+        // - Small watchlists (<=30): Update every 2 seconds (all stocks, rotating batches of ~10)
+        //   With 30 stocks and batches of 10, all stocks update every 6 seconds (3 cycles)
+        // - Large watchlists (>30): Update every 2 seconds (only visible stocks)
+        // This ensures we stay within 30 calls/minute limit while providing live updates
+        const updateInterval = 2000;
+        ref.interval = setInterval(updateLivePrices, updateInterval);
         ref.isActive = true;
         
         return () => {
