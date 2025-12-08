@@ -541,7 +541,22 @@ const DashboardRedesign = () => {
                 const stockData = await response.json();
                 const oldPrice = ref.priceCache.get(symbol);
                 const newPrice = stockData.price;
-                const newChangePercent = stockData.priceChangePercent || 0;
+                
+                // Use priceChangePercent from API, or calculate daily change if available
+                let newChangePercent = stockData.priceChangePercent || 0;
+                let priceChange = stockData.priceChange || 0;
+                
+                // If we have previous price, calculate daily change for better accuracy
+                // This helps when API returns 30-day change but we want daily change
+                if (oldPrice && oldPrice > 0 && newPrice > 0) {
+                    const dailyChange = newPrice - oldPrice;
+                    const dailyChangePercent = (dailyChange / oldPrice) * 100;
+                    // Use daily change if it's more recent/relevant than API's 30-day change
+                    if (Math.abs(dailyChangePercent) > 0.001) {
+                        priceChange = dailyChange;
+                        newChangePercent = dailyChangePercent;
+                    }
+                }
                 
                 const hasSignificantChange = oldPrice && Math.abs(oldPrice - newPrice) > 0.01;
                 
@@ -552,7 +567,7 @@ const DashboardRedesign = () => {
                             ...s, 
                             current_price: newPrice, 
                             change_percent: newChangePercent,
-                            price_change: stockData.priceChange || 0,
+                            price_change: priceChange,
                             _updated: hasSignificantChange
                         }
                         : s
@@ -583,20 +598,39 @@ const DashboardRedesign = () => {
         
         // Set up Intersection Observer to track visible stocks
         const observer = new IntersectionObserver((entries) => {
+            const newlyVisible = [];
             entries.forEach(entry => {
                 const symbol = entry.target.getAttribute('data-stock-symbol');
                 if (!symbol) return;
                 
                 if (entry.isIntersecting) {
+                    const wasVisible = ref.visibleStocks.has(symbol);
                     ref.visibleStocks.add(symbol);
+                    // If stock just became visible, add to queue for immediate update
+                    if (!wasVisible) {
+                        newlyVisible.push(symbol);
+                    }
                 } else {
                     ref.visibleStocks.delete(symbol);
                 }
             });
+            
+            // Immediately update prices for newly visible stocks
+            if (newlyVisible.length > 0) {
+                newlyVisible.forEach(symbol => {
+                    // Small delay to batch multiple stocks coming into view
+                    setTimeout(() => {
+                        const stock = watchlistData.find(s => s.symbol === symbol);
+                        if (stock && ref.visibleStocks.has(symbol)) {
+                            updateStockPrice(symbol, ref);
+                        }
+                    }, 100);
+                });
+            }
         }, {
             root: null,
-            rootMargin: '50px', // Start loading slightly before visible
-            threshold: 0.1
+            rootMargin: '100px', // Start loading earlier (increased from 50px)
+            threshold: 0.01 // Lower threshold for faster detection
         });
         
         // Observe all stock elements
@@ -613,11 +647,11 @@ const DashboardRedesign = () => {
             });
         };
         
-        // Initial observation with delay to ensure DOM is ready
-        const observeTimeout = setTimeout(observeStocks, 500);
+        // Initial observation with minimal delay to ensure DOM is ready
+        const observeTimeout = setTimeout(observeStocks, 100);
         
-        // Re-observe when watchlist changes
-        const reobserveInterval = setInterval(observeStocks, 2000);
+        // Re-observe when watchlist changes (more frequently)
+        const reobserveInterval = setInterval(observeStocks, 1000);
         
         const updateLivePrices = async () => {
             const now = Date.now();
@@ -655,13 +689,13 @@ const DashboardRedesign = () => {
             
             if (stocksToProcess.length === 0) return;
             
-            // Process stocks with delay between calls
+            // Process stocks with minimal delay between calls for faster updates
             for (let i = 0; i < stocksToProcess.length; i++) {
                 const stock = stocksToProcess[i];
                 
-                // Add delay between calls (300ms = ~3 calls per second max)
+                // Reduced delay between calls (100ms = ~10 calls per second max) for faster updates
                 if (i > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 
                 if (ref.callCount >= MAX_CALLS_PER_MINUTE) {
@@ -674,11 +708,11 @@ const DashboardRedesign = () => {
             setLastUpdate(new Date());
         };
         
-        // Initial update with delay
-        setTimeout(updateLivePrices, 1000);
+        // Initial update with minimal delay
+        setTimeout(updateLivePrices, 200);
         
-        // Update every 5 seconds during market hours
-        ref.interval = setInterval(updateLivePrices, 5000);
+        // Update more frequently during market hours (every 2 seconds for visible stocks)
+        ref.interval = setInterval(updateLivePrices, 2000);
         ref.isActive = true;
         
         return () => {
