@@ -178,6 +178,23 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         }
     }, [stockData]);
 
+    // Track stock view for priority real-time updates
+    useEffect(() => {
+        if (!isOpen || !symbol) return;
+        
+        // Track stock view for priority updates
+        if (typeof window.trackStockView === 'function') {
+            window.trackStockView(symbol);
+        }
+        
+        return () => {
+            // Untrack when modal closes
+            if (typeof window.untrackStockView === 'function') {
+                window.untrackStockView(symbol);
+            }
+        };
+    }, [isOpen, symbol]);
+
     // Fetch stock details
     useEffect(() => {
         if (!isOpen || !symbol) return;
@@ -334,7 +351,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
                     ref.rateLimitCooldown = true;
                     ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
-                    console.warn(`⚠️ Rate limit hit in modal. Cooldown for ${cooldownSeconds} seconds.`);
+                    // Rate limit hit in modal
                     return;
                 }
                 
@@ -350,7 +367,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 }
             } catch (e) {
                 // Silently handle update errors
-                console.error('Error updating price in modal:', e);
+                // Error updating price in modal
             }
         };
         

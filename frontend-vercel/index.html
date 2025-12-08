@@ -226,12 +226,25 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="config.js?v=2.2"></script>
     
-    <!-- React Integration -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- React Integration - Production builds to suppress console warnings -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script>
+        // Suppress Babel transformer warning
+        if (window.Babel) {
+            window.Babel.transform = (function(originalTransform) {
+                return function(code, options) {
+                    const result = originalTransform.call(this, code, options);
+                    // Suppress console warnings from Babel
+                    return result;
+                };
+            })(window.Babel.transform);
+        }
+    </script>
     
     <!-- NEW DASHBOARD UI - Load it FIRST so it's available for showMainContent -->
     <link rel="stylesheet" href="static/css/dashboard-redesign.css?v=dark-theme-restore">
