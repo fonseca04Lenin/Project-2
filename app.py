@@ -12,7 +12,7 @@ except ImportError:
         from backports import zoneinfo
     except ImportError:
         zoneinfo = None
-from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI, AlpacaAPI
+from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI, AlpacaAPI, CompanyInfoService
 from firebase_service import FirebaseService, get_firestore_client, FirebaseUser
 from watchlist_service import get_watchlist_service
 from auth import auth, login_manager
@@ -125,6 +125,7 @@ app.register_blueprint(auth)
 yahoo_finance_api = YahooFinanceAPI()
 news_api = NewsAPI()
 finnhub_api = FinnhubAPI()
+company_info_service = CompanyInfoService()  # Multi-API company info service
 
 # Initialize Alpaca API (if keys are provided)
 USE_ALPACA_API = os.getenv('USE_ALPACA_API', 'false').lower() == 'true'
@@ -1891,101 +1892,22 @@ def get_company_info(symbol):
     if not stock:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     
-    # Fetch company information from multiple sources
-    finnhub_info = finnhub_api.get_company_profile(symbol)
-    info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
+    # Get company information using multi-API service with fallbacks
+    info = yahoo_finance_api.get_info(symbol)
+    company_info = company_info_service.get_comprehensive_info(symbol, yahoo_info=info)
     
     if stock.name and 'not found' not in stock.name.lower():
-        # Format market cap - handle different formats from Yahoo
-        market_cap = '-'
-        if info.get('marketCap'):
-            try:
-                mc = info.get('marketCap')
-                if isinstance(mc, (int, float)) and mc > 0:
-                    if mc >= 1e12:
-                        market_cap = f"${mc/1e12:.2f}T"
-                    elif mc >= 1e9:
-                        market_cap = f"${mc/1e9:.2f}B"
-                    elif mc >= 1e6:
-                        market_cap = f"${mc/1e6:.2f}M"
-                    else:
-                        market_cap = f"${mc:,.0f}"
-            except:
-                market_cap = str(info.get('marketCap', '-'))
-        
-        # Format P/E ratio
-        pe_ratio = '-'
-        if info.get('trailingPE'):
-            try:
-                pe = info.get('trailingPE')
-                if isinstance(pe, (int, float)) and pe > 0:
-                    pe_ratio = f"{pe:.2f}"
-            except:
-                pass
-        if pe_ratio == '-' and info.get('forwardPE'):
-            try:
-                pe = info.get('forwardPE')
-                if isinstance(pe, (int, float)) and pe > 0:
-                    pe_ratio = f"{pe:.2f}"
-            except:
-                pass
-        
-        # Format dividend yield
-        dividend_yield = '-'
-        if info.get('dividendYield'):
-            try:
-                dy = info.get('dividendYield')
-                if isinstance(dy, (int, float)) and dy > 0:
-                    dividend_yield = f"{dy*100:.2f}%"
-            except:
-                pass
-        
-        # Format headquarters
-        headquarters = '-'
-        city = info.get('city', '')
-        state = info.get('state', '')
-        country = info.get('country', '')
-        if city:
-            parts = [city]
-            if state:
-                parts.append(state)
-            elif country:
-                parts.append(country)
-            headquarters = ', '.join(parts)
-        
-        # Get CEO - try Finnhub first, then Yahoo
-        ceo = finnhub_info.get('ceo', '-') or '-'
-        if ceo == '-' and info.get('companyOfficers'):
-            # Try to find CEO from company officers
-            officers = info.get('companyOfficers', [])
-            for officer in officers:
-                if isinstance(officer, dict) and officer.get('title', '').upper() in ['CEO', 'CHIEF EXECUTIVE OFFICER']:
-                    ceo = officer.get('name', '-')
-                    break
-        
-        # Get description - try Finnhub industry, then Yahoo description
-        description = finnhub_info.get('description', '-') or '-'
-        if description == '-' and info.get('longBusinessSummary'):
-            description = info.get('longBusinessSummary', '-')
-        elif description == '-' and info.get('sector'):
-            description = info.get('sector', '-')
-        
-        # Get website
-        website = info.get('website', '-') or '-'
-        if website and website != '-' and not website.startswith('http'):
-            website = f"https://{website}"
-        
         return jsonify({
             'symbol': stock.symbol,
             'name': stock.name,
-            'ceo': ceo,
-            'description': description,
+            'ceo': company_info.get('ceo', '-'),
+            'description': company_info.get('description', '-'),
             'price': stock.price,
-            'marketCap': market_cap,
-            'peRatio': pe_ratio,
-            'dividendYield': dividend_yield,
-            'website': website,
-            'headquarters': headquarters,
+            'marketCap': company_info.get('marketCap', '-'),
+            'peRatio': company_info.get('peRatio', '-'),
+            'dividendYield': company_info.get('dividendYield', '-'),
+            'website': company_info.get('website', '-'),
+            'headquarters': company_info.get('headquarters', '-'),
         })
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -2045,91 +1967,12 @@ def get_watchlist_stock_details(symbol):
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
         
-        # Fetch company information from multiple sources
-        finnhub_info = finnhub_api.get_company_profile(symbol)
-        info = yahoo_finance_api.get_info(symbol)  # Keep Yahoo for detailed company info
+        # Get company information using multi-API service with fallbacks
+        info = yahoo_finance_api.get_info(symbol)
+        company_info = company_info_service.get_comprehensive_info(symbol, yahoo_info=info)
         
         if not stock.name or 'not found' in stock.name.lower():
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-        
-        # Format market cap - handle different formats from Yahoo
-        market_cap = '-'
-        if info.get('marketCap'):
-            try:
-                mc = info.get('marketCap')
-                if isinstance(mc, (int, float)) and mc > 0:
-                    if mc >= 1e12:
-                        market_cap = f"${mc/1e12:.2f}T"
-                    elif mc >= 1e9:
-                        market_cap = f"${mc/1e9:.2f}B"
-                    elif mc >= 1e6:
-                        market_cap = f"${mc/1e6:.2f}M"
-                    else:
-                        market_cap = f"${mc:,.0f}"
-            except:
-                market_cap = str(info.get('marketCap', '-'))
-        
-        # Format P/E ratio
-        pe_ratio = '-'
-        if info.get('trailingPE'):
-            try:
-                pe = info.get('trailingPE')
-                if isinstance(pe, (int, float)) and pe > 0:
-                    pe_ratio = f"{pe:.2f}"
-            except:
-                pass
-        if pe_ratio == '-' and info.get('forwardPE'):
-            try:
-                pe = info.get('forwardPE')
-                if isinstance(pe, (int, float)) and pe > 0:
-                    pe_ratio = f"{pe:.2f}"
-            except:
-                pass
-        
-        # Format dividend yield
-        dividend_yield = '-'
-        if info.get('dividendYield'):
-            try:
-                dy = info.get('dividendYield')
-                if isinstance(dy, (int, float)) and dy > 0:
-                    dividend_yield = f"{dy*100:.2f}%"
-            except:
-                pass
-        
-        # Format headquarters
-        headquarters = '-'
-        city = info.get('city', '')
-        state = info.get('state', '')
-        country = info.get('country', '')
-        if city:
-            parts = [city]
-            if state:
-                parts.append(state)
-            elif country:
-                parts.append(country)
-            headquarters = ', '.join(parts)
-        
-        # Get CEO - try Finnhub first, then Yahoo
-        ceo = finnhub_info.get('ceo', '-') or '-'
-        if ceo == '-' and info.get('companyOfficers'):
-            # Try to find CEO from company officers
-            officers = info.get('companyOfficers', [])
-            for officer in officers:
-                if isinstance(officer, dict) and officer.get('title', '').upper() in ['CEO', 'CHIEF EXECUTIVE OFFICER']:
-                    ceo = officer.get('name', '-')
-                    break
-        
-        # Get description - try Finnhub industry, then Yahoo description
-        description = finnhub_info.get('description', '-') or '-'
-        if description == '-' and info.get('longBusinessSummary'):
-            description = info.get('longBusinessSummary', '-')
-        elif description == '-' and info.get('sector'):
-            description = info.get('sector', '-')
-        
-        # Get website
-        website = info.get('website', '-') or '-'
-        if website and website != '-' and not website.startswith('http'):
-            website = f"https://{website}"
         
         # Calculate percentage change if we have original price
         percentage_change = None
@@ -2157,14 +2000,14 @@ def get_watchlist_stock_details(symbol):
         return jsonify({
             'symbol': stock.symbol,
             'name': stock.name,
-            'ceo': ceo,
-            'description': description,
+            'ceo': company_info.get('ceo', '-'),
+            'description': company_info.get('description', '-'),
             'price': stock.price,
-            'marketCap': market_cap,
-            'peRatio': pe_ratio,
-            'dividendYield': dividend_yield,
-            'website': website,
-            'headquarters': headquarters,
+            'marketCap': company_info.get('marketCap', '-'),
+            'peRatio': company_info.get('peRatio', '-'),
+            'dividendYield': company_info.get('dividendYield', '-'),
+            'website': company_info.get('website', '-'),
+            'headquarters': company_info.get('headquarters', '-'),
             # Watchlist-specific data
             'date_added': date_added_str,
             'original_price': original_price,
