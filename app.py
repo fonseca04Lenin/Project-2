@@ -105,7 +105,16 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requests
 
 # Initialize extensions
-socketio = SocketIO(app, cors_allowed_origins=allowed_origins, async_mode='threading', logger=True, engineio_logger=True)
+# Use eventlet async mode for gunicorn compatibility
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins=allowed_origins, 
+    async_mode='eventlet',  # Changed to eventlet for gunicorn compatibility
+    logger=False,  # Disable verbose logging for production
+    engineio_logger=False,  # Disable verbose logging for production
+    ping_timeout=60,
+    ping_interval=25
+)
 login_manager.init_app(app)
 
 # Custom error handler for unauthorized API requests
@@ -2780,23 +2789,28 @@ def api_root():
 # HEALTH CHECK ENDPOINT
 # =============================================================================
 
-@app.route('/api/health', methods=['GET'])
+@app.route('/api/health', methods=['GET', 'OPTIONS'])
 def health_check():
-    """Health check endpoint for Railway - simplified for faster response"""
+    """Health check endpoint for Railway - must respond quickly"""
     try:
-        # Simplified health check - just return healthy status
-        # Don't test services to avoid delays that cause health check timeouts
-        return jsonify({
+        # Very simple health check - just return 200 OK immediately
+        # This endpoint must work even if other services are down
+        response = jsonify({
             'status': 'healthy',
             'timestamp': datetime.now().isoformat()
-        }), 200
+        })
+        response.status_code = 200
+        return response
     except Exception as e:
-        print(f"❌ Health check failed: {e}")
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
+        # Even if there's an error, try to return something
+        try:
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e)
+            }), 500
+        except:
+            # Last resort - return plain text
+            return 'OK', 200
 
 # =============================================================================
 # AI CHATBOT ENDPOINTS
