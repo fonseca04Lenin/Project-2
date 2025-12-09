@@ -473,11 +473,7 @@ const DashboardRedesign = () => {
                         return updatedData;
                     });
                     
-                    // Show updating indicators briefly, then clear
-                    setUpdatingStocks(updatingSymbols);
-                    setTimeout(() => {
-                        setUpdatingStocks(new Set());
-                    }, 500);
+                    // Updating indicators removed for cleaner UI
                     
                     setLastUpdate(new Date());
                     
@@ -815,10 +811,6 @@ const DashboardRedesign = () => {
             
             if (stocksToProcess.length === 0) return;
             
-            // Show updating indicators
-            const updatingSymbols = new Set(stocksToProcess.map(s => s.symbol));
-            setUpdatingStocks(updatingSymbols);
-            
             // Process stocks with minimal delay between calls for faster updates
             for (let i = 0; i < stocksToProcess.length; i++) {
                 const stock = stocksToProcess[i];
@@ -835,15 +827,7 @@ const DashboardRedesign = () => {
                 
                 await updateStockPrice(stock.symbol, ref);
                 
-                // Remove from updating set as each completes
-                updatingSymbols.delete(stock.symbol);
-                setUpdatingStocks(new Set(updatingSymbols));
             }
-            
-            // Clear remaining updating indicators
-            setTimeout(() => {
-                setUpdatingStocks(new Set());
-            }, 500);
             
             setLastUpdate(new Date());
             
@@ -2701,13 +2685,8 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                             </button>
                         </div>
                         <div className="stock-name">{stock.name}</div>
-                        <div className={`stock-price-large ${stock._updated ? 'price-updated' : ''} ${stock.change_percent >= 0 ? 'positive' : 'negative'} ${updatingStocks.has(stock.symbol) ? 'updating' : ''}`}>
-                            {updatingStocks.has(stock.symbol) && (
-                                <span className="price-updating-indicator" title="Updating price...">
-                                    <i className="fas fa-circle-notch fa-spin"></i>
-                                </span>
-                            )}
-                            <span className="price-value">${(stock.current_price || stock.price || 0).toFixed(2)}</span>
+                        <div className={`stock-price-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
+                            ${(stock.current_price || stock.price || 0).toFixed(2)}
                         </div>
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                             <i 
