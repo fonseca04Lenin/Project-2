@@ -740,8 +740,8 @@ def update_stock_prices():
             for sid, user_id in list(connected_users.items()):  # Use list() to avoid dict change during iteration
                 if user_id:
                     try:
-                        # Use lightweight watchlist retrieval to avoid memory issues
-                        watchlist = watchlist_service.get_watchlist(user_id, limit=50)  # Increased limit for real-time
+                        # Get ALL watchlist items for real-time updates (no limit)
+                        watchlist = watchlist_service.get_watchlist(user_id, limit=None)
                         if watchlist:
                             user_watchlists[user_id] = watchlist
                             for item in watchlist:
@@ -1460,8 +1460,8 @@ def get_watchlist_route():
     try:
         print(f"🔍 GET watchlist request for user: {user.id}")
         
-        # Get watchlist items from Firestore
-        watchlist = watchlist_service.get_watchlist(user.id, limit=25)  # Limit to 25 items
+        # Get ALL watchlist items from Firestore (no limit)
+        watchlist = watchlist_service.get_watchlist(user.id, limit=None)
         print(f"📋 Retrieved {len(watchlist)} items from watchlist")
         
         # Helper function to fetch price for a single stock
