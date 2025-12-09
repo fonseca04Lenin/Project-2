@@ -1782,6 +1782,7 @@ const DashboardRedesign = () => {
                         onCategoryChange={setSelectedCategory}
                         categories={categories}
                         onStockHover={handleStockHover}
+                        updatingStocks={updatingStocks}
                     />
                 )}
                 {activeView === 'news' && <NewsView />}
@@ -2565,7 +2566,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
 };
 
 // Watchlist View Component
-const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover }) => {
+const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover, updatingStocks = new Set() }) => {
     // Count stocks per category from unfiltered data
     const categoryCounts = {};
     watchlistData.forEach(stock => {
