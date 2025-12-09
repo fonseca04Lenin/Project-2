@@ -248,6 +248,12 @@ class WatchlistService:
             for doc in docs:
                 item_data = doc.to_dict()
                 item_data['id'] = doc.id
+                
+                # Ensure symbol field exists (use id as fallback)
+                if 'symbol' not in item_data and doc.id:
+                    item_data['symbol'] = doc.id
+                    logger.warning(f"Stock missing 'symbol' field, using doc.id: {doc.id}")
+                
                 watchlist.append(item_data)
 
             # Sort by priority and added date
@@ -255,6 +261,10 @@ class WatchlistService:
             watchlist.sort(key=lambda x: (priority_order.get(x.get('priority', 'medium'), 1), x.get('added_at', datetime.max)))
 
             logger.info(f"Retrieved {len(watchlist)} items from watchlist for user {user_id}")
+            # Log first few symbols for debugging
+            if watchlist:
+                symbols = [item.get('symbol', 'NO_SYMBOL') for item in watchlist[:5]]
+                logger.info(f"First 5 symbols: {symbols}")
             return watchlist
 
         except Exception as e:
