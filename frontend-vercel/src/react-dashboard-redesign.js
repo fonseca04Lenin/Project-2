@@ -785,8 +785,8 @@ const DashboardRedesign = () => {
                 ref.callWindowStart = now;
             }
             
-            // Rate limit: max 30 calls per minute
-            const MAX_CALLS_PER_MINUTE = 30;
+            // Rate limit: max 60 calls per minute for small watchlists, 30 for large
+            const MAX_CALLS_PER_MINUTE = watchlistData.length <= 30 ? 60 : 30;
             const availableCalls = MAX_CALLS_PER_MINUTE - ref.callCount;
             
             // Determine which stocks to update:
@@ -796,26 +796,8 @@ const DashboardRedesign = () => {
             let stocksToUpdate;
             
             if (watchlistData.length <= WATCHLIST_LIMIT) {
-                // Update ALL stocks in watchlist (live updates)
-                // Rotate through stocks in batches to respect API limits
-                // Each cycle updates a batch, rotating through all stocks
-                const BATCH_SIZE = Math.min(10, availableCalls); // Update up to 10 stocks per cycle
-                const startIndex = ref.updateIndex || 0;
-                const endIndex = Math.min(startIndex + BATCH_SIZE, watchlistData.length);
-                
-                // Get batch of stocks to update (rotating)
-                stocksToUpdate = watchlistData.slice(startIndex, endIndex);
-                
-                // If we've reached the end, also include stocks from the beginning
-                if (endIndex < watchlistData.length) {
-                    const remaining = BATCH_SIZE - stocksToUpdate.length;
-                    if (remaining > 0) {
-                        stocksToUpdate = stocksToUpdate.concat(watchlistData.slice(0, remaining));
-                    }
-                }
-                
-                // Update index for next cycle (rotate)
-                ref.updateIndex = (endIndex >= watchlistData.length) ? 0 : endIndex;
+                // Update ALL stocks in watchlist every cycle for real-time updates
+                stocksToUpdate = [...watchlistData];
             } else {
                 // Only update visible stocks when watchlist exceeds limit
                 stocksToUpdate = watchlistData.filter(stock => 
