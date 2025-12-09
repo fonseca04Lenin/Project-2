@@ -387,6 +387,11 @@ const DashboardRedesign = () => {
             socketRef.current.on('watchlist_updated', (data) => {
                 // Real-time price update received - ALWAYS use fresh prices
                 console.log(`📡 WebSocket update received for ${data.prices?.length || 0} stocks`);
+                if (data.prices && data.prices.length > 0) {
+                    const symbols = data.prices.map(p => p.symbol).join(', ');
+                    console.log(`   Symbols: ${symbols}`);
+                    console.log(`   Sample price data:`, data.prices[0]);
+                }
                 if (data.prices && Array.isArray(data.prices)) {
                     const now = Date.now();
                     const updatingSymbols = new Set();

@@ -715,7 +715,9 @@ def update_stock_prices():
                 time.sleep(60)
                 continue
             
-            print(f"📊 Updating prices for {len(connected_users)} connected users...")
+            print(f"\n{'='*80}")
+            print(f"📊 [REALTIME UPDATE CYCLE] Updating prices for {len(connected_users)} connected users...")
+            print(f"{'='*80}")
             
             # Collect unique symbols across all users to batch API calls
             all_symbols = set()
@@ -740,10 +742,18 @@ def update_stock_prices():
                         # Get ALL watchlist items for real-time updates (no limit)
                         watchlist = watchlist_service.get_watchlist(user_id, limit=None)
                         if watchlist:
+                            print(f"📋 [REALTIME] Loaded {len(watchlist)} stocks for user {user_id}")
                             user_watchlists[user_id] = watchlist
                             for item in watchlist:
-                                symbol = item['symbol']
-                                all_symbols.add(symbol)
+                                # Use .get() to safely access symbol field
+                                symbol = item.get('symbol') or item.get('id')
+                                if symbol:
+                                    all_symbols.add(symbol)
+                                    print(f"  ✓ Added {symbol} to update queue")
+                                else:
+                                    print(f"  ⚠️ Skipping item without symbol: {item.keys()}")
+                        else:
+                            print(f"⚠️ [REALTIME] No watchlist found for user {user_id}")
                         
                         # Add actively viewed/searched stocks to priority queue
                         if user_id in active_stocks:
@@ -751,7 +761,9 @@ def update_stock_prices():
                                 priority_symbols.add(symbol)
                                 all_symbols.add(symbol)  # Also add to regular update queue
                     except Exception as e:
-                        print(f"⚠️ Error getting watchlist for user {user_id}: {e}")
+                        print(f"❌ Error getting watchlist for user {user_id}: {e}")
+                        import traceback
+                        traceback.print_exc()
                         continue
             
             # Update prices for unique symbols only (batch processing)
@@ -763,6 +775,11 @@ def update_stock_prices():
             priority_to_fetch = [s for s in all_symbols if s in priority_symbols]
             regular_to_fetch = [s for s in all_symbols if s not in priority_symbols]
             all_symbols_to_fetch = priority_to_fetch + regular_to_fetch
+            
+            print(f"🎯 [REALTIME] Total symbols to update: {len(all_symbols_to_fetch)}")
+            print(f"   Priority: {len(priority_to_fetch)}, Regular: {len(regular_to_fetch)}")
+            if all_symbols_to_fetch:
+                print(f"   Symbols: {', '.join(list(all_symbols_to_fetch)[:20])}{'...' if len(all_symbols_to_fetch) > 20 else ''}")
             
             # Use batch API call if Alpaca is enabled (much more efficient!)
             batch_failed_symbols = set()  # Track symbols that failed in batch
