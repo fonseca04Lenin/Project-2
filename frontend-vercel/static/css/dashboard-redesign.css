@@ -120,6 +120,85 @@ i[class*="fal"],
     font-size: 1rem;
 }
 
+/* Real-time Connection Status Indicator */
+.realtime-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.realtime-status-indicator.connected {
+    background: rgba(0, 217, 36, 0.1);
+    border-color: rgba(0, 217, 36, 0.3);
+}
+
+.realtime-status-indicator.disconnected {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.realtime-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    transition: background 0.3s ease;
+}
+
+.realtime-status-dot.pulse {
+    background: #00D924;
+    animation: realtimePulse 2s infinite;
+    box-shadow: 0 0 8px rgba(0, 217, 36, 0.6);
+}
+
+.realtime-status-indicator.connected .realtime-status-dot {
+    background: #00D924;
+}
+
+.realtime-status-text {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+}
+
+.realtime-status-indicator.connected .realtime-status-text {
+    color: #00D924;
+}
+
+.realtime-status-indicator.disconnected .realtime-status-text {
+    color: #ef4444;
+}
+
+.update-rate-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    background: rgba(0, 217, 36, 0.2);
+    border: 1px solid rgba(0, 217, 36, 0.4);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #00D924;
+    margin-left: 0.25rem;
+}
+
+@keyframes realtimePulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.2);
+    }
+}
+
 /* Market Status Indicator */
 .market-status-indicator {
     display: flex;
@@ -779,6 +858,7 @@ i[class*="fal"],
     font-weight: 700;
     margin-bottom: 0.5rem;
     transition: all 0.3s ease;
+    position: relative;
 }
 
 .stock-price-large.positive {
@@ -790,25 +870,107 @@ i[class*="fal"],
 }
 
 .stock-price-large.price-updated.positive {
-    animation: priceFlash 2s ease-in-out;
+    animation: priceFlashPositive 1.5s ease-in-out;
     color: #00D924;
 }
 
 .stock-price-large.price-updated.negative {
-    animation: priceFlash 2s ease-in-out;
+    animation: priceFlashNegative 1.5s ease-in-out;
     color: #ef4444;
 }
 
-@keyframes priceFlash {
+.stock-price-large.updating {
+    position: relative;
+    opacity: 0.8;
+}
+
+.stock-price-large.updating::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid rgba(0, 217, 36, 0.3);
+    border-radius: 4px;
+    animation: updatingPulse 1.5s infinite;
+}
+
+.price-updating-indicator {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 217, 36, 0.25);
+    border: 2px solid rgba(0, 217, 36, 0.5);
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(0, 217, 36, 0.4);
+}
+
+.price-updating-indicator i {
+    font-size: 0.75rem;
+    color: #00D924;
+}
+
+.price-value {
+    display: inline-block;
+}
+
+@keyframes priceFlashPositive {
     0%, 100% {
         background-color: transparent;
+        transform: scale(1);
+        box-shadow: none;
     }
-    10% {
-        background-color: rgba(0, 217, 36, 0.15);
+    15% {
+        background-color: rgba(0, 217, 36, 0.2);
+        transform: scale(1.08);
+        box-shadow: 0 0 20px rgba(0, 217, 36, 0.4);
+    }
+    30% {
+        background-color: rgba(0, 217, 36, 0.1);
         transform: scale(1.05);
     }
-    50% {
+    60% {
         background-color: rgba(0, 217, 36, 0.05);
+        transform: scale(1.02);
+    }
+}
+
+@keyframes priceFlashNegative {
+    0%, 100% {
+        background-color: transparent;
+        transform: scale(1);
+        box-shadow: none;
+    }
+    15% {
+        background-color: rgba(239, 68, 68, 0.2);
+        transform: scale(1.08);
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+    }
+    30% {
+        background-color: rgba(239, 68, 68, 0.1);
+        transform: scale(1.05);
+    }
+    60% {
+        background-color: rgba(239, 68, 68, 0.05);
+        transform: scale(1.02);
+    }
+}
+
+@keyframes updatingPulse {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.05);
     }
 }
 

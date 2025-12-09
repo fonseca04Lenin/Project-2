@@ -48,6 +48,9 @@ const DashboardRedesign = () => {
     // Live pricing state
     const [lastUpdate, setLastUpdate] = useState(null);
     const [marketStatus, setMarketStatus] = useState({ isOpen: false, status: 'Closed' });
+    const [socketConnected, setSocketConnected] = useState(false);
+    const [updatingStocks, setUpdatingStocks] = useState(new Set());
+    const [updateStats, setUpdateStats] = useState({ total: 0, lastMinute: 0, lastUpdateTime: null });
     const livePricingRef = useRef({ 
         interval: null, 
         isActive: false, 
@@ -60,11 +63,15 @@ const DashboardRedesign = () => {
         visibleStocks: new Set(),
         hoveredStocks: new Set(),
         stockRefs: new Map(),
-        updateIndex: 0 // For rotating through stocks when updating all (watchlist <= 30)
+        updateIndex: 0, // For rotating through stocks when updating all (watchlist <= 30)
+        socketUpdateCount: 0,
+        httpUpdateCount: 0,
+        lastSocketUpdate: null
     });
     const keepAliveRef = useRef(null);
     const socketRef = useRef(null);
     const viewedStocksRef = useRef(new Set()); // Track stocks user is viewing
+    const updateStatsRef = useRef({ updates: [], lastMinute: [] });
 
     // Load preferences from localStorage
     const loadPreferences = () => {
@@ -355,6 +362,7 @@ const DashboardRedesign = () => {
             
             socketRef.current.on('connect', () => {
                 console.log('✅ WebSocket connected for real-time updates');
+                setSocketConnected(true);
                 
                 // Join watchlist updates room when user is available
                 const setupRooms = async () => {
@@ -378,15 +386,41 @@ const DashboardRedesign = () => {
             socketRef.current.on('watchlist_updated', (data) => {
                 // Real-time price update received - ALWAYS use fresh prices
                 if (data.prices && Array.isArray(data.prices)) {
+                    const now = Date.now();
+                    const updatingSymbols = new Set();
+                    
+                    // Track update statistics
+                    if (livePricingRef.current) {
+                        livePricingRef.current.socketUpdateCount++;
+                        livePricingRef.current.lastSocketUpdate = now;
+                        
+                        // Track updates per minute
+                        const stats = updateStatsRef.current;
+                        stats.updates.push(now);
+                        stats.lastMinute = stats.updates.filter(t => now - t < 60000);
+                        
+                        setUpdateStats({
+                            total: livePricingRef.current.socketUpdateCount,
+                            lastMinute: stats.lastMinute.length,
+                            lastUpdateTime: new Date()
+                        });
+                    }
+                    
                     // Update watchlist data with FRESH prices from WebSocket
                     setWatchlistData(prevData => {
                         const updatedData = prevData.map(stock => {
                             const update = data.prices.find(p => p.symbol === stock.symbol);
                             if (update && update.price && update.price > 0) {
+                                updatingSymbols.add(stock.symbol);
+                                
                                 // ALWAYS use fresh price from WebSocket, never cache
                                 const freshPrice = update.price;
+                                const oldPrice = stock.current_price || stock.price || 0;
                                 const priceChange = update.price_change || update.priceChange || 0;
                                 const priceChangePercent = update.price_change_percent || update.priceChangePercent || update.change_percent || 0;
+                                
+                                // Determine if price changed significantly for animation
+                                const hasSignificantChange = oldPrice > 0 && Math.abs(oldPrice - freshPrice) > 0.01;
                                 
                                 // Update price cache with fresh price
                                 if (livePricingRef.current) {
@@ -402,9 +436,10 @@ const DashboardRedesign = () => {
                                     change: priceChange,
                                     change_percent: priceChangePercent,
                                     priceChangePercent: priceChangePercent,
-                                    _updated: true, // Flag for animation
+                                    _updated: hasSignificantChange, // Flag for animation
                                     _fresh: true,   // Flag to indicate fresh data
-                                    _last_updated: new Date().toISOString()
+                                    _last_updated: new Date().toISOString(),
+                                    _updating: false // Clear updating flag
                                 };
                             }
                             return stock;
@@ -415,6 +450,7 @@ const DashboardRedesign = () => {
                             if (update.price && update.price > 0) {
                                 const exists = updatedData.find(s => s.symbol === update.symbol);
                                 if (!exists) {
+                                    updatingSymbols.add(update.symbol);
                                     updatedData.push({
                                         symbol: update.symbol,
                                         name: update.name || update.symbol,
@@ -425,7 +461,8 @@ const DashboardRedesign = () => {
                                         change_percent: update.price_change_percent || 0,
                                         priceChangePercent: update.price_change_percent || 0,
                                         _fresh: true,
-                                        _last_updated: new Date().toISOString()
+                                        _last_updated: new Date().toISOString(),
+                                        _updating: false
                                     });
                                 }
                             }
@@ -434,21 +471,40 @@ const DashboardRedesign = () => {
                         return updatedData;
                     });
                     
+                    // Show updating indicators briefly, then clear
+                    setUpdatingStocks(updatingSymbols);
+                    setTimeout(() => {
+                        setUpdatingStocks(new Set());
+                    }, 500);
+                    
+                    setLastUpdate(new Date());
+                    
                     // Clear update flag after animation
                     setTimeout(() => {
                         setWatchlistData(prevData => 
                             prevData.map(stock => ({ ...stock, _updated: false }))
                         );
-                    }, 1000);
+                    }, 2000);
                 }
             });
             
             socketRef.current.on('disconnect', () => {
-                // WebSocket disconnected
+                console.log('⚠️ WebSocket disconnected');
+                setSocketConnected(false);
             });
             
             socketRef.current.on('connect_error', (error) => {
-                // WebSocket connection error
+                console.log('❌ WebSocket connection error:', error);
+                setSocketConnected(false);
+            });
+            
+            socketRef.current.on('reconnect', (attemptNumber) => {
+                console.log(`✅ WebSocket reconnected after ${attemptNumber} attempts`);
+                setSocketConnected(true);
+            });
+            
+            socketRef.current.on('reconnect_attempt', () => {
+                console.log('🔄 Attempting to reconnect WebSocket...');
             });
         }
         
@@ -701,6 +757,15 @@ const DashboardRedesign = () => {
         const updateLivePrices = async () => {
             const now = Date.now();
             
+            // If SocketIO is connected and recently updated, reduce HTTP polling frequency
+            // SocketIO is the primary update mechanism, HTTP is fallback
+            const socketRecentlyUpdated = ref.lastSocketUpdate && (now - ref.lastSocketUpdate < 5000);
+            if (socketRef.current && socketRef.current.connected && socketRecentlyUpdated) {
+                // SocketIO is working well, reduce HTTP polling to every 10 seconds instead of 2
+                // This reduces API load while SocketIO handles real-time updates
+                return;
+            }
+            
             // Check if we're in rate limit cooldown
             if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
                 const remainingSeconds = Math.ceil((ref.rateLimitUntil - now) / 1000);
@@ -765,6 +830,10 @@ const DashboardRedesign = () => {
             
             if (stocksToProcess.length === 0) return;
             
+            // Show updating indicators
+            const updatingSymbols = new Set(stocksToProcess.map(s => s.symbol));
+            setUpdatingStocks(updatingSymbols);
+            
             // Process stocks with minimal delay between calls for faster updates
             for (let i = 0; i < stocksToProcess.length; i++) {
                 const stock = stocksToProcess[i];
@@ -779,9 +848,23 @@ const DashboardRedesign = () => {
                 }
                 
                 await updateStockPrice(stock.symbol, ref);
+                
+                // Remove from updating set as each completes
+                updatingSymbols.delete(stock.symbol);
+                setUpdatingStocks(new Set(updatingSymbols));
             }
             
+            // Clear remaining updating indicators
+            setTimeout(() => {
+                setUpdatingStocks(new Set());
+            }, 500);
+            
             setLastUpdate(new Date());
+            
+            // Track HTTP updates
+            if (ref) {
+                ref.httpUpdateCount = (ref.httpUpdateCount || 0) + stocksToProcess.length;
+            }
         };
         
         // Initial update with minimal delay
@@ -1544,6 +1627,19 @@ const DashboardRedesign = () => {
                     </nav>
                 </div>
                 <div className="header-right">
+                    {/* Real-time Connection Status */}
+                    <div className={`realtime-status-indicator ${socketConnected ? 'connected' : 'disconnected'}`} title={socketConnected ? 'Real-time updates active' : 'Real-time updates disconnected'}>
+                        <div className={`realtime-status-dot ${socketConnected ? 'pulse' : ''}`}></div>
+                        <span className="realtime-status-text">
+                            {socketConnected ? 'Live' : 'Offline'}
+                        </span>
+                        {updateStats.lastMinute > 0 && socketConnected && (
+                            <span className="update-rate-badge" title={`${updateStats.lastMinute} updates in the last minute`}>
+                                {updateStats.lastMinute}/min
+                            </span>
+                        )}
+                    </div>
+                    
                     {/* Market Status Indicator */}
                     <div className="market-status-indicator">
                         <div className={`market-status-dot ${marketStatus.isOpen ? 'open' : 'closed'}`}></div>
@@ -2616,8 +2712,13 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                             </button>
                         </div>
                         <div className="stock-name">{stock.name}</div>
-                        <div className={`stock-price-large ${stock._updated ? 'price-updated' : ''} ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            ${(stock.current_price || stock.price || 0).toFixed(2)}
+                        <div className={`stock-price-large ${stock._updated ? 'price-updated' : ''} ${stock.change_percent >= 0 ? 'positive' : 'negative'} ${updatingStocks.has(stock.symbol) ? 'updating' : ''}`}>
+                            {updatingStocks.has(stock.symbol) && (
+                                <span className="price-updating-indicator" title="Updating price...">
+                                    <i className="fas fa-circle-notch fa-spin"></i>
+                                </span>
+                            )}
+                            <span className="price-value">${(stock.current_price || stock.price || 0).toFixed(2)}</span>
                         </div>
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                             <i 
