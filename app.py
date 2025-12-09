@@ -705,7 +705,7 @@ def update_stock_prices():
     # Cache for stock data to reduce API calls
     price_cache = {}
     cache_expiry = {}
-    CACHE_DURATION = 3  # Cache for 3 seconds (reduced for real-time updates)
+    CACHE_DURATION = 1  # Cache for 1 second (minimal cache for real-time updates)
     
     while True:
         try:
@@ -808,8 +808,8 @@ def update_stock_prices():
                                     'is_priority': symbol in priority_symbols
                                 }
                                 
-                                # Cache the result (shorter cache for priority symbols)
-                                cache_duration = 2 if symbol in priority_symbols else CACHE_DURATION
+                                # Cache the result (minimal cache for priority symbols)
+                                cache_duration = 0.5 if symbol in priority_symbols else CACHE_DURATION
                                 price_cache[symbol] = stock_data
                                 cache_expiry[symbol] = current_time + cache_duration
                                 updated_symbols[symbol] = stock_data
@@ -894,8 +894,8 @@ def update_stock_prices():
                                 'is_priority': symbol in priority_symbols
                             }
                             
-                            # Cache the result (shorter cache for priority)
-                            cache_duration = 2 if symbol in priority_symbols else CACHE_DURATION
+                            # Cache the result (minimal cache for priority)
+                            cache_duration = 0.5 if symbol in priority_symbols else CACHE_DURATION
                             price_cache[symbol] = stock_data
                             cache_expiry[symbol] = current_time + cache_duration
                             updated_symbols[symbol] = stock_data
@@ -970,9 +970,9 @@ def update_stock_prices():
                 print(f"⚠️ Error updating market status: {market_error}")
             
             # Sleep before next update
-            # Real-time updates: 2 seconds for watchlist stocks
-            print("😴 Sleeping for 2 seconds before next update...")
-            time.sleep(2)  # Real-time: 2 seconds (was 20 seconds)
+            # Real-time updates: 1 second for watchlist stocks (faster updates)
+            print("😴 Sleeping for 1 second before next update...")
+            time.sleep(1)  # Real-time: 1 second for faster live updates
             
         except Exception as e:
             print(f"❌ Error in price update loop: {e}")
