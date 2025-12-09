@@ -783,26 +783,15 @@ const DashboardRedesign = () => {
                 ref.callWindowStart = now;
             }
             
-            // Rate limit: max 60 calls per minute for small watchlists, 30 for large
-            const MAX_CALLS_PER_MINUTE = watchlistData.length <= 30 ? 60 : 30;
+            // Rate limit: Dynamic based on watchlist size to handle any number of stocks
+            // Allow more calls for larger watchlists while respecting API limits
+            const MAX_CALLS_PER_MINUTE = Math.max(60, Math.min(watchlistData.length * 2, 120));
             const availableCalls = MAX_CALLS_PER_MINUTE - ref.callCount;
             
-            // Determine which stocks to update:
-            // - If watchlist <= 30 stocks: update ALL stocks (live updates, rotating batches)
-            // - If watchlist > 30 stocks: only update visible stocks (to respect API limits)
-            const WATCHLIST_LIMIT = 30;
-            let stocksToUpdate;
-            
-            if (watchlistData.length <= WATCHLIST_LIMIT) {
-                // Update ALL stocks in watchlist every cycle for real-time updates
-                stocksToUpdate = [...watchlistData];
-                console.log(`🔄 Updating all ${stocksToUpdate.length} stocks (watchlist <= ${WATCHLIST_LIMIT})`);
-            } else {
-                // Only update visible stocks when watchlist exceeds limit
-                stocksToUpdate = watchlistData.filter(stock => 
-                    ref.visibleStocks.has(stock.symbol) || ref.hoveredStocks.has(stock.symbol)
-                );
-            }
+            // Update ALL stocks in watchlist - no limits!
+            // All stocks update in real-time regardless of watchlist size
+            const stocksToUpdate = [...watchlistData];
+            console.log(`🔄 Updating all ${stocksToUpdate.length} stocks in watchlist`);
             
             if (stocksToUpdate.length === 0) return;
             
@@ -815,9 +804,10 @@ const DashboardRedesign = () => {
             for (let i = 0; i < stocksToProcess.length; i++) {
                 const stock = stocksToProcess[i];
                 
-                // Minimal delay between calls (50ms for small watchlists) for faster updates
+                // Minimal delay between calls based on watchlist size
                 if (i > 0) {
-                    const delay = watchlistData.length <= 20 ? 50 : 100;
+                    // Scale delay: 50ms for small, 75ms for medium, 100ms for large watchlists
+                    const delay = watchlistData.length <= 30 ? 50 : watchlistData.length <= 60 ? 75 : 100;
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
                 
@@ -843,10 +833,12 @@ const DashboardRedesign = () => {
         // Update frequency:
         // - Small watchlists (<=30): Update every 2 seconds (all stocks, rotating batches of ~10)
         //   With 30 stocks and batches of 10, all stocks update every 6 seconds (3 cycles)
+        // Update frequency scales with watchlist size:
         // - Small watchlists (<=30): Update every 1 second for real-time data
-        // - Large watchlists (>30): Update every 2 seconds (only visible stocks)
-        // This ensures we stay within rate limits while providing live updates
-        const updateInterval = watchlistData.length <= 30 ? 1000 : 2000;
+        // - Medium watchlists (31-60): Update every 1.5 seconds
+        // - Large watchlists (>60): Update every 2 seconds
+        // This ensures we stay within rate limits while providing live updates for ALL stocks
+        const updateInterval = watchlistData.length <= 30 ? 1000 : watchlistData.length <= 60 ? 1500 : 2000;
         console.log(`⏰ Starting live pricing updates every ${updateInterval}ms for ${watchlistData.length} stocks`);
         ref.interval = setInterval(updateLivePrices, updateInterval);
         ref.isActive = true;
