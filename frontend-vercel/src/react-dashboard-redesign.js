@@ -618,17 +618,8 @@ const DashboardRedesign = () => {
                 body: JSON.stringify({ symbol: symbol })
             });
             
-            ref.callCount++;
+            // No rate limiting - just track last call time
             ref.lastCallTime = Date.now();
-            
-            // Handle rate limit response (429 Too Many Requests)
-            if (response.status === 429) {
-                const retryAfter = response.headers.get('Retry-After');
-                const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
-                ref.rateLimitCooldown = true;
-                ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
-                return false;
-            }
             
             if (response.ok) {
                 const stockData = await response.json();
@@ -764,59 +755,22 @@ const DashboardRedesign = () => {
                 return;
             }
             
-            // Check if we're in rate limit cooldown
-            if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
-                const remainingSeconds = Math.ceil((ref.rateLimitUntil - now) / 1000);
-                return;
-            }
-            
-            // Reset cooldown if time has passed
-            if (ref.rateLimitCooldown && now >= ref.rateLimitUntil) {
-                ref.rateLimitCooldown = false;
-                ref.callCount = 0;
-                ref.callWindowStart = now;
-            }
-            
-            // Reset call count if window has passed (1 minute window)
-            if (now - ref.callWindowStart > 60000) {
-                ref.callCount = 0;
-                ref.callWindowStart = now;
-            }
-            
-            // Rate limit: Dynamic based on watchlist size to handle any number of stocks
-            // Allow more calls for larger watchlists while respecting API limits
-            const MAX_CALLS_PER_MINUTE = Math.max(60, Math.min(watchlistData.length * 2, 120));
-            const availableCalls = MAX_CALLS_PER_MINUTE - ref.callCount;
-            
-            // Update ALL stocks in watchlist - no limits!
-            // All stocks update in real-time regardless of watchlist size
+            // Update ALL stocks in watchlist - NO rate limits or restrictions!
             const stocksToUpdate = [...watchlistData];
-            console.log(`🔄 Updating all ${stocksToUpdate.length} stocks in watchlist`);
+            console.log(`🔄 Updating all ${stocksToUpdate.length} stocks in watchlist - NO LIMITS`);
             
             if (stocksToUpdate.length === 0) return;
             
-            // Limit to available API calls to respect rate limits
-            const stocksToProcess = stocksToUpdate.slice(0, availableCalls);
-            
-            if (stocksToProcess.length === 0) return;
-            
-            // Process stocks with minimal delay between calls for faster updates
-            for (let i = 0; i < stocksToProcess.length; i++) {
-                const stock = stocksToProcess[i];
+            // Process ALL stocks without any rate limiting
+            for (let i = 0; i < stocksToUpdate.length; i++) {
+                const stock = stocksToUpdate[i];
                 
-                // Minimal delay between calls based on watchlist size
+                // Minimal delay to prevent API server overload
                 if (i > 0) {
-                    // Scale delay: 50ms for small, 75ms for medium, 100ms for large watchlists
-                    const delay = watchlistData.length <= 30 ? 50 : watchlistData.length <= 60 ? 75 : 100;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-                
-                if (ref.callCount >= MAX_CALLS_PER_MINUTE) {
-                    break;
+                    await new Promise(resolve => setTimeout(resolve, 20));
                 }
                 
                 await updateStockPrice(stock.symbol, ref);
-                
             }
             
             setLastUpdate(new Date());
@@ -863,13 +817,8 @@ const DashboardRedesign = () => {
         
         ref.hoveredStocks.add(symbol);
         
-        // Check rate limits
-        const now = Date.now();
-        if (ref.rateLimitCooldown && now < ref.rateLimitUntil) return;
-        if (ref.callCount >= 30) return;
-        
         // Small delay to avoid rapid hover updates
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         await updateStockPrice(symbol, ref);
         

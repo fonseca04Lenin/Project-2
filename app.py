@@ -702,10 +702,7 @@ def update_stock_prices():
     """Memory-optimized background task to update stock prices"""
     print("🔄 Starting memory-optimized price update task...")
     
-    # Cache for stock data to reduce API calls
-    price_cache = {}
-    cache_expiry = {}
-    CACHE_DURATION = 1  # Cache for 1 second (minimal cache for real-time updates)
+    # NO CACHING - Always fetch fresh prices for real-time updates
     
     while True:
         try:
@@ -761,27 +758,11 @@ def update_stock_prices():
             current_time = time.time()
             updated_symbols = {}
             
-            # Separate cached vs uncached symbols
-            # Priority: Always fetch priority symbols (actively viewed), cache others
-            symbols_to_fetch = []
-            priority_to_fetch = []
-            
-            for symbol in list(all_symbols)[:100]:  # Increased limit for real-time updates
-                is_priority = symbol in priority_symbols
-                
-                # Check cache first (but skip cache for priority symbols to ensure real-time)
-                if not is_priority and (symbol in price_cache and 
-                    symbol in cache_expiry and 
-                    current_time < cache_expiry[symbol]):
-                    updated_symbols[symbol] = price_cache[symbol]
-                else:
-                    if is_priority:
-                        priority_to_fetch.append(symbol)
-                    else:
-                        symbols_to_fetch.append(symbol)
-            
-            # Fetch priority symbols first (actively viewed/searched stocks)
-            all_symbols_to_fetch = priority_to_fetch + symbols_to_fetch
+            # NO CACHING - Fetch ALL symbols for real-time updates
+            # Priority symbols fetched first, then regular symbols
+            priority_to_fetch = [s for s in all_symbols if s in priority_symbols]
+            regular_to_fetch = [s for s in all_symbols if s not in priority_symbols]
+            all_symbols_to_fetch = priority_to_fetch + regular_to_fetch
             
             # Use batch API call if Alpaca is enabled (much more efficient!)
             batch_failed_symbols = set()  # Track symbols that failed in batch
@@ -808,10 +789,7 @@ def update_stock_prices():
                                     'is_priority': symbol in priority_symbols
                                 }
                                 
-                                # Cache the result (minimal cache for priority symbols)
-                                cache_duration = 0.5 if symbol in priority_symbols else CACHE_DURATION
-                                price_cache[symbol] = stock_data
-                                cache_expiry[symbol] = current_time + cache_duration
+                                # No caching - always use fresh data
                                 updated_symbols[symbol] = stock_data
                                 batch_success_symbols.add(symbol)
                         
@@ -894,10 +872,7 @@ def update_stock_prices():
                                 'is_priority': symbol in priority_symbols
                             }
                             
-                            # Cache the result (minimal cache for priority)
-                            cache_duration = 0.5 if symbol in priority_symbols else CACHE_DURATION
-                            price_cache[symbol] = stock_data
-                            cache_expiry[symbol] = current_time + cache_duration
+                            # No caching - always use fresh data
                             updated_symbols[symbol] = stock_data
                         
                     except Exception as e:
@@ -953,14 +928,7 @@ def update_stock_prices():
                     print(f"⚠️ Error sending updates to user {user_id}: {e}")
                     continue
             
-            # Clean up old cache entries
-            expired_keys = [k for k, v in cache_expiry.items() if current_time > v]
-            for key in expired_keys:
-                price_cache.pop(key, None)
-                cache_expiry.pop(key, None)
-            
-            if expired_keys:
-                print(f"🧹 Cleaned up {len(expired_keys)} expired cache entries")
+            # No cache cleanup needed - we don't cache anymore
             
             # Update market status less frequently
             try:
