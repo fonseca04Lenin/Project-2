@@ -362,6 +362,7 @@ const DashboardRedesign = () => {
             
             socketRef.current.on('connect', () => {
                 console.log('✅ WebSocket connected for real-time updates');
+                console.log('📡 WebSocket will update ALL stocks in your watchlist automatically');
                 setSocketConnected(true);
                 
                 // Join watchlist updates room when user is available
@@ -385,6 +386,7 @@ const DashboardRedesign = () => {
             // Listen for real-time watchlist price updates
             socketRef.current.on('watchlist_updated', (data) => {
                 // Real-time price update received - ALWAYS use fresh prices
+                console.log(`📡 WebSocket update received for ${data.prices?.length || 0} stocks`);
                 if (data.prices && Array.isArray(data.prices)) {
                     const now = Date.now();
                     const updatingSymbols = new Set();
@@ -489,7 +491,7 @@ const DashboardRedesign = () => {
             });
             
             socketRef.current.on('disconnect', () => {
-                console.log('⚠️ WebSocket disconnected');
+                console.log('❌ WebSocket disconnected - falling back to HTTP polling');
                 setSocketConnected(false);
             });
             
@@ -798,6 +800,7 @@ const DashboardRedesign = () => {
             if (watchlistData.length <= WATCHLIST_LIMIT) {
                 // Update ALL stocks in watchlist every cycle for real-time updates
                 stocksToUpdate = [...watchlistData];
+                console.log(`🔄 Updating all ${stocksToUpdate.length} stocks (watchlist <= ${WATCHLIST_LIMIT})`);
             } else {
                 // Only update visible stocks when watchlist exceeds limit
                 stocksToUpdate = watchlistData.filter(stock => 
@@ -820,9 +823,10 @@ const DashboardRedesign = () => {
             for (let i = 0; i < stocksToProcess.length; i++) {
                 const stock = stocksToProcess[i];
                 
-                // Reduced delay between calls (100ms = ~10 calls per second max) for faster updates
+                // Minimal delay between calls (50ms for small watchlists) for faster updates
                 if (i > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    const delay = watchlistData.length <= 20 ? 50 : 100;
+                    await new Promise(resolve => setTimeout(resolve, delay));
                 }
                 
                 if (ref.callCount >= MAX_CALLS_PER_MINUTE) {
@@ -855,9 +859,11 @@ const DashboardRedesign = () => {
         // Update frequency:
         // - Small watchlists (<=30): Update every 2 seconds (all stocks, rotating batches of ~10)
         //   With 30 stocks and batches of 10, all stocks update every 6 seconds (3 cycles)
+        // - Small watchlists (<=30): Update every 1 second for real-time data
         // - Large watchlists (>30): Update every 2 seconds (only visible stocks)
-        // This ensures we stay within 30 calls/minute limit while providing live updates
-        const updateInterval = 2000;
+        // This ensures we stay within rate limits while providing live updates
+        const updateInterval = watchlistData.length <= 30 ? 1000 : 2000;
+        console.log(`⏰ Starting live pricing updates every ${updateInterval}ms for ${watchlistData.length} stocks`);
         ref.interval = setInterval(updateLivePrices, updateInterval);
         ref.isActive = true;
         
