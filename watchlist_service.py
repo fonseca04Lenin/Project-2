@@ -78,10 +78,10 @@ class WatchlistService:
     """
 
     # Configuration constants
-    MAX_WATCHLIST_SIZE = 100  # Maximum stocks per user
-    MAX_CATEGORIES = 20  # Maximum categories per user
-    MAX_TAGS_PER_STOCK = 10  # Maximum tags per stock
-    MAX_NOTES_LENGTH = 500  # Maximum notes length
+    MAX_WATCHLIST_SIZE = 1000  # Maximum stocks per user (increased from 100)
+    MAX_CATEGORIES = 50  # Maximum categories per user (increased from 20)
+    MAX_TAGS_PER_STOCK = 20  # Maximum tags per stock (increased from 10)
+    MAX_NOTES_LENGTH = 1000  # Maximum notes length (increased from 500)
 
     def __init__(self, db_client=None):
         """Initialize with Firestore client"""
@@ -226,7 +226,7 @@ class WatchlistService:
             }
 
     def get_watchlist(self, user_id: str, category: Optional[str] = None,
-                     priority: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+                     priority: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get user's watchlist with optional filtering"""
         try:
             watchlist_ref = self.db.collection('users').document(user_id).collection('watchlist')
@@ -238,8 +238,11 @@ class WatchlistService:
             if priority:
                 query = query.where(filter=firestore.FieldFilter('priority', '==', priority))
 
-            # Get documents
-            docs = query.limit(limit).stream()
+            # Get documents - apply limit only if specified, otherwise get all
+            if limit is not None:
+                docs = query.limit(limit).stream()
+            else:
+                docs = query.stream()
 
             watchlist = []
             for doc in docs:
