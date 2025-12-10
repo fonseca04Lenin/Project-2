@@ -883,13 +883,20 @@ const DashboardRedesign = () => {
 
     const loadWatchlistData = async () => {
         try {
+            console.log('\n' + '='.repeat(80));
+            console.log('🔑 LOADING WATCHLIST DATA');
+            console.log('='.repeat(80));
+            
             // Check if user is authenticated before making request
             if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+                console.log('❌ User not authenticated');
                 // User not authenticated, cannot load watchlist
                 setWatchlistData([]);
                 setIsLoading(false);
                 return;
             }
+            
+            console.log('✅ User authenticated:', window.firebaseAuth.currentUser.uid);
             
             const authHeaders = await window.getAuthHeaders();
             
@@ -921,7 +928,15 @@ const DashboardRedesign = () => {
             
             if (response.ok) {
                 let data = await response.json();
-                // Watchlist data received
+                
+                console.log('📦 RECEIVED FROM API:', data.length, 'stocks');
+                
+                // Log all symbols received
+                if (Array.isArray(data) && data.length > 0) {
+                    const symbols = data.map(s => s.symbol || s.id || 'NO_SYMBOL');
+                    console.log('📋 STOCKS RECEIVED FROM BACKEND:');
+                    symbols.forEach((sym, i) => console.log(`   ${i + 1}. ${sym}`));
+                }
                 
                 // Backend already provides prices, so we don't need to fetch individually
                 // This was causing N API calls on initial load (very slow!)
@@ -1003,6 +1018,10 @@ const DashboardRedesign = () => {
                             _priceLoading: needsPriceFetch
                         };
                     });
+                    
+                    console.log('✅ SET WATCHLIST DATA:', formattedData.length, 'stocks');
+                    console.log('   Sample stock:', formattedData[0]);
+                    console.log('='.repeat(80) + '\n');
                     
                     // Formatted watchlist data
                     setWatchlistData(formattedData);

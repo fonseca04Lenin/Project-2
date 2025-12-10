@@ -1443,11 +1443,25 @@ def get_watchlist_route():
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     try:
-        print(f"🔍 GET watchlist request for user: {user.id}")
+        print(f"\n{'='*80}")
+        print(f"🔍 GET WATCHLIST REQUEST for user: {user.id}")
+        print(f"{'='*80}")
         
         # Get ALL watchlist items from Firestore (no limit)
         watchlist = watchlist_service.get_watchlist(user.id, limit=None)
-        print(f"📋 Retrieved {len(watchlist)} items from watchlist")
+        print(f"📋 Retrieved {len(watchlist)} items from Firebase")
+        
+        # Log all symbols from Firebase
+        if watchlist:
+            firebase_symbols = [item.get('symbol') or item.get('id') or 'NO_SYMBOL' for item in watchlist]
+            print(f"📦 STOCKS FROM FIREBASE:")
+            for i, symbol in enumerate(firebase_symbols, 1):
+                print(f"   {i}. {symbol}")
+        else:
+            print(f"⚠️ NO STOCKS IN FIREBASE WATCHLIST")
+        
+        # Track which symbols we're calling Alpaca for
+        alpaca_calls = []
         
         # Helper function to fetch price for a single stock
         # ALWAYS fetches fresh prices - never returns stale cached prices
@@ -1455,6 +1469,10 @@ def get_watchlist_route():
             symbol = item.get('symbol') or item.get('id', '')
             if not symbol:
                 return None
+            
+            # Track this call
+            alpaca_calls.append(symbol)
+            print(f"   🔌 Calling Alpaca API for: {symbol}")
                 
             original_price = item.get('original_price')
             
@@ -1535,7 +1553,13 @@ def get_watchlist_route():
                     if result:
                         watchlist_with_prices.append(result)
         
-        print(f"✅ Returning {len(watchlist_with_prices)} items with prices (fetched in parallel)")
+        # Log which symbols were called to Alpaca API
+        print(f"\n🔌 ALPACA API CALLS MADE:")
+        for i, symbol in enumerate(alpaca_calls, 1):
+            print(f"   {i}. {symbol}")
+        
+        print(f"\n✅ RETURNING {len(watchlist_with_prices)} items with prices")
+        print(f"{'='*80}\n")
         return jsonify(watchlist_with_prices)
             
     except Exception as e:
