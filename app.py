@@ -703,8 +703,10 @@ def update_stock_prices():
     print("🔄 Starting memory-optimized price update task...")
     
     # NO CACHING - Always fetch fresh prices for real-time updates
+    update_cycle_count = 0
     
     while True:
+        update_cycle_count += 1
         try:
             # Clean up inactive connections first
             cleanup_inactive_connections()
@@ -716,7 +718,8 @@ def update_stock_prices():
                 continue
             
             print(f"\n{'='*80}")
-            print(f"📊 [REALTIME UPDATE CYCLE] Updating prices for {len(connected_users)} connected users...")
+            print(f"📊 [REALTIME UPDATE CYCLE #{update_cycle_count}] - {datetime.now().strftime('%H:%M:%S')}")
+            print(f"📊 Updating prices for {len(connected_users)} connected users...")
             print(f"{'='*80}")
             
             # Collect unique symbols across all users to batch API calls
@@ -935,9 +938,11 @@ def update_stock_prices():
                     if user_updates:
                         room_name = f"watchlist_{user_id}"
                         socketio.emit('watchlist_updated', {
-                            'prices': user_updates
+                            'prices': user_updates,
+                            'timestamp': datetime.now().isoformat(),
+                            'cycle': update_cycle_count
                         }, room=room_name)
-                        print(f"✅ [REALTIME] Sent {len(user_updates)} stock updates to user {user_id} in room {room_name}")
+                        print(f"✅ [REALTIME] Sent {len(user_updates)} stock updates to user {user_id} (Cycle #{update_cycle_count})")
                     else:
                         print(f"⚠️ [REALTIME] No updates to send for user {user_id} (watchlist has {len(watchlist)} stocks, updated_symbols has {len(updated_symbols)} symbols)")
                         
@@ -956,7 +961,11 @@ def update_stock_prices():
             
             # Sleep before next update
             # Real-time updates: 1 second for watchlist stocks (faster updates)
-            print("😴 Sleeping for 1 second before next update...")
+            cycle_end_time = time.time()
+            cycle_duration = cycle_end_time - current_time
+            print(f"⏱️ Update cycle completed in {cycle_duration:.2f} seconds")
+            print(f"😴 Sleeping for 1 second before next update...")
+            print(f"📅 Next update at: {datetime.fromtimestamp(time.time() + 1).strftime('%H:%M:%S')}\n")
             time.sleep(1)  # Real-time: 1 second for faster live updates
             
         except Exception as e:
