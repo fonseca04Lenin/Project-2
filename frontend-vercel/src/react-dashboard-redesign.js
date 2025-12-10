@@ -384,14 +384,31 @@ const DashboardRedesign = () => {
             });
             
             // Listen for real-time watchlist price updates
+            let lastUpdateTime = Date.now();
+            let updateCount = 0;
+            
             socketRef.current.on('watchlist_updated', (data) => {
+                updateCount++;
+                const now = Date.now();
+                const timeSinceLastUpdate = ((now - lastUpdateTime) / 1000).toFixed(1);
+                const currentTime = new Date().toLocaleTimeString();
+                
                 // Real-time price update received - ALWAYS use fresh prices
-                console.log(`📡 WebSocket update received for ${data.prices?.length || 0} stocks`);
+                console.log(`\n${'='.repeat(60)}`);
+                console.log(`📡 UPDATE #${updateCount} @ ${currentTime}`);
+                console.log(`   Time since last update: ${timeSinceLastUpdate}s`);
+                console.log(`   Stocks updated: ${data.prices?.length || 0}`);
+                console.log(`   Backend cycle: #${data.cycle || '?'}`);
+                
                 if (data.prices && data.prices.length > 0) {
                     const symbols = data.prices.map(p => p.symbol).join(', ');
                     console.log(`   Symbols: ${symbols}`);
-                    console.log(`   Sample price data:`, data.prices[0]);
+                    const sample = data.prices[0];
+                    console.log(`   Sample: ${sample.symbol} = $${sample.price} (${sample.change_percent >= 0 ? '+' : ''}${sample.change_percent?.toFixed(2)}%)`);
                 }
+                console.log(`${'='.repeat(60)}\n`);
+                
+                lastUpdateTime = now;
                 if (data.prices && Array.isArray(data.prices)) {
                     const now = Date.now();
                     const updatingSymbols = new Set();
@@ -762,7 +779,9 @@ const DashboardRedesign = () => {
             
             // Update ALL stocks in watchlist - NO rate limits or restrictions!
             const stocksToUpdate = [...watchlistData];
-            console.log(`🔄 Updating all ${stocksToUpdate.length} stocks in watchlist - NO LIMITS`);
+            const updateTime = new Date().toLocaleTimeString();
+            console.log(`\n🔄 [HTTP UPDATE] @ ${updateTime}`);
+            console.log(`   Updating ${stocksToUpdate.length} stocks via HTTP polling`);
             
             if (stocksToUpdate.length === 0) return;
             
