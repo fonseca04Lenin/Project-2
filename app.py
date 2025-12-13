@@ -235,20 +235,39 @@ def get_stock_alpaca_only(symbol):
         print(f"❌ [WATCHLIST-ALPACA] Failed for {symbol}: {e}")
         return None, None
 
-# Initialize Watchlist Service with proper Firestore client
-print("🔍 Initializing WatchlistService...")
-try:
-    firestore_client = get_firestore_client()
-    print(f"🔍 Firestore client available: {firestore_client is not None}")
-    watchlist_service = get_watchlist_service(firestore_client)
-    print("✅ WatchlistService initialized successfully")
-except Exception as e:
-    print(f"❌ Failed to initialize WatchlistService: {e}")
-    import traceback
-    print(f"❌ WatchlistService traceback: {traceback.format_exc()}")
-    # Set to None so the app can still start
-    firestore_client = None
-    watchlist_service = None
+# Initialize Watchlist Service lazily - don't block app startup
+# Services will be initialized on first use
+print("ℹ️ WatchlistService initialization deferred - will initialize on first use")
+firestore_client = None
+watchlist_service = None
+
+def get_watchlist_service_lazy():
+    """Lazy initialization of watchlist service - only when needed"""
+    global firestore_client, watchlist_service
+    if watchlist_service is None:
+        try:
+            print("🔍 Initializing WatchlistService (lazy)...")
+            firestore_client = get_firestore_client()
+            if firestore_client is not None:
+                watchlist_service = get_watchlist_service(firestore_client)
+                print("✅ WatchlistService initialized successfully")
+            else:
+                print("⚠️ Firestore client not available - WatchlistService unavailable")
+        except Exception as e:
+            print(f"❌ Failed to initialize WatchlistService: {e}")
+            import traceback
+            print(f"❌ WatchlistService traceback: {traceback.format_exc()}")
+            firestore_client = None
+            watchlist_service = None
+    return watchlist_service
+
+# Helper to ensure watchlist_service is available before use
+def ensure_watchlist_service():
+    """Ensure watchlist service is initialized, return it or raise error"""
+    service = get_watchlist_service_lazy()
+    if service is None:
+        raise RuntimeError("WatchlistService is not available - Firebase may not be configured")
+    return service
 
 # Store connected users and their watchlists with cleanup
 import weakref
@@ -401,18 +420,22 @@ def test_watchlist_service():
     """Test endpoint to verify watchlist service is working"""
     try:
         print("🧪 Testing watchlist service...")
-        # Test if service is initialized
-        if watchlist_service is None:
-            return jsonify({'error': 'WatchlistService not initialized'}), 500
+        # Test if service is initialized (lazy)
+        service = get_watchlist_service_lazy()
+        if service is None:
+            return jsonify({
+                'status': 'warning',
+                'message': 'WatchlistService not available - Firebase may not be configured',
+                'firestore_available': False
+            }), 503
         
         # Test if Firestore client is available
-        if watchlist_service.db is None:
-            return jsonify({'error': 'Firestore client not available'}), 500
+        db_available = service.db is not None if service else False
             
         return jsonify({
             'status': 'success',
             'message': 'WatchlistService is working correctly',
-            'firestore_available': watchlist_service.db is not None
+            'firestore_available': db_available
         })
     except Exception as e:
         print(f"❌ WatchlistService test failed: {e}")
@@ -743,7 +766,10 @@ def update_stock_prices():
                 if user_id:
                     try:
                         # Get ALL watchlist items for real-time updates (no limit)
-                        watchlist = watchlist_service.get_watchlist(user_id, limit=None)
+                        service = get_watchlist_service_lazy()
+                        if service is None:
+                            continue  # Skip if service not available
+                        watchlist = service.get_watchlist(user_id, limit=None)
                         if watchlist:
                             print(f"📋 [REALTIME] Loaded {len(watchlist)} stocks for user {user_id}")
                             user_watchlists[user_id] = watchlist
@@ -1456,8 +1482,11 @@ def get_watchlist_route():
         print(f"🔍 GET WATCHLIST REQUEST for user: {user.id}")
         print(f"{'='*80}")
         
+        # Ensure watchlist service is initialized
+        service = ensure_watchlist_service()
+        
         # Get ALL watchlist items from Firestore (no limit)
-        watchlist = watchlist_service.get_watchlist(user.id, limit=None)
+        watchlist = service.get_watchlist(user.id, limit=None)
         print(f"📋 Retrieved {len(watchlist)} items from Firebase")
         
         # Log all symbols from Firebase
@@ -1623,8 +1652,11 @@ def add_to_watchlist():
             print(f"❌ Error getting current price for {symbol} from Alpaca: {price_error}")
             return jsonify({'error': f'Failed to fetch stock data from Alpaca API: {str(price_error)}'}), 500
         
+        # Ensure watchlist service is initialized
+        service = ensure_watchlist_service()
+        
         # Re-enabled with proper watchlist service
-        result = watchlist_service.add_stock(
+        result = service.add_stock(
             user.id,
             symbol,
             company_name,
@@ -1654,8 +1686,12 @@ def remove_from_watchlist(symbol):
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
-    symbol = symbol.upper()
-    result = watchlist_service.remove_stock(user.id, symbol)
+    try:
+        service = ensure_watchlist_service()
+        symbol = symbol.upper()
+        result = service.remove_stock(user.id, symbol)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
 
     if result['success']:
         return jsonify({'message': result['message']})
@@ -1669,13 +1705,17 @@ def update_watchlist_stock(symbol):
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
-    symbol = symbol.upper()
-    data = request.get_json()
+    try:
+        service = ensure_watchlist_service()
+        symbol = symbol.upper()
+        data = request.get_json()
 
-    # Remove symbol from data if present (can't update symbol)
-    data.pop('symbol', None)
+        # Remove symbol from data if present (can't update symbol)
+        data.pop('symbol', None)
 
-    result = watchlist_service.update_stock(user.id, symbol, **data)
+        result = service.update_stock(user.id, symbol, **data)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
 
     if result['success']:
         return jsonify({
@@ -1700,7 +1740,11 @@ def update_watchlist_notes(symbol):
     
     notes = data.get('notes', '').strip()
     
-    result = watchlist_service.update_stock(user.id, symbol, notes=notes)
+    try:
+        service = ensure_watchlist_service()
+        result = service.update_stock(user.id, symbol, notes=notes)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
 
     if result['success']:
         return jsonify({
@@ -1717,7 +1761,11 @@ def get_watchlist_categories():
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
-    categories = watchlist_service.get_categories(user.id)
+    try:
+        service = ensure_watchlist_service()
+        categories = service.get_categories(user.id)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
     return jsonify({'categories': categories})
 
 @app.route('/api/watchlist/stats', methods=['GET'])
@@ -1727,7 +1775,11 @@ def get_watchlist_stats():
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
-    stats = watchlist_service.get_watchlist_stats(user.id)
+    try:
+        service = ensure_watchlist_service()
+        stats = service.get_watchlist_stats(user.id)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
     return jsonify(stats)
 
 @app.route('/api/watchlist/clear', methods=['DELETE'])
@@ -1737,7 +1789,11 @@ def clear_watchlist():
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
-    result = watchlist_service.clear_watchlist(user.id)
+    try:
+        service = ensure_watchlist_service()
+        result = service.clear_watchlist(user.id)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
 
     if result['success']:
         return jsonify({'message': result['message']})
@@ -1756,7 +1812,11 @@ def batch_update_watchlist():
         return jsonify({'error': 'Updates data required'}), 400
 
     updates = data['updates']
-    result = watchlist_service.batch_update(user.id, updates)
+    try:
+        service = ensure_watchlist_service()
+        result = service.batch_update(user.id, updates)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 503
 
     if result['success']:
         return jsonify({'message': result['message']})
@@ -1939,7 +1999,11 @@ def get_top_performer_by_date():
             user = authenticate_request()
             if not user:
                 return jsonify({'error': 'Authentication required'}), 401
-            wl = watchlist_service.get_watchlist(user.id, limit=500)
+            try:
+                service = ensure_watchlist_service()
+                wl = service.get_watchlist(user.id, limit=500)
+            except RuntimeError as e:
+                return jsonify({'error': str(e)}), 503
             symbols = [item.get('symbol') or item.get('id') for item in wl if item.get('symbol') or item.get('id')]
             symbols = [s.upper() for s in symbols if isinstance(s, str) and len(s) > 0]
         elif universe == 'sp500':
@@ -2056,7 +2120,11 @@ def get_watchlist_stock_details(symbol):
         print(f"🔍 Getting watchlist details for symbol: {symbol}, user: {user.id}")
         
         # Get watchlist item data
-        watchlist_item = watchlist_service.get_stock(user.id, symbol)
+        try:
+            service = ensure_watchlist_service()
+            watchlist_item = service.get_stock(user.id, symbol)
+        except RuntimeError as e:
+            return jsonify({'error': str(e)}), 503
         if not watchlist_item:
             print(f"❌ Stock {symbol} not found in watchlist for user {user.id}")
             return jsonify({'error': f'Stock "{symbol}" not found in watchlist'}), 404
@@ -2085,8 +2153,12 @@ def get_watchlist_stock_details(symbol):
         # Handle legacy data: if no original price, set current price as original
         if not original_price and current_price:
             print(f"🔄 Setting current price as original price for legacy stock {symbol}")
-            watchlist_service.update_stock(user.id, symbol, original_price=current_price)
-            original_price = current_price
+            try:
+                service = ensure_watchlist_service()
+                service.update_stock(user.id, symbol, original_price=current_price)
+                original_price = current_price
+            except RuntimeError:
+                print("⚠️ Could not update original price - service unavailable")
         
         if original_price and current_price and original_price > 0:
             price_change = current_price - original_price
@@ -2383,7 +2455,10 @@ def sync_alpaca_positions():
             return jsonify({'success': True, 'message': 'No positions to sync', 'added': 0})
         
         # Add each position to watchlist
-        watchlist_service = get_watchlist_service()
+        try:
+            service = ensure_watchlist_service()
+        except RuntimeError as e:
+            return jsonify({'error': str(e)}), 503
         added_count = 0
         
         for position in positions:
@@ -2393,7 +2468,7 @@ def sync_alpaca_positions():
             
             try:
                 # Check if already in watchlist
-                existing = watchlist_service.get_stock(user.id, symbol)
+                existing = service.get_stock(user.id, symbol)
                 if existing:
                     continue  # Skip if already in watchlist
                 
@@ -2402,7 +2477,7 @@ def sync_alpaca_positions():
                 company_name = stock.name if stock else symbol
                 
                 # Add to watchlist
-                watchlist_service.add_stock(
+                service.add_stock(
                     user_id=user.id,
                     symbol=symbol,
                     company_name=company_name,
@@ -3047,6 +3122,16 @@ def handle_chat_message(data):
             'error': 'Internal server error',
             'response': 'I\'m sorry, I encountered an error. Please try again.'
         })
+
+# Add startup message that runs when module is imported (for gunicorn)
+print("\n" + "="*80)
+print("🚀 Stock Watchlist App - Initializing...")
+print("="*80)
+print(f"🔧 Debug mode: {Config.DEBUG}")
+print(f"🌍 Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}")
+print(f"🔑 Firebase credentials: {'configured' if os.path.exists(Config.FIREBASE_CREDENTIALS_PATH) or os.environ.get('FIREBASE_CREDENTIALS_BASE64') else 'not found (will initialize on demand)'}")
+print("✅ App module loaded successfully - services will initialize on demand")
+print("="*80 + "\n")
 
 if __name__ == '__main__':
     port = Config.PORT
