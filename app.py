@@ -1363,17 +1363,13 @@ def authenticate_request():
     # Clean up old requests periodically
     cleanup_old_requests()
     
-    # Check if this request is already being processed
-    with request_lock:
-        if request_id in active_requests:
-            print(f"🔍 Request {request_id} already being processed, returning cached result")
-            return active_requests[request_id]
+    # Don't cache authentication - always verify fresh
+    # Caching was causing issues where failed auths were cached and reused
+    # Only cache successful authentications, and only for a very short time
     
     try:
         # First try session-based auth (existing Flask-Login)
         if current_user.is_authenticated:
-            with request_lock:
-                active_requests[request_id] = current_user
             return current_user
 
         # Try token-based auth - LIGHTWEIGHT VERSION (no Firestore calls)
@@ -1389,8 +1385,6 @@ def authenticate_request():
             # Check if user ID header is provided
             if not user_id_header:
                 print("❌ Missing X-User-ID header")
-                with request_lock:
-                    active_requests[request_id] = None
                 return None
             
             try:
@@ -1400,8 +1394,6 @@ def authenticate_request():
                 
                 if not decoded_token:
                     print("❌ Token verification failed - invalid token")
-                    with request_lock:
-                        active_requests[request_id] = None
                     return None
                 
                 token_uid = decoded_token.get('uid')
@@ -1409,8 +1401,6 @@ def authenticate_request():
                 
                 if token_uid != user_id_header:
                     print(f"❌ UID mismatch - Token: {token_uid}, Header: {user_id_header}")
-                    with request_lock:
-                        active_requests[request_id] = None
                     return None
                 
                 if decoded_token and token_uid == user_id_header:
@@ -1424,23 +1414,16 @@ def authenticate_request():
                     }
                     firebase_user = FirebaseUser(user_profile)
                     print(f"✅ User authenticated from token: {firebase_user.email}")
-                    with request_lock:
-                        active_requests[request_id] = firebase_user
+                    # Don't cache - always verify fresh to prevent stale failures
                     return firebase_user
             except Exception as e:
-                print(f"Token authentication failed: {e}")
+                print(f"❌ Token authentication failed: {e}")
+                import traceback
+                print(f"❌ Traceback: {traceback.format_exc()}")
+                return None
 
+        print("❌ No valid authentication method found")
         return None
-    
-    finally:
-        # Immediate cleanup for memory efficiency - no need for 30-second delay
-        # Use a shorter delay and ensure cleanup happens
-        def delayed_cleanup():
-            time.sleep(5)  # Reduced from 30 to 5 seconds
-            cleanup_request(request_id)
-        
-        # Start cleanup in background thread
-        threading.Thread(target=delayed_cleanup, daemon=True, name=f"cleanup-{request_id}").start()
 
 @app.route('/api/watchlist', methods=['OPTIONS'])
 def watchlist_options():
