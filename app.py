@@ -1525,13 +1525,21 @@ def get_watchlist_route():
                     # Remove any non-serializable fields (like datetime objects)
                     cleaned_item = {}
                     for key, value in item.items():
-                        if isinstance(value, datetime):
-                            cleaned_item[key] = value.isoformat()
-                        elif hasattr(value, '__dict__'):
-                            # Skip complex objects
+                        try:
+                            # Handle datetime objects
+                            if isinstance(value, datetime):
+                                cleaned_item[key] = value.isoformat()
+                            # Handle Firestore Timestamp objects
+                            elif hasattr(value, 'timestamp'):
+                                cleaned_item[key] = value.timestamp()
+                            elif hasattr(value, '__dict__'):
+                                # Skip complex objects that can't be serialized
+                                continue
+                            else:
+                                cleaned_item[key] = value
+                        except Exception:
+                            # Skip problematic fields
                             continue
-                        else:
-                            cleaned_item[key] = value
                     cleaned_watchlist.append(cleaned_item)
                 except Exception as item_error:
                     print(f"⚠️ Error cleaning item: {item_error}")
