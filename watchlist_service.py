@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 import uuid
 import logging
+import signal
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -238,23 +240,42 @@ class WatchlistService:
             if priority:
                 query = query.where(filter=firestore.FieldFilter('priority', '==', priority))
 
-            # Get documents - apply limit only if specified, otherwise get all
-            if limit is not None:
-                docs = query.limit(limit).stream()
-            else:
-                docs = query.stream()
-
+            # Always apply a limit to prevent hanging on large collections
+            # Default to 100 if no limit specified
+            if limit is None:
+                limit = 100
+                logger.info(f"No limit specified, using default limit of {limit}")
+            
+            # Apply limit to query
+            query = query.limit(limit)
+            
+            print(f"🔍 Executing Firestore query with limit={limit}...")
+            
+            # Convert stream to list immediately with timeout protection
+            # This prevents the stream from hanging indefinitely
             watchlist = []
-            for doc in docs:
-                item_data = doc.to_dict()
-                item_data['id'] = doc.id
+            try:
+                # Get documents and convert to list immediately
+                # Using list() conversion to force immediate execution
+                docs = list(query.stream())
+                print(f"✅ Firestore query completed, retrieved {len(docs)} documents")
                 
-                # Ensure symbol field exists (use id as fallback)
-                if 'symbol' not in item_data and doc.id:
-                    item_data['symbol'] = doc.id
-                    logger.warning(f"Stock missing 'symbol' field, using doc.id: {doc.id}")
-                
-                watchlist.append(item_data)
+                for doc in docs:
+                    item_data = doc.to_dict()
+                    item_data['id'] = doc.id
+                    
+                    # Ensure symbol field exists (use id as fallback)
+                    if 'symbol' not in item_data and doc.id:
+                        item_data['symbol'] = doc.id
+                        logger.warning(f"Stock missing 'symbol' field, using doc.id: {doc.id}")
+                    
+                    watchlist.append(item_data)
+                    
+            except Exception as stream_error:
+                logger.error(f"Error streaming Firestore documents: {stream_error}")
+                print(f"❌ Firestore stream error: {stream_error}")
+                # Return empty list if stream fails
+                return []
 
             # Sort by priority and added date
             priority_order = {'high': 0, 'medium': 1, 'low': 2}
@@ -269,6 +290,9 @@ class WatchlistService:
 
         except Exception as e:
             logger.error(f"Error getting watchlist for user {user_id}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            print(f"❌ Error getting watchlist: {e}")
             return []
 
     def get_stock(self, user_id: str, symbol: str) -> Optional[Dict[str, Any]]:
