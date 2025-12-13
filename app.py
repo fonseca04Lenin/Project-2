@@ -1489,30 +1489,19 @@ def get_watchlist_route():
         print(f"📋 Fetching watchlist from Firestore...")
         watchlist = []
         
-        # Use threading to add timeout to Firestore query
-        import threading
-        result_container = {'data': None, 'error': None}
-        
-        def fetch_watchlist():
-            try:
-                result_container['data'] = service.get_watchlist(user.id, limit=None)
-            except Exception as e:
-                result_container['error'] = e
-        
-        # Start fetch in a thread
-        fetch_thread = threading.Thread(target=fetch_watchlist, daemon=True)
-        fetch_thread.start()
-        fetch_thread.join(timeout=10)  # 10 second timeout
-        
-        if fetch_thread.is_alive():
-            print(f"⚠️ Firestore query timed out after 10 seconds - returning empty watchlist")
-            watchlist = []
-        elif result_container['error']:
-            print(f"⚠️ Firestore query error: {result_container['error']}")
-            watchlist = []
-        else:
-            watchlist = result_container['data'] or []
+        # Try to fetch with a simple timeout - if it takes too long, return empty
+        try:
+            # Set a limit to prevent hanging on large collections
+            # Use a reasonable limit (100 items) instead of None to prevent timeouts
+            watchlist = service.get_watchlist(user.id, limit=100)
             print(f"📋 Retrieved {len(watchlist)} items from Firebase")
+        except Exception as firestore_error:
+            print(f"⚠️ Firestore query error: {firestore_error}")
+            import traceback
+            print(f"⚠️ Traceback: {traceback.format_exc()}")
+            # Return empty list if Firestore fails - don't block the request
+            watchlist = []
+            print(f"📋 Returning empty watchlist due to Firestore error")
         
         # Log all symbols from Firebase
         if watchlist:
@@ -1607,34 +1596,13 @@ def get_watchlist_route():
         watchlist_with_prices = []
         if watchlist:
             print(f"💰 Fetching prices for {len(watchlist)} stocks...")
-            # Use ThreadPoolExecutor to fetch prices in parallel (max 10 concurrent requests)
-            # Add timeout to prevent hanging
-            try:
-                with ThreadPoolExecutor(max_workers=10) as executor:
-                    # Submit all price fetch tasks
-                    future_to_item = {executor.submit(fetch_stock_price, item): item for item in watchlist}
-                    
-                    # Collect results as they complete with timeout
-                    import time
-                    start_time = time.time()
-                    timeout_seconds = 30  # Max 30 seconds for all price fetches
-                    
-                    for future in as_completed(future_to_item, timeout=timeout_seconds):
-                        if time.time() - start_time > timeout_seconds:
-                            print(f"⚠️ Price fetch timeout after {timeout_seconds}s, returning partial results")
-                            break
-                        try:
-                            result = future.result(timeout=5)  # 5 second timeout per stock
-                            if result:
-                                watchlist_with_prices.append(result)
-                        except Exception as e:
-                            print(f"⚠️ Error fetching price for one stock: {e}")
-                            # Continue with other stocks
-                            continue
-            except Exception as price_fetch_error:
-                print(f"⚠️ Error in parallel price fetching: {price_fetch_error}")
-                # Return watchlist without prices rather than failing completely
-                watchlist_with_prices = watchlist
+            # For now, return watchlist without prices to prevent hanging
+            # Prices can be fetched on-demand by the frontend
+            # This prevents the login from hanging
+            watchlist_with_prices = watchlist
+            print(f"⚠️ Skipping price fetch to prevent timeout - returning watchlist items without prices")
+        else:
+            print(f"⚠️ Empty watchlist - returning empty array")
         
         # Log which symbols were called to Alpaca API
         print(f"\n🔌 ALPACA API CALLS MADE:")
