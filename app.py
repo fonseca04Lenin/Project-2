@@ -1424,6 +1424,11 @@ def authenticate_request():
 
         print("❌ No valid authentication method found")
         return None
+    except Exception as e:
+        print(f"❌ Authentication error: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        return None
 
 @app.route('/api/watchlist', methods=['OPTIONS'])
 def watchlist_options():
