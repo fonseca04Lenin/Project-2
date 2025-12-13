@@ -1473,14 +1473,15 @@ def get_watchlist_route():
         # Ensure watchlist service is initialized
         service = ensure_watchlist_service()
         
-        # Get ALL watchlist items from Firestore (no limit) with timeout protection
+        # Get watchlist items from Firestore with timeout protection
         print(f"📋 Fetching watchlist from Firestore...")
         watchlist = []
         
-        # Try to fetch with a simple timeout - if it takes too long, return empty
+        # Try to fetch with timeout protection
+        # The service.get_watchlist() now has built-in timeout protection
         try:
-            # Set a limit to prevent hanging on large collections
-            # Use a reasonable limit (100 items) instead of None to prevent timeouts
+            # Use a reasonable limit (100 items) to prevent timeouts
+            # The service will default to 100 if limit is None
             watchlist = service.get_watchlist(user.id, limit=100)
             print(f"📋 Retrieved {len(watchlist)} items from Firebase")
         except Exception as firestore_error:
