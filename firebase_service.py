@@ -262,17 +262,25 @@ class FirebaseService:
     def verify_token(id_token):
         """Verify Firebase ID token"""
         try:
-            print(f"🔐 Verifying Firebase token, Firebase initialized: {firebase_initialized}")
+            # Ensure Firebase is initialized before verifying token
+            # This is critical - token verification requires Firebase Admin SDK to be initialized
             if not firebase_initialized:
-                print("❌ Firebase not initialized")
+                print("⚠️ Firebase not initialized, attempting to initialize...")
+                initialize_firebase()
+                
+            if not firebase_initialized:
+                print("❌ Firebase not initialized - cannot verify token")
                 return None
 
+            print(f"🔐 Verifying Firebase token, Firebase initialized: {firebase_initialized}")
             decoded_token = auth.verify_id_token(id_token)
             print(f"✅ Token verified successfully for user: {decoded_token.get('uid')}")
             return decoded_token
         except Exception as e:
             print(f"❌ Error verifying token: {e}")
             print(f"❌ Firebase initialized status: {firebase_initialized}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
             return None
     
     @staticmethod
