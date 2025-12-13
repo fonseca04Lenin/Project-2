@@ -66,16 +66,10 @@ def initialize_firebase():
     
     return firebase_initialized
 
-# Initialize Firebase on module load
-initialize_firebase()
-
-# Initialize Firestore client (will be None if Firebase init failed)
-if not db and firebase_initialized:
-    try:
-        db = firestore.client()
-    except Exception as e:
-        print(f"❌ Firestore client initialization failed: {e}")
-        db = None
+# Don't initialize Firebase on module load - make it lazy
+# This allows the app to start even if Firebase credentials are missing
+# Firebase will be initialized when first needed via get_firestore_client()
+print("ℹ️ Firebase initialization deferred - will initialize on first use")
 
 def get_firestore_client():
     """Get the Firestore client instance with connection pooling"""
