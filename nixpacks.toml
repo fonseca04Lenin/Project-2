@@ -1,3 +1,6 @@
+# Explicitly tell Nixpacks this is a Python project
+providers = ["python"]
+
 [phases.setup]
 nixPkgs = ["python311", "python311Packages.pip"]
 
