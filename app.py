@@ -1471,7 +1471,13 @@ def get_watchlist_route():
         print(f"{'='*80}")
         
         # Ensure watchlist service is initialized
-        service = ensure_watchlist_service()
+        try:
+            service = ensure_watchlist_service()
+        except Exception as service_error:
+            print(f"❌ Failed to initialize watchlist service: {service_error}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
+            return jsonify({'error': 'Service unavailable'}), 503
         
         # Get watchlist items from Firestore with timeout protection
         print(f"📋 Fetching watchlist from Firestore...")
@@ -1494,120 +1500,75 @@ def get_watchlist_route():
         
         # Log all symbols from Firebase
         if watchlist:
-            firebase_symbols = [item.get('symbol') or item.get('id') or 'NO_SYMBOL' for item in watchlist]
-            print(f"📦 STOCKS FROM FIREBASE:")
-            for i, symbol in enumerate(firebase_symbols, 1):
-                print(f"   {i}. {symbol}")
+            try:
+                firebase_symbols = [item.get('symbol') or item.get('id') or 'NO_SYMBOL' for item in watchlist]
+                print(f"📦 STOCKS FROM FIREBASE:")
+                for i, symbol in enumerate(firebase_symbols[:10], 1):  # Limit to first 10 for logging
+                    print(f"   {i}. {symbol}")
+                if len(firebase_symbols) > 10:
+                    print(f"   ... and {len(firebase_symbols) - 10} more")
+            except Exception as log_error:
+                print(f"⚠️ Error logging symbols: {log_error}")
         else:
             print(f"⚠️ NO STOCKS IN FIREBASE WATCHLIST")
         
-        # Track which symbols we're calling Alpaca for
-        alpaca_calls = []
+        # For now, return watchlist without prices to prevent hanging
+        # Prices can be fetched on-demand by the frontend
+        # This prevents the login from hanging
+        watchlist_with_prices = watchlist
         
-        # Helper function to fetch price for a single stock
-        # ALWAYS fetches fresh prices - never returns stale cached prices
-        def fetch_stock_price(item):
-            symbol = item.get('symbol') or item.get('id', '')
-            if not symbol:
-                return None
-            
-            # Track this call
-            alpaca_calls.append(symbol)
-            print(f"   🔌 Calling Alpaca API for: {symbol}")
-                
-            original_price = item.get('original_price')
-            
-            # Try Alpaca first, then Yahoo fallback to ensure we ALWAYS get fresh price
-            stock = None
-            api_used = None
-            
-            # Try Alpaca first
-            try:
-                stock, api_used = get_stock_alpaca_only(symbol)
-            except Exception as e:
-                print(f"⚠️ Alpaca fetch failed for {symbol}, trying Yahoo fallback: {e}")
-            
-            # Fallback to Yahoo if Alpaca fails or returns no price
-            if not stock or not stock.price or stock.price == 0:
+        # Clean up watchlist items to ensure they're JSON serializable
+        try:
+            cleaned_watchlist = []
+            for item in watchlist_with_prices:
                 try:
-                    print(f"🔄 Falling back to Yahoo Finance for {symbol}")
-                    stock = Stock(symbol, yahoo_finance_api)
-                    stock.retrieve_data()
-                    api_used = 'yahoo'
-                except Exception as e:
-                    print(f"⚠️ Yahoo fallback also failed for {symbol}: {e}")
+                    # Remove any non-serializable fields (like datetime objects)
+                    cleaned_item = {}
+                    for key, value in item.items():
+                        if isinstance(value, datetime):
+                            cleaned_item[key] = value.isoformat()
+                        elif hasattr(value, '__dict__'):
+                            # Skip complex objects
+                            continue
+                        else:
+                            cleaned_item[key] = value
+                    cleaned_watchlist.append(cleaned_item)
+                except Exception as item_error:
+                    print(f"⚠️ Error cleaning item: {item_error}")
+                    # Skip problematic items
+                    continue
             
-            # Only return data if we have a valid fresh price
-            if stock and stock.name and stock.price and stock.price > 0:
-                current_price = stock.price
-                price_change = None
-                change_percent = None
-                
-                if original_price and original_price > 0:
-                    price_change = current_price - original_price
-                    change_percent = (price_change / original_price) * 100
-                else:
-                    # If no original price, use current price as baseline
-                    price_change = 0
-                    change_percent = 0
-                
-                # Merge watchlist item data with FRESH current stock data
-                return {
-                    **item,
-                    'symbol': symbol,
-                    'company_name': stock.name,
-                    'current_price': current_price,  # ALWAYS fresh price
-                    'price': current_price,  # ALWAYS fresh price
-                    'price_change': price_change,
-                    'change_percent': change_percent,
-                    'priceChangePercent': change_percent,
-                    'priceChange': price_change,
-                    '_fresh': True,  # Flag to indicate this is fresh data
-                    '_api_source': api_used
-                }
-            else:
-                # If ALL fetches fail, log error but don't return stale price
-                print(f"❌ Failed to fetch fresh price for {symbol} from all sources")
-                # Return item with zero price to indicate fetch failure (not stale cache)
-                return {
-                    **item,
-                    'symbol': symbol,
-                    'current_price': 0,  # Zero indicates fetch failure, not stale cache
-                    'price': 0,
-                    'price_change': 0,
-                    'change_percent': 0,
-                    '_fresh': False,  # Flag to indicate fetch failed
-                    '_error': 'Failed to fetch fresh price'
-                }
+            watchlist_with_prices = cleaned_watchlist
+        except Exception as clean_error:
+            print(f"⚠️ Error cleaning watchlist: {clean_error}")
+            # Return original watchlist if cleaning fails
+            pass
         
-        # Fetch current prices for each stock IN PARALLEL for faster loading
-        # Add timeout to prevent hanging on slow API calls
-        watchlist_with_prices = []
-        if watchlist:
-            print(f"💰 Fetching prices for {len(watchlist)} stocks...")
-            # For now, return watchlist without prices to prevent hanging
-            # Prices can be fetched on-demand by the frontend
-            # This prevents the login from hanging
-            watchlist_with_prices = watchlist
-            print(f"⚠️ Skipping price fetch to prevent timeout - returning watchlist items without prices")
-        else:
-            print(f"⚠️ Empty watchlist - returning empty array")
-        
-        # Log which symbols were called to Alpaca API
-        print(f"\n🔌 ALPACA API CALLS MADE:")
-        for i, symbol in enumerate(alpaca_calls, 1):
-            print(f"   {i}. {symbol}")
-        
-        print(f"\n✅ RETURNING {len(watchlist_with_prices)} items with prices")
+        print(f"\n✅ RETURNING {len(watchlist_with_prices)} items")
         print(f"{'='*80}\n")
-        return jsonify(watchlist_with_prices)
+        
+        # Return response with proper error handling
+        try:
+            response = jsonify(watchlist_with_prices)
+            return response
+        except Exception as json_error:
+            print(f"❌ Error serializing watchlist to JSON: {json_error}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
+            # Return empty list if JSON serialization fails
+            return jsonify([]), 500
             
     except Exception as e:
         print(f"❌ Error in get_watchlist_route: {e}")
         import traceback
         print(f"❌ Traceback: {traceback.format_exc()}")
-        # Fallback to empty list on error
-        return jsonify([]), 500
+        # Fallback to empty list on error - ensure CORS headers are set
+        try:
+            return jsonify({'error': 'Internal server error', 'items': []}), 500
+        except:
+            # Last resort - return minimal response
+            from flask import Response
+            return Response('[]', mimetype='application/json', status=500)
 
 @app.route('/api/watchlist', methods=['POST'])
 def add_to_watchlist():
