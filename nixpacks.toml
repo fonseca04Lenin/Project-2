@@ -2,6 +2,14 @@
 # This prevents it from detecting Node.js from root package.json
 providers = ["python"]
 
+# Install phase: Create virtual environment and install dependencies
+[phases.install]
+cmds = [
+    "python3 -m venv /app/.venv",
+    ". /app/.venv/bin/activate && pip install --upgrade pip",
+    ". /app/.venv/bin/activate && pip install -r requirements.txt"
+]
+
 # Start command (Railway will use this or railway.toml startCommand)
 [start]
-cmd = "python3 -m gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile - app:app"
+cmd = ". /app/.venv/bin/activate && python3 -m gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile - app:app"
