@@ -1,9 +1,60 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to all documents for authenticated users
-    match /{document=**} {
-      allow read, write: if true;
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ============================================================================
+    // USER DOCUMENTS
+    // ============================================================================
+    // Users can read and write their own user document
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // ============================================================================
+      // WATCHLIST COLLECTION (subcollection of users)
+      // ============================================================================
+      // Users can read and write their own watchlist items
+      match /watchlist/{stockId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // ============================================================================
+      // ALERTS COLLECTION (subcollection of users)
+      // ============================================================================
+      // Users can read and write their own alerts
+      match /alerts/{alertId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // ============================================================================
+      // METADATA COLLECTION (subcollection of users)
+      // ============================================================================
+      // Users can read and write their own metadata
+      match /metadata/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // ============================================================================
+    // CHAT CONVERSATIONS
+    // ============================================================================
+    // Users can read and write their own chat conversations
+    match /chat_conversations/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // ============================================================================
+    // DENY ALL OTHER ACCESS
+    // ============================================================================
+    // Any other paths are denied by default (no match = denied)
   }
 }
