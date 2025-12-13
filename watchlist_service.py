@@ -9,8 +9,6 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 import uuid
 import logging
-import signal
-import threading
 
 logger = logging.getLogger(__name__)
 
