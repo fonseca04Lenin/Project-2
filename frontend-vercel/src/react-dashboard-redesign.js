@@ -2210,10 +2210,6 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                 <div className="performance-loading">Loading...</div>
             ) : performanceData ? (
                 <div className="performance-display">
-                    <div className="performance-value">
-                        <span className="value-label">Total Value</span>
-                        <span className="value-amount">${(performanceData.value / 1000).toFixed(1)}K</span>
-                </div>
                     <div className={`performance-change ${performanceData.change >= 0 ? 'positive' : 'negative'}`}>
                         <i className={`fas fa-arrow-${performanceData.change >= 0 ? 'trend-up' : 'trend-down'}`}></i>
                         <span>{performanceData.change >= 0 ? '+' : ''}{performanceData.change.toFixed(2)}%</span>
