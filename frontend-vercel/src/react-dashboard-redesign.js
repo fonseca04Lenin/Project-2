@@ -2174,7 +2174,6 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                 
                 setPerformanceData({
                     change: totalChangePercent,
-                    value: currentValue,
                     changeAmount: totalChange,
                     historicalValue: historicalValue
                 });
@@ -2208,21 +2207,7 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                     </div>
             {isLoading ? (
                 <div className="performance-loading">Loading...</div>
-            ) : performanceData ? (
-                <div className="performance-display">
-                    <div className={`performance-change ${performanceData.change >= 0 ? 'positive' : 'negative'}`}>
-                        <i className={`fas fa-arrow-${performanceData.change >= 0 ? 'trend-up' : 'trend-down'}`}></i>
-                        <span>{performanceData.change >= 0 ? '+' : ''}{performanceData.change.toFixed(2)}%</span>
-                        {performanceData.changeAmount !== undefined && (
-                            <span className="performance-amount">
-                                ({performanceData.changeAmount >= 0 ? '+' : ''}${Math.abs(performanceData.changeAmount).toFixed(2)})
-                            </span>
-                        )}
-                    </div>
-                </div>
-            ) : (
-                <div className="performance-empty">No data available</div>
-            )}
+            ) : null}
         </div>
     );
 };
