@@ -70,17 +70,32 @@ CORS(app,
      vary_header=False)
 
 # Custom CORS handler for Vercel preview deployments
+# Also supports explicit allowlist via FRONTEND_ORIGINS (comma-separated)
 @app.after_request
 def after_request(response):
-    """Add CORS headers for Vercel preview deployments"""
+    """Add CORS headers for frontend domains"""
     origin = request.headers.get('Origin', '')
     path = request.path
-    
+
+    # Build allowlist from env and defaults
+    extra_origins = os.getenv('FRONTEND_ORIGINS', '')
+    allowlist = {o.strip() for o in extra_origins.split(',') if o.strip()}
+    allowlist.update({
+        'localhost',
+        '127.0.0.1',
+        'vercel.app',
+        'stock-watchlist-frontend.vercel.app'
+    })
+
+    def is_allowed(o: str) -> bool:
+        if not o:
+            return False
+        return any(allowed in o for allowed in allowlist)
+
     # Log CORS handling
     print(f"🌐 CORS after_request - Origin: {origin}, Path: {path}, Method: {request.method}")
-    
-    # Allow all Vercel domains (including preview deployments)
-    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
+
+    if is_allowed(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -88,11 +103,11 @@ def after_request(response):
         print(f"✅ CORS headers added for origin: {origin}")
     else:
         print(f"⚠️ CORS origin not matched: {origin}")
-    
+
     # Log response headers for debugging
     cors_origin = response.headers.get('Access-Control-Allow-Origin', 'NOT SET')
     print(f"📋 Response CORS headers - Allow-Origin: {cors_origin}, Status: {response.status_code}")
-    
+
     return response
 
 # Configuration
