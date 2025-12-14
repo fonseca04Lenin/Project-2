@@ -2076,116 +2076,6 @@ const SectorAllocationChart = ({ watchlistData }) => {
 
 // Performance Timeline Component
 const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) => {
-    const [performanceData, setPerformanceData] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
-    
-    useEffect(() => {
-        if (!watchlistData || watchlistData.length === 0) {
-            setPerformanceData(null);
-            return;
-        }
-        
-        const fetchPerformanceData = async () => {
-            setIsLoading(true);
-            try {
-                // Convert range to days and API range format
-                const rangeMap = {
-                    '1D': { days: 1, apiRange: '1d' },
-                    '1W': { days: 7, apiRange: '7d' },
-                    '1M': { days: 30, apiRange: '30d' },
-                    '3M': { days: 90, apiRange: '90d' },
-                    '1Y': { days: 365, apiRange: '1y' }
-                };
-                
-                const rangeInfo = rangeMap[selectedRange] || rangeMap['1M'];
-                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                
-                // Fetch historical data for each stock
-                const performancePromises = watchlistData.map(async (stock) => {
-                    try {
-                        const symbol = stock.symbol;
-                        const currentPrice = stock.current_price || stock.price || 0;
-                        
-                        // Fetch historical chart data
-                        const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=${rangeInfo.apiRange}`, {
-                            credentials: 'include'
-                        });
-                        
-                        if (response.ok) {
-                            const chartData = await response.json();
-                            if (chartData && chartData.length > 0) {
-                                // Chart data is sorted by date (oldest first), so first item is the historical price
-                                // For 1D, we might need to handle differently - use last item if only 1 day of data
-                                const historicalPrice = selectedRange === '1D' && chartData.length > 1
-                                    ? chartData[chartData.length - 2].price  // Second to last for 1D (yesterday)
-                                    : chartData[0].price;  // First item for longer ranges
-                                
-                                if (historicalPrice > 0) {
-                                    const priceChange = currentPrice - historicalPrice;
-                                    const priceChangePercent = (priceChange / historicalPrice) * 100;
-                                    
-                                    return {
-                                        symbol,
-                                        currentPrice,
-                                        historicalPrice,
-                                        priceChange,
-                                        priceChangePercent,
-                                        shares: 100 // Assuming 100 shares per stock
-                                    };
-                                }
-                            }
-                        }
-                        
-                        // Fallback: use current change_percent if historical data unavailable
-                        return {
-                            symbol,
-                            currentPrice,
-                            historicalPrice: currentPrice,
-                            priceChange: 0,
-                            priceChangePercent: stock.change_percent || 0,
-                            shares: 100
-                        };
-                    } catch (error) {
-                        // Fallback
-                        return {
-                            symbol: stock.symbol,
-                            currentPrice: stock.current_price || stock.price || 0,
-                            historicalPrice: stock.current_price || stock.price || 0,
-                            priceChange: 0,
-                            priceChangePercent: stock.change_percent || 0,
-                            shares: 100
-                        };
-                    }
-                });
-                
-                const stockPerformances = await Promise.all(performancePromises);
-                
-                // Calculate portfolio totals
-                const currentValue = stockPerformances.reduce((sum, stock) => {
-                    return sum + (stock.currentPrice * stock.shares);
-                }, 0);
-                
-                const historicalValue = stockPerformances.reduce((sum, stock) => {
-                    return sum + (stock.historicalPrice * stock.shares);
-                }, 0);
-                
-                const totalChange = currentValue - historicalValue;
-                const totalChangePercent = historicalValue > 0 ? (totalChange / historicalValue) * 100 : 0;
-                
-                setPerformanceData({
-                    change: totalChangePercent,
-                    changeAmount: totalChange,
-                    historicalValue: historicalValue
-                });
-            } catch (error) {
-                setPerformanceData(null);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        fetchPerformanceData();
-    }, [watchlistData, selectedRange]);
     
     const ranges = ['1D', '1W', '1M', '3M', '1Y'];
     
@@ -2205,9 +2095,6 @@ const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) =>
                     ))}
                     </div>
                     </div>
-            {isLoading ? (
-                <div className="performance-loading">Loading...</div>
-            ) : null}
         </div>
     );
 };
