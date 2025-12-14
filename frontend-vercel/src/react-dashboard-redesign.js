@@ -936,12 +936,26 @@ const DashboardRedesign = () => {
                 mode: 'cors'
             };
             
+            // Add timeout to prevent hanging indefinitely
+            const timeoutMs = 30000; // 30 seconds timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            
             let response;
             try {
+                fetchOptions.signal = controller.signal;
                 response = await fetch(`${API_BASE}/api/watchlist?t=${Date.now()}`, fetchOptions);
+                clearTimeout(timeoutId);
                 // Watchlist response received
             } catch (fetchError) {
-                // Fetch error occurred
+                clearTimeout(timeoutId);
+                // Check if it was a timeout
+                if (fetchError.name === 'AbortError' || fetchError.message.includes('aborted')) {
+                    console.error('❌ Watchlist request timed out after 30 seconds');
+                    throw new Error('Request timed out. Please try again.');
+                }
+                // Other fetch errors
+                console.error('❌ Fetch error:', fetchError);
                 throw fetchError;
             }
             
@@ -1127,7 +1141,19 @@ const DashboardRedesign = () => {
             }
         } catch (error) {
             // Error loading watchlist
+            console.error('❌ Error loading watchlist:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
             setWatchlistData([]);
+            
+            // Show user-friendly error message
+            if (window.showNotification) {
+                const errorMsg = error.message || 'Failed to load watchlist. Please refresh the page.';
+                window.showNotification(errorMsg, 'error');
+            }
         } finally {
             setIsLoading(false);
         }
