@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 import uuid
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +84,26 @@ class WatchlistService:
     MAX_CATEGORIES = 50  # Maximum categories per user (increased from 20)
     MAX_TAGS_PER_STOCK = 20  # Maximum tags per stock (increased from 10)
     MAX_NOTES_LENGTH = 1000  # Maximum notes length (increased from 500)
+    
+    # Thread pool for Firestore operations (to prevent blocking eventlet)
+    _executor = None
+    _executor_lock = threading.Lock()
 
     def __init__(self, db_client=None):
         """Initialize with Firestore client"""
         self.db = db_client or firestore.client()
         self._ensure_indexes()
+    
+    @classmethod
+    def _get_executor(cls):
+        """Get or create thread pool executor for Firestore operations"""
+        if cls._executor is None:
+            with cls._executor_lock:
+                if cls._executor is None:
+                    # Create thread pool with 5 workers for Firestore operations
+                    cls._executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix="firestore")
+                    logger.info("Created ThreadPoolExecutor for Firestore operations")
+        return cls._executor
 
     def _ensure_indexes(self):
         """Ensure necessary Firestore indexes exist (handled by firestore.indexes.json)"""
@@ -249,14 +266,37 @@ class WatchlistService:
             
             print(f"🔍 Executing Firestore query with limit={limit}...")
             
-            # Try to use .get() instead of .stream() for better reliability
-            # .get() returns a list directly and may be more reliable than streaming
+            # Use thread pool executor to run Firestore query in separate thread
+            # This prevents blocking the eventlet event loop
             watchlist = []
             try:
-                # Use .get() which returns a list of documents directly
-                # This is more reliable than .stream() and less likely to hang
-                docs = query.get()
-                print(f"✅ Firestore query completed, retrieved {len(docs)} documents")
+                executor = self._get_executor()
+                
+                # Define the query function to run in thread pool
+                def execute_query():
+                    """Execute Firestore query in thread pool"""
+                    try:
+                        # Use .get() which returns a list of documents directly
+                        docs = query.get()
+                        return docs
+                    except Exception as e:
+                        logger.error(f"Error in Firestore query thread: {e}")
+                        raise
+                
+                # Submit query to thread pool with 15 second timeout
+                future = executor.submit(execute_query)
+                try:
+                    docs = future.result(timeout=15)  # 15 second timeout
+                    print(f"✅ Firestore query completed, retrieved {len(docs)} documents")
+                except FutureTimeoutError:
+                    logger.error("Firestore query timed out after 15 seconds")
+                    print(f"❌ Firestore query timed out - returning empty list")
+                    future.cancel()  # Try to cancel the future
+                    return []
+                except Exception as future_error:
+                    logger.error(f"Error waiting for Firestore query: {future_error}")
+                    print(f"❌ Firestore query future error: {future_error}")
+                    return []
                 
                 # Process documents
                 for doc in docs:
@@ -280,6 +320,7 @@ class WatchlistService:
                 print(f"❌ Firestore query error: {query_error}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
+                print(f"❌ Traceback: {traceback.format_exc()}")
                 # Return empty list if query fails
                 return []
 
