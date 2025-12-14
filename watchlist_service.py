@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 import uuid
 import logging
+import signal
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -249,16 +251,41 @@ class WatchlistService:
             
             print(f"🔍 Executing Firestore query with limit={limit}...")
             
-            # Convert stream to list immediately with timeout protection
-            # This prevents the stream from hanging indefinitely
+            # Convert stream to list with timeout protection
+            # Use threading to enforce a timeout on the Firestore query
             watchlist = []
+            docs_result = []
+            query_error = None
+            
+            def fetch_docs():
+                nonlocal docs_result, query_error
+                try:
+                    # Get documents and convert to list immediately
+                    docs_result = list(query.stream())
+                    print(f"✅ Firestore query completed, retrieved {len(docs_result)} documents")
+                except Exception as e:
+                    query_error = e
+                    logger.error(f"Error in Firestore query thread: {e}")
+            
+            # Run query in a thread with timeout
+            query_thread = threading.Thread(target=fetch_docs, daemon=True)
+            query_thread.start()
+            query_thread.join(timeout=10)  # 10 second timeout for Firestore query
+            
+            if query_thread.is_alive():
+                # Query is still running after timeout
+                logger.error("Firestore query timed out after 10 seconds")
+                print(f"❌ Firestore query timed out - returning empty list")
+                return []
+            
+            if query_error:
+                logger.error(f"Firestore query error: {query_error}")
+                print(f"❌ Firestore query error: {query_error}")
+                return []
+            
+            # Process documents
             try:
-                # Get documents and convert to list immediately
-                # Using list() conversion to force immediate execution
-                docs = list(query.stream())
-                print(f"✅ Firestore query completed, retrieved {len(docs)} documents")
-                
-                for doc in docs:
+                for doc in docs_result:
                     item_data = doc.to_dict()
                     item_data['id'] = doc.id
                     
@@ -268,11 +295,9 @@ class WatchlistService:
                         logger.warning(f"Stock missing 'symbol' field, using doc.id: {doc.id}")
                     
                     watchlist.append(item_data)
-                    
-            except Exception as stream_error:
-                logger.error(f"Error streaming Firestore documents: {stream_error}")
-                print(f"❌ Firestore stream error: {stream_error}")
-                # Return empty list if stream fails
+            except Exception as process_error:
+                logger.error(f"Error processing Firestore documents: {process_error}")
+                print(f"❌ Error processing documents: {process_error}")
                 return []
 
             # Sort by priority and added date
