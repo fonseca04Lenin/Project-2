@@ -212,16 +212,34 @@ class WatchlistService:
     def remove_stock(self, user_id: str, symbol: str) -> Dict[str, Any]:
         """Remove a stock from user's watchlist"""
         try:
-            symbol = symbol.upper()
+            original_symbol = symbol.strip()
+            normalized_symbol = original_symbol.upper()
             watchlist_ref = self.db.collection('users').document(user_id).collection('watchlist')
-            doc_ref = watchlist_ref.document(symbol)
 
-            # Check if stock exists
-            if not doc_ref.get().exists:
-                return {
-                    'success': False,
-                    'message': f'{symbol} not found in watchlist'
-                }
+            # Try deleting using the normalized (uppercase) ID first
+            doc_ref = watchlist_ref.document(normalized_symbol)
+            doc_snapshot = doc_ref.get()
+
+            # Legacy data may have been stored with a non-uppercased document ID
+            if not doc_snapshot.exists:
+                # Try exact casing as provided by caller
+                legacy_ref = watchlist_ref.document(original_symbol)
+                legacy_snapshot = legacy_ref.get()
+                if legacy_snapshot.exists:
+                    doc_ref = legacy_ref
+                    normalized_symbol = legacy_snapshot.id.upper()
+                else:
+                    # Try lower-case fallback for any remaining legacy docs
+                    lower_ref = watchlist_ref.document(normalized_symbol.lower())
+                    lower_snapshot = lower_ref.get()
+                    if lower_snapshot.exists:
+                        doc_ref = lower_ref
+                        normalized_symbol = lower_snapshot.id.upper()
+                    else:
+                        return {
+                            'success': False,
+                            'message': f'{normalized_symbol} not found in watchlist'
+                        }
 
             # Remove from Firestore
             doc_ref.delete()
@@ -229,10 +247,10 @@ class WatchlistService:
             # Update metadata
             self._update_watchlist_metadata(user_id)
 
-            logger.info(f"Removed {symbol} from watchlist for user {user_id}")
+            logger.info(f"Removed {normalized_symbol} from watchlist for user {user_id}")
             return {
                 'success': True,
-                'message': f'{symbol} removed from watchlist'
+                'message': f'{normalized_symbol} removed from watchlist'
             }
 
         except Exception as e:
