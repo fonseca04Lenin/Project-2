@@ -1488,6 +1488,17 @@ const DashboardRedesign = () => {
         try {
             const confirmed = window.confirm ? window.confirm(`Remove ${symbol} from your watchlist?`) : true;
             if (!confirmed) return;
+            
+            // Optimistically remove from UI immediately
+            const symbolUpper = symbol.toUpperCase();
+            setWatchlistData((prev) => {
+                const filtered = prev.filter((s) => {
+                    const stockSymbol = (s.symbol || s.id || '').toUpperCase();
+                    return stockSymbol !== symbolUpper;
+                });
+                return filtered;
+            });
+            
             const authHeaders = await window.getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             const response = await fetch(`${API_BASE}/api/watchlist/${encodeURIComponent(symbol)}`, {
@@ -1495,9 +1506,11 @@ const DashboardRedesign = () => {
                 headers: authHeaders,
                 credentials: 'include'
             });
+            
             if (response.ok) {
-                // Optimistically update local state
-                setWatchlistData((prev) => prev.filter((s) => (s.symbol || '').toUpperCase() !== symbol.toUpperCase()));
+                // Reload watchlist data to ensure consistency with backend
+                await loadWatchlistData();
+                
                 // Notify other parts of the app
                 try {
                     window.dispatchEvent && window.dispatchEvent(new CustomEvent('watchlistChanged'));
@@ -1507,9 +1520,14 @@ const DashboardRedesign = () => {
                 }
                 window.showNotification && window.showNotification(`${symbol} removed from watchlist`, 'success');
             } else {
-                window.showNotification && window.showNotification(`Failed to remove ${symbol}`, 'error');
+                // If deletion failed, reload to restore the stock
+                await loadWatchlistData();
+                const errorData = await response.json().catch(() => ({ error: 'Failed to remove stock' }));
+                window.showNotification && window.showNotification(errorData.error || `Failed to remove ${symbol}`, 'error');
             }
         } catch (error) {
+            // On error, reload to restore state
+            await loadWatchlistData();
             window.showNotification && window.showNotification('Network error removing symbol', 'error');
         }
     };
