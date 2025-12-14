@@ -207,89 +207,66 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             setNews([]);
 
             try {
-                // First check if stock is in watchlist if not explicitly from watchlist
-                let isInWatchlist = isFromWatchlist;
-                let authHeaders = null;
+                // Decide source once, without the extra probe call
+                const authHeaders = await window.getAuthHeaders();
+                const useWatchlistEndpoint = isFromWatchlist;
 
-                if (!isFromWatchlist) {
-                    try {
-                        authHeaders = await window.getAuthHeaders();
-                        const watchlistCheck = await fetch(`${API_BASE}/api/watchlist/${symbol}/details`, {
-                            method: 'GET',
-                            headers: authHeaders,
-                            credentials: 'include'
-                        });
-                        isInWatchlist = watchlistCheck.ok;
-                    } catch (err) {
-                        // Ignore errors
-                    }
-                }
-
-                // Fetch stock details
-                let response, data;
-                if (isInWatchlist || isFromWatchlist) {
-                    authHeaders = authHeaders || await window.getAuthHeaders();
-                    response = await fetch(`${API_BASE}/api/watchlist/${symbol}/details`, {
-                        method: 'GET',
-                        headers: authHeaders,
-                        credentials: 'include'
-                    });
-                    
+                const detailPromise = (async () => {
+                    const url = useWatchlistEndpoint
+                        ? `${API_BASE}/api/watchlist/${symbol}/details`
+                        : `${API_BASE}/api/company/${symbol}`;
+                    const opts = useWatchlistEndpoint
+                        ? { method: 'GET', headers: authHeaders, credentials: 'include' }
+                        : { credentials: 'include' };
+                    const response = await fetch(url, opts);
                     if (!response.ok) {
                         throw new Error(`Failed to load stock data: HTTP ${response.status}`);
                     }
-                    
-                    data = await response.json();
-                        setStockData({
+                    const data = await response.json();
+                    if (useWatchlistEndpoint) {
+                        return {
                             ...data,
                             isInWatchlist: true,
-                        // Map snake_case to camelCase
-                        dateAdded: data.date_added || data.dateAdded,
-                        originalPrice: data.original_price || data.originalPrice,
-                        priceChange: data.price_change !== null && data.price_change !== undefined ? data.price_change : data.priceChange,
-                        percentageChange: data.percentage_change !== null && data.percentage_change !== undefined ? data.percentage_change : data.percentageChange,
+                            dateAdded: data.date_added || data.dateAdded,
+                            originalPrice: data.original_price || data.originalPrice,
+                            priceChange: data.price_change !== null && data.price_change !== undefined ? data.price_change : data.priceChange,
+                            percentageChange: data.percentage_change !== null && data.percentage_change !== undefined ? data.percentage_change : data.percentageChange,
                             category: data.category,
                             notes: data.notes
+                        };
+                    }
+                    return { ...data, isInWatchlist: false };
+                })();
+
+                const chartPromise = (async () => {
+                    try {
+                        const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
+                            credentials: 'include'
                         });
-                } else {
-                    response = await fetch(`${API_BASE}/api/company/${symbol}`, {
-                        credentials: 'include'
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Failed to load stock data: HTTP ${response.status}`);
-                }
+                        if (chartResp.ok) {
+                            return await chartResp.json();
+                        }
+                    } catch (_) {}
+                    return null;
+                })();
 
-                    data = await response.json();
-                    setStockData({ ...data, isInWatchlist: false });
-                }
+                const newsPromise = (async () => {
+                    try {
+                        const newsResp = await fetch(`${API_BASE}/api/news/${symbol}`, {
+                            credentials: 'include'
+                        });
+                        if (newsResp.ok) {
+                            const newsRespData = await newsResp.json();
+                            return newsRespData.slice(0, 5);
+                        }
+                    } catch (_) {}
+                    return [];
+                })();
 
-                // Fetch chart data
-                try {
-                    const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
-                    credentials: 'include'
-                });
-                    if (chartResp.ok) {
-                const chartRespData = await chartResp.json();
-                    setChartData(chartRespData);
-                    }
-                } catch (err) {
-                    // Silently fail for chart/news
-                }
-
-                // Fetch news
-                try {
-                    const newsResp = await fetch(`${API_BASE}/api/news/${symbol}`, {
-                    credentials: 'include'
-                });
-                    if (newsResp.ok) {
-                const newsRespData = await newsResp.json();
-                    setNews(newsRespData.slice(0, 5)); // Limit to 5 articles
-                    }
-                } catch (err) {
-                    // Silently fail
-                }
-
+                const [details, chartDataResp, newsResp] = await Promise.all([detailPromise, chartPromise, newsPromise]);
+                setStockData(details);
+                if (chartDataResp) setChartData(chartDataResp);
+                if (newsResp && newsResp.length) setNews(newsResp);
             } catch (err) {
                 setError(err.message || 'Failed to load stock details');
             } finally {
