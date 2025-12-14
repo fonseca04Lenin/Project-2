@@ -13,4 +13,4 @@ cmds = [
 # Start command (Railway will use this or railway.toml startCommand)
 # Use venv Python directly instead of activating
 [start]
-cmd = "/app/.venv/bin/python -m gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile - app:app"
+cmd = "/app/.venv/bin/python -m gunicorn --worker-class gthread --threads 4 -w 1 --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile - app:app"
