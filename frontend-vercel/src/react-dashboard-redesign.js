@@ -72,6 +72,7 @@ const DashboardRedesign = () => {
     const socketRef = useRef(null);
     const viewedStocksRef = useRef(new Set()); // Track stocks user is viewing
     const updateStatsRef = useRef({ updates: [], lastMinute: [] });
+    const isLoadingRef = useRef(false); // Prevent duplicate watchlist requests
 
     // Load preferences from localStorage
     const loadPreferences = () => {
@@ -901,7 +902,14 @@ const DashboardRedesign = () => {
     }, [userMenuOpen]);
 
     const loadWatchlistData = async () => {
+        // Prevent multiple simultaneous requests
+        if (isLoadingRef.current) {
+            console.log('⚠️ Watchlist request already in progress, skipping duplicate request');
+            return;
+        }
+
         try {
+            isLoadingRef.current = true;
             console.log('\n' + '='.repeat(80));
             console.log('🔑 LOADING WATCHLIST DATA');
             console.log('='.repeat(80));
@@ -1156,6 +1164,7 @@ const DashboardRedesign = () => {
             }
         } finally {
             setIsLoading(false);
+            isLoadingRef.current = false; // Reset loading flag
         }
     };
 
@@ -2315,7 +2324,6 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
     const calculatePortfolioMetrics = () => {
         if (watchlistData.length === 0) {
             return {
-                totalValue: 0,
                 dayChange: 0,
                 dayChangePercent: 0,
                 bestPerformer: null,
@@ -2327,12 +2335,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
         // Use range performance data if available, otherwise use current data
         const dataToUse = rangePerformanceData || watchlistData;
         const sharesPerStock = 100;
-        
-        const totalValue = dataToUse.reduce((sum, stock) => {
-            const price = stock.current_price || stock.price || 0;
-            return sum + (price * sharesPerStock);
-        }, 0);
-        
+
         // Calculate change based on selected range
         const changePercent = rangePerformanceData 
             ? dataToUse[0]?.rangeChangePercent || 0
@@ -2343,8 +2346,11 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
             const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
             return sum + (price * sharesPerStock * change / 100);
         }, 0);
-        
-        const changePercentTotal = totalValue > 0 ? (totalChange / (totalValue - totalChange)) * 100 : 0;
+
+        const changePercentTotal = dataToUse.reduce((sum, stock) => {
+            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
+            return sum + change;
+        }, 0) / dataToUse.length;
         
         // Find best and worst performers based on range
         const bestPerformer = dataToUse.reduce((best, stock) => {
@@ -2360,7 +2366,6 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
         }, dataToUse[0]);
         
         return {
-            totalValue,
             dayChange: totalChange,
             dayChangePercent: changePercentTotal,
             bestPerformer,
@@ -2386,10 +2391,6 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                 
                 <div className="summary-metrics">
                     <div className="metric-group">
-                        <div className="metric-item primary">
-                            <span className="metric-label">Total Value</span>
-                            <span className="metric-value">${(metrics.totalValue / 1000).toFixed(2)}K</span>
-                        </div>
                         <div className={`metric-item ${metrics.dayChangePercent >= 0 ? 'positive' : 'negative'}`}>
                             <span className="metric-label">
                                 {selectedRange === '1D' ? 'Day' : selectedRange === '1W' ? 'Week' : selectedRange === '1M' ? 'Month' : selectedRange === '3M' ? '3 Months' : 'Year'} Change
