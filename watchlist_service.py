@@ -251,53 +251,38 @@ class WatchlistService:
             
             print(f"🔍 Executing Firestore query with limit={limit}...")
             
-            # Convert stream to list with timeout protection
-            # Use threading to enforce a timeout on the Firestore query
+            # Try to use .get() instead of .stream() for better reliability
+            # .get() returns a list directly and may be more reliable than streaming
             watchlist = []
-            docs_result = []
-            query_error = None
-            
-            def fetch_docs():
-                nonlocal docs_result, query_error
-                try:
-                    # Get documents and convert to list immediately
-                    docs_result = list(query.stream())
-                    print(f"✅ Firestore query completed, retrieved {len(docs_result)} documents")
-                except Exception as e:
-                    query_error = e
-                    logger.error(f"Error in Firestore query thread: {e}")
-            
-            # Run query in a thread with timeout
-            query_thread = threading.Thread(target=fetch_docs, daemon=True)
-            query_thread.start()
-            query_thread.join(timeout=10)  # 10 second timeout for Firestore query
-            
-            if query_thread.is_alive():
-                # Query is still running after timeout
-                logger.error("Firestore query timed out after 10 seconds")
-                print(f"❌ Firestore query timed out - returning empty list")
-                return []
-            
-            if query_error:
+            try:
+                # Use .get() which returns a list of documents directly
+                # This is more reliable than .stream() and less likely to hang
+                docs = query.get()
+                print(f"✅ Firestore query completed, retrieved {len(docs)} documents")
+                
+                # Process documents
+                for doc in docs:
+                    try:
+                        item_data = doc.to_dict()
+                        item_data['id'] = doc.id
+                        
+                        # Ensure symbol field exists (use id as fallback)
+                        if 'symbol' not in item_data and doc.id:
+                            item_data['symbol'] = doc.id
+                            logger.warning(f"Stock missing 'symbol' field, using doc.id: {doc.id}")
+                        
+                        watchlist.append(item_data)
+                    except Exception as doc_error:
+                        logger.warning(f"Error processing document {doc.id}: {doc_error}")
+                        # Skip problematic documents
+                        continue
+                        
+            except Exception as query_error:
                 logger.error(f"Firestore query error: {query_error}")
                 print(f"❌ Firestore query error: {query_error}")
-                return []
-            
-            # Process documents
-            try:
-                for doc in docs_result:
-                    item_data = doc.to_dict()
-                    item_data['id'] = doc.id
-                    
-                    # Ensure symbol field exists (use id as fallback)
-                    if 'symbol' not in item_data and doc.id:
-                        item_data['symbol'] = doc.id
-                        logger.warning(f"Stock missing 'symbol' field, using doc.id: {doc.id}")
-                    
-                    watchlist.append(item_data)
-            except Exception as process_error:
-                logger.error(f"Error processing Firestore documents: {process_error}")
-                print(f"❌ Error processing documents: {process_error}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                # Return empty list if query fails
                 return []
 
             # Sort by priority and added date
