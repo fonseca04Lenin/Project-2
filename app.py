@@ -105,11 +105,11 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requests
 
 # Initialize extensions
-# Use eventlet async mode for gunicorn compatibility
+# Use threading async mode to avoid eventlet blocking Firestore calls
 socketio = SocketIO(
-    app, 
-    cors_allowed_origins=allowed_origins, 
-    async_mode='eventlet',  # Changed to eventlet for gunicorn compatibility
+    app,
+    cors_allowed_origins=allowed_origins,
+    async_mode='threading',  # threading mode plays well with gunicorn gthread/sync
     logger=False,  # Disable verbose logging for production
     engineio_logger=False,  # Disable verbose logging for production
     ping_timeout=60,
