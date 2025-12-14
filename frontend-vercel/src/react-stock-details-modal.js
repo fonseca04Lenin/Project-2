@@ -581,22 +581,23 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                         {/* Stock Info - Vanilla Style */}
                         <div className="stock-details-meta">
-                                <div>
-                                <strong data-icon="ceo">CEO:</strong> <span>{stockData.ceo || '-'}</span>
-                                </div>
                             <div>
-                                <strong data-icon="desc">Description:</strong> <span>{stockData.description || '-'}</span>
+                                <strong data-icon="ceo">CEO:</strong> <span>{stockData.ceo || '-'}</span>
                             </div>
-                                <div>
+                            <div className="stock-description">
+                                <strong data-icon="desc">Description:</strong> 
+                                <span>{stockData.description || '-'}</span>
+                            </div>
+                            <div>
                                 <strong data-icon="price">Price:</strong> <span className={stockData.percentageChange !== null && stockData.percentageChange !== undefined ? (stockData.percentageChange >= 0 ? 'positive' : 'negative') : ''} style={stockData.percentageChange !== null && stockData.percentageChange !== undefined ? { color: stockData.percentageChange >= 0 ? '#00D924' : '#ef4444', fontWeight: '600' } : {}}>${stockData.price || '-'}</span>
                             </div>
-                                <div>
+                            <div>
                                 <strong data-icon="marketcap">Market Cap:</strong> <span>{formatMarketCap(stockData.marketCap)}</span>
                             </div>
-                                <div>
+                            <div>
                                 <strong data-icon="pe">P/E Ratio:</strong> <span>{stockData.peRatio || '-'}</span>
                             </div>
-                                <div>
+                            <div>
                                 <strong data-icon="dividend">Dividend Yield:</strong> <span>
                                     {stockData.dividendYield && stockData.dividendYield !== '-' 
                                         ? (typeof stockData.dividendYield === 'number' ? (stockData.dividendYield * 100).toFixed(2) + '%' : stockData.dividendYield)
@@ -604,15 +605,15 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     }
                                 </span>
                             </div>
-                                <div>
+                            <div>
                                 <strong data-icon="website">Website:</strong> <span>
                                     {stockData.website && stockData.website !== '-' ? (
-                                            <a href={stockData.website} target="_blank" rel="noopener noreferrer">
+                                        <a href={stockData.website} target="_blank" rel="noopener noreferrer">
                                             {stockData.website.replace(/^https?:\/\//, '')}
-                                            </a>
-                                        ) : '-'}
-                                    </span>
-                                </div>
+                                        </a>
+                                    ) : '-'}
+                                </span>
+                            </div>
                             <div>
                                 <strong data-icon="hq">Headquarters:</strong> <span>{stockData.headquarters || '-'}</span>
                             </div>

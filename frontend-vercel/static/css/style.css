@@ -2166,6 +2166,17 @@ i[class*="fal"],
 .stock-details-meta strong[data-icon="dividend"]:before { content: "\f559"; }
 .stock-details-meta strong[data-icon="website"]:before { content: "\f0ac"; }
 .stock-details-meta strong[data-icon="hq"]:before { content: "\f3c5"; }
+.stock-details-meta .stock-description {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+}
+.stock-details-meta .stock-description span {
+  display: block;
+  max-height: 220px;
+  overflow: auto;
+  line-height: 1.5;
+  padding-right: 0.35rem;
+}
 
 /* Responsive tweaks for modal */
 @media (max-width: 800px) {
@@ -2177,6 +2188,9 @@ i[class*="fal"],
   .stock-details-meta {
     gap: 1.2rem;
     font-size: 1rem;
+  }
+  .stock-details-meta .stock-description span {
+    max-height: 180px;
   }
 } 
 
