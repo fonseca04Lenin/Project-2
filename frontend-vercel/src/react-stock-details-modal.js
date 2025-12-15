@@ -376,27 +376,31 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 ref.rateLimitCooldown = false;
             }
 
-            // Throttle: minimum 3 seconds between calls (Yahoo Finance is fast but we don't want to spam)
-            const minDelay = 3000;
+            // Throttle: minimum 5 seconds between calls
+            const minDelay = 5000;
             if (now - ref.lastCallTime < minDelay) {
-                console.log(`[StockDetailsModal] Skipping Yahoo price update for ${symbol} - throttled (${now - ref.lastCallTime}ms since last call)`);
+                console.log(`[StockDetailsModal] Skipping price update for ${symbol} - throttled (${now - ref.lastCallTime}ms since last call)`);
                 return; // Skip if too soon
             }
 
             ref.isUpdating = true;
             const startTime = performance.now();
-            console.log(`[StockDetailsModal] Starting Yahoo Finance price update for ${symbol}`);
+            console.log(`[StockDetailsModal] Starting backend price update for ${symbol}`);
 
             try {
-                // Use backend API which prioritizes Alpaca API for live pricing
-                console.log(`[StockDetailsModal] Fetching live price data for ${symbol} via Alpaca API`);
+                // Use backend API for price updates (handles CORS and Alpaca/Yahoo fallback)
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const authStart = performance.now();
+                const authHeaders = await window.getAuthHeaders();
+                const authTime = performance.now() - authStart;
+                console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}: ${authTime.toFixed(2)}ms`);
 
+                console.log(`[StockDetailsModal] Fetching price data for ${symbol}`);
                 const response = await fetch(`${API_BASE}/api/search`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Request-Source': 'modal'  // Indicate this is from modal for better tracking
+                        ...authHeaders
                     },
                     credentials: 'include',
                     body: JSON.stringify({ symbol: symbol })
@@ -404,10 +408,19 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                 ref.lastCallTime = Date.now();
 
+                // Handle rate limit response
+                if (response.status === 429) {
+                    const retryAfter = response.headers.get('Retry-After');
+                    const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
+                    ref.rateLimitCooldown = true;
+                    ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
+                    console.log(`[StockDetailsModal] Rate limit hit for ${symbol}, cooling down for ${cooldownSeconds}s`);
+                    return;
+                }
+
                 if (response.ok) {
                     const stockData = await response.json();
                     console.log(`[StockDetailsModal] Price data received for ${symbol}: $${stockData.price}`);
-
                     setStockData(prev => prev ? {
                         ...prev,
                         price: stockData.price,
@@ -415,26 +428,25 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         percentageChange: stockData.priceChangePercent || 0,
                         priceChangePercent: stockData.priceChangePercent || 0
                     } : prev);
-
-                    console.log(`[StockDetailsModal] Price state updated for ${symbol} from backend API`);
+                    console.log(`[StockDetailsModal] Price state updated for ${symbol}`);
                 } else {
-                    console.log(`[StockDetailsModal] Backend price API failed for ${symbol}, status: ${response.status}`);
+                    console.log(`[StockDetailsModal] Price API failed for ${symbol}, status: ${response.status}`);
                 }
             } catch (e) {
-                console.error(`[StockDetailsModal] Error updating Yahoo price for ${symbol}:`, e);
+                console.error(`[StockDetailsModal] Error updating price for ${symbol}:`, e);
             } finally {
                 ref.isUpdating = false;
                 const totalTime = performance.now() - startTime;
-                console.log(`[StockDetailsModal] Yahoo price update completed for ${symbol}: ${totalTime.toFixed(2)}ms`);
+                console.log(`[StockDetailsModal] Price update completed for ${symbol}: ${totalTime.toFixed(2)}ms`);
             }
         };
 
         // Initial update with delay
-        console.log(`[StockDetailsModal] Scheduling initial price update for ${symbol} in 500ms`);
-        setTimeout(updatePrice, 500);
+        console.log(`[StockDetailsModal] Scheduling initial price update for ${symbol} in 1s`);
+        setTimeout(updatePrice, 1000);
 
-        // Update every 30 seconds when modal is open (Alpaca API)
-        console.log(`[StockDetailsModal] Setting up Alpaca price update interval for ${symbol} (every 30s)`);
+        // Update every 30 seconds when modal is open (matches Alpaca/backend timing)
+        console.log(`[StockDetailsModal] Setting up price update interval for ${symbol} (every 30s)`);
         const priceInterval = setInterval(updatePrice, 30000);
 
         return () => {
