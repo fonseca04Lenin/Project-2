@@ -5959,20 +5959,20 @@ body {
     }
 }
 
-/* Custom scrollbar for Bloomberg Terminal modal */
+/* Custom scrollbar for Bloomberg Terminal modal - Green Theme */
 .bloomberg-dialog .modal-body::-webkit-scrollbar {
     width: 8px;
 }
 
 .bloomberg-dialog .modal-body::-webkit-scrollbar-track {
-    background: #001428;
+    background: #0a1410;
 }
 
 .bloomberg-dialog .modal-body::-webkit-scrollbar-thumb {
-    background: #0a4a6e;
+    background: #1a5e3a;
     border-radius: 4px;
 }
 
 .bloomberg-dialog .modal-body::-webkit-scrollbar-thumb:hover {
-    background: #00d4ff;
+    background: #00ff88;
 }
