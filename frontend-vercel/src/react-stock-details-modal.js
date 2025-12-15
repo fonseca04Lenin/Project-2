@@ -175,42 +175,119 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
             setLoading(true);
 
             try {
-                const searchQuery = encodeURIComponent(`${ceoName} CEO ${companyName}`);
-                const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${searchQuery}&format=json&origin=*&srlimit=1`;
+                // Try multiple search strategies to find the CEO's personal page
+                let pageData = null;
 
-                const searchResponse = await fetch(wikiSearchUrl);
-                const searchData = await searchResponse.json();
+                // Strategy 1: Search for CEO name + "business executive" or "executive"
+                const executiveQuery = encodeURIComponent(`${ceoName} business executive`);
+                let searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${executiveQuery}&format=json&origin=*&srlimit=3`;
 
-                if (searchData.query.search.length > 0) {
-                    const pageId = searchData.query.search[0].pageid;
-                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=1&explaintext=1&piprop=original&pageids=${pageId}&format=json&origin=*`;
+                let searchResponse = await fetch(searchUrl);
+                let searchData = await searchResponse.json();
+
+                // Filter results to find a person (not company)
+                let personPage = searchData.query.search.find(result => {
+                    const snippet = result.snippet.toLowerCase();
+                    const title = result.title.toLowerCase();
+                    // Look for indicators this is a person page, not a company
+                    return (
+                        (snippet.includes('born') ||
+                         snippet.includes('american') ||
+                         snippet.includes('businessman') ||
+                         snippet.includes('executive') ||
+                         snippet.includes('served as') ||
+                         snippet.includes('ceo')) &&
+                        !title.includes('corporation') &&
+                        !title.includes('company') &&
+                        !title.includes('inc.')
+                    );
+                });
+
+                // Strategy 2: If no result, try just the CEO name
+                if (!personPage && searchData.query.search.length === 0) {
+                    const nameQuery = encodeURIComponent(ceoName);
+                    searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${nameQuery}&format=json&origin=*&srlimit=3`;
+
+                    searchResponse = await fetch(searchUrl);
+                    searchData = await searchResponse.json();
+
+                    personPage = searchData.query.search.find(result => {
+                        const snippet = result.snippet.toLowerCase();
+                        const title = result.title.toLowerCase();
+                        return (
+                            (snippet.includes('born') ||
+                             snippet.includes('businessman') ||
+                             snippet.includes('executive')) &&
+                            !title.includes('corporation') &&
+                            !title.includes('company')
+                        );
+                    });
+                }
+
+                // Strategy 3: If still no result, use first result that matches CEO name
+                if (!personPage && searchData.query.search.length > 0) {
+                    personPage = searchData.query.search.find(result =>
+                        result.title.toLowerCase().includes(ceoName.toLowerCase().split(' ')[0])
+                    );
+                }
+
+                if (personPage) {
+                    const pageId = personPage.pageid;
+
+                    // Fetch full page content with image
+                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories&exintro=1&explaintext=1&piprop=original&pageids=${pageId}&format=json&origin=*`;
                     const contentResponse = await fetch(contentUrl);
                     const contentData = await contentResponse.json();
                     const page = contentData.query.pages[pageId];
 
+                    // Verify this is a person's page, not a company
+                    const categories = page.categories || [];
+                    const isPersonPage = categories.some(cat =>
+                        cat.title.toLowerCase().includes('living people') ||
+                        cat.title.toLowerCase().includes('births') ||
+                        cat.title.toLowerCase().includes('businesspeople') ||
+                        cat.title.toLowerCase().includes('chief executive')
+                    );
+
+                    // Extract clean biography (first paragraph only to avoid company info)
+                    let biography = page.extract || 'No biography available.';
+
+                    // If extract contains company description, try to get just personal info
+                    const firstParagraph = biography.split('\n\n')[0];
+
+                    // Verify the biography is about the person (contains birth/personal info)
+                    const isPersonalBio = firstParagraph.toLowerCase().includes('born') ||
+                                         firstParagraph.toLowerCase().includes('is a') ||
+                                         firstParagraph.toLowerCase().includes('is an');
+
                     setCeoData({
                         name: page.title || ceoName,
-                        biography: page.extract || 'No biography available.',
+                        biography: isPersonalBio ? firstParagraph : biography,
                         imageUrl: page.original?.source || null,
                         wikipediaUrl: `https://en.wikipedia.org/?curid=${pageId}`,
-                        found: true
+                        found: true,
+                        verified: isPersonPage
                     });
                 } else {
+                    // No Wikipedia page found - show basic info
                     setCeoData({
                         name: ceoName,
-                        biography: `${ceoName} is the Chief Executive Officer of ${companyName} (${companySymbol}). For more information, visit the company's official website.`,
+                        biography: `${ceoName} serves as Chief Executive Officer of ${companyName} (${companySymbol}). Additional biographical information is not currently available from Wikipedia. For more details about the company leadership, please visit the company's official website or investor relations page.`,
                         imageUrl: null,
                         wikipediaUrl: null,
-                        found: false
+                        found: false,
+                        verified: false
                     });
                 }
             } catch (err) {
+                console.error('Error fetching CEO data:', err);
                 setCeoData({
                     name: ceoName,
-                    biography: `${ceoName} is the Chief Executive Officer of ${companyName} (${companySymbol}).`,
+                    biography: `${ceoName} serves as Chief Executive Officer of ${companyName} (${companySymbol}).`,
                     imageUrl: null,
                     wikipediaUrl: null,
-                    found: false
+                    found: false,
+                    verified: false
                 });
             } finally {
                 setLoading(false);
@@ -352,7 +429,27 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             }
                         }),
                         React.createElement('div', { style: { flex: 1 } },
-                            React.createElement('h3', { style: { margin: '0 0 0.5rem 0', fontSize: '1.8rem', color: 'white' } }, ceoData.name),
+                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' } },
+                                React.createElement('h3', { style: { margin: 0, fontSize: '1.8rem', color: 'white' } }, ceoData.name),
+                                ceoData.verified && React.createElement('span', {
+                                    style: {
+                                        background: 'rgba(0, 255, 136, 0.2)',
+                                        border: '1px solid #00ff88',
+                                        color: '#00ff88',
+                                        padding: '0.2rem 0.5rem',
+                                        borderRadius: '4px',
+                                        fontSize: '0.7rem',
+                                        fontWeight: '600',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem'
+                                    },
+                                    title: 'Information verified from Wikipedia'
+                                },
+                                    React.createElement('i', { className: 'fas fa-check-circle' }),
+                                    'Verified'
+                                )
+                            ),
                             React.createElement('p', { style: { margin: '0', fontSize: '1.1rem', opacity: 0.9 } }, 'Chief Executive Officer'),
                             React.createElement('p', { style: { margin: '0.5rem 0 0 0', fontSize: '1rem', opacity: 0.9 } }, `${companyName} (${companySymbol})`)
                         )
