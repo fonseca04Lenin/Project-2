@@ -809,15 +809,8 @@ const DashboardRedesign = () => {
         // Initial update with minimal delay
         setTimeout(updateLivePrices, 200);
         
-        // Update frequency:
-        // - Small watchlists (<=30): Update every 2 seconds (all stocks, rotating batches of ~10)
-        //   With 30 stocks and batches of 10, all stocks update every 6 seconds (3 cycles)
-        // Update frequency scales with watchlist size:
-        // - Small watchlists (<=30): Update every 1 second for real-time data
-        // - Medium watchlists (31-60): Update every 1.5 seconds
-        // - Large watchlists (>60): Update every 2 seconds
-        // This ensures we stay within rate limits while providing live updates for ALL stocks
-        const updateInterval = watchlistData.length <= 30 ? 1000 : watchlistData.length <= 60 ? 1500 : 2000;
+        // Update frequency: unify to 5s to reduce API load
+        const updateInterval = 5000;
         console.log(`⏰ Starting live pricing updates every ${updateInterval}ms for ${watchlistData.length} stocks`);
         ref.interval = setInterval(updateLivePrices, updateInterval);
         ref.isActive = true;
