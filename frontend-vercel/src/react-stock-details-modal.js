@@ -163,7 +163,7 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
     );
 };
 
-// CEO Details Modal Component
+// CEO Details Modal Component - Bloomberg Terminal Style
 const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol }) => {
     const [ceoData, setCeoData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -297,198 +297,286 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
         fetchCEOData();
     }, [isOpen, ceoName, companyName, companySymbol]);
 
+    // Handle ESC key to close modal
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape' && isOpen) {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
+    // Bloomberg Terminal Colors
+    const colors = {
+        bg: '#001428',
+        surface: '#002640',
+        border: '#0a4a6e',
+        primary: '#00d4ff',
+        secondary: '#5ac8fa',
+        success: '#00ff41',
+        text: '#b8c5d0',
+        textBright: '#e8f4f8'
+    };
+
     return React.createElement('div', {
-        className: 'modal-overlay ceo-modal-overlay',
+        className: 'modal-overlay ceo-modal-overlay bloomberg-terminal',
         onClick: onClose,
         style: {
             zIndex: 10002,
-            background: 'rgba(0, 0, 0, 0.95)'
+            background: 'rgba(0, 20, 40, 0.98)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem'
         }
     },
         React.createElement('div', {
-            className: 'modal-content ceo-modal',
+            className: 'modal-content ceo-modal bloomberg-dialog',
             onClick: (e) => e.stopPropagation(),
             style: {
-                background: '#1a1f2e',
-                border: '1px solid #2d3748',
-                maxWidth: '900px',
-                width: '90%'
+                background: colors.bg,
+                border: `2px solid ${colors.border}`,
+                maxWidth: '800px',
+                width: '100%',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                fontFamily: "'Courier New', Courier, monospace",
+                boxShadow: `0 0 40px rgba(0, 212, 255, 0.3), 0 0 80px rgba(0, 212, 255, 0.1)`
             }
         },
+            // Terminal Header
             React.createElement('div', {
-                className: 'modal-header',
                 style: {
-                    background: '#1a1f2e',
-                    borderBottom: '1px solid #2d3748',
-                    padding: '1.5rem',
+                    background: colors.surface,
+                    borderBottom: `2px solid ${colors.border}`,
+                    padding: '1rem 1.5rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                 }
             },
                 React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '1rem' } },
+                    // Back arrow
                     React.createElement('button', {
                         onClick: onClose,
                         style: {
                             background: 'transparent',
-                            border: 'none',
-                            color: '#00ff88',
+                            border: `1px solid ${colors.border}`,
+                            color: colors.primary,
                             cursor: 'pointer',
-                            fontSize: '1.5rem',
-                            padding: '0.5rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            transition: 'transform 0.2s'
-                        },
-                        onMouseOver: (e) => e.currentTarget.style.transform = 'translateX(-5px)',
-                        onMouseOut: (e) => e.currentTarget.style.transform = 'translateX(0)',
-                        title: 'Back to stock details'
-                    },
-                        React.createElement('i', { className: 'fas fa-arrow-left' })
-                    ),
-                    React.createElement('h2', {
-                        style: {
-                            margin: 0,
-                            color: 'white',
+                            fontSize: '1rem',
+                            padding: '0.5rem 0.75rem',
+                            fontFamily: "'Courier New', Courier, monospace",
+                            transition: 'all 0.2s',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.5rem'
-                        }
+                        },
+                        onMouseOver: (e) => {
+                            e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                            e.currentTarget.style.borderColor = colors.primary;
+                        },
+                        onMouseOut: (e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = colors.border;
+                        },
+                        title: 'Back to stock details'
                     },
-                        React.createElement('i', { className: 'fas fa-user-tie', style: { color: '#00ff88' } }),
-                        'CEO Profile'
+                        React.createElement('i', { className: 'fas fa-arrow-left' }),
+                        'BACK'
+                    ),
+                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } },
+                        React.createElement('span', {
+                            style: {
+                                color: colors.primary,
+                                fontSize: '1.1rem',
+                                fontWeight: 'bold',
+                                letterSpacing: '0.05em'
+                            }
+                        }, 'EXECUTIVE_PROFILE'),
+                        React.createElement('span', {
+                            style: {
+                                color: colors.text,
+                                fontSize: '0.9rem'
+                            }
+                        }, `// ${companySymbol}`)
                     )
                 ),
                 React.createElement('button', {
-                    className: 'modal-close',
                     onClick: onClose,
                     style: {
-                        background: 'rgba(255, 0, 0, 0.1)',
-                        border: '1px solid rgba(255, 0, 0, 0.3)',
-                        color: '#ff4444',
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '50%',
+                        background: 'transparent',
+                        border: 'none',
+                        color: colors.text,
                         cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s'
+                        fontSize: '1.2rem',
+                        padding: '0.25rem',
+                        transition: 'color 0.2s',
+                        fontFamily: "'Courier New', Courier, monospace"
                     },
-                    onMouseOver: (e) => {
-                        e.currentTarget.style.background = 'rgba(255, 0, 0, 0.2)';
-                        e.currentTarget.style.transform = 'scale(1.1)';
-                    },
-                    onMouseOut: (e) => {
-                        e.currentTarget.style.background = 'rgba(255, 0, 0, 0.1)';
-                        e.currentTarget.style.transform = 'scale(1)';
-                    }
+                    onMouseOver: (e) => e.currentTarget.style.color = colors.primary,
+                    onMouseOut: (e) => e.currentTarget.style.color = colors.text,
+                    title: 'Close [ESC]'
                 },
-                    React.createElement('i', { className: 'fas fa-times' })
+                    '×'
                 )
             ),
+            // Modal Body
             React.createElement('div', {
-                className: 'modal-body',
                 style: {
-                    maxHeight: '70vh',
+                    flex: 1,
                     overflowY: 'auto',
                     padding: '2rem',
-                    background: '#1a1f2e'
+                    background: colors.bg
                 }
             },
-                loading && React.createElement('div', { style: { textAlign: 'center', padding: '2rem' } },
-                    React.createElement('i', { className: 'fas fa-spinner fa-spin', style: { fontSize: '2rem', color: '#00ff88' } }),
-                    React.createElement('p', { style: { marginTop: '1rem', color: '#9ca3af' } }, 'Loading CEO information...')
-                ),
-                !loading && ceoData && React.createElement('div', { className: 'ceo-details' },
+                loading && React.createElement('div', {
+                    style: {
+                        textAlign: 'center',
+                        padding: '3rem',
+                        color: colors.primary,
+                        fontFamily: "'Courier New', Courier, monospace"
+                    }
+                },
                     React.createElement('div', {
-                        className: 'ceo-header',
+                        style: {
+                            fontSize: '2rem',
+                            marginBottom: '1rem',
+                            animation: 'pulse 1.5s ease-in-out infinite'
+                        }
+                    }, '▓'),
+                    React.createElement('p', { style: { margin: 0, color: colors.text, letterSpacing: '0.1em' } }, 'LOADING EXECUTIVE DATA...')
+                ),
+                !loading && ceoData && React.createElement('div', { className: 'ceo-details-terminal' },
+                    // Photo and Name Section
+                    React.createElement('div', {
                         style: {
                             display: 'flex',
                             gap: '2rem',
                             marginBottom: '2rem',
-                            padding: '2rem',
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            borderRadius: '12px',
-                            color: 'white',
-                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                            paddingBottom: '2rem',
+                            borderBottom: `1px solid ${colors.border}`
                         }
                     },
-                        ceoData.imageUrl && React.createElement('img', {
-                            src: ceoData.imageUrl,
-                            alt: ceoData.name,
+                        // Photo with green dot indicator
+                        React.createElement('div', {
                             style: {
-                                width: '120px',
-                                height: '120px',
-                                borderRadius: '50%',
-                                objectFit: 'cover',
-                                border: '4px solid white',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-                            }
-                        }),
-                        React.createElement('div', { style: { flex: 1 } },
-                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' } },
-                                React.createElement('h3', { style: { margin: 0, fontSize: '1.8rem', color: 'white' } }, ceoData.name),
-                                ceoData.verified && React.createElement('span', {
-                                    style: {
-                                        background: 'rgba(0, 255, 136, 0.2)',
-                                        border: '1px solid #00ff88',
-                                        color: '#00ff88',
-                                        padding: '0.2rem 0.5rem',
-                                        borderRadius: '4px',
-                                        fontSize: '0.7rem',
-                                        fontWeight: '600',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.25rem'
-                                    },
-                                    title: 'Information verified from Wikipedia'
-                                },
-                                    React.createElement('i', { className: 'fas fa-check-circle' }),
-                                    'Verified'
-                                )
-                            ),
-                            React.createElement('p', { style: { margin: '0', fontSize: '1.1rem', opacity: 0.9 } }, 'Chief Executive Officer'),
-                            React.createElement('p', { style: { margin: '0.5rem 0 0 0', fontSize: '1rem', opacity: 0.9 } }, `${companyName} (${companySymbol})`)
-                        )
-                    ),
-                    React.createElement('div', {
-                        className: 'ceo-biography',
-                        style: {
-                            padding: '1.5rem',
-                            background: '#232936',
-                            borderRadius: '12px',
-                            marginBottom: '1.5rem',
-                            border: '1px solid #2d3748'
-                        }
-                    },
-                        React.createElement('h4', {
-                            style: {
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                marginBottom: '1rem',
-                                color: '#00ff88',
-                                fontSize: '1.1rem',
-                                fontWeight: '600'
+                                position: 'relative',
+                                flexShrink: 0
                             }
                         },
-                            React.createElement('i', { className: 'fas fa-book-open', style: { color: '#00ff88' } }),
-                            'Biography'
+                            ceoData.imageUrl ? React.createElement('img', {
+                                src: ceoData.imageUrl,
+                                alt: ceoData.name,
+                                style: {
+                                    width: '120px',
+                                    height: '120px',
+                                    objectFit: 'cover',
+                                    border: `2px solid ${colors.border}`,
+                                    filter: 'grayscale(20%) brightness(0.9)'
+                                }
+                            }) : React.createElement('div', {
+                                style: {
+                                    width: '120px',
+                                    height: '120px',
+                                    background: colors.surface,
+                                    border: `2px solid ${colors.border}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '3rem',
+                                    color: colors.border
+                                }
+                            }, React.createElement('i', { className: 'fas fa-user' })),
+                            // Green dot indicator (bottom-right)
+                            ceoData.found && React.createElement('div', {
+                                style: {
+                                    position: 'absolute',
+                                    bottom: '4px',
+                                    right: '4px',
+                                    width: '12px',
+                                    height: '12px',
+                                    background: colors.success,
+                                    borderRadius: '50%',
+                                    border: `2px solid ${colors.bg}`,
+                                    boxShadow: `0 0 8px ${colors.success}`
+                                }
+                            })
                         ),
+                        // Info fields
+                        React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' } },
+                            React.createElement('div', null,
+                                React.createElement('span', { style: { color: colors.secondary, fontSize: '0.85rem', letterSpacing: '0.05em' } }, 'NAME: '),
+                                React.createElement('span', { style: { color: colors.textBright, fontSize: '1.1rem', fontWeight: 'bold' } }, ceoData.name)
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('span', { style: { color: colors.secondary, fontSize: '0.85rem', letterSpacing: '0.05em' } }, 'TITLE: '),
+                                React.createElement('span', { style: { color: colors.text } }, 'Chief Executive Officer')
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('span', { style: { color: colors.secondary, fontSize: '0.85rem', letterSpacing: '0.05em' } }, 'COMPANY: '),
+                                React.createElement('span', { style: { color: colors.text } }, `${companyName} (${companySymbol})`)
+                            ),
+                            ceoData.verified && React.createElement('div', null,
+                                React.createElement('span', { style: { color: colors.secondary, fontSize: '0.85rem', letterSpacing: '0.05em' } }, 'STATUS: '),
+                                React.createElement('span', {
+                                    style: {
+                                        color: colors.success,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }
+                                },
+                                    React.createElement('span', null, '●'),
+                                    'VERIFIED'
+                                )
+                            )
+                        )
+                    ),
+                    // Biography Section
+                    React.createElement('div', {
+                        style: {
+                            marginBottom: '1.5rem'
+                        }
+                    },
+                        React.createElement('div', {
+                            style: {
+                                color: colors.secondary,
+                                fontSize: '0.85rem',
+                                letterSpacing: '0.05em',
+                                marginBottom: '1rem',
+                                paddingBottom: '0.5rem',
+                                borderBottom: `1px solid ${colors.border}`
+                            }
+                        }, 'BIOGRAPHY:'),
                         React.createElement('p', {
                             style: {
-                                lineHeight: '1.8',
-                                color: '#d1d5db',
-                                fontSize: '1rem',
-                                whiteSpace: 'pre-wrap',
-                                margin: 0
+                                lineHeight: '1.7',
+                                color: colors.text,
+                                fontSize: '0.95rem',
+                                margin: 0,
+                                whiteSpace: 'pre-wrap'
                             }
                         }, ceoData.biography)
                     ),
-                    ceoData.wikipediaUrl && React.createElement('div', { style: { textAlign: 'center', marginTop: '1.5rem' } },
+                    // Wikipedia Link
+                    ceoData.wikipediaUrl && React.createElement('div', {
+                        style: {
+                            marginTop: '2rem',
+                            paddingTop: '1.5rem',
+                            borderTop: `1px solid ${colors.border}`
+                        }
+                    },
                         React.createElement('a', {
                             href: ceoData.wikipediaUrl,
                             target: '_blank',
@@ -496,43 +584,97 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             style: {
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.75rem 1.5rem',
-                                background: 'rgba(0, 255, 136, 0.1)',
-                                border: '1px solid #00ff88',
-                                color: '#00ff88',
-                                borderRadius: '8px',
+                                gap: '0.75rem',
+                                padding: '0.75rem 1.25rem',
+                                background: 'transparent',
+                                border: `1px solid ${colors.border}`,
+                                color: colors.primary,
                                 textDecoration: 'none',
-                                fontWeight: '600',
+                                fontFamily: "'Courier New', Courier, monospace",
+                                fontSize: '0.9rem',
+                                letterSpacing: '0.05em',
                                 transition: 'all 0.2s'
                             },
                             onMouseOver: (e) => {
-                                e.currentTarget.style.background = 'rgba(0, 255, 136, 0.2)';
-                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                                e.currentTarget.style.borderColor = colors.primary;
+                                e.currentTarget.style.boxShadow = `0 0 10px rgba(0, 212, 255, 0.3)`;
                             },
                             onMouseOut: (e) => {
-                                e.currentTarget.style.background = 'rgba(0, 255, 136, 0.1)';
-                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.borderColor = colors.border;
+                                e.currentTarget.style.boxShadow = 'none';
                             }
                         },
                             React.createElement('i', { className: 'fab fa-wikipedia-w' }),
-                            'Read More on Wikipedia',
-                            React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.8rem' } })
+                            'VIEW ON WIKIPEDIA',
+                            React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.75rem' } })
                         )
                     ),
+                    // Warning for limited info
                     !ceoData.found && React.createElement('div', {
                         style: {
+                            marginTop: '1.5rem',
                             padding: '1rem',
-                            background: 'rgba(255, 193, 7, 0.1)',
-                            border: '1px solid rgba(255, 193, 7, 0.3)',
-                            borderRadius: '8px',
-                            marginTop: '1rem',
-                            color: '#ffc107'
+                            background: 'rgba(255, 193, 7, 0.05)',
+                            border: `1px solid rgba(255, 193, 7, 0.3)`,
+                            color: '#ffc107',
+                            fontSize: '0.85rem',
+                            letterSpacing: '0.05em'
                         }
                     },
-                        React.createElement('i', { className: 'fas fa-info-circle', style: { marginRight: '0.5rem' } }),
-                        React.createElement('span', null, 'Limited information available.')
+                        React.createElement('i', { className: 'fas fa-exclamation-triangle', style: { marginRight: '0.5rem' } }),
+                        'LIMITED DATA AVAILABLE'
                     )
+                )
+            ),
+            // Terminal Footer
+            React.createElement('div', {
+                style: {
+                    background: colors.surface,
+                    borderTop: `2px solid ${colors.border}`,
+                    padding: '0.75rem 1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.85rem',
+                    color: colors.text,
+                    fontFamily: "'Courier New', Courier, monospace"
+                }
+            },
+                React.createElement('div', {
+                    style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }
+                },
+                    React.createElement('span', {
+                        style: {
+                            color: colors.success,
+                            animation: 'blink 1s step-end infinite'
+                        }
+                    }, '>'),
+                    React.createElement('span', {
+                        style: {
+                            color: colors.success,
+                            animation: 'blink 1s step-end infinite'
+                        }
+                    }, '_')
+                ),
+                React.createElement('div', null,
+                    React.createElement('span', { style: { color: colors.text, letterSpacing: '0.05em' } }, 'PRESS '),
+                    React.createElement('span', {
+                        style: {
+                            color: colors.primary,
+                            padding: '0.15rem 0.4rem',
+                            background: 'rgba(0, 212, 255, 0.1)',
+                            border: `1px solid ${colors.border}`,
+                            marginLeft: '0.25rem',
+                            marginRight: '0.25rem'
+                        }
+                    }, 'ESC'),
+                    React.createElement('span', { style: { color: colors.text } }, ' TO EXIT')
                 )
             )
         )
