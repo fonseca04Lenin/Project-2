@@ -56,9 +56,9 @@ class ChatService:
         self.finnhub_api = FinnhubAPI()
         self.news_api = NewsAPI()
         
-        # Rate limiting
+        # Rate limiting - IMPROVED: 60 requests/hour for better UX
         self.user_requests = {}  # Track user request counts
-        self.max_requests_per_hour = 5
+        self.max_requests_per_hour = 60  # Allows ~1 message per minute
         
         # Initialize Gemini client
         self._initialize_gemini()
@@ -226,8 +226,8 @@ class ChatService:
                         'added_at': item.get('added_at', '')
                     })
             
-            # Get recent conversation history (last 3 messages)
-            chat_history = self._get_conversation_history(user_id, limit=3)
+            # Get recent conversation history (last 10 messages for better context)
+            chat_history = self._get_conversation_history(user_id, limit=10)
             
             logger.info(f"✅ Retrieved {len(watchlist_data)} watchlist items for user {user_id}")
             logger.info(f"🔍 Watchlist data: {watchlist_data}")
@@ -881,10 +881,24 @@ class ChatService:
             # Check rate limit
             if not self._check_rate_limit(user_id):
                 logger.warning(f"Rate limit exceeded for user {user_id}")
+                # Calculate when user can send next message
+                if user_id in self.user_requests and self.user_requests[user_id]:
+                    oldest_request = min(self.user_requests[user_id])
+                    time_until_reset = int(3600 - (time.time() - oldest_request))
+                    minutes = time_until_reset // 60
+                    seconds = time_until_reset % 60
+                    retry_message = f"You've reached the limit of {self.max_requests_per_hour} messages per hour. Please try again in {minutes} min {seconds} sec."
+                else:
+                    retry_message = "Rate limit exceeded. Please wait a few minutes before sending another message."
+
                 return {
                     "success": False,
-                    "error": "Rate limit exceeded. Please wait before sending another message.",
-                    "response": "I'm getting a lot of requests right now. Please wait a moment before asking another question."
+                    "error": retry_message,
+                    "response": retry_message,
+                    "rate_limit": {
+                        "limit": self.max_requests_per_hour,
+                        "reset_in_seconds": time_until_reset if user_id in self.user_requests else 3600
+                    }
                 }
             
             # Check if Gemini client is available
