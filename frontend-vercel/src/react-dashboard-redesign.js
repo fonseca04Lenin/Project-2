@@ -279,6 +279,7 @@ const DashboardRedesign = () => {
                     loadWatchlistData();
                 } else {
                     // Clear watchlist if user is signed out
+                    clearWatchlistCache(); // Clear cached data for logged out user
                     setWatchlistData([]);
                     setIsLoading(false);
                     // Redirect if user is signed out
@@ -894,6 +895,91 @@ const DashboardRedesign = () => {
         };
     }, [userMenuOpen]);
 
+    // Periodic watchlist refresh to keep cache updated
+    useEffect(() => {
+        const refreshWatchlist = () => {
+            // Only refresh if user is authenticated and we have data
+            if (window.firebaseAuth?.currentUser && watchlistData.length > 0) {
+                const timeSinceLastLoad = Date.now() - lastSuccessfulLoadRef.current;
+                if (timeSinceLastLoad > WATCHLIST_REFRESH_INTERVAL) {
+                    console.log('🔄 Periodic watchlist refresh triggered');
+                    loadWatchlistData();
+                }
+            }
+        };
+
+        // Check every 2 minutes if we need to refresh
+        const refreshInterval = setInterval(refreshWatchlist, 2 * 60 * 1000);
+
+        return () => clearInterval(refreshInterval);
+    }, [watchlistData.length]);
+
+    // Watchlist localStorage cache helpers
+    const WATCHLIST_CACHE_KEY = 'watchlist_cache';
+    const WATCHLIST_CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const WATCHLIST_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    // Track last successful load for refresh logic
+    const lastSuccessfulLoadRef = useRef(0);
+
+    const saveWatchlistToCache = (watchlistData) => {
+        try {
+            const cacheData = {
+                data: watchlistData,
+                timestamp: Date.now(),
+                userId: window.firebaseAuth?.currentUser?.uid
+            };
+            localStorage.setItem(WATCHLIST_CACHE_KEY, JSON.stringify(cacheData));
+            console.log('💾 Saved watchlist to localStorage cache');
+        } catch (error) {
+            console.warn('⚠️ Failed to save watchlist to cache:', error);
+        }
+    };
+
+    const loadWatchlistFromCache = () => {
+        try {
+            const cachedData = localStorage.getItem(WATCHLIST_CACHE_KEY);
+            if (!cachedData) {
+                console.log('📭 No watchlist cache found');
+                return null;
+            }
+
+            const cache = JSON.parse(cachedData);
+            const now = Date.now();
+            const cacheAge = now - cache.timestamp;
+
+            // Check if cache is for current user
+            const currentUserId = window.firebaseAuth?.currentUser?.uid;
+            if (cache.userId !== currentUserId) {
+                console.log('👤 Cache is for different user, ignoring');
+                localStorage.removeItem(WATCHLIST_CACHE_KEY);
+                return null;
+            }
+
+            // Check if cache is expired
+            if (cacheAge > WATCHLIST_CACHE_EXPIRY) {
+                console.log('⏰ Watchlist cache expired, removing');
+                localStorage.removeItem(WATCHLIST_CACHE_KEY);
+                return null;
+            }
+
+            console.log(`📖 Loaded watchlist from cache (${Math.round(cacheAge / 1000 / 60)} minutes old)`);
+            return cache.data;
+        } catch (error) {
+            console.warn('⚠️ Failed to load watchlist from cache:', error);
+            return null;
+        }
+    };
+
+    const clearWatchlistCache = () => {
+        try {
+            localStorage.removeItem(WATCHLIST_CACHE_KEY);
+            console.log('🗑️ Cleared watchlist cache');
+        } catch (error) {
+            console.warn('⚠️ Failed to clear watchlist cache:', error);
+        }
+    };
+
     const loadWatchlistData = async () => {
         // Prevent multiple simultaneous requests
         if (isLoadingRef.current) {
@@ -906,17 +992,35 @@ const DashboardRedesign = () => {
             console.log('\n' + '='.repeat(80));
             console.log('🔑 LOADING WATCHLIST DATA');
             console.log('='.repeat(80));
-            
+
             // Check if user is authenticated before making request
             if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
                 console.log('❌ User not authenticated');
                 // User not authenticated, cannot load watchlist
+                clearWatchlistCache(); // Clear cache for logged out user
                 setWatchlistData([]);
                 setIsLoading(false);
                 return;
             }
-            
+
             console.log('✅ User authenticated:', window.firebaseAuth.currentUser.uid);
+
+            // Try to load from cache first for immediate display
+            const cachedWatchlist = loadWatchlistFromCache();
+            if (cachedWatchlist && cachedWatchlist.length > 0) {
+                console.log(`📊 Displaying ${cachedWatchlist.length} cached watchlist items immediately`);
+                // Mark cached items to show they need refresh
+                const cachedWithFlag = cachedWatchlist.map(item => ({
+                    ...item,
+                    _isCached: true
+                }));
+                setWatchlistData(cachedWithFlag);
+
+                // Show notification that cached data is being displayed
+                if (window.showNotification) {
+                    window.showNotification('Loading watchlist from cache...', 'info');
+                }
+            }
             
             const authHeaders = await window.getAuthHeaders();
             
@@ -1056,9 +1160,25 @@ const DashboardRedesign = () => {
                     console.log('✅ SET WATCHLIST DATA:', formattedData.length, 'stocks');
                     console.log('   Sample stock:', formattedData[0]);
                     console.log('='.repeat(80) + '\n');
-                    
+
+                    // Remove cached flags since we now have fresh data
+                    const freshData = formattedData.map(item => ({
+                        ...item,
+                        _isCached: false
+                    }));
+
                     // Formatted watchlist data
-                    setWatchlistData(formattedData);
+                    setWatchlistData(freshData);
+
+                    // Cache the successful data for offline/fallback use
+                    saveWatchlistToCache(formattedData);
+                    lastSuccessfulLoadRef.current = Date.now();
+
+                    // Show success notification if we were previously showing cached data
+                    const wasCached = watchlistData.some(item => item._isCached);
+                    if (wasCached && window.showNotification) {
+                        window.showNotification('Watchlist updated with latest data', 'success');
+                    }
                     
                     // Immediately fetch prices for stocks that need price updates
                     // Prioritize visible stocks (first 10 stocks) to show prices instantly
@@ -1115,7 +1235,14 @@ const DashboardRedesign = () => {
                     }
                 } else {
                     console.warn('⚠️ Watchlist data is empty or not an array');
-                    setWatchlistData([]);
+                    // Don't clear watchlist if we have cached data
+                    const cachedData = loadWatchlistFromCache();
+                    if (cachedData && cachedData.length > 0) {
+                        console.log('📋 Using cached watchlist data instead of clearing');
+                        setWatchlistData(cachedData);
+                    } else {
+                        setWatchlistData([]);
+                    }
                 }
             } else {
                 const errorText = await response.text();
@@ -1138,7 +1265,18 @@ const DashboardRedesign = () => {
                     }
                 }
                 
-                setWatchlistData([]);
+                // Don't clear watchlist if we have cached data
+                const cachedData = loadWatchlistFromCache();
+                if (cachedData && cachedData.length > 0) {
+                    console.log('📋 Keeping cached watchlist data due to API error');
+                    setWatchlistData(cachedData);
+                    // Show a warning but don't clear the data
+                    if (window.showNotification) {
+                        window.showNotification('Using cached watchlist data. Some information may be outdated.', 'warning');
+                    }
+                } else {
+                    setWatchlistData([]);
+                }
             }
         } catch (error) {
             // Error loading watchlist
@@ -1148,12 +1286,23 @@ const DashboardRedesign = () => {
                 name: error.name,
                 stack: error.stack
             });
-            setWatchlistData([]);
-            
-            // Show user-friendly error message
-            if (window.showNotification) {
-                const errorMsg = error.message || 'Failed to load watchlist. Please refresh the page.';
-                window.showNotification(errorMsg, 'error');
+
+            // Don't clear watchlist if we have cached data
+            const cachedData = loadWatchlistFromCache();
+            if (cachedData && cachedData.length > 0) {
+                console.log('📋 Using cached watchlist data due to error');
+                setWatchlistData(cachedData);
+                // Show a warning but don't clear the data
+                if (window.showNotification) {
+                    window.showNotification('Using cached watchlist data due to connection issues.', 'warning');
+                }
+            } else {
+                setWatchlistData([]);
+                // Show user-friendly error message only if no cache available
+                if (window.showNotification) {
+                    const errorMsg = error.message || 'Failed to load watchlist. Please refresh the page.';
+                    window.showNotification(errorMsg, 'error');
+                }
             }
         } finally {
             setIsLoading(false);
