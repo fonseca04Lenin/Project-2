@@ -1,0 +1,1124 @@
+import yfinance as yf
+from datetime import datetime, timedelta
+import json
+import requests
+import os
+import time
+import threading
+
+class CircuitBreaker:
+    """Circuit breaker pattern to fail fast when external service is down"""
+    def __init__(self, failure_threshold=5, recovery_timeout=60):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN
+        self._lock = threading.Lock()
+
+    def call(self, func, *args, **kwargs):
+        """Execute function with circuit breaker protection"""
+        with self._lock:
+            if self.state == 'OPEN':
+                if time.time() - self.last_failure_time > self.recovery_timeout:
+                    self.state = 'HALF_OPEN'
+                    print("🔄 [CIRCUIT] Switching to HALF_OPEN - testing service")
+                else:
+                    raise Exception("Circuit breaker is OPEN - service unavailable")
+
+            try:
+                result = func(*args, **kwargs)
+                self._on_success()
+                return result
+            except Exception as e:
+                self._on_failure()
+                raise e
+
+    def _on_success(self):
+        """Handle successful call"""
+        if self.state == 'HALF_OPEN':
+            print("✅ [CIRCUIT] Service recovered - switching to CLOSED")
+            self.state = 'CLOSED'
+            self.failure_count = 0
+
+    def _on_failure(self):
+        """Handle failed call"""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.failure_count >= self.failure_threshold:
+            self.state = 'OPEN'
+            print(f"🚫 [CIRCUIT] Switching to OPEN after {self.failure_count} failures")
+
+class NewsAPI:
+    def __init__(self):
+        # NewsAPI.org API key
+        self.api_key = '4ba3e56d52e54611b9485cdd2e28e679'
+
+    def get_market_news(self, limit=10, query=None):
+        """Get general market news using NewsAPI.org. If query is provided, search for news."""
+        try:
+            if query and query.strip():
+                # Use /everything endpoint for search
+                url = 'https://newsapi.org/v2/everything'
+                params = {
+                    'q': query.strip(),
+                    'language': 'en',
+                    'sortBy': 'publishedAt',
+                    'pageSize': limit,
+                    'apiKey': self.api_key
+                }
+            else:
+                # Use /top-headlines for general market news
+                url = 'https://newsapi.org/v2/top-headlines'
+                params = {
+                    'category': 'business',
+                    'language': 'en',
+                    'pageSize': limit,
+                    'apiKey': self.api_key
+                }
+            
+            response = requests.get(url, params=params, timeout=3)
+            if response.status_code == 200:
+                articles = response.json().get('articles', [])
+                news_items = []
+                for article in articles:
+                    news_items.append({
+                        'title': article.get('title', ''),
+                        'link': article.get('url', ''),
+                        'published_at': article.get('publishedAt', ''),
+                        'source': article.get('source', {}).get('name', 'NewsAPI'),
+                        'summary': article.get('description', ''),
+                        'image_url': article.get('urlToImage', '')
+                    })
+                return news_items
+            else:
+                print(f"NewsAPI.org error: {response.status_code} {response.text}")
+                return self.get_fallback_news()
+        except Exception as e:
+            print(f"Error fetching market news from NewsAPI.org: {e}")
+            return self.get_fallback_news()
+
+    def get_company_news(self, symbol, limit=5):
+        """Get news for a specific company using NewsAPI.org"""
+        try:
+            # First try to get company name from Yahoo Finance for better search results
+            stock = yf.Ticker(symbol)
+            info = stock.info
+            company_name = info.get('longName', '') or info.get('shortName', '') or symbol
+            
+            # Search for news using NewsAPI.org
+            url = 'https://newsapi.org/v2/everything'
+            params = {
+                'q': f'"{company_name}" OR "{symbol}"',
+                'language': 'en',
+                'sortBy': 'publishedAt',
+                'pageSize': limit,
+                'apiKey': self.api_key
+            }
+            
+            response = requests.get(url, params=params, timeout=3)
+            if response.status_code == 200:
+                articles = response.json().get('articles', [])
+                news_items = []
+                for article in articles:
+                    news_items.append({
+                        'title': article.get('title', ''),
+                        'link': article.get('url', ''),
+                        'published_at': article.get('publishedAt', ''),
+                        'source': article.get('source', {}).get('name', 'NewsAPI'),
+                        'summary': article.get('description', ''),
+                        'image_url': article.get('urlToImage', '')
+                    })
+                return news_items
+            else:
+                print(f"NewsAPI.org error for {symbol}: {response.status_code} {response.text}")
+                return []
+                
+        except Exception as e:
+            print(f"Error fetching company news for {symbol}: {e}")
+            return []
+
+    def get_fallback_news(self):
+        """Fallback news when API fails"""
+        return [
+            {
+                'title': 'Market Update: Stocks Show Mixed Performance',
+                'link': '#',
+                'published_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                'source': 'Market Update'
+            },
+            {
+                'title': 'Trading Volume Remains Strong Across Major Indices',
+                'link': '#',
+                'published_at': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                'source': 'Market Update'
+            }
+        ]
+
+class YahooFinanceAPI:
+    def __init__(self):
+        pass
+
+    def search_stocks(self, query, limit=10):
+        """Search stocks by name or symbol using Yahoo Finance public search API with fallback"""
+        try:
+            url = "https://query2.finance.yahoo.com/v1/finance/search"
+            params = {
+                "q": query,
+                "quotesCount": limit,
+                "newsCount": 0,
+                "lang": "en"
+            }
+            response = requests.get(url, params=params, timeout=3)
+            if response.status_code == 200:
+                data = response.json()
+                results = []
+                for item in data.get("quotes", []):
+                    if item.get("quoteType") in ["EQUITY", "ETF", "MUTUALFUND"]:
+                        results.append({
+                            "symbol": item.get("symbol", ""),
+                            "name": item.get("shortname", "") or item.get("longname", ""),
+                            "exchange": item.get("exchange", ""),
+                            "type": item.get("quoteType", "")
+                        })
+                
+                # If Yahoo API returns no results, use fallback
+                if not results:
+                    print("Yahoo API returned no results, using fallback")
+                    return self.get_fallback_search_results(query, limit)
+                return results
+            else:
+                print("Yahoo search error:", response.text)
+                return self.get_fallback_search_results(query, limit)
+        except Exception as e:
+            print("Error searching stocks:", e)
+            return self.get_fallback_search_results(query, limit)
+
+    def get_fallback_search_results(self, query, limit=10):
+        """Fallback search using predefined popular stocks"""
+        query_lower = query.lower()
+        
+        # Popular stocks database
+        popular_stocks = [
+            {"symbol": "AAPL", "name": "Apple Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "MSFT", "name": "Microsoft Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "GOOGL", "name": "Alphabet Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "AMZN", "name": "Amazon.com Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "TSLA", "name": "Tesla Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "NVDA", "name": "NVIDIA Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "META", "name": "Meta Platforms Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "NFLX", "name": "Netflix Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "AMD", "name": "Advanced Micro Devices Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "INTC", "name": "Intel Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "CRM", "name": "Salesforce Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ORCL", "name": "Oracle Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ADBE", "name": "Adobe Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "PYPL", "name": "PayPal Holdings Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "SQ", "name": "Block Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "UBER", "name": "Uber Technologies Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "LYFT", "name": "Lyft Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "SPOT", "name": "Spotify Technology S.A.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ZM", "name": "Zoom Video Communications Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "SHOP", "name": "Shopify Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "SNOW", "name": "Snowflake Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "PLTR", "name": "Palantir Technologies Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "COIN", "name": "Coinbase Global Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "ROKU", "name": "Roku Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "PINS", "name": "Pinterest Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "SNAP", "name": "Snap Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "TWTR", "name": "Twitter Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "DIS", "name": "Walt Disney Company", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "NKE", "name": "Nike Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "SBUX", "name": "Starbucks Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "MCD", "name": "McDonald's Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "KO", "name": "Coca-Cola Company", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "PEP", "name": "PepsiCo Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "JNJ", "name": "Johnson & Johnson", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "PFE", "name": "Pfizer Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "JPM", "name": "JPMorgan Chase & Co.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "BAC", "name": "Bank of America Corp.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "WFC", "name": "Wells Fargo & Company", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "GS", "name": "Goldman Sachs Group Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "V", "name": "Visa Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "MA", "name": "Mastercard Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "HD", "name": "Home Depot Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "WMT", "name": "Walmart Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "TGT", "name": "Target Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "COST", "name": "Costco Wholesale Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "LLY", "name": "Eli Lilly and Company", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "UNH", "name": "UnitedHealth Group Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ABBV", "name": "AbbVie Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "MRK", "name": "Merck & Co. Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "TMO", "name": "Thermo Fisher Scientific Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ABT", "name": "Abbott Laboratories", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "DHR", "name": "Danaher Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "BMY", "name": "Bristol-Myers Squibb Company", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "PFE", "name": "Pfizer Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "AMGN", "name": "Amgen Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "GILD", "name": "Gilead Sciences Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "REGN", "name": "Regeneron Pharmaceuticals Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "BIIB", "name": "Biogen Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "VRTX", "name": "Vertex Pharmaceuticals Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "MRNA", "name": "Moderna Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "BIO", "name": "Bio-Rad Laboratories Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ILMN", "name": "Illumina Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "ISRG", "name": "Intuitive Surgical Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "DXCM", "name": "DexCom Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "ALGN", "name": "Align Technology Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "IDXX", "name": "IDEXX Laboratories Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "WAT", "name": "Waters Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "MTD", "name": "Mettler-Toledo International Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "BRK.A", "name": "Berkshire Hathaway Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "BRK.B", "name": "Berkshire Hathaway Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "XOM", "name": "Exxon Mobil Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "CVX", "name": "Chevron Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "COP", "name": "ConocoPhillips", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "EOG", "name": "EOG Resources Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "SLB", "name": "Schlumberger Limited", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "HAL", "name": "Halliburton Company", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "BHP", "name": "BHP Group Limited", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "RIO", "name": "Rio Tinto Group", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "FCX", "name": "Freeport-McMoRan Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "NEM", "name": "Newmont Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "GOLD", "name": "Barrick Gold Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "AGN", "name": "Allergan plc", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "CELG", "name": "Celgene Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "ALXN", "name": "Alexion Pharmaceuticals Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "MYL", "name": "Mylan N.V.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "TEVA", "name": "Teva Pharmaceutical Industries Limited", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "PRGO", "name": "Perrigo Company plc", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ENDP", "name": "Endo International plc", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "VRX", "name": "Valeant Pharmaceuticals International Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "MNK", "name": "Mallinckrodt plc", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "ACN", "name": "Accenture plc", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "IBM", "name": "International Business Machines Corporation", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "HPQ", "name": "HP Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "DELL", "name": "Dell Technologies Inc.", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "CSCO", "name": "Cisco Systems Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "AVGO", "name": "Broadcom Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "QCOM", "name": "QUALCOMM Incorporated", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "TXN", "name": "Texas Instruments Incorporated", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "MU", "name": "Micron Technology Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "KLAC", "name": "KLA Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "LRCX", "name": "Lam Research Corporation", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "AMAT", "name": "Applied Materials Inc.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "ASML", "name": "ASML Holding N.V.", "exchange": "NASDAQ", "type": "EQUITY"},
+            {"symbol": "TSM", "name": "Taiwan Semiconductor Manufacturing Company Limited", "exchange": "NYSE", "type": "EQUITY"},
+            {"symbol": "SMH", "name": "VanEck Vectors Semiconductor ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "SOXX", "name": "iShares PHLX Semiconductor ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "XLK", "name": "Technology Select Sector SPDR Fund", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "VGT", "name": "Vanguard Information Technology ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "QQQ", "name": "Invesco QQQ Trust", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "SPY", "name": "SPDR S&P 500 ETF Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "VOO", "name": "Vanguard S&P 500 ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "IVV", "name": "iShares Core S&P 500 ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "DIA", "name": "SPDR Dow Jones Industrial Average ETF Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "IWM", "name": "iShares Russell 2000 ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "VTI", "name": "Vanguard Total Stock Market ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "VEA", "name": "Vanguard FTSE Developed Markets ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "VWO", "name": "Vanguard FTSE Emerging Markets ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "EFA", "name": "iShares MSCI EAFE ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "EEM", "name": "iShares MSCI Emerging Markets ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "AGG", "name": "iShares Core U.S. Aggregate Bond ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "BND", "name": "Vanguard Total Bond Market ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "TLT", "name": "iShares 20+ Year Treasury Bond ETF", "exchange": "NASDAQ", "type": "ETF"},
+            {"symbol": "GLD", "name": "SPDR Gold Shares", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "SLV", "name": "iShares Silver Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "USO", "name": "United States Oil Fund LP", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "UNG", "name": "United States Natural Gas Fund LP", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "DBA", "name": "Invesco DB Agriculture Fund", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "DBC", "name": "Invesco DB Commodity Index Tracking Fund", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "UUP", "name": "Invesco DB US Dollar Index Bullish Fund", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "UUP", "name": "Invesco DB US Dollar Index Bullish Fund", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXY", "name": "Invesco CurrencyShares Japanese Yen Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXE", "name": "Invesco CurrencyShares Euro Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXB", "name": "Invesco CurrencyShares British Pound Sterling Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXC", "name": "Invesco CurrencyShares Canadian Dollar Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXA", "name": "Invesco CurrencyShares Australian Dollar Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXF", "name": "Invesco CurrencyShares Swiss Franc Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXS", "name": "Invesco CurrencyShares Swedish Krona Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXM", "name": "Invesco CurrencyShares Mexican Peso Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXZ", "name": "Invesco CurrencyShares New Zealand Dollar Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXO", "name": "Invesco CurrencyShares Norwegian Krone Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXH", "name": "Invesco CurrencyShares Hong Kong Dollar Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXK", "name": "Invesco CurrencyShares Danish Krone Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXU", "name": "Invesco CurrencyShares Russian Ruble Trust", "exchange": "NYSE", "type": "ETF"},
+            {"symbol": "FXW", "name": "Invesco CurrencyShares Singapore Dollar Trust", "exchange": "NYSE", "type": "ETF"}
+        ]
+        
+        # Filter stocks based on query
+        results = []
+        for stock in popular_stocks:
+            if (query_lower in stock["symbol"].lower() or 
+                query_lower in stock["name"].lower()):
+                results.append(stock)
+                if len(results) >= limit:
+                    break
+        
+        return results
+
+    def get_real_time_data(self, symbol):
+        try:
+            # Get stock data using yfinance
+            stock = yf.Ticker(symbol)
+            info = stock.info
+            
+            # Try different price fields in order of preference
+            price = None
+            if 'currentPrice' in info and info['currentPrice'] is not None:
+                price = info['currentPrice']
+            elif 'regularMarketPrice' in info and info['regularMarketPrice'] is not None:
+                price = info['regularMarketPrice']
+            elif 'regularMarketPreviousClose' in info and info['regularMarketPreviousClose'] is not None:
+                price = info['regularMarketPreviousClose']
+            
+            # Get company name
+            name = info.get('longName', symbol)
+            if not name or name == symbol:
+                name = info.get('shortName', symbol)
+            
+            if price is None:
+                print(f"Could not find price data for {symbol}")
+                return None
+                
+            return {
+                'name': name,
+                'price': float(price)
+            }
+                
+        except Exception as e:
+            print(f"Error retrieving real-time data for {symbol}: {e}")
+            return None
+
+    def get_info(self, symbol):
+        """Get comprehensive company information from Yahoo Finance"""
+        try:
+            stock = yf.Ticker(symbol)
+            # Add a small delay to ensure data is loaded
+            time.sleep(0.2)
+            
+            info = stock.info
+            
+            # Handle case where info might be empty or have errors
+            if not info or len(info) == 0:
+                # Try fetching again with a longer timeout
+                time.sleep(0.5)
+                info = stock.info
+            
+            # Return info if we got valid data
+            if info and isinstance(info, dict) and len(info) > 0:
+                return info
+            else:
+                print(f"Warning: Empty or invalid info returned for {symbol}")
+                return {}
+                
+        except Exception as e:
+            print(f"Error retrieving info for {symbol}: {e}")
+            return {}
+
+    def get_historical_data(self, symbol, start_date, end_date):
+        try:
+            # Get historical data using yfinance
+            stock = yf.Ticker(symbol)
+            hist = stock.history(start=start_date, end=end_date)
+            
+            if hist.empty:
+                print(f"No historical data available for {symbol}")
+                return None
+            
+            # Convert to the format expected by the original code
+            historical_data = []
+            
+            for date, row in hist.iterrows():
+                historical_data.append({
+                    'date': date.strftime('%Y-%m-%d'),
+                    'close': float(row['Close'])
+                })
+            
+            return historical_data
+                
+        except Exception as e:
+            print(f"Error retrieving historical data for {symbol}: {e}")
+            return None
+
+    def get_day_change_percent(self, symbol: str, date_str: str) -> float:
+        """Compute close-to-close percent change for a specific trading date.
+
+        Strategy: pull up to 10 calendar days ending the next day after date_str,
+        take the last two trading sessions (prev, current) and compute
+        (close_today / close_prev - 1) * 100. Returns 0.0 if not available.
+        """
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d")
+            end_date = (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
+            start_date = (target_date - timedelta(days=10)).strftime("%Y-%m-%d")
+
+            stock = yf.Ticker(symbol)
+            hist = stock.history(start=start_date, end=end_date)
+            if hist is None or hist.empty or len(hist) < 2:
+                return 0.0
+
+            closes = hist["Close"].dropna()
+            if len(closes) < 2:
+                return 0.0
+
+            close_today = closes.iloc[-1]
+            close_prev = closes.iloc[-2]
+            if close_prev and close_prev > 0:
+                return float((close_today / close_prev - 1.0) * 100.0)
+            return 0.0
+        except Exception as e:
+            print(f"Error computing day change percent for {symbol} on {date_str}: {e}")
+            return 0.0
+
+class Stock:
+    def __init__(self, symbol, api=None):
+        self.symbol = symbol.upper()
+        self.name = ""
+        self.price = 0.0
+        self.previous_price = 0.0
+        self.api = api
+
+    def retrieve_data(self):
+        if not self.api:
+            self.name = f"No API configured for {self.symbol}"
+            return
+            
+        # Retrieve real-time data from API
+        data = self.api.get_real_time_data(self.symbol)
+        if data:
+            self.name = data['name']
+            self.previous_price = self.price
+            self.price = data['price']
+        else:
+            self.name = f"Stock '{self.symbol}' not found"
+
+    def retrieve_historical_data(self, start_date, end_date):
+        if not self.api:
+            return None, None
+            
+        # Retrieve historical data from API
+        data = self.api.get_historical_data(self.symbol, start_date, end_date)
+        if data:
+            # Extract dates and closing prices
+            return [entry['date'] for entry in data], [entry['close'] for entry in data]
+        else:
+            return None, None
+
+    def __str__(self):
+        return f"{self.name} Price: ${self.price:.2f}"
+
+# Helper to fetch CEO and description from Finnhub
+class AlpacaAPI:
+    def __init__(self, api_key=None, secret_key=None, base_url=None):
+        """Initialize Alpaca API client"""
+        self.api_key = api_key or os.getenv('ALPACA_API_KEY')
+        self.secret_key = secret_key or os.getenv('ALPACA_SECRET_KEY')
+        # Use data API for market data (not trading API)
+        self.base_url = base_url or os.getenv('ALPACA_DATA_URL', 'https://data.alpaca.markets/v2')
+
+        # Cache for company names to avoid repeated API calls
+        self._company_name_cache = {}
+
+        # Circuit breaker for API reliability
+        self._circuit_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=30)
+
+        if not self.api_key or not self.secret_key:
+            print("⚠️ [ALPACA INIT] Warning: Alpaca API keys not set. Alpaca API will not work.")
+            print(f"   Looking for: ALPACA_API_KEY and ALPACA_SECRET_KEY")
+        else:
+            print(f"✅ [ALPACA INIT] Alpaca API client initialized")
+            print(f"   Base URL: {self.base_url}")
+            print(f"   API Key: {self.api_key[:8]}...{self.api_key[-4:] if len(self.api_key) > 12 else '***'}")
+    
+    def _get_headers(self):
+        """Get authentication headers for Alpaca API"""
+        return {
+            'APCA-API-KEY-ID': self.api_key,
+            'APCA-API-SECRET-KEY': self.secret_key
+        }
+    
+    def get_real_time_data(self, symbol):
+        """Get real-time stock data from Alpaca with circuit breaker, retry logic and longer timeouts"""
+        if not self.api_key or not self.secret_key:
+            print(f"⚠️ [ALPACA] API keys not set for {symbol}")
+            return None
+
+        # Check circuit breaker state
+        if self._circuit_breaker.state == 'OPEN':
+            print(f"🚫 [ALPACA] Circuit breaker OPEN for {symbol} - skipping Alpaca API")
+            return None
+
+        def _api_call():
+            # Retry logic: try up to 2 times with increasing timeouts
+            for attempt in range(2):
+                try:
+                    timeout = 8 + (attempt * 2)  # 8s, then 10s
+                    print(f"🔵 [ALPACA] Attempt {attempt + 1}/2 fetching real-time data for {symbol} (timeout: {timeout}s)...")
+
+                    # Try snapshot endpoint first (most reliable for current price)
+                    snapshot_data = self._get_snapshot_data(symbol, timeout)
+                    if snapshot_data:
+                        print(f"✅ [ALPACA] Got snapshot data for {symbol}: ${snapshot_data.get('price', 0):.2f}")
+                        return snapshot_data
+
+                    # Fallback: try latest quote endpoint
+                    print(f"🔄 [ALPACA] Attempt {attempt + 1}/2 trying latest quote endpoint for {symbol}...")
+                    url = f'{self.base_url}/stocks/{symbol}/quotes/latest'
+                    headers = self._get_headers()
+                    response = requests.get(url, headers=headers, timeout=timeout)
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        quote = data.get('quote', {})
+
+                        # Get price (use ask price, bid price, or last price)
+                        price = quote.get('ap') or quote.get('bp') or quote.get('p')
+
+                        if price:
+                            # Get company name from ticker info
+                            name = self._get_company_name(symbol, timeout)
+                            print(f"✅ [ALPACA] Got quote data for {symbol}: ${float(price):.2f} ({name or symbol})")
+                            return {
+                                'name': name or symbol,
+                                'price': float(price)
+                            }
+                    elif response.status_code == 404:
+                        # Stock not found on Alpaca
+                        print(f"⚠️ [ALPACA] Stock {symbol} not found (404)")
+                        return None
+                    elif response.status_code == 429:
+                        # Rate limited - don't retry immediately
+                        print(f"⚠️ [ALPACA] Rate limited for {symbol} (429)")
+                        if attempt < 1:  # Only sleep on first attempt
+                            import time
+                            time.sleep(1)  # Wait 1 second before retry
+                            continue
+                        raise Exception(f"Rate limited: {response.status_code}")
+                    else:
+                        print(f"❌ [ALPACA] API error for {symbol}: {response.status_code} {response.text[:100]}...")
+                        if attempt < 1:  # Retry on first attempt for server errors
+                            continue
+                        raise Exception(f"API error: {response.status_code}")
+
+                except requests.exceptions.Timeout:
+                    print(f"⏰ [ALPACA] Timeout on attempt {attempt + 1}/2 for {symbol} ({timeout}s)")
+                    if attempt < 1:  # Only retry on timeout for first attempt
+                        continue
+                    raise Exception(f"Timeout after {timeout}s")
+                except Exception as e:
+                    print(f"❌ [ALPACA] Exception on attempt {attempt + 1}/2 for {symbol}: {e}")
+                    if attempt < 1:  # Only retry on first attempt for exceptions
+                        continue
+                    raise e
+
+            print(f"❌ [ALPACA] All attempts failed for {symbol}")
+            raise Exception("All API attempts failed")
+
+        try:
+            return self._circuit_breaker.call(_api_call)
+        except Exception as e:
+            print(f"🚫 [ALPACA] Circuit breaker triggered for {symbol}: {e}")
+            return None
+    
+    def _get_snapshot_data(self, symbol, timeout=8):
+        """Get snapshot data (most reliable for current price)"""
+        try:
+            url = f'{self.base_url}/stocks/{symbol}/snapshot'
+            headers = self._get_headers()
+            response = requests.get(url, headers=headers, timeout=timeout)
+
+            if response.status_code == 200:
+                data = response.json()
+                # Snapshot contains latestTrade with price
+                latest_trade = data.get('latestTrade', {})
+                price = latest_trade.get('p')
+
+                # If no latest trade, try daily bar
+                if not price:
+                    daily_bar = data.get('dailyBar', {})
+                    price = daily_bar.get('c')  # Close price
+
+                if price:
+                    name = self._get_company_name(symbol, timeout)
+                    print(f"✅ [ALPACA] Got snapshot for {symbol}: ${float(price):.2f} ({name or symbol})")
+                    return {
+                        'name': name or symbol,
+                        'price': float(price)
+                    }
+                else:
+                    print(f"⚠️ [ALPACA] Snapshot for {symbol} has no price data")
+            else:
+                print(f"⚠️ [ALPACA] Snapshot request for {symbol} returned {response.status_code}")
+        except Exception as e:
+            print(f"❌ [ALPACA] Error getting snapshot for {symbol}: {e}")
+
+        return None
+    
+    def get_batch_snapshots(self, symbols):
+        """Get snapshot data for multiple symbols in a single API call with circuit breaker and retry logic
+
+        Args:
+            symbols: List of stock symbols (e.g., ['AAPL', 'TSLA', 'MSFT'])
+
+        Returns:
+            Dictionary mapping symbol to {'name': str, 'price': float} or None if not found
+        """
+        if not self.api_key or not self.secret_key:
+            print(f"⚠️ [ALPACA] API keys not set for batch snapshots")
+            return {}
+
+        if not symbols:
+            return {}
+
+        # Check circuit breaker state
+        if self._circuit_breaker.state == 'OPEN':
+            print(f"🚫 [ALPACA BATCH] Circuit breaker OPEN for {len(symbols)} symbols - skipping Alpaca API")
+            return {}
+
+        def _batch_api_call():
+            # Retry logic for batch requests
+            for attempt in range(2):
+                try:
+                    timeout = 12 + (attempt * 3)  # 12s, then 15s
+                    symbols_str = ','.join(symbols)
+                    url = f'{self.base_url}/stocks/snapshots'
+                    params = {'symbols': symbols_str}
+                    headers = self._get_headers()
+
+                    print(f"🔵 [ALPACA BATCH] Attempt {attempt + 1}/2 fetching {len(symbols)} symbols (timeout: {timeout}s): {symbols_str[:50]}...")
+                    response = requests.get(url, headers=headers, params=params, timeout=timeout)
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        results = {}
+
+                        # Response is a dictionary where keys are symbols
+                        for symbol in symbols:
+                            symbol_data = data.get(symbol, {})
+                            if not symbol_data:
+                                continue
+
+                            # Extract price from latestTrade or dailyBar
+                            latest_trade = symbol_data.get('latestTrade', {})
+                            price = latest_trade.get('p')
+
+                            if not price:
+                                daily_bar = symbol_data.get('dailyBar', {})
+                                price = daily_bar.get('c')  # Close price
+
+                            if price:
+                                # Get company name (will use cache)
+                                name = self._get_company_name(symbol, timeout)
+                                results[symbol] = {
+                                    'name': name or symbol,
+                                    'price': float(price)
+                                }
+                                print(f"✅ [ALPACA BATCH] {symbol}: ${float(price):.2f}")
+                            else:
+                                print(f"⚠️ [ALPACA BATCH] {symbol}: No price data available")
+
+                        print(f"✅ [ALPACA BATCH] Successfully fetched {len(results)}/{len(symbols)} symbols on attempt {attempt + 1}")
+                        return results
+                    elif response.status_code == 429:
+                        print(f"⚠️ [ALPACA BATCH] Rate limit exceeded (429) on attempt {attempt + 1}")
+                        if attempt < 1:
+                            import time
+                            time.sleep(2)  # Wait 2 seconds before retry
+                            continue
+                        raise Exception(f"Rate limit: {response.status_code}")
+                    elif response.status_code >= 500:
+                        print(f"❌ [ALPACA BATCH] Server error {response.status_code} on attempt {attempt + 1}")
+                        if attempt < 1:
+                            import time
+                            time.sleep(1)
+                            continue
+                        raise Exception(f"Server error: {response.status_code}")
+                    else:
+                        print(f"❌ [ALPACA BATCH] API error {response.status_code} on attempt {attempt + 1}: {response.text[:200]}")
+                        raise Exception(f"API error: {response.status_code}")
+
+                except requests.exceptions.Timeout:
+                    print(f"⏰ [ALPACA BATCH] Timeout on attempt {attempt + 1}/2 ({timeout}s)")
+                    if attempt < 1:
+                        continue
+                    raise Exception(f"Timeout after {timeout}s")
+                except Exception as e:
+                    print(f"❌ [ALPACA BATCH] Exception on attempt {attempt + 1}/2: {e}")
+                    if attempt < 1:
+                        continue
+                    raise e
+
+            print(f"❌ [ALPACA BATCH] All attempts failed for {len(symbols)} symbols")
+            raise Exception("All batch API attempts failed")
+
+        try:
+            return self._circuit_breaker.call(_batch_api_call)
+        except Exception as e:
+            print(f"🚫 [ALPACA BATCH] Circuit breaker triggered for batch request: {e}")
+            return {}
+    
+    def _get_company_name(self, symbol, timeout=3):
+        """Get company name from Alpaca assets endpoint with caching"""
+        # Check cache first
+        if symbol in self._company_name_cache:
+            return self._company_name_cache[symbol]
+
+        try:
+            url = f'{self.base_url}/assets/{symbol}'
+            headers = self._get_headers()
+            response = requests.get(url, headers=headers, timeout=timeout)
+
+            if response.status_code == 200:
+                data = response.json()
+                name = data.get('name', symbol)
+                # Cache the result
+                self._company_name_cache[symbol] = name
+                return name
+        except Exception as e:
+            print(f"⚠️ [ALPACA] Error getting company name for {symbol}: {e}")
+
+        # Cache None to avoid repeated failed requests
+        self._company_name_cache[symbol] = symbol
+        return symbol
+    
+    def get_info(self, symbol):
+        """Get company information from Alpaca (limited compared to Yahoo)"""
+        if not self.api_key or not self.secret_key:
+            return {}
+            
+        try:
+            # Get asset info
+            url = f'{self.base_url}/assets/{symbol}'
+            headers = self._get_headers()
+            response = requests.get(url, headers=headers, timeout=3)
+            
+            if response.status_code == 200:
+                asset_data = response.json()
+                
+                # Get latest trade for price info
+                snapshot_url = f'{self.base_url}/stocks/{symbol}/snapshot'
+                snapshot_response = requests.get(snapshot_url, headers=headers, timeout=3)
+                
+                info = {
+                    'name': asset_data.get('name', symbol),
+                    'exchange': asset_data.get('exchange', ''),
+                    'class': asset_data.get('class', ''),
+                    'status': asset_data.get('status', ''),
+                }
+                
+                if snapshot_response.status_code == 200:
+                    snapshot = snapshot_response.json()
+                    latest_trade = snapshot.get('latestTrade', {})
+                    prev_close = snapshot.get('prevDailyBar', {})
+                    
+                    if latest_trade.get('p'):
+                        info['currentPrice'] = latest_trade.get('p')
+                    if prev_close.get('c'):
+                        info['regularMarketPreviousClose'] = prev_close.get('c')
+                
+                return info
+        except Exception as e:
+            print(f"Error getting Alpaca info for {symbol}: {e}")
+        
+        return {}
+    
+    def search_stocks(self, query, limit=10):
+        """Search stocks using Alpaca (limited - Alpaca doesn't have great search)
+        For now, we'll keep using Yahoo Finance for search"""
+        # Alpaca doesn't have a good search endpoint, so we'll fall back to Yahoo
+        # This method is kept for interface compatibility but will return empty
+        # The app should use YahooFinanceAPI.search_stocks() for search
+        return []
+
+class FinnhubAPI:
+    def __init__(self, api_key=None):
+        self.api_key = api_key or 'c34391qad3i8edlcgrgg'  # Demo key, replace with your own for production
+        self.base_url = 'https://finnhub.io/api/v1/'
+
+    def get_company_profile(self, symbol):
+        """Get company profile from Finnhub API"""
+        try:
+            url = f'{self.base_url}stock/profile2'
+            params = {'symbol': symbol, 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                # Check if we got valid data (not empty dict)
+                if data and isinstance(data, dict) and len(data) > 0:
+                    ceo = data.get('ceo', '') or data.get('ceo', '-')
+                    description = data.get('finnhubIndustry', '') or data.get('finnhubIndustry', '-')
+                    # Also try to get full description if available
+                    if not description or description == '-':
+                        description = data.get('description', '-')
+                    return {
+                        'ceo': ceo if ceo else '-',
+                        'description': description if description else '-'
+                    }
+                else:
+                    print(f'Finnhub returned empty data for {symbol}')
+                    return {'ceo': '-', 'description': '-'}
+            else:
+                print(f'Finnhub error: {response.status_code} {response.text}')
+                return {'ceo': '-', 'description': '-'}
+        except requests.exceptions.Timeout:
+            print(f'Finnhub timeout for {symbol}')
+            return {'ceo': '-', 'description': '-'}
+        except Exception as e:
+            print(f'Error fetching Finnhub profile for {symbol}: {e}')
+            return {'ceo': '-', 'description': '-'}
+
+class AlphaVantageAPI:
+    """Alpha Vantage API - Free tier: 5 calls/minute, 500 calls/day"""
+    def __init__(self, api_key=None):
+        self.api_key = api_key or os.getenv('ALPHA_VANTAGE_API_KEY', 'demo')
+        self.base_url = 'https://www.alphavantage.co/query'
+    
+    def get_company_overview(self, symbol):
+        """Get company overview including market cap, P/E ratio, etc."""
+        try:
+            params = {
+                'function': 'OVERVIEW',
+                'symbol': symbol,
+                'apikey': self.api_key
+            }
+            response = requests.get(self.base_url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if data and 'Symbol' in data:
+                    return {
+                        'marketCap': data.get('MarketCapitalization', ''),
+                        'peRatio': data.get('PERatio', ''),
+                        'dividendYield': data.get('DividendYield', ''),
+                        'description': data.get('Description', ''),
+                        'sector': data.get('Sector', ''),
+                        'industry': data.get('Industry', ''),
+                        'address': data.get('Address', ''),
+                        'ceo': data.get('CEO', ''),
+                        'website': data.get('Website', '')
+                    }
+        except Exception as e:
+            print(f'Alpha Vantage error for {symbol}: {e}')
+        return {}
+
+class FinancialModelingPrepAPI:
+    """Financial Modeling Prep API - Free tier available"""
+    def __init__(self, api_key=None):
+        self.api_key = api_key or os.getenv('FMP_API_KEY', 'demo')
+        self.base_url = 'https://financialmodelingprep.com/api/v3'
+    
+    def get_company_profile(self, symbol):
+        """Get company profile"""
+        try:
+            url = f'{self.base_url}/profile/{symbol}'
+            params = {'apikey': self.api_key}
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    company = data[0]
+                    return {
+                        'marketCap': company.get('mktCap', ''),
+                        'peRatio': company.get('pe', ''),
+                        'dividendYield': company.get('lastDiv', ''),
+                        'description': company.get('description', ''),
+                        'sector': company.get('sector', ''),
+                        'industry': company.get('industry', ''),
+                        'ceo': company.get('ceo', ''),
+                        'website': company.get('website', ''),
+                        'address': company.get('address', ''),
+                        'city': company.get('city', ''),
+                        'state': company.get('state', ''),
+                        'country': company.get('country', '')
+                    }
+        except Exception as e:
+            print(f'Financial Modeling Prep error for {symbol}: {e}')
+        return {}
+
+class CompanyInfoService:
+    """Service that aggregates company info from multiple APIs with fallbacks"""
+    def __init__(self):
+        self.finnhub = FinnhubAPI()
+        self.alpha_vantage = AlphaVantageAPI()
+        self.fmp = FinancialModelingPrepAPI()
+    
+    def get_comprehensive_info(self, symbol, yahoo_info=None):
+        """Get comprehensive company info trying multiple APIs"""
+        result = {
+            'ceo': '-',
+            'marketCap': '-',
+            'peRatio': '-',
+            'dividendYield': '-',
+            'website': '-',
+            'headquarters': '-',
+            'description': '-'
+        }
+        
+        # Try Yahoo Finance first (most reliable for comprehensive data)
+        if yahoo_info:
+            result['ceo'] = self._extract_ceo_from_yahoo(yahoo_info) or '-'
+            result['marketCap'] = self._format_market_cap(yahoo_info.get('marketCap')) or '-'
+            result['peRatio'] = self._format_pe_ratio(yahoo_info.get('trailingPE') or yahoo_info.get('forwardPE')) or '-'
+            result['dividendYield'] = self._format_dividend_yield(yahoo_info.get('dividendYield')) or '-'
+            result['website'] = self._format_website(yahoo_info.get('website')) or '-'
+            result['headquarters'] = self._format_headquarters(
+                yahoo_info.get('city'),
+                yahoo_info.get('state'),
+                yahoo_info.get('country')
+            ) or '-'
+            result['description'] = yahoo_info.get('longBusinessSummary') or yahoo_info.get('sector') or '-'
+        
+        # Fill in missing data with Alpha Vantage
+        if result['ceo'] == '-' or result['marketCap'] == '-' or result['peRatio'] == '-':
+            av_data = self.alpha_vantage.get_company_overview(symbol)
+            if av_data:
+                if result['ceo'] == '-' and av_data.get('ceo'):
+                    result['ceo'] = av_data['ceo']
+                if result['marketCap'] == '-' and av_data.get('marketCap'):
+                    result['marketCap'] = self._format_market_cap(av_data['marketCap']) or '-'
+                if result['peRatio'] == '-' and av_data.get('peRatio'):
+                    result['peRatio'] = self._format_pe_ratio(av_data['peRatio']) or '-'
+                if result['dividendYield'] == '-' and av_data.get('dividendYield'):
+                    result['dividendYield'] = self._format_dividend_yield(av_data['dividendYield']) or '-'
+                if result['website'] == '-' and av_data.get('website'):
+                    result['website'] = self._format_website(av_data['website']) or '-'
+                if result['headquarters'] == '-' and av_data.get('address'):
+                    result['headquarters'] = av_data['address']
+                if result['description'] == '-' and av_data.get('description'):
+                    result['description'] = av_data['description']
+        
+        # Fill remaining gaps with Financial Modeling Prep
+        if result['ceo'] == '-' or result['marketCap'] == '-' or result['peRatio'] == '-':
+            fmp_data = self.fmp.get_company_profile(symbol)
+            if fmp_data:
+                if result['ceo'] == '-' and fmp_data.get('ceo'):
+                    result['ceo'] = fmp_data['ceo']
+                if result['marketCap'] == '-' and fmp_data.get('marketCap'):
+                    result['marketCap'] = self._format_market_cap(fmp_data['marketCap']) or '-'
+                if result['peRatio'] == '-' and fmp_data.get('peRatio'):
+                    result['peRatio'] = self._format_pe_ratio(fmp_data['peRatio']) or '-'
+                if result['dividendYield'] == '-' and fmp_data.get('dividendYield'):
+                    result['dividendYield'] = self._format_dividend_yield(fmp_data['dividendYield']) or '-'
+                if result['website'] == '-' and fmp_data.get('website'):
+                    result['website'] = self._format_website(fmp_data['website']) or '-'
+                if result['headquarters'] == '-' and (fmp_data.get('city') or fmp_data.get('address')):
+                    result['headquarters'] = self._format_headquarters(
+                        fmp_data.get('city'),
+                        fmp_data.get('state'),
+                        fmp_data.get('country')
+                    ) or fmp_data.get('address', '-')
+                if result['description'] == '-' and fmp_data.get('description'):
+                    result['description'] = fmp_data['description']
+        
+        # Try Finnhub for CEO if still missing
+        if result['ceo'] == '-':
+            finnhub_data = self.finnhub.get_company_profile(symbol)
+            if finnhub_data.get('ceo') and finnhub_data['ceo'] != '-':
+                result['ceo'] = finnhub_data['ceo']
+            if result['description'] == '-' and finnhub_data.get('description') and finnhub_data['description'] != '-':
+                result['description'] = finnhub_data['description']
+        
+        return result
+    
+    def _extract_ceo_from_yahoo(self, yahoo_info):
+        """Extract CEO from Yahoo company officers"""
+        officers = yahoo_info.get('companyOfficers', [])
+        for officer in officers:
+            if isinstance(officer, dict):
+                title = officer.get('title', '').upper()
+                if 'CEO' in title or 'CHIEF EXECUTIVE OFFICER' in title:
+                    return officer.get('name', '-')
+        return None
+    
+    def _format_market_cap(self, value):
+        """Format market cap value"""
+        if not value:
+            return None
+        try:
+            if isinstance(value, str):
+                value = value.replace(',', '').replace('$', '')
+                value = float(value)
+            if isinstance(value, (int, float)) and value > 0:
+                if value >= 1e12:
+                    return f"${value/1e12:.2f}T"
+                elif value >= 1e9:
+                    return f"${value/1e9:.2f}B"
+                elif value >= 1e6:
+                    return f"${value/1e6:.2f}M"
+                else:
+                    return f"${value:,.0f}"
+        except:
+            return str(value) if value else None
+        return None
+    
+    def _format_pe_ratio(self, value):
+        """Format P/E ratio"""
+        if not value:
+            return None
+        try:
+            if isinstance(value, str):
+                value = float(value)
+            if isinstance(value, (int, float)) and value > 0:
+                return f"{value:.2f}"
+        except:
+            return str(value) if value else None
+        return None
+    
+    def _format_dividend_yield(self, value):
+        """Format dividend yield"""
+        if not value:
+            return None
+        try:
+            if isinstance(value, str):
+                value = value.replace('%', '')
+                value = float(value)
+            # If value is already a percentage (0-1), multiply by 100
+            if isinstance(value, (int, float)):
+                if value < 1 and value > 0:
+                    return f"{value*100:.2f}%"
+                elif value >= 1:
+                    return f"{value:.2f}%"
+        except:
+            return str(value) + '%' if value else None
+        return None
+    
+    def _format_website(self, value):
+        """Format website URL"""
+        if not value or value == '-':
+            return None
+        value = str(value).strip()
+        if value and not value.startswith('http'):
+            return f"https://{value}"
+        return value
+    
+    def _format_headquarters(self, city, state, country):
+        """Format headquarters address"""
+        if not city:
+            return None
+        parts = [city]
+        if state:
+            parts.append(state)
+        elif country:
+            parts.append(country)
+        return ', '.join(parts)
+
+    def get_index_constituents(self, index_symbol: str) -> list:
+        """Fetch index constituents from Finnhub. Example index_symbol: '^GSPC' for S&P 500.
+        Returns a list of symbols or empty list on failure.
+        """
+        try:
+            # Finnhub expects e.g. '^GSPC' or '^NDX'
+            url = f'{self.base_url}index/constituents'
+            params = {'symbol': index_symbol, 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('constituents', []) or []
+            else:
+                print(f'Finnhub constituents error: {response.status_code} {response.text}')
+                return []
+        except Exception as e:
+            print(f'Error fetching constituents for {index_symbol}: {e}')
+            return []
+
