@@ -803,16 +803,16 @@ const DashboardRedesign = () => {
             
             // Track HTTP updates
             if (ref) {
-                ref.httpUpdateCount = (ref.httpUpdateCount || 0) + stocksToProcess.length;
+                ref.httpUpdateCount = (ref.httpUpdateCount || 0) + stocksToUpdate.length;
             }
         };
         
         // Initial update with minimal delay
         setTimeout(updateLivePrices, 200);
         
-        // Update frequency: unify to 5s to reduce API load
-        const updateInterval = 5000;
-        console.log(`⏰ Starting live pricing updates every ${updateInterval}ms for ${watchlistData.length} stocks`);
+        // Update frequency: 30s for Alpaca API (premium API - not too frequent)
+        const updateInterval = 30000;
+        console.log(`⏰ Starting Alpaca live pricing updates every ${updateInterval}ms for ${watchlistData.length} stocks`);
         ref.interval = setInterval(updateLivePrices, updateInterval);
         ref.isActive = true;
         

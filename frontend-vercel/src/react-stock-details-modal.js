@@ -222,62 +222,19 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 // Details API call
                 console.time(`StockDetailsModal-${symbol}-details-api`);
                 const detailPromise = (async () => {
-                    // First try Yahoo Finance for basic info
-                    try {
-                        console.log(`[StockDetailsModal] Fetching Yahoo Finance details for ${symbol}`);
-                        const yahooResp = await fetch(`https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=assetProfile,summaryDetail,price`, {
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0 (compatible; StockDashboard/1.0)',
-                                'Accept': 'application/json'
-                            }
-                        });
-
-                        if (yahooResp.ok) {
-                            const yahooData = await yahooResp.json();
-                            const result = yahooData?.quoteSummary?.result?.[0];
-
-                            if (result) {
-                                const profile = result.assetProfile || {};
-                                const summary = result.summaryDetail || {};
-                                const price = result.price || {};
-
-                                // Build basic stock info from Yahoo data
-                                const yahooStockData = {
-                                    symbol: symbol,
-                                    name: price.longName || price.shortName || symbol,
-                                    description: profile.longBusinessSummary || profile.businessSummary || '',
-                                    ceo: profile.companyOfficers?.find(officer => officer.role === 'Chief Executive Officer')?.name || '',
-                                    website: profile.website || '',
-                                    headquarters: profile.city && profile.country ? `${profile.city}, ${profile.country}` : '',
-                                    price: price.regularMarketPrice?.raw || 0,
-                                    marketCap: summary.marketCap?.raw || 0,
-                                    peRatio: summary.trailingPE?.raw || 0,
-                                    dividendYield: summary.dividendYield?.raw || 0,
-                                    isInWatchlist: false
-                                };
-
-                                console.log(`[StockDetailsModal] Yahoo details received for ${symbol}`);
-                                return yahooStockData;
-                            }
-                        }
-                    } catch (yahooError) {
-                        console.log(`[StockDetailsModal] Yahoo details failed for ${symbol}, trying backend`);
-                    }
-
-                    // Fallback to backend API
                     const url = useWatchlistEndpoint
                         ? `${API_BASE}/api/watchlist/${symbol}/details`
                         : `${API_BASE}/api/company/${symbol}`;
                     const opts = useWatchlistEndpoint
                         ? { method: 'GET', headers: authHeaders, credentials: 'include' }
                         : { credentials: 'include' };
-                    console.log(`[StockDetailsModal] Fetching backend details from: ${url}`);
+                    console.log(`[StockDetailsModal] Fetching details from: ${url}`);
                     const response = await fetch(url, opts);
                     if (!response.ok) {
                         throw new Error(`Failed to load stock data: HTTP ${response.status}`);
                     }
                     const data = await response.json();
-                    console.log(`[StockDetailsModal] Backend details data received for ${symbol}`);
+                    console.log(`[StockDetailsModal] Details data received for ${symbol}`);
                     if (useWatchlistEndpoint) {
                         return {
                             ...data,
@@ -293,66 +250,24 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     return { ...data, isInWatchlist: false };
                 })();
 
-                // Chart API call - try Yahoo Finance directly first, fallback to backend
+                // Chart API call
                 console.time(`StockDetailsModal-${symbol}-chart-api`);
                 const chartPromise = (async () => {
                     try {
-                        console.log(`[StockDetailsModal] Fetching Yahoo Finance chart data for ${symbol}`);
-
-                        // Calculate date range for 30 days
-                        const endDate = Math.floor(Date.now() / 1000);
-                        const startDate = endDate - (30 * 24 * 60 * 60); // 30 days ago
-
-                        // Try Yahoo Finance chart API directly
-                        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d&includePrePost=false`;
-                        const yahooResp = await fetch(yahooUrl, {
-                            headers: {
-                                'User-Agent': 'Mozilla/5.0 (compatible; StockDashboard/1.0)',
-                                'Accept': 'application/json'
-                            }
-                        });
-
-                        if (yahooResp.ok) {
-                            const yahooData = await yahooResp.json();
-                            const chartResult = yahooData?.chart?.result?.[0];
-
-                            if (chartResult && chartResult.timestamp && chartResult.indicators?.quote?.[0]?.close) {
-                                const timestamps = chartResult.timestamp;
-                                const closes = chartResult.indicators.quote[0].close;
-
-                                // Convert to the expected format
-                                const chartData = timestamps.map((timestamp, index) => {
-                                    const price = closes[index];
-                                    if (price !== null && price !== undefined) {
-                                        const date = new Date(timestamp * 1000).toISOString().split('T')[0];
-                                        return { date, price: parseFloat(price.toFixed(2)) };
-                                    }
-                                    return null;
-                                }).filter(item => item !== null);
-
-                                console.log(`[StockDetailsModal] Yahoo chart data received for ${symbol} (${chartData.length} points)`);
-                                return chartData;
-                            }
-                        }
-
-                        // Fallback to backend API
-                        console.log(`[StockDetailsModal] Yahoo chart failed, trying backend API for ${symbol}`);
+                        console.log(`[StockDetailsModal] Fetching chart data for ${symbol}`);
                         const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
                             credentials: 'include'
                         });
                         if (chartResp.ok) {
                             const chartData = await chartResp.json();
-                            console.log(`[StockDetailsModal] Backend chart data received for ${symbol} (${chartData.length} points)`);
+                            console.log(`[StockDetailsModal] Chart data received for ${symbol} (${chartData.length} points)`);
                             return chartData;
                         }
-
-                        console.log(`[StockDetailsModal] All chart APIs failed for ${symbol}`);
-                        return null;
-
+                        console.log(`[StockDetailsModal] Chart API failed for ${symbol}, status: ${chartResp.status}`);
                     } catch (error) {
                         console.log(`[StockDetailsModal] Chart API error for ${symbol}:`, error);
-                        return null;
                     }
+                    return null;
                 })();
 
                 // News API call
@@ -437,7 +352,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     useEffect(() => {
         if (!isOpen || !symbol) return;
 
-        console.log(`[StockDetailsModal] Setting up Yahoo Finance real-time price updates for ${symbol}`);
+        console.log(`[StockDetailsModal] Setting up real-time price updates for ${symbol}`);
 
         const updatePrice = async () => {
             const now = Date.now();
@@ -473,50 +388,37 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             console.log(`[StockDetailsModal] Starting Yahoo Finance price update for ${symbol}`);
 
             try {
-                // Use Yahoo Finance directly for modal pricing (faster and more reliable)
-                console.log(`[StockDetailsModal] Fetching Yahoo Finance data for ${symbol}`);
-                const yahooResponse = await fetch(`https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price`, {
-                    method: 'GET',
+                // Use backend API which prioritizes Alpaca API for live pricing
+                console.log(`[StockDetailsModal] Fetching live price data for ${symbol} via Alpaca API`);
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+
+                const response = await fetch(`${API_BASE}/api/search`, {
+                    method: 'POST',
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (compatible; StockDashboard/1.0)',
-                        'Accept': 'application/json'
-                    }
+                        'Content-Type': 'application/json',
+                        'X-Request-Source': 'modal'  // Indicate this is from modal for better tracking
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ symbol: symbol })
                 });
 
                 ref.lastCallTime = Date.now();
 
-                if (yahooResponse.ok) {
-                    const yahooData = await yahooResponse.json();
-                    const priceData = yahooData?.quoteSummary?.result?.[0]?.price;
+                if (response.ok) {
+                    const stockData = await response.json();
+                    console.log(`[StockDetailsModal] Price data received for ${symbol}: $${stockData.price}`);
 
-                    if (priceData) {
-                        const currentPrice = priceData.regularMarketPrice?.raw || priceData.regularMarketPreviousClose?.raw;
-                        const previousClose = priceData.regularMarketPreviousClose?.raw;
+                    setStockData(prev => prev ? {
+                        ...prev,
+                        price: stockData.price,
+                        priceChange: stockData.priceChange || 0,
+                        percentageChange: stockData.priceChangePercent || 0,
+                        priceChangePercent: stockData.priceChangePercent || 0
+                    } : prev);
 
-                        if (currentPrice) {
-                            // Calculate price change from Yahoo data
-                            const priceChange = currentPrice - (previousClose || currentPrice);
-                            const percentageChange = previousClose ? (priceChange / previousClose) * 100 : 0;
-
-                            console.log(`[StockDetailsModal] Yahoo price data received for ${symbol}: $${currentPrice.toFixed(2)}`);
-
-                            setStockData(prev => prev ? {
-                                ...prev,
-                                price: currentPrice,
-                                priceChange: priceChange,
-                                percentageChange: percentageChange,
-                                priceChangePercent: percentageChange
-                            } : prev);
-
-                            console.log(`[StockDetailsModal] Price state updated for ${symbol} from Yahoo Finance`);
-                        } else {
-                            console.log(`[StockDetailsModal] No price data in Yahoo response for ${symbol}`);
-                        }
-                    } else {
-                        console.log(`[StockDetailsModal] Invalid Yahoo response structure for ${symbol}`);
-                    }
+                    console.log(`[StockDetailsModal] Price state updated for ${symbol} from backend API`);
                 } else {
-                    console.log(`[StockDetailsModal] Yahoo Finance API failed for ${symbol}, status: ${yahooResponse.status}`);
+                    console.log(`[StockDetailsModal] Backend price API failed for ${symbol}, status: ${response.status}`);
                 }
             } catch (e) {
                 console.error(`[StockDetailsModal] Error updating Yahoo price for ${symbol}:`, e);
@@ -528,12 +430,12 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         };
 
         // Initial update with delay
-        console.log(`[StockDetailsModal] Scheduling initial Yahoo price update for ${symbol} in 500ms`);
+        console.log(`[StockDetailsModal] Scheduling initial price update for ${symbol} in 500ms`);
         setTimeout(updatePrice, 500);
 
-        // Update every 10 seconds when modal is open (Yahoo Finance is faster than Alpaca)
-        console.log(`[StockDetailsModal] Setting up Yahoo price update interval for ${symbol} (every 10s)`);
-        const priceInterval = setInterval(updatePrice, 10000);
+        // Update every 30 seconds when modal is open (Alpaca API)
+        console.log(`[StockDetailsModal] Setting up Alpaca price update interval for ${symbol} (every 30s)`);
+        const priceInterval = setInterval(updatePrice, 30000);
 
         return () => {
             console.log(`[StockDetailsModal] Clearing price update interval for ${symbol}`);
