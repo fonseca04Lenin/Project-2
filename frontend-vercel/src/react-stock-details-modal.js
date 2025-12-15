@@ -174,6 +174,13 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
         const fetchCEOData = async () => {
             setLoading(true);
 
+            // Helper function to remove titles from names
+            const removeTitles = (name) => {
+                if (!name) return name;
+                // Remove common titles: Mr, Ms, Mrs, Dr, Prof, etc.
+                return name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/i, '').trim();
+            };
+
             try {
                 // Try multiple search strategies to find the CEO's personal page
                 let pageData = null;
@@ -261,7 +268,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                          firstParagraph.toLowerCase().includes('is an');
 
                     setCeoData({
-                        name: page.title || ceoName,
+                        name: removeTitles(page.title || ceoName),
                         biography: isPersonalBio ? firstParagraph : biography,
                         imageUrl: page.original?.source || null,
                         wikipediaUrl: `https://en.wikipedia.org/?curid=${pageId}`,
@@ -270,9 +277,10 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     });
                 } else {
                     // No Wikipedia page found - show basic info
+                    const cleanName = removeTitles(ceoName);
                     setCeoData({
-                        name: ceoName,
-                        biography: `${ceoName} serves as Chief Executive Officer of ${companyName} (${companySymbol}). Additional biographical information is not currently available from Wikipedia. For more details about the company leadership, please visit the company's official website or investor relations page.`,
+                        name: cleanName,
+                        biography: `${cleanName} serves as Chief Executive Officer of ${companyName} (${companySymbol}). Additional biographical information is not currently available from Wikipedia. For more details about the company leadership, please visit the company's official website or investor relations page.`,
                         imageUrl: null,
                         wikipediaUrl: null,
                         found: false,
@@ -281,9 +289,10 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 }
             } catch (err) {
                 console.error('Error fetching CEO data:', err);
+                const cleanName = removeTitles(ceoName);
                 setCeoData({
-                    name: ceoName,
-                    biography: `${ceoName} serves as Chief Executive Officer of ${companyName} (${companySymbol}).`,
+                    name: cleanName,
+                    biography: `${cleanName} serves as Chief Executive Officer of ${companyName} (${companySymbol}).`,
                     imageUrl: null,
                     wikipediaUrl: null,
                     found: false,
@@ -310,13 +319,13 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
 
     if (!isOpen) return null;
 
-    // Bloomberg Terminal Colors
+    // Bloomberg Terminal Colors - Green Theme
     const colors = {
-        bg: '#001428',
-        surface: '#002640',
-        border: '#0a4a6e',
-        primary: '#00d4ff',
-        secondary: '#5ac8fa',
+        bg: '#0a1410',
+        surface: '#0f1f1a',
+        border: '#1a5e3a',
+        primary: '#00ff88',
+        secondary: '#22d3a0',
         success: '#00ff41',
         text: '#b8c5d0',
         textBright: '#e8f4f8'
@@ -327,7 +336,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
         onClick: onClose,
         style: {
             zIndex: 10002,
-            background: 'rgba(0, 20, 40, 0.98)',
+            background: 'rgba(10, 20, 16, 0.98)',
             position: 'fixed',
             top: 0,
             left: 0,
@@ -350,8 +359,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 maxHeight: '90vh',
                 display: 'flex',
                 flexDirection: 'column',
-                fontFamily: "'Courier New', Courier, monospace",
-                boxShadow: `0 0 40px rgba(0, 212, 255, 0.3), 0 0 80px rgba(0, 212, 255, 0.1)`
+                fontFamily: "'Courier New', Courier, monospace"
             }
         },
             // Terminal Header
@@ -383,7 +391,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             gap: '0.5rem'
                         },
                         onMouseOver: (e) => {
-                            e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                            e.currentTarget.style.background = 'rgba(0, 255, 136, 0.1)';
                             e.currentTarget.style.borderColor = colors.primary;
                         },
                         onMouseOut: (e) => {
@@ -468,7 +476,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             borderBottom: `1px solid ${colors.border}`
                         }
                     },
-                        // Photo with green dot indicator
+                        // Photo
                         React.createElement('div', {
                             style: {
                                 position: 'relative',
@@ -497,21 +505,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                     fontSize: '3rem',
                                     color: colors.border
                                 }
-                            }, React.createElement('i', { className: 'fas fa-user' })),
-                            // Green dot indicator (bottom-right)
-                            ceoData.found && React.createElement('div', {
-                                style: {
-                                    position: 'absolute',
-                                    bottom: '4px',
-                                    right: '4px',
-                                    width: '12px',
-                                    height: '12px',
-                                    background: colors.success,
-                                    borderRadius: '50%',
-                                    border: `2px solid ${colors.bg}`,
-                                    boxShadow: `0 0 8px ${colors.success}`
-                                }
-                            })
+                            }, React.createElement('i', { className: 'fas fa-user' }))
                         ),
                         // Info fields
                         React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' } },
@@ -526,20 +520,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             React.createElement('div', null,
                                 React.createElement('span', { style: { color: colors.secondary, fontSize: '0.85rem', letterSpacing: '0.05em' } }, 'COMPANY: '),
                                 React.createElement('span', { style: { color: colors.text } }, `${companyName} (${companySymbol})`)
-                            ),
-                            ceoData.verified && React.createElement('div', null,
-                                React.createElement('span', { style: { color: colors.secondary, fontSize: '0.85rem', letterSpacing: '0.05em' } }, 'STATUS: '),
-                                React.createElement('span', {
-                                    style: {
-                                        color: colors.success,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem'
-                                    }
-                                },
-                                    React.createElement('span', null, '●'),
-                                    'VERIFIED'
-                                )
                             )
                         )
                     ),
@@ -596,14 +576,12 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 transition: 'all 0.2s'
                             },
                             onMouseOver: (e) => {
-                                e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)';
+                                e.currentTarget.style.background = 'rgba(0, 255, 136, 0.1)';
                                 e.currentTarget.style.borderColor = colors.primary;
-                                e.currentTarget.style.boxShadow = `0 0 10px rgba(0, 212, 255, 0.3)`;
                             },
                             onMouseOut: (e) => {
                                 e.currentTarget.style.background = 'transparent';
                                 e.currentTarget.style.borderColor = colors.border;
-                                e.currentTarget.style.boxShadow = 'none';
                             }
                         },
                             React.createElement('i', { className: 'fab fa-wikipedia-w' }),
@@ -668,7 +646,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         style: {
                             color: colors.primary,
                             padding: '0.15rem 0.4rem',
-                            background: 'rgba(0, 212, 255, 0.1)',
+                            background: 'rgba(0, 255, 136, 0.1)',
                             border: `1px solid ${colors.border}`,
                             marginLeft: '0.25rem',
                             marginRight: '0.25rem'
