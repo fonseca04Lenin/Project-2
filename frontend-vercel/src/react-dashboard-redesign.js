@@ -1724,19 +1724,6 @@ const DashboardRedesign = () => {
                     </nav>
                 </div>
                 <div className="header-right">
-                    {/* Real-time Connection Status */}
-                    <div className={`realtime-status-indicator ${socketConnected ? 'connected' : 'disconnected'}`} title={socketConnected ? 'Real-time updates active' : 'Real-time updates disconnected'}>
-                        <div className={`realtime-status-dot ${socketConnected ? 'pulse' : ''}`}></div>
-                        <span className="realtime-status-text">
-                            {socketConnected ? 'Live' : 'Offline'}
-                        </span>
-                        {updateStats.lastMinute > 0 && socketConnected && (
-                            <span className="update-rate-badge" title={`${updateStats.lastMinute} updates in the last minute`}>
-                                {updateStats.lastMinute}/min
-                            </span>
-                        )}
-                    </div>
-                    
                     {/* Market Status Indicator */}
                     <div className="market-status-indicator">
                         <div className={`market-status-dot ${marketStatus.isOpen ? 'open' : 'closed'}`}></div>
