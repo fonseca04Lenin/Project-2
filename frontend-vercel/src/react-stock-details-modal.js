@@ -178,15 +178,36 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
             const removeTitles = (name) => {
                 if (!name) return name;
                 // Remove common titles: Mr, Ms, Mrs, Dr, Prof, etc.
-                return name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/i, '').trim();
+                return name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
+            };
+
+            // Helper function to extract first and last name only (skip middle names/initials)
+            const getFirstLastName = (name) => {
+                if (!name) return name;
+                // First remove titles
+                let cleanName = removeTitles(name);
+                // Split by spaces and filter out single letter middle initials
+                const parts = cleanName.split(/\s+/).filter(part => part.length > 0);
+
+                if (parts.length <= 2) {
+                    // Already first and last name only
+                    return cleanName;
+                } else {
+                    // Take first and last, skip middle names/initials
+                    return `${parts[0]} ${parts[parts.length - 1]}`;
+                }
             };
 
             try {
                 // Try multiple search strategies to find the CEO's personal page
                 let pageData = null;
 
+                // Use simplified name (first and last only) for better Wikipedia search results
+                const searchName = getFirstLastName(ceoName);
+                const displayName = removeTitles(ceoName);
+
                 // Strategy 1: Search for CEO name + "business executive" or "executive"
-                const executiveQuery = encodeURIComponent(`${ceoName} business executive`);
+                const executiveQuery = encodeURIComponent(`${searchName} CEO`);
                 let searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${executiveQuery}&format=json&origin=*&srlimit=3`;
 
                 let searchResponse = await fetch(searchUrl);
@@ -210,10 +231,10 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     );
                 });
 
-                // Strategy 2: If no result, try just the CEO name
+                // Strategy 2: If no result, try just the simplified name
                 if (!personPage && searchData.query.search.length === 0) {
-                    const nameQuery = encodeURIComponent(ceoName);
-                    searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${nameQuery}&format=json&origin=*&srlimit=3`;
+                    const nameQuery = encodeURIComponent(searchName);
+                    searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${nameQuery}&format=json&origin=*&srlimit=5`;
 
                     searchResponse = await fetch(searchUrl);
                     searchData = await searchResponse.json();
@@ -224,18 +245,42 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         return (
                             (snippet.includes('born') ||
                              snippet.includes('businessman') ||
-                             snippet.includes('executive')) &&
+                             snippet.includes('executive') ||
+                             snippet.includes('ceo')) &&
                             !title.includes('corporation') &&
                             !title.includes('company')
                         );
                     });
                 }
 
-                // Strategy 3: If still no result, use first result that matches CEO name
+                // Strategy 3: Try with "business" keyword
+                if (!personPage && searchData.query.search.length === 0) {
+                    const businessQuery = encodeURIComponent(`${searchName} business`);
+                    searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${businessQuery}&format=json&origin=*&srlimit=5`;
+
+                    searchResponse = await fetch(searchUrl);
+                    searchData = await searchResponse.json();
+
+                    personPage = searchData.query.search.find(result => {
+                        const snippet = result.snippet.toLowerCase();
+                        const title = result.title.toLowerCase();
+                        const nameParts = searchName.toLowerCase().split(' ');
+                        // Check if title contains both first and last name
+                        return (
+                            nameParts.every(part => title.includes(part)) &&
+                            (snippet.includes('born') || snippet.includes('ceo') || snippet.includes('executive'))
+                        );
+                    });
+                }
+
+                // Strategy 4: If still no result, use first result that closely matches the name
                 if (!personPage && searchData.query.search.length > 0) {
-                    personPage = searchData.query.search.find(result =>
-                        result.title.toLowerCase().includes(ceoName.toLowerCase().split(' ')[0])
-                    );
+                    const nameParts = searchName.toLowerCase().split(' ');
+                    personPage = searchData.query.search.find(result => {
+                        const title = result.title.toLowerCase();
+                        // Both first and last name must be in title
+                        return nameParts.every(part => title.includes(part));
+                    });
                 }
 
                 if (personPage) {
@@ -267,8 +312,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                          firstParagraph.toLowerCase().includes('is a') ||
                                          firstParagraph.toLowerCase().includes('is an');
 
+                    // Use simplified display name (first and last only, no titles)
+                    const finalDisplayName = searchName;
+
                     setCeoData({
-                        name: removeTitles(page.title || ceoName),
+                        name: finalDisplayName,
                         biography: isPersonalBio ? firstParagraph : biography,
                         imageUrl: page.original?.source || null,
                         wikipediaUrl: `https://en.wikipedia.org/?curid=${pageId}`,
@@ -277,10 +325,9 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     });
                 } else {
                     // No Wikipedia page found - show basic info
-                    const cleanName = removeTitles(ceoName);
                     setCeoData({
-                        name: cleanName,
-                        biography: `${cleanName} serves as Chief Executive Officer of ${companyName} (${companySymbol}). Additional biographical information is not currently available from Wikipedia. For more details about the company leadership, please visit the company's official website or investor relations page.`,
+                        name: searchName,
+                        biography: `${searchName} serves as Chief Executive Officer of ${companyName} (${companySymbol}). Additional biographical information is not currently available from Wikipedia. For more details about the company leadership, please visit the company's official website or investor relations page.`,
                         imageUrl: null,
                         wikipediaUrl: null,
                         found: false,
@@ -289,10 +336,9 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 }
             } catch (err) {
                 console.error('Error fetching CEO data:', err);
-                const cleanName = removeTitles(ceoName);
                 setCeoData({
-                    name: cleanName,
-                    biography: `${cleanName} serves as Chief Executive Officer of ${companyName} (${companySymbol}).`,
+                    name: searchName,
+                    biography: `${searchName} serves as Chief Executive Officer of ${companyName} (${companySymbol}).`,
                     imageUrl: null,
                     wikipediaUrl: null,
                     found: false,
@@ -671,6 +717,19 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     // CEO Modal State
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
     const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
+
+    // Helper function to clean CEO name (remove titles, extract first and last name)
+    const cleanCEOName = (name) => {
+        if (!name || name === '-') return name;
+        // Remove titles
+        let cleaned = name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
+        // Extract first and last name only
+        const parts = cleaned.split(/\s+/).filter(part => part.length > 0);
+        if (parts.length > 2) {
+            return `${parts[0]} ${parts[parts.length - 1]}`;
+        }
+        return cleaned;
+    };
 
     // Update global modalState when stockData changes
     useEffect(() => {
@@ -1193,7 +1252,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         fontWeight: stockData.ceo && stockData.ceo !== '-' ? '600' : 'normal'
                                     }}
                                     title={stockData.ceo && stockData.ceo !== '-' ? 'Click to view CEO profile' : ''}
-                                >{stockData.ceo || '-'}</span>
+                                >{cleanCEOName(stockData.ceo) || '-'}</span>
                             </div>
                             <div className="stock-description">
                                 <strong data-icon="desc">Description:</strong> 
