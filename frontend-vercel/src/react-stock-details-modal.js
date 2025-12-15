@@ -163,6 +163,216 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
     );
 };
 
+// CEO Details Modal Component
+const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol }) => {
+    const [ceoData, setCeoData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!isOpen || !ceoName || ceoName === '-') return;
+
+        const fetchCEOData = async () => {
+            setLoading(true);
+            setError(null);
+
+            try {
+                // Try to fetch from Wikipedia API
+                const searchQuery = encodeURIComponent(`${ceoName} CEO ${companyName}`);
+                const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${searchQuery}&format=json&origin=*&srlimit=1`;
+
+                const searchResponse = await fetch(wikiSearchUrl);
+                const searchData = await searchResponse.json();
+
+                if (searchData.query.search.length > 0) {
+                    const pageTitle = searchData.query.search[0].title;
+                    const pageId = searchData.query.search[0].pageid;
+
+                    // Fetch full article content
+                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=1&explaintext=1&piprop=original&pageids=${pageId}&format=json&origin=*`;
+                    const contentResponse = await fetch(contentUrl);
+                    const contentData = await contentResponse.json();
+
+                    const page = contentData.query.pages[pageId];
+
+                    setCeoData({
+                        name: pageTitle,
+                        biography: page.extract || 'No biography available.',
+                        imageUrl: page.original?.source || null,
+                        wikipediaUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`,
+                        found: true
+                    });
+                } else {
+                    // No Wikipedia data found - show basic info
+                    setCeoData({
+                        name: ceoName,
+                        biography: `${ceoName} is the Chief Executive Officer of ${companyName} (${companySymbol}). For more detailed information, please visit the company's official website or financial news sources.`,
+                        imageUrl: null,
+                        wikipediaUrl: null,
+                        found: false
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching CEO data:', err);
+                setError('Failed to load CEO information');
+                setCeoData({
+                    name: ceoName,
+                    biography: `${ceoName} is the Chief Executive Officer of ${companyName} (${companySymbol}).`,
+                    imageUrl: null,
+                    wikipediaUrl: null,
+                    found: false
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCEOData();
+    }, [isOpen, ceoName, companyName, companySymbol]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
+            <div className="modal-content ceo-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>
+                        <i className="fas fa-user-tie" style={{ marginRight: '10px', color: '#0066cc' }}></i>
+                        CEO Profile
+                    </h2>
+                    <button className="modal-close" onClick={onClose}>
+                        <i className="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                    {loading && (
+                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                            <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#0066cc' }}></i>
+                            <p style={{ marginTop: '1rem' }}>Loading CEO information...</p>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div style={{ padding: '1rem', background: '#fee', borderRadius: '8px', color: '#c00' }}>
+                            <i className="fas fa-exclamation-circle"></i> {error}
+                        </div>
+                    )}
+
+                    {!loading && !error && ceoData && (
+                        <div className="ceo-details">
+                            <div className="ceo-header" style={{
+                                display: 'flex',
+                                gap: '2rem',
+                                marginBottom: '2rem',
+                                padding: '1.5rem',
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                borderRadius: '12px',
+                                color: 'white'
+                            }}>
+                                {ceoData.imageUrl && (
+                                    <img
+                                        src={ceoData.imageUrl}
+                                        alt={ceoData.name}
+                                        style={{
+                                            width: '120px',
+                                            height: '120px',
+                                            borderRadius: '50%',
+                                            objectFit: 'cover',
+                                            border: '4px solid white',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                        }}
+                                    />
+                                )}
+                                <div style={{ flex: 1 }}>
+                                    <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.8rem', color: 'white' }}>
+                                        {ceoData.name}
+                                    </h3>
+                                    <p style={{ margin: '0', fontSize: '1.1rem', opacity: 0.9 }}>
+                                        Chief Executive Officer
+                                    </p>
+                                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '1rem', opacity: 0.9 }}>
+                                        {companyName} ({companySymbol})
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="ceo-biography" style={{
+                                padding: '1.5rem',
+                                background: '#f8f9fa',
+                                borderRadius: '12px',
+                                marginBottom: '1.5rem'
+                            }}>
+                                <h4 style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    marginBottom: '1rem',
+                                    color: '#333'
+                                }}>
+                                    <i className="fas fa-book-open" style={{ color: '#667eea' }}></i>
+                                    Biography
+                                </h4>
+                                <p style={{
+                                    lineHeight: '1.8',
+                                    color: '#555',
+                                    fontSize: '1rem',
+                                    whiteSpace: 'pre-wrap'
+                                }}>
+                                    {ceoData.biography}
+                                </p>
+                            </div>
+
+                            {ceoData.wikipediaUrl && (
+                                <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                                    <a
+                                        href={ceoData.wikipediaUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            padding: '0.75rem 1.5rem',
+                                            background: '#0066cc',
+                                            color: 'white',
+                                            borderRadius: '8px',
+                                            textDecoration: 'none',
+                                            fontWeight: '600',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.background = '#0052a3'}
+                                        onMouseOut={(e) => e.currentTarget.style.background = '#0066cc'}
+                                    >
+                                        <i className="fab fa-wikipedia-w"></i>
+                                        Read More on Wikipedia
+                                        <i className="fas fa-external-link-alt" style={{ fontSize: '0.8rem' }}></i>
+                                    </a>
+                                </div>
+                            )}
+
+                            {!ceoData.found && (
+                                <div style={{
+                                    padding: '1rem',
+                                    background: '#fff3cd',
+                                    borderRadius: '8px',
+                                    marginTop: '1rem',
+                                    border: '1px solid #ffc107'
+                                }}>
+                                    <i className="fas fa-info-circle" style={{ color: '#856404' }}></i>
+                                    <span style={{ marginLeft: '0.5rem', color: '#856404' }}>
+                                        Limited information available. Try searching on <a href={`https://www.google.com/search?q=${encodeURIComponent(ceoName + ' CEO ' + companyName)}`} target="_blank" rel="noopener noreferrer">Google</a> or <a href={`https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(ceoName + ' CEO')}`} target="_blank" rel="noopener noreferrer">LinkedIn</a>.
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false }) => {
     const [stockData, setStockData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -171,6 +381,10 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [news, setNews] = useState([]);
     const [newsLoading, setNewsLoading] = useState(false);
     const chartRootRef = useRef(null);
+
+    // CEO Modal State
+    const [ceoModalOpen, setCeoModalOpen] = useState(false);
+    const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
 
     // Update global modalState when stockData changes
     useEffect(() => {
@@ -675,7 +889,46 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         {/* Stock Info - Vanilla Style */}
                         <div className="stock-details-meta">
                             <div>
-                                <strong data-icon="ceo">CEO:</strong> <span>{stockData.ceo || '-'}</span>
+                                <strong data-icon="ceo">CEO:</strong>
+                                <span
+                                    onClick={() => {
+                                        if (stockData.ceo && stockData.ceo !== '-') {
+                                            setSelectedCEO({
+                                                name: stockData.ceo,
+                                                company: stockData.name || symbol,
+                                                symbol: symbol
+                                            });
+                                            setCeoModalOpen(true);
+                                        }
+                                    }}
+                                    style={{
+                                        cursor: stockData.ceo && stockData.ceo !== '-' ? 'pointer' : 'default',
+                                        color: stockData.ceo && stockData.ceo !== '-' ? '#0066cc' : 'inherit',
+                                        textDecoration: stockData.ceo && stockData.ceo !== '-' ? 'underline' : 'none',
+                                        fontWeight: stockData.ceo && stockData.ceo !== '-' ? '600' : 'normal',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        if (stockData.ceo && stockData.ceo !== '-') {
+                                            e.currentTarget.style.color = '#0052a3';
+                                        }
+                                    }}
+                                    onMouseOut={(e) => {
+                                        if (stockData.ceo && stockData.ceo !== '-') {
+                                            e.currentTarget.style.color = '#0066cc';
+                                        }
+                                    }}
+                                    title={stockData.ceo && stockData.ceo !== '-' ? 'Click to view CEO profile' : ''}
+                                >
+                                    {stockData.ceo || '-'}
+                                    {stockData.ceo && stockData.ceo !== '-' && (
+                                        <i className="fas fa-external-link-alt" style={{
+                                            marginLeft: '0.4rem',
+                                            fontSize: '0.75rem',
+                                            opacity: 0.7
+                                        }}></i>
+                                    )}
+                                </span>
                             </div>
                             <div className="stock-description">
                                 <strong data-icon="desc">Description:</strong> 
@@ -838,6 +1091,17 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     </>
                 )}
             </div>
+
+            {/* CEO Details Modal */}
+            {ceoModalOpen && (
+                <CEODetailsModal
+                    isOpen={ceoModalOpen}
+                    onClose={() => setCeoModalOpen(false)}
+                    ceoName={selectedCEO.name}
+                    companyName={selectedCEO.company}
+                    companySymbol={selectedCEO.symbol}
+                />
+            )}
         </div>
     );
 };

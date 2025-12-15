@@ -5712,3 +5712,93 @@ body {
         grid-template-columns: 1fr;
     }
 }
+/* =============================================================================
+   CEO MODAL STYLES
+   ============================================================================= */
+
+/* CEO Modal Container */
+.ceo-modal {
+    max-width: 700px;
+    min-height: 400px;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.ceo-details {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+.ceo-modal .modal-body {
+    padding: 0;
+}
+
+.ceo-header {
+    animation: fadeIn 0.5s ease-out;
+}
+
+.ceo-biography {
+    animation: fadeIn 0.7s ease-out;
+}
+
+/* Animations */
+@keyframes slideInUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* CEO Name Clickable Styling */
+[data-icon="ceo"] + span {
+    position: relative;
+}
+
+/* Tooltip on hover */
+[data-icon="ceo"] + span[style*="cursor: pointer"]:hover::after {
+    content: 'Click to view profile';
+    position: absolute;
+    bottom: -25px;
+    left: 0;
+    background: rgba(0, 102, 204, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .ceo-modal {
+        max-width: 95%;
+        margin: 1rem;
+    }
+
+    .ceo-header {
+        flex-direction: column !important;
+        text-align: center;
+    }
+
+    .ceo-header img {
+        margin: 0 auto !important;
+    }
+
+    .ceo-header h3 {
+        font-size: 1.5rem !important;
+    }
+}
