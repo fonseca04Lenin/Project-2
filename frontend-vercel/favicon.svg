@@ -5,51 +5,35 @@
       <stop offset="100%" style="stop-color:#1a1a1a;stop-opacity:1" />
     </linearGradient>
     <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#00D924;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#00B81F;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#cc5500;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#ff6b35;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00D924;stop-opacity:1" />
     </linearGradient>
   </defs>
-  
+
   <!-- Background with rounded corners -->
-  <rect width="32" height="32" rx="7" fill="url(#bgGradient)"/>
-  
-  <!-- Chart/Graph representing stock tracking -->
-  <g transform="translate(4, 8)">
-    <!-- Chart grid lines (subtle) -->
-    <line x1="0" y1="12" x2="24" y2="12" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
-    <line x1="0" y1="8" x2="24" y2="8" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
-    <line x1="0" y1="4" x2="24" y2="4" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
-    
-    <!-- Main upward trending chart line -->
-    <path d="M 2 11 Q 6 9, 8 7 T 14 3 Q 18 1, 22 2" 
-          stroke="url(#greenGradient)" 
-          stroke-width="2.5" 
-          fill="none" 
-          stroke-linecap="round" 
+  <rect width="32" height="32" rx="6" fill="url(#bgGradient)"/>
+
+  <!-- Larger, bolder chart for better visibility -->
+  <g transform="translate(2, 4)">
+    <!-- Main upward trending chart line - thicker and larger -->
+    <path d="M 2 20 L 7 15 L 12 17 L 18 8 L 24 6 L 28 10"
+          stroke="url(#greenGradient)"
+          stroke-width="3.5"
+          fill="none"
+          stroke-linecap="round"
           stroke-linejoin="round"/>
-    
-    <!-- Chart area fill -->
-    <path d="M 2 11 Q 6 9, 8 7 T 14 3 Q 18 1, 22 2 L 22 12 L 2 12 Z" 
-          fill="url(#greenGradient)" 
-          opacity="0.25"/>
-    
-    <!-- Data points on chart -->
-    <circle cx="8" cy="7" r="1.5" fill="#00D924"/>
-    <circle cx="14" cy="3" r="1.5" fill="#00D924"/>
-    <circle cx="22" cy="2" r="1.5" fill="#00D924"/>
+
+    <!-- Chart area fill with gradient -->
+    <path d="M 2 20 L 7 15 L 12 17 L 18 8 L 24 6 L 28 10 L 28 24 L 2 24 Z"
+          fill="url(#greenGradient)"
+          opacity="0.3"/>
+
+    <!-- Bold data points on chart -->
+    <circle cx="7" cy="15" r="2.5" fill="#00ff88"/>
+    <circle cx="18" cy="8" r="2.5" fill="#00ff88"/>
+    <circle cx="28" cy="10" r="2.5" fill="#00ff88"/>
   </g>
-  
-  <!-- Watchlist star icon in top-right (orange accent) -->
-  <g transform="translate(20, 4)">
-    <path d="M 6 2 L 7.2 5.2 L 10.5 5.8 L 8 8.2 L 8.6 11.5 L 6 9.8 L 3.4 11.5 L 4 8.2 L 1.5 5.8 L 4.8 5.2 Z" 
-          fill="url(#orangeGradient)" 
-          opacity="0.9"/>
-  </g>
-  
-  <!-- Subtle glow effect -->
-  <rect width="32" height="32" rx="7" fill="none" stroke="rgba(0,217,36,0.1)" stroke-width="0.5"/>
+
+  <!-- Subtle border glow -->
+  <rect width="32" height="32" rx="6" fill="none" stroke="rgba(0,255,136,0.2)" stroke-width="1"/>
 </svg>
