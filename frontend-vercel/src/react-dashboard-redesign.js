@@ -1019,7 +1019,7 @@ const DashboardRedesign = () => {
                 if (Array.isArray(data) && data.length > 0) {
                     const symbols = data.map(s => s.symbol || s.id || 'NO_SYMBOL');
                     // // console.log('📋 STOCKS RECEIVED FROM BACKEND:');
-                    symbols.forEach((sym, i) => // console.log(`   ${i + 1}. ${sym}`));
+                    // symbols.forEach((sym, i) => // console.log(`   ${i + 1}. ${sym}`));
                 }
                 
                 // Backend already provides prices, so we don't need to fetch individually
