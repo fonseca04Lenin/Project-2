@@ -223,27 +223,107 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
     if (!isOpen) return null;
 
     return React.createElement('div', {
-        className: 'modal-overlay',
+        className: 'modal-overlay ceo-modal-overlay',
         onClick: onClose,
-        style: { zIndex: 10001 }
+        style: {
+            zIndex: 10002,
+            background: 'rgba(0, 0, 0, 0.95)'
+        }
     },
         React.createElement('div', {
             className: 'modal-content ceo-modal',
-            onClick: (e) => e.stopPropagation()
+            onClick: (e) => e.stopPropagation(),
+            style: {
+                background: '#1a1f2e',
+                border: '1px solid #2d3748',
+                maxWidth: '900px',
+                width: '90%'
+            }
         },
-            React.createElement('div', { className: 'modal-header' },
-                React.createElement('h2', null,
-                    React.createElement('i', { className: 'fas fa-user-tie', style: { marginRight: '10px', color: '#0066cc' } }),
-                    'CEO Profile'
+            React.createElement('div', {
+                className: 'modal-header',
+                style: {
+                    background: '#1a1f2e',
+                    borderBottom: '1px solid #2d3748',
+                    padding: '1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }
+            },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '1rem' } },
+                    React.createElement('button', {
+                        onClick: onClose,
+                        style: {
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#00ff88',
+                            cursor: 'pointer',
+                            fontSize: '1.5rem',
+                            padding: '0.5rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            transition: 'transform 0.2s'
+                        },
+                        onMouseOver: (e) => e.currentTarget.style.transform = 'translateX(-5px)',
+                        onMouseOut: (e) => e.currentTarget.style.transform = 'translateX(0)',
+                        title: 'Back to stock details'
+                    },
+                        React.createElement('i', { className: 'fas fa-arrow-left' })
+                    ),
+                    React.createElement('h2', {
+                        style: {
+                            margin: 0,
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                        }
+                    },
+                        React.createElement('i', { className: 'fas fa-user-tie', style: { color: '#00ff88' } }),
+                        'CEO Profile'
+                    )
                 ),
-                React.createElement('button', { className: 'modal-close', onClick: onClose },
+                React.createElement('button', {
+                    className: 'modal-close',
+                    onClick: onClose,
+                    style: {
+                        background: 'rgba(255, 0, 0, 0.1)',
+                        border: '1px solid rgba(255, 0, 0, 0.3)',
+                        color: '#ff4444',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s'
+                    },
+                    onMouseOver: (e) => {
+                        e.currentTarget.style.background = 'rgba(255, 0, 0, 0.2)';
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                    },
+                    onMouseOut: (e) => {
+                        e.currentTarget.style.background = 'rgba(255, 0, 0, 0.1)';
+                        e.currentTarget.style.transform = 'scale(1)';
+                    }
+                },
                     React.createElement('i', { className: 'fas fa-times' })
                 )
             ),
-            React.createElement('div', { className: 'modal-body', style: { maxHeight: '70vh', overflowY: 'auto' } },
+            React.createElement('div', {
+                className: 'modal-body',
+                style: {
+                    maxHeight: '70vh',
+                    overflowY: 'auto',
+                    padding: '2rem',
+                    background: '#1a1f2e'
+                }
+            },
                 loading && React.createElement('div', { style: { textAlign: 'center', padding: '2rem' } },
-                    React.createElement('i', { className: 'fas fa-spinner fa-spin', style: { fontSize: '2rem', color: '#0066cc' } }),
-                    React.createElement('p', { style: { marginTop: '1rem' } }, 'Loading CEO information...')
+                    React.createElement('i', { className: 'fas fa-spinner fa-spin', style: { fontSize: '2rem', color: '#00ff88' } }),
+                    React.createElement('p', { style: { marginTop: '1rem', color: '#9ca3af' } }, 'Loading CEO information...')
                 ),
                 !loading && ceoData && React.createElement('div', { className: 'ceo-details' },
                     React.createElement('div', {
@@ -252,10 +332,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             display: 'flex',
                             gap: '2rem',
                             marginBottom: '2rem',
-                            padding: '1.5rem',
+                            padding: '2rem',
                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             borderRadius: '12px',
-                            color: 'white'
+                            color: 'white',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
                         }
                     },
                         ceoData.imageUrl && React.createElement('img', {
@@ -280,9 +361,10 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         className: 'ceo-biography',
                         style: {
                             padding: '1.5rem',
-                            background: '#f8f9fa',
+                            background: '#232936',
                             borderRadius: '12px',
-                            marginBottom: '1.5rem'
+                            marginBottom: '1.5rem',
+                            border: '1px solid #2d3748'
                         }
                     },
                         React.createElement('h4', {
@@ -291,18 +373,21 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 alignItems: 'center',
                                 gap: '0.5rem',
                                 marginBottom: '1rem',
-                                color: '#333'
+                                color: '#00ff88',
+                                fontSize: '1.1rem',
+                                fontWeight: '600'
                             }
                         },
-                            React.createElement('i', { className: 'fas fa-book-open', style: { color: '#667eea' } }),
+                            React.createElement('i', { className: 'fas fa-book-open', style: { color: '#00ff88' } }),
                             'Biography'
                         ),
                         React.createElement('p', {
                             style: {
                                 lineHeight: '1.8',
-                                color: '#555',
+                                color: '#d1d5db',
                                 fontSize: '1rem',
-                                whiteSpace: 'pre-wrap'
+                                whiteSpace: 'pre-wrap',
+                                margin: 0
                             }
                         }, ceoData.biography)
                     ),
@@ -316,18 +401,40 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 alignItems: 'center',
                                 gap: '0.5rem',
                                 padding: '0.75rem 1.5rem',
-                                background: '#0066cc',
-                                color: 'white',
+                                background: 'rgba(0, 255, 136, 0.1)',
+                                border: '1px solid #00ff88',
+                                color: '#00ff88',
                                 borderRadius: '8px',
                                 textDecoration: 'none',
                                 fontWeight: '600',
                                 transition: 'all 0.2s'
+                            },
+                            onMouseOver: (e) => {
+                                e.currentTarget.style.background = 'rgba(0, 255, 136, 0.2)';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                            },
+                            onMouseOut: (e) => {
+                                e.currentTarget.style.background = 'rgba(0, 255, 136, 0.1)';
+                                e.currentTarget.style.transform = 'translateY(0)';
                             }
                         },
                             React.createElement('i', { className: 'fab fa-wikipedia-w' }),
                             'Read More on Wikipedia',
                             React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.8rem' } })
                         )
+                    ),
+                    !ceoData.found && React.createElement('div', {
+                        style: {
+                            padding: '1rem',
+                            background: 'rgba(255, 193, 7, 0.1)',
+                            border: '1px solid rgba(255, 193, 7, 0.3)',
+                            borderRadius: '8px',
+                            marginTop: '1rem',
+                            color: '#ffc107'
+                        }
+                    },
+                        React.createElement('i', { className: 'fas fa-info-circle', style: { marginRight: '0.5rem' } }),
+                        React.createElement('span', null, 'Limited information available.')
                     )
                 )
             )
