@@ -169,10 +169,12 @@ const AIAdvisorChat = () => {
     };
 
     const quickSuggestions = [
-        { text: "How is my watchlist performing?", message: "How is my watchlist performing?" },
-        { text: "What's the current price of AAPL?", message: "What's the current price of AAPL?" },
-        { text: "Should I buy more Apple stock?", message: "Should I buy more Apple stock?" },
-        { text: "Compare Apple vs Microsoft", message: "Compare Apple vs Microsoft" }
+        { text: "📊 Analyze my portfolio performance", message: "Analyze my watchlist performance and show me which stocks are doing best" },
+        { text: "🔍 Find stocks under $100", message: "What are some good stocks under $100 that I should consider?" },
+        { text: "📈 Compare AAPL vs MSFT vs GOOGL", message: "Compare Apple, Microsoft, and Google - which is the best investment right now?" },
+        { text: "⚠️ Show me stocks with big moves today", message: "Which stocks in my watchlist had the biggest price changes today?" },
+        { text: "💡 Suggest stocks to diversify", message: "What stocks should I add to diversify my portfolio?" },
+        { text: "📰 Latest news on my stocks", message: "Show me the latest news about stocks in my watchlist" }
     ];
 
     const formatMessage = (content) => {
