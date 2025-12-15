@@ -169,6 +169,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [error, setError] = useState(null);
     const [chartData, setChartData] = useState(null);
     const [news, setNews] = useState([]);
+    const [newsLoading, setNewsLoading] = useState(false);
     const chartRootRef = useRef(null);
 
     // Update global modalState when stockData changes
@@ -274,7 +275,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 const newsPromise = (async () => {
                     try {
                         console.log(`[StockDetailsModal] Fetching news for ${symbol}`);
-                        const newsResp = await fetch(`${API_BASE}/api/news/${symbol}`, {
+                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
                             credentials: 'include'
                         });
                         if (newsResp.ok) {
@@ -290,18 +291,41 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     return [];
                 })();
 
-                console.log(`[StockDetailsModal] Waiting for all API calls to complete for ${symbol}`);
-                const [details, chartDataResp, newsResp] = await Promise.all([detailPromise, chartPromise, newsPromise]);
+                // Load details and chart first (critical for modal display)
+                console.log(`[StockDetailsModal] Loading core data for ${symbol}`);
+                const [details, chartDataResp] = await Promise.all([detailPromise, chartPromise]);
 
                 console.timeEnd(`StockDetailsModal-${symbol}-details-api`);
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-api`);
-                console.timeEnd(`StockDetailsModal-${symbol}-news-api`);
 
-                console.log(`[StockDetailsModal] All API calls completed for ${symbol}`);
+                console.log(`[StockDetailsModal] Core data loaded for ${symbol}, displaying modal`);
 
                 setStockData(details);
                 if (chartDataResp) setChartData(chartDataResp);
-                if (newsResp && newsResp.length) setNews(newsResp);
+
+                // Load news in background after modal is displayed
+                setNewsLoading(true);
+                (async () => {
+                    try {
+                        console.log(`[StockDetailsModal] Fetching news for ${symbol} in background`);
+                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
+                            credentials: 'include'
+                        });
+                        if (newsResp.ok) {
+                            const newsRespData = await newsResp.json();
+                            const newsData = newsRespData.slice(0, 5);
+                            console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
+                            setNews(newsData);
+                        } else {
+                            console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
+                        }
+                    } catch (error) {
+                        console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
+                    } finally {
+                        setNewsLoading(false);
+                        console.timeEnd(`StockDetailsModal-${symbol}-news-api`);
+                    }
+                })();
 
                 console.log(`[StockDetailsModal] State updated for ${symbol}`);
             } catch (err) {
@@ -321,7 +345,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const priceUpdateRef = useRef({
         lastCallTime: 0,
         rateLimitCooldown: false,
-        rateLimitUntil: 0
+        rateLimitUntil: 0,
+        isUpdating: false
     });
 
     useEffect(() => {
@@ -332,6 +357,12 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         const updatePrice = async () => {
             const now = Date.now();
             const ref = priceUpdateRef.current;
+
+            // Prevent concurrent updates
+            if (ref.isUpdating) {
+                console.log(`[StockDetailsModal] Skipping price update for ${symbol} - already updating`);
+                return;
+            }
 
             // Check if we're in rate limit cooldown
             if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
@@ -352,14 +383,16 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 return; // Skip if too soon
             }
 
-            console.time(`StockDetailsModal-${symbol}-price-update`);
+            ref.isUpdating = true;
+            const startTime = performance.now();
             console.log(`[StockDetailsModal] Starting price update for ${symbol}`);
 
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                console.time(`StockDetailsModal-${symbol}-price-auth-headers`);
+                const authStart = performance.now();
                 const authHeaders = await window.getAuthHeaders();
-                console.timeEnd(`StockDetailsModal-${symbol}-price-auth-headers`);
+                const authTime = performance.now() - authStart;
+                console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}: ${authTime.toFixed(2)}ms`);
 
                 console.log(`[StockDetailsModal] Fetching price data for ${symbol}`);
                 const response = await fetch(`${API_BASE}/api/search`, {
@@ -381,7 +414,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     ref.rateLimitCooldown = true;
                     ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
                     console.log(`[StockDetailsModal] Rate limit hit for ${symbol}, cooling down for ${cooldownSeconds}s`);
-                    console.timeEnd(`StockDetailsModal-${symbol}-price-update`);
                     return;
                 }
 
@@ -401,9 +433,11 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 }
             } catch (e) {
                 console.error(`[StockDetailsModal] Error updating price for ${symbol}:`, e);
+            } finally {
+                ref.isUpdating = false;
+                const totalTime = performance.now() - startTime;
+                console.log(`[StockDetailsModal] Price update completed for ${symbol}: ${totalTime.toFixed(2)}ms`);
             }
-
-            console.timeEnd(`StockDetailsModal-${symbol}-price-update`);
         };
 
         // Initial update with delay
@@ -773,27 +807,34 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         </div>
 
                         {/* News */}
-                        {news.length > 0 && (
+                        {(news.length > 0 || newsLoading) && (
                             <div className="modal-news">
                                 <h3>
                                     <i className="fas fa-newspaper"></i>
                                     Recent News
                                 </h3>
-                                <div className="news-list">
-                                    {news.map((article, index) => (
-                                        <a 
-                                            key={index} 
-                                            href={article.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="news-item"
-                                        >
-                                            <h4>{article.title}</h4>
-                                            <p>{article.description}</p>
-                                            <span className="news-date">{formatDate(article.publishedAt)}</span>
-                                        </a>
-                                    ))}
-                                </div>
+                                {newsLoading ? (
+                                    <div className="news-loading">
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                        <span>Loading news...</span>
+                                    </div>
+                                ) : news.length > 0 ? (
+                                    <div className="news-list">
+                                        {news.map((article, index) => (
+                                            <a
+                                                key={index}
+                                                href={article.link || article.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="news-item"
+                                            >
+                                                <h4>{article.title}</h4>
+                                                <p>{article.summary || article.description}</p>
+                                                <span className="news-date">{formatDate(article.published_at || article.publishedAt)}</span>
+                                            </a>
+                                        ))}
+                                    </div>
+                                ) : null}
                             </div>
                         )}
                     </>
