@@ -397,14 +397,14 @@ class ChatService:
             },
             {
                 "name": "compare_stocks",
-                "description": "Compare multiple stocks side by side",
+                "description": "Compare multiple stocks side by side. Extract ALL stock symbols or company names from the user's request and pass as an array. Examples: 'Compare AAPL and MSFT' → symbols=['AAPL', 'MSFT'], 'compare apple microsoft google' → symbols=['AAPL', 'MSFT', 'GOOGL']",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "symbols": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Array of stock symbols to compare"
+                            "description": "Array of 2+ stock symbols to compare (e.g., ['AAPL', 'MSFT', 'GOOGL']). You MUST extract symbols from company names if needed."
                         }
                     },
                     "required": ["symbols"]
@@ -412,17 +412,17 @@ class ChatService:
             },
             {
                 "name": "add_stock_to_watchlist",
-                "description": "Add a stock to the user's watchlist. You can provide either a stock symbol OR a company name.",
+                "description": "Add a stock to the user's watchlist. Call this when user says 'add X', 'X' (alone), 'here X', 'get X', or 'I want X'. Provide EITHER symbol OR company_name, never both. Fix common typos: 'nvdia'→'nvidia', 'mircosoft'→'microsoft'. Examples: 'add NVDA'→symbol='NVDA', 'NVDA'→symbol='NVDA', 'add nvidia'→company_name='nvidia', 'add nvdia'→company_name='nvidia'",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "symbol": {
                             "type": "string",
-                            "description": "Stock symbol if user provided one directly (e.g., AAPL, GOOGL, WMT). Leave empty if company name provided."
+                            "description": "Stock symbol if user provided a 2-5 letter code (e.g., AAPL, NVDA, MSFT, GOOGL). Recognize uppercase codes as symbols. Use this when input looks like a ticker symbol."
                         },
                         "company_name": {
                             "type": "string",
-                            "description": "Company name if user provided company name instead of symbol (e.g., Walmart, Apple, Microsoft). Leave empty if symbol provided."
+                            "description": "Company name if user provided full name or recognizable company word (e.g., 'nvidia', 'apple', 'microsoft', 'walmart'). Fix common typos before passing. Use this when input is a word/name, not a ticker."
                         }
                     },
                     "required": []
@@ -593,25 +593,56 @@ class ChatService:
             
             elif function_name == "compare_stocks":
                 symbols = arguments.get("symbols", [])
+
+                if not symbols or len(symbols) == 0:
+                    return {
+                        "success": False,
+                        "error": "No stock symbols provided. Please specify at least 2 stocks to compare."
+                    }
+
+                if len(symbols) < 2:
+                    return {
+                        "success": False,
+                        "error": "Please provide at least 2 stocks to compare."
+                    }
+
+                logger.info(f"Comparing stocks: {symbols}")
                 comparison_data = []
-                
+                failed_symbols = []
+
                 for symbol in symbols[:5]:  # Limit to 5 stocks
                     try:
-                        stock_data = self.stock_api.get_real_time_data(symbol)
-                        if stock_data:
+                        symbol_upper = symbol.upper().strip()
+                        stock_data = self.stock_api.get_real_time_data(symbol_upper)
+                        if stock_data and stock_data.get("price"):
                             comparison_data.append({
-                                "symbol": symbol,
-                                "name": stock_data.get("name", symbol),
-                                "current_price": stock_data.get("price", 0)
+                                "symbol": symbol_upper,
+                                "name": stock_data.get("name", symbol_upper),
+                                "current_price": stock_data.get("price", 0),
+                                "change": stock_data.get("change", 0),
+                                "change_percent": stock_data.get("changePercent", 0),
+                                "market_cap": stock_data.get("marketCap", "N/A")
                             })
+                        else:
+                            failed_symbols.append(symbol_upper)
                     except Exception as e:
                         logger.warning(f"Failed to get data for {symbol}: {e}")
-                
-                return {
-                    "success": True,
-                    "data": comparison_data,
-                    "message": f"Compared {len(comparison_data)} stocks"
-                }
+                        failed_symbols.append(symbol)
+
+                if comparison_data:
+                    result = {
+                        "success": True,
+                        "data": comparison_data,
+                        "message": f"Compared {len(comparison_data)} stocks successfully"
+                    }
+                    if failed_symbols:
+                        result["warning"] = f"Could not fetch data for: {', '.join(failed_symbols)}"
+                    return result
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Could not fetch data for any of the stocks: {', '.join(symbols)}. Please check the symbols and try again."
+                    }
 
             elif function_name == "get_top_performer_by_date":
                 # Compute top performer by calling internal method directly (avoid external HTTP)
@@ -694,8 +725,25 @@ class ChatService:
                 db_client = get_firestore_client()
                 watchlist_service = get_watchlist_service(db_client)
                 
+                # Fix common typos in company names
+                typo_corrections = {
+                    "nvdia": "nvidia",
+                    "mircosoft": "microsoft",
+                    "gogle": "google",
+                    "amazn": "amazon",
+                    "tesle": "tesla",
+                    "aplpe": "apple",
+                    "neftlix": "netflix"
+                }
+
                 # If company name provided but not symbol, try to find the symbol
                 if company_name_input and not symbol:
+                    # Apply typo correction
+                    company_lower = company_name_input.lower()
+                    if company_lower in typo_corrections:
+                        company_name_input = typo_corrections[company_lower]
+                        logger.info(f"Corrected typo: {company_lower} → {company_name_input}")
+
                     logger.info(f"Searching for symbol for company: {company_name_input}")
                     # Try to search for the company
                     try:
@@ -707,14 +755,14 @@ class ChatService:
                             return {
                                 "success": False,
                                 "data": None,
-                                "message": f"Could not find stock for '{company_name_input}'. Please provide the stock symbol directly (e.g., WMT for Walmart)."
+                                "message": f"Could not find stock for '{company_name_input}'. Please provide the stock symbol directly (e.g., AAPL for Apple, NVDA for Nvidia)."
                             }
                     except Exception as e:
                         logger.error(f"Error searching for company: {e}")
                         return {
                             "success": False,
                             "data": None,
-                            "message": f"Error searching for '{company_name_input}'. Please provide the stock symbol directly (e.g., WMT for Walmart)."
+                            "message": f"Error searching for '{company_name_input}'. Please provide the stock symbol directly (e.g., AAPL for Apple, NVDA for Nvidia)."
                         }
                 
                 # If still no symbol, fail
@@ -964,12 +1012,35 @@ Guidelines:
 
 Available functions (use these ONLY for real-time stock data):
 - get_stock_price: Get current stock price and info
-- analyze_watchlist: Analyze user's watchlist performance  
+- analyze_watchlist: Analyze user's watchlist performance
 - get_watchlist_details: Get comprehensive watchlist information
 - get_market_news: Get news for specific stocks
-- compare_stocks: Compare multiple stocks
+- compare_stocks: Compare multiple stocks (ALWAYS pass symbols as array: ["AAPL", "MSFT"])
 - add_stock_to_watchlist: Add a stock to the user's watchlist
 - remove_stock_from_watchlist: Remove a stock from the user's watchlist
+
+FUNCTION CALLING EXAMPLES - STUDY THESE CAREFULLY:
+
+**COMPARE STOCKS EXAMPLES:**
+- User: "Compare AAPL and MSFT" → Call compare_stocks with symbols=["AAPL", "MSFT"]
+- User: "compare apple and microsoft" → Call compare_stocks with symbols=["AAPL", "MSFT"]
+- User: "how does tesla compare to ford" → Call compare_stocks with symbols=["TSLA", "F"]
+- ALWAYS extract ALL symbols mentioned and pass as array
+
+**ADD STOCK EXAMPLES:**
+- User: "add NVDA" → Call add_stock_to_watchlist with symbol="NVDA"
+- User: "add nvidia" → Call add_stock_to_watchlist with company_name="nvidia"
+- User: "add nvdia" (typo) → Call add_stock_to_watchlist with company_name="nvidia" (fix the typo)
+- User: "NVDA" (just symbol) → Call add_stock_to_watchlist with symbol="NVDA"
+- User: "here NVDA" → Call add_stock_to_watchlist with symbol="NVDA"
+- User: "I want AAPL" → Call add_stock_to_watchlist with symbol="AAPL"
+- User: "get me apple stock" → Call add_stock_to_watchlist with company_name="apple"
+
+**KEY RULES FOR ADD/REMOVE:**
+- If user provides 2-5 letter uppercase code = SYMBOL
+- If user provides company name = COMPANY_NAME
+- Common typos: "nvdia"→"nvidia", "mircosoft"→"microsoft", "gogle"→"google"
+- "add X", "get X", "X" (alone), "here X" = user wants to add X
 
 CRITICAL RULES:
 1. **YOU MUST ANSWER GENERAL QUESTIONS - THIS IS MANDATORY**: 
