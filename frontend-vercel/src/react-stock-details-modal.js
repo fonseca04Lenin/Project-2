@@ -200,6 +200,9 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         if (!isOpen || !symbol) return;
 
         const fetchData = async () => {
+            console.time(`StockDetailsModal-${symbol}-total`);
+            console.log(`[StockDetailsModal] Starting to load data for ${symbol}`);
+
             setLoading(true);
             setError(null);
             setStockData(null);
@@ -207,10 +210,16 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             setNews([]);
 
             try {
-                // Decide source once, without the extra probe call
+                // Auth headers timing
+                console.time(`StockDetailsModal-${symbol}-auth-headers`);
                 const authHeaders = await window.getAuthHeaders();
+                console.timeEnd(`StockDetailsModal-${symbol}-auth-headers`);
+                console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}`);
+
                 const useWatchlistEndpoint = isFromWatchlist;
 
+                // Details API call
+                console.time(`StockDetailsModal-${symbol}-details-api`);
                 const detailPromise = (async () => {
                     const url = useWatchlistEndpoint
                         ? `${API_BASE}/api/watchlist/${symbol}/details`
@@ -218,11 +227,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     const opts = useWatchlistEndpoint
                         ? { method: 'GET', headers: authHeaders, credentials: 'include' }
                         : { credentials: 'include' };
+                    console.log(`[StockDetailsModal] Fetching details from: ${url}`);
                     const response = await fetch(url, opts);
                     if (!response.ok) {
                         throw new Error(`Failed to load stock data: HTTP ${response.status}`);
                     }
                     const data = await response.json();
+                    console.log(`[StockDetailsModal] Details data received for ${symbol}`);
                     if (useWatchlistEndpoint) {
                         return {
                             ...data,
@@ -238,39 +249,68 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     return { ...data, isInWatchlist: false };
                 })();
 
+                // Chart API call
+                console.time(`StockDetailsModal-${symbol}-chart-api`);
                 const chartPromise = (async () => {
                     try {
+                        console.log(`[StockDetailsModal] Fetching chart data for ${symbol}`);
                         const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
                             credentials: 'include'
                         });
                         if (chartResp.ok) {
-                            return await chartResp.json();
+                            const chartData = await chartResp.json();
+                            console.log(`[StockDetailsModal] Chart data received for ${symbol} (${chartData.length} points)`);
+                            return chartData;
                         }
-                    } catch (_) {}
+                        console.log(`[StockDetailsModal] Chart API failed for ${symbol}, status: ${chartResp.status}`);
+                    } catch (error) {
+                        console.log(`[StockDetailsModal] Chart API error for ${symbol}:`, error);
+                    }
                     return null;
                 })();
 
+                // News API call
+                console.time(`StockDetailsModal-${symbol}-news-api`);
                 const newsPromise = (async () => {
                     try {
+                        console.log(`[StockDetailsModal] Fetching news for ${symbol}`);
                         const newsResp = await fetch(`${API_BASE}/api/news/${symbol}`, {
                             credentials: 'include'
                         });
                         if (newsResp.ok) {
                             const newsRespData = await newsResp.json();
-                            return newsRespData.slice(0, 5);
+                            const newsData = newsRespData.slice(0, 5);
+                            console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
+                            return newsData;
                         }
-                    } catch (_) {}
+                        console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
+                    } catch (error) {
+                        console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
+                    }
                     return [];
                 })();
 
+                console.log(`[StockDetailsModal] Waiting for all API calls to complete for ${symbol}`);
                 const [details, chartDataResp, newsResp] = await Promise.all([detailPromise, chartPromise, newsPromise]);
+
+                console.timeEnd(`StockDetailsModal-${symbol}-details-api`);
+                console.timeEnd(`StockDetailsModal-${symbol}-chart-api`);
+                console.timeEnd(`StockDetailsModal-${symbol}-news-api`);
+
+                console.log(`[StockDetailsModal] All API calls completed for ${symbol}`);
+
                 setStockData(details);
                 if (chartDataResp) setChartData(chartDataResp);
                 if (newsResp && newsResp.length) setNews(newsResp);
+
+                console.log(`[StockDetailsModal] State updated for ${symbol}`);
             } catch (err) {
+                console.error(`[StockDetailsModal] Error loading data for ${symbol}:`, err);
                 setError(err.message || 'Failed to load stock details');
             } finally {
                 setLoading(false);
+                console.timeEnd(`StockDetailsModal-${symbol}-total`);
+                console.log(`[StockDetailsModal] Loading completed for ${symbol}`);
             }
         };
 
@@ -278,38 +318,50 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     }, [isOpen, symbol, isFromWatchlist]);
 
     // Real-time price updates when modal is open with rate limiting
-    const priceUpdateRef = useRef({ 
+    const priceUpdateRef = useRef({
         lastCallTime: 0,
         rateLimitCooldown: false,
         rateLimitUntil: 0
     });
-    
+
     useEffect(() => {
         if (!isOpen || !symbol) return;
-        
+
+        console.log(`[StockDetailsModal] Setting up real-time price updates for ${symbol}`);
+
         const updatePrice = async () => {
             const now = Date.now();
             const ref = priceUpdateRef.current;
-            
+
             // Check if we're in rate limit cooldown
             if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
+                console.log(`[StockDetailsModal] Skipping price update for ${symbol} - in rate limit cooldown`);
                 return; // Skip this update
             }
-            
+
             // Reset cooldown if time has passed
             if (ref.rateLimitCooldown && now >= ref.rateLimitUntil) {
+                console.log(`[StockDetailsModal] Rate limit cooldown ended for ${symbol}`);
                 ref.rateLimitCooldown = false;
             }
-            
+
             // Throttle: minimum 2 seconds between calls
             const minDelay = 2000;
             if (now - ref.lastCallTime < minDelay) {
+                console.log(`[StockDetailsModal] Skipping price update for ${symbol} - throttled (${now - ref.lastCallTime}ms since last call)`);
                 return; // Skip if too soon
             }
-            
+
+            console.time(`StockDetailsModal-${symbol}-price-update`);
+            console.log(`[StockDetailsModal] Starting price update for ${symbol}`);
+
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                console.time(`StockDetailsModal-${symbol}-price-auth-headers`);
                 const authHeaders = await window.getAuthHeaders();
+                console.timeEnd(`StockDetailsModal-${symbol}-price-auth-headers`);
+
+                console.log(`[StockDetailsModal] Fetching price data for ${symbol}`);
                 const response = await fetch(`${API_BASE}/api/search`, {
                     method: 'POST',
                     headers: {
@@ -319,21 +371,23 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     credentials: 'include',
                     body: JSON.stringify({ symbol: symbol })
                 });
-                
+
                 ref.lastCallTime = Date.now();
-                
+
                 // Handle rate limit response
                 if (response.status === 429) {
                     const retryAfter = response.headers.get('Retry-After');
                     const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
                     ref.rateLimitCooldown = true;
                     ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
-                    // Rate limit hit in modal
+                    console.log(`[StockDetailsModal] Rate limit hit for ${symbol}, cooling down for ${cooldownSeconds}s`);
+                    console.timeEnd(`StockDetailsModal-${symbol}-price-update`);
                     return;
                 }
-                
+
                 if (response.ok) {
                     const stockData = await response.json();
+                    console.log(`[StockDetailsModal] Price data received for ${symbol}: $${stockData.price}`);
                     setStockData(prev => prev ? {
                         ...prev,
                         price: stockData.price,
@@ -341,82 +395,112 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         percentageChange: stockData.priceChangePercent || 0,
                         priceChangePercent: stockData.priceChangePercent || 0
                     } : prev);
+                    console.log(`[StockDetailsModal] Price state updated for ${symbol}`);
+                } else {
+                    console.log(`[StockDetailsModal] Price API failed for ${symbol}, status: ${response.status}`);
                 }
             } catch (e) {
-                // Silently handle update errors
-                // Error updating price in modal
+                console.error(`[StockDetailsModal] Error updating price for ${symbol}:`, e);
             }
+
+            console.timeEnd(`StockDetailsModal-${symbol}-price-update`);
         };
-        
+
         // Initial update with delay
+        console.log(`[StockDetailsModal] Scheduling initial price update for ${symbol} in 1s`);
         setTimeout(updatePrice, 1000);
-        
+
         // Update every 30 seconds when modal is open (increased from 15s)
+        console.log(`[StockDetailsModal] Setting up price update interval for ${symbol} (every 30s)`);
         const priceInterval = setInterval(updatePrice, 30000);
-        
-        return () => clearInterval(priceInterval);
+
+        return () => {
+            console.log(`[StockDetailsModal] Clearing price update interval for ${symbol}`);
+            clearInterval(priceInterval);
+        };
     }, [isOpen, symbol]);
 
     // Render chart when chartData is available
     useEffect(() => {
         if (!chartData || !symbol) return;
 
+        console.time(`StockDetailsModal-${symbol}-chart-render`);
+        console.log(`[StockDetailsModal] Starting chart render for ${symbol}`);
+
         // Try to find container with retry logic
         let retryCount = 0;
         const maxRetries = 10;
-        
+
         const findAndRenderChart = () => {
             const chartContainer = document.getElementById('modalChartContainer');
             if (!chartContainer) {
                 retryCount++;
                 if (retryCount < maxRetries) {
+                    console.log(`[StockDetailsModal] Chart container not found for ${symbol}, retry ${retryCount}/${maxRetries}`);
                     setTimeout(findAndRenderChart, 100);
+                } else {
+                    console.log(`[StockDetailsModal] Chart container not found after ${maxRetries} retries for ${symbol}`);
                 }
                 return;
             }
-            
+
+            console.log(`[StockDetailsModal] Chart container found for ${symbol}, clearing and rendering`);
+
             // Clear container
             chartContainer.innerHTML = '';
-            
+
             // Check if Chart.js and StockChart are available
             if (!window.StockChart) {
+                console.log(`[StockDetailsModal] StockChart component not available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart component not loaded. Please refresh the page.</p></div>';
+                console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
                 return;
             }
 
             if (!window.Chart && typeof Chart === 'undefined') {
+                console.log(`[StockDetailsModal] Chart.js library not available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart.js library not loaded. Please refresh the page.</p></div>';
+                console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
                 return;
             }
 
             if (chartData.length === 0) {
+                console.log(`[StockDetailsModal] No chart data available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>No chart data available</p></div>';
+                console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
                 return;
             }
-            
+
             // Render chart using ReactDOM.createRoot
             try {
+                console.log(`[StockDetailsModal] Creating React root and rendering chart for ${symbol}`);
                 // Create or reuse the root
                 if (!chartRootRef.current) {
                     chartRootRef.current = ReactDOM.createRoot(chartContainer);
                 }
-                
+
                 chartRootRef.current.render(React.createElement(window.StockChart, {
                     symbol: symbol,
                     data: chartData,
                     isModal: true,
                     onClose: null
                 }));
+
+                console.log(`[StockDetailsModal] Chart render completed for ${symbol}`);
+                console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
             } catch (error) {
+                console.error(`[StockDetailsModal] Chart render error for ${symbol}:`, error);
                 chartContainer.innerHTML = `<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Error rendering chart: ${error.message}</p></div>`;
+                console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
             }
         };
-        
+
         // Start the retry process
         findAndRenderChart();
 
         return () => {
             if (chartRootRef.current) {
+                console.log(`[StockDetailsModal] Cleaning up chart root for ${symbol}`);
                 chartRootRef.current.render(null);
             }
         };
@@ -742,11 +826,16 @@ const initModal = () => {
 
 // Open modal function
 window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
+    console.time(`StockDetailsModal-${symbol}-modal-open`);
+    console.log(`[StockDetailsModal] Opening modal for ${symbol} (fromWatchlist: ${isFromWatchlist})`);
+
     initModal();
     modalState = { isOpen: true, symbol, isFromWatchlist };
     modalRoot.render(React.createElement(StockDetailsModal, {
         ...modalState,
         onClose: () => {
+            console.timeEnd(`StockDetailsModal-${symbol}-modal-open`);
+            console.log(`[StockDetailsModal] Modal closed for ${symbol}`);
             modalState.isOpen = false;
             if (modalRoot) {
                 modalRoot.render(null);
