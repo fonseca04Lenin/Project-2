@@ -167,17 +167,14 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
 const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol }) => {
     const [ceoData, setCeoData] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!isOpen || !ceoName || ceoName === '-') return;
 
         const fetchCEOData = async () => {
             setLoading(true);
-            setError(null);
 
             try {
-                // Try to fetch from Wikipedia API
                 const searchQuery = encodeURIComponent(`${ceoName} CEO ${companyName}`);
                 const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${searchQuery}&format=json&origin=*&srlimit=1`;
 
@@ -185,36 +182,29 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 const searchData = await searchResponse.json();
 
                 if (searchData.query.search.length > 0) {
-                    const pageTitle = searchData.query.search[0].title;
                     const pageId = searchData.query.search[0].pageid;
-
-                    // Fetch full article content
                     const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=1&explaintext=1&piprop=original&pageids=${pageId}&format=json&origin=*`;
                     const contentResponse = await fetch(contentUrl);
                     const contentData = await contentResponse.json();
-
                     const page = contentData.query.pages[pageId];
 
                     setCeoData({
-                        name: pageTitle,
+                        name: page.title || ceoName,
                         biography: page.extract || 'No biography available.',
                         imageUrl: page.original?.source || null,
-                        wikipediaUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, '_'))}`,
+                        wikipediaUrl: `https://en.wikipedia.org/?curid=${pageId}`,
                         found: true
                     });
                 } else {
-                    // No Wikipedia data found - show basic info
                     setCeoData({
                         name: ceoName,
-                        biography: `${ceoName} is the Chief Executive Officer of ${companyName} (${companySymbol}). For more detailed information, please visit the company's official website or financial news sources.`,
+                        biography: `${ceoName} is the Chief Executive Officer of ${companyName} (${companySymbol}). For more information, visit the company's official website.`,
                         imageUrl: null,
                         wikipediaUrl: null,
                         found: false
                     });
                 }
             } catch (err) {
-                console.error('Error fetching CEO data:', err);
-                setError('Failed to load CEO information');
                 setCeoData({
                     name: ceoName,
                     biography: `${ceoName} is the Chief Executive Officer of ${companyName} (${companySymbol}).`,
@@ -232,144 +222,116 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
 
     if (!isOpen) return null;
 
-    return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
-            <div className="modal-content ceo-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>
-                        <i className="fas fa-user-tie" style={{ marginRight: '10px', color: '#0066cc' }}></i>
-                        CEO Profile
-                    </h2>
-                    <button className="modal-close" onClick={onClose}>
-                        <i className="fas fa-times"></i>
-                    </button>
-                </div>
-
-                <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                    {loading && (
-                        <div style={{ textAlign: 'center', padding: '2rem' }}>
-                            <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#0066cc' }}></i>
-                            <p style={{ marginTop: '1rem' }}>Loading CEO information...</p>
-                        </div>
-                    )}
-
-                    {error && (
-                        <div style={{ padding: '1rem', background: '#fee', borderRadius: '8px', color: '#c00' }}>
-                            <i className="fas fa-exclamation-circle"></i> {error}
-                        </div>
-                    )}
-
-                    {!loading && !error && ceoData && (
-                        <div className="ceo-details">
-                            <div className="ceo-header" style={{
+    return React.createElement('div', {
+        className: 'modal-overlay',
+        onClick: onClose,
+        style: { zIndex: 10001 }
+    },
+        React.createElement('div', {
+            className: 'modal-content ceo-modal',
+            onClick: (e) => e.stopPropagation()
+        },
+            React.createElement('div', { className: 'modal-header' },
+                React.createElement('h2', null,
+                    React.createElement('i', { className: 'fas fa-user-tie', style: { marginRight: '10px', color: '#0066cc' } }),
+                    'CEO Profile'
+                ),
+                React.createElement('button', { className: 'modal-close', onClick: onClose },
+                    React.createElement('i', { className: 'fas fa-times' })
+                )
+            ),
+            React.createElement('div', { className: 'modal-body', style: { maxHeight: '70vh', overflowY: 'auto' } },
+                loading && React.createElement('div', { style: { textAlign: 'center', padding: '2rem' } },
+                    React.createElement('i', { className: 'fas fa-spinner fa-spin', style: { fontSize: '2rem', color: '#0066cc' } }),
+                    React.createElement('p', { style: { marginTop: '1rem' } }, 'Loading CEO information...')
+                ),
+                !loading && ceoData && React.createElement('div', { className: 'ceo-details' },
+                    React.createElement('div', {
+                        className: 'ceo-header',
+                        style: {
+                            display: 'flex',
+                            gap: '2rem',
+                            marginBottom: '2rem',
+                            padding: '1.5rem',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            borderRadius: '12px',
+                            color: 'white'
+                        }
+                    },
+                        ceoData.imageUrl && React.createElement('img', {
+                            src: ceoData.imageUrl,
+                            alt: ceoData.name,
+                            style: {
+                                width: '120px',
+                                height: '120px',
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                border: '4px solid white',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                            }
+                        }),
+                        React.createElement('div', { style: { flex: 1 } },
+                            React.createElement('h3', { style: { margin: '0 0 0.5rem 0', fontSize: '1.8rem', color: 'white' } }, ceoData.name),
+                            React.createElement('p', { style: { margin: '0', fontSize: '1.1rem', opacity: 0.9 } }, 'Chief Executive Officer'),
+                            React.createElement('p', { style: { margin: '0.5rem 0 0 0', fontSize: '1rem', opacity: 0.9 } }, `${companyName} (${companySymbol})`)
+                        )
+                    ),
+                    React.createElement('div', {
+                        className: 'ceo-biography',
+                        style: {
+                            padding: '1.5rem',
+                            background: '#f8f9fa',
+                            borderRadius: '12px',
+                            marginBottom: '1.5rem'
+                        }
+                    },
+                        React.createElement('h4', {
+                            style: {
                                 display: 'flex',
-                                gap: '2rem',
-                                marginBottom: '2rem',
-                                padding: '1.5rem',
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                borderRadius: '12px',
-                                color: 'white'
-                            }}>
-                                {ceoData.imageUrl && (
-                                    <img
-                                        src={ceoData.imageUrl}
-                                        alt={ceoData.name}
-                                        style={{
-                                            width: '120px',
-                                            height: '120px',
-                                            borderRadius: '50%',
-                                            objectFit: 'cover',
-                                            border: '4px solid white',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-                                        }}
-                                    />
-                                )}
-                                <div style={{ flex: 1 }}>
-                                    <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.8rem', color: 'white' }}>
-                                        {ceoData.name}
-                                    </h3>
-                                    <p style={{ margin: '0', fontSize: '1.1rem', opacity: 0.9 }}>
-                                        Chief Executive Officer
-                                    </p>
-                                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '1rem', opacity: 0.9 }}>
-                                        {companyName} ({companySymbol})
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="ceo-biography" style={{
-                                padding: '1.5rem',
-                                background: '#f8f9fa',
-                                borderRadius: '12px',
-                                marginBottom: '1.5rem'
-                            }}>
-                                <h4 style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    marginBottom: '1rem',
-                                    color: '#333'
-                                }}>
-                                    <i className="fas fa-book-open" style={{ color: '#667eea' }}></i>
-                                    Biography
-                                </h4>
-                                <p style={{
-                                    lineHeight: '1.8',
-                                    color: '#555',
-                                    fontSize: '1rem',
-                                    whiteSpace: 'pre-wrap'
-                                }}>
-                                    {ceoData.biography}
-                                </p>
-                            </div>
-
-                            {ceoData.wikipediaUrl && (
-                                <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                                    <a
-                                        href={ceoData.wikipediaUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem',
-                                            padding: '0.75rem 1.5rem',
-                                            background: '#0066cc',
-                                            color: 'white',
-                                            borderRadius: '8px',
-                                            textDecoration: 'none',
-                                            fontWeight: '600',
-                                            transition: 'all 0.2s'
-                                        }}
-                                        onMouseOver={(e) => e.currentTarget.style.background = '#0052a3'}
-                                        onMouseOut={(e) => e.currentTarget.style.background = '#0066cc'}
-                                    >
-                                        <i className="fab fa-wikipedia-w"></i>
-                                        Read More on Wikipedia
-                                        <i className="fas fa-external-link-alt" style={{ fontSize: '0.8rem' }}></i>
-                                    </a>
-                                </div>
-                            )}
-
-                            {!ceoData.found && (
-                                <div style={{
-                                    padding: '1rem',
-                                    background: '#fff3cd',
-                                    borderRadius: '8px',
-                                    marginTop: '1rem',
-                                    border: '1px solid #ffc107'
-                                }}>
-                                    <i className="fas fa-info-circle" style={{ color: '#856404' }}></i>
-                                    <span style={{ marginLeft: '0.5rem', color: '#856404' }}>
-                                        Limited information available. Try searching on <a href={`https://www.google.com/search?q=${encodeURIComponent(ceoName + ' CEO ' + companyName)}`} target="_blank" rel="noopener noreferrer">Google</a> or <a href={`https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(ceoName + ' CEO')}`} target="_blank" rel="noopener noreferrer">LinkedIn</a>.
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                marginBottom: '1rem',
+                                color: '#333'
+                            }
+                        },
+                            React.createElement('i', { className: 'fas fa-book-open', style: { color: '#667eea' } }),
+                            'Biography'
+                        ),
+                        React.createElement('p', {
+                            style: {
+                                lineHeight: '1.8',
+                                color: '#555',
+                                fontSize: '1rem',
+                                whiteSpace: 'pre-wrap'
+                            }
+                        }, ceoData.biography)
+                    ),
+                    ceoData.wikipediaUrl && React.createElement('div', { style: { textAlign: 'center', marginTop: '1.5rem' } },
+                        React.createElement('a', {
+                            href: ceoData.wikipediaUrl,
+                            target: '_blank',
+                            rel: 'noopener noreferrer',
+                            style: {
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.75rem 1.5rem',
+                                background: '#0066cc',
+                                color: 'white',
+                                borderRadius: '8px',
+                                textDecoration: 'none',
+                                fontWeight: '600',
+                                transition: 'all 0.2s'
+                            }
+                        },
+                            React.createElement('i', { className: 'fab fa-wikipedia-w' }),
+                            'Read More on Wikipedia',
+                            React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.8rem' } })
+                        )
+                    )
+                )
+            )
+        )
     );
 };
 
@@ -416,7 +378,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
         const fetchData = async () => {
             console.time(`StockDetailsModal-${symbol}-total`);
-            // // console.log(`[StockDetailsModal] Starting to load data for ${symbol}`);
+            console.log(`[StockDetailsModal] Starting to load data for ${symbol}`);
 
             setLoading(true);
             setError(null);
@@ -429,7 +391,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 console.time(`StockDetailsModal-${symbol}-auth-headers`);
                 const authHeaders = await window.getAuthHeaders();
                 console.timeEnd(`StockDetailsModal-${symbol}-auth-headers`);
-                // // console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}`);
+                console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}`);
 
                 const useWatchlistEndpoint = isFromWatchlist;
 
@@ -442,13 +404,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     const opts = useWatchlistEndpoint
                         ? { method: 'GET', headers: authHeaders, credentials: 'include' }
                         : { credentials: 'include' };
-                    // // console.log(`[StockDetailsModal] Fetching details from: ${url}`);
+                    console.log(`[StockDetailsModal] Fetching details from: ${url}`);
                     const response = await fetch(url, opts);
                     if (!response.ok) {
                         throw new Error(`Failed to load stock data: HTTP ${response.status}`);
                     }
                     const data = await response.json();
-                    // // console.log(`[StockDetailsModal] Details data received for ${symbol}`);
+                    console.log(`[StockDetailsModal] Details data received for ${symbol}`);
                     if (useWatchlistEndpoint) {
                         return {
                             ...data,
@@ -468,18 +430,18 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 console.time(`StockDetailsModal-${symbol}-chart-api`);
                 const chartPromise = (async () => {
                     try {
-                        // // console.log(`[StockDetailsModal] Fetching chart data for ${symbol}`);
+                        console.log(`[StockDetailsModal] Fetching chart data for ${symbol}`);
                         const chartResp = await fetch(`${API_BASE}/api/chart/${symbol}`, {
                             credentials: 'include'
                         });
                         if (chartResp.ok) {
                             const chartData = await chartResp.json();
-                            // // console.log(`[StockDetailsModal] Chart data received for ${symbol} (${chartData.length} points)`);
+                            console.log(`[StockDetailsModal] Chart data received for ${symbol} (${chartData.length} points)`);
                             return chartData;
                         }
-                        // // console.log(`[StockDetailsModal] Chart API failed for ${symbol}, status: ${chartResp.status}`);
+                        console.log(`[StockDetailsModal] Chart API failed for ${symbol}, status: ${chartResp.status}`);
                     } catch (error) {
-                        // // console.log(`[StockDetailsModal] Chart API error for ${symbol}:`, error);
+                        console.log(`[StockDetailsModal] Chart API error for ${symbol}:`, error);
                     }
                     return null;
                 })();
@@ -488,31 +450,31 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 console.time(`StockDetailsModal-${symbol}-news-api`);
                 const newsPromise = (async () => {
                     try {
-                        // // console.log(`[StockDetailsModal] Fetching news for ${symbol}`);
+                        console.log(`[StockDetailsModal] Fetching news for ${symbol}`);
                         const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
                             credentials: 'include'
                         });
                         if (newsResp.ok) {
                             const newsRespData = await newsResp.json();
                             const newsData = newsRespData.slice(0, 5);
-                            // // console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
+                            console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
                             return newsData;
                         }
-                        // // console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
+                        console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
                     } catch (error) {
-                        // // console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
+                        console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
                     }
                     return [];
                 })();
 
                 // Load details and chart first (critical for modal display)
-                // // console.log(`[StockDetailsModal] Loading core data for ${symbol}`);
+                console.log(`[StockDetailsModal] Loading core data for ${symbol}`);
                 const [details, chartDataResp] = await Promise.all([detailPromise, chartPromise]);
 
                 console.timeEnd(`StockDetailsModal-${symbol}-details-api`);
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-api`);
 
-                // // console.log(`[StockDetailsModal] Core data loaded for ${symbol}, displaying modal`);
+                console.log(`[StockDetailsModal] Core data loaded for ${symbol}, displaying modal`);
 
                 setStockData(details);
                 if (chartDataResp) setChartData(chartDataResp);
@@ -521,34 +483,34 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 setNewsLoading(true);
                 (async () => {
                     try {
-                        // // console.log(`[StockDetailsModal] Fetching news for ${symbol} in background`);
+                        console.log(`[StockDetailsModal] Fetching news for ${symbol} in background`);
                         const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
                             credentials: 'include'
                         });
                         if (newsResp.ok) {
                             const newsRespData = await newsResp.json();
                             const newsData = newsRespData.slice(0, 5);
-                            // // console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
+                            console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
                             setNews(newsData);
                         } else {
-                            // // console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
+                            console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
                         }
                     } catch (error) {
-                        // // console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
+                        console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
                     } finally {
                         setNewsLoading(false);
                         console.timeEnd(`StockDetailsModal-${symbol}-news-api`);
                     }
                 })();
 
-                // // console.log(`[StockDetailsModal] State updated for ${symbol}`);
+                console.log(`[StockDetailsModal] State updated for ${symbol}`);
             } catch (err) {
                 console.error(`[StockDetailsModal] Error loading data for ${symbol}:`, err);
                 setError(err.message || 'Failed to load stock details');
             } finally {
                 setLoading(false);
                 console.timeEnd(`StockDetailsModal-${symbol}-total`);
-                // // console.log(`[StockDetailsModal] Loading completed for ${symbol}`);
+                console.log(`[StockDetailsModal] Loading completed for ${symbol}`);
             }
         };
 
@@ -566,7 +528,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     useEffect(() => {
         if (!isOpen || !symbol) return;
 
-        // // console.log(`[StockDetailsModal] Setting up real-time price updates for ${symbol}`);
+        console.log(`[StockDetailsModal] Setting up real-time price updates for ${symbol}`);
 
         const updatePrice = async () => {
             const now = Date.now();
@@ -574,32 +536,32 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
             // Prevent concurrent updates
             if (ref.isUpdating) {
-                // // console.log(`[StockDetailsModal] Skipping price update for ${symbol} - already updating`);
+                console.log(`[StockDetailsModal] Skipping price update for ${symbol} - already updating`);
                 return;
             }
 
             // Check if we're in rate limit cooldown
             if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
-                // // console.log(`[StockDetailsModal] Skipping price update for ${symbol} - in rate limit cooldown`);
+                console.log(`[StockDetailsModal] Skipping price update for ${symbol} - in rate limit cooldown`);
                 return; // Skip this update
             }
 
             // Reset cooldown if time has passed
             if (ref.rateLimitCooldown && now >= ref.rateLimitUntil) {
-                // // console.log(`[StockDetailsModal] Rate limit cooldown ended for ${symbol}`);
+                console.log(`[StockDetailsModal] Rate limit cooldown ended for ${symbol}`);
                 ref.rateLimitCooldown = false;
             }
 
             // Throttle: minimum 5 seconds between calls
             const minDelay = 5000;
             if (now - ref.lastCallTime < minDelay) {
-                // // console.log(`[StockDetailsModal] Skipping price update for ${symbol} - throttled (${now - ref.lastCallTime}ms since last call)`);
+                console.log(`[StockDetailsModal] Skipping price update for ${symbol} - throttled (${now - ref.lastCallTime}ms since last call)`);
                 return; // Skip if too soon
             }
 
             ref.isUpdating = true;
             const startTime = performance.now();
-            // // console.log(`[StockDetailsModal] Starting backend price update for ${symbol}`);
+            console.log(`[StockDetailsModal] Starting backend price update for ${symbol}`);
 
             try {
                 // Use backend API for price updates (handles CORS and Alpaca/Yahoo fallback)
@@ -607,9 +569,9 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 const authStart = performance.now();
                 const authHeaders = await window.getAuthHeaders();
                 const authTime = performance.now() - authStart;
-                // // console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}: ${authTime.toFixed(2)}ms`);
+                console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}: ${authTime.toFixed(2)}ms`);
 
-                // // console.log(`[StockDetailsModal] Fetching price data for ${symbol}`);
+                console.log(`[StockDetailsModal] Fetching price data for ${symbol}`);
                 const response = await fetch(`${API_BASE}/api/search`, {
                     method: 'POST',
                     headers: {
@@ -628,13 +590,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
                     ref.rateLimitCooldown = true;
                     ref.rateLimitUntil = Date.now() + (cooldownSeconds * 1000);
-                    // // console.log(`[StockDetailsModal] Rate limit hit for ${symbol}, cooling down for ${cooldownSeconds}s`);
+                    console.log(`[StockDetailsModal] Rate limit hit for ${symbol}, cooling down for ${cooldownSeconds}s`);
                     return;
                 }
 
                 if (response.ok) {
                     const stockData = await response.json();
-                    // // console.log(`[StockDetailsModal] Price data received for ${symbol}: $${stockData.price}`);
+                    console.log(`[StockDetailsModal] Price data received for ${symbol}: $${stockData.price}`);
                     setStockData(prev => prev ? {
                         ...prev,
                         price: stockData.price,
@@ -642,24 +604,24 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         percentageChange: stockData.priceChangePercent || 0,
                         priceChangePercent: stockData.priceChangePercent || 0
                     } : prev);
-                    // // console.log(`[StockDetailsModal] Price state updated for ${symbol}`);
+                    console.log(`[StockDetailsModal] Price state updated for ${symbol}`);
                 } else {
-                    // // console.log(`[StockDetailsModal] Price API failed for ${symbol}, status: ${response.status}`);
+                    console.log(`[StockDetailsModal] Price API failed for ${symbol}, status: ${response.status}`);
                 }
             } catch (e) {
                 console.error(`[StockDetailsModal] Error updating price for ${symbol}:`, e);
             } finally {
                 ref.isUpdating = false;
                 const totalTime = performance.now() - startTime;
-                // // console.log(`[StockDetailsModal] Price update completed for ${symbol}: ${totalTime.toFixed(2)}ms`);
+                console.log(`[StockDetailsModal] Price update completed for ${symbol}: ${totalTime.toFixed(2)}ms`);
             }
         };
 
         // REMOVED: Modal price updates - rely on WebSocket updates instead
         // Backend WebSocket pushes updates every 30s to all connected clients
         // Modal will display most recent data from WebSocket
-        // // console.log(`[StockDetailsModal] Price updates via WebSocket only for ${symbol}`);
-        // // console.log(`   Backend updates every 30s - no separate modal polling needed`);
+        console.log(`[StockDetailsModal] Price updates via WebSocket only for ${symbol}`);
+        console.log(`   Backend updates every 30s - no separate modal polling needed`);
 
         return () => {
             // No cleanup needed - WebSocket handles updates
@@ -671,7 +633,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         if (!chartData || !symbol) return;
 
         console.time(`StockDetailsModal-${symbol}-chart-render`);
-        // // console.log(`[StockDetailsModal] Starting chart render for ${symbol}`);
+        console.log(`[StockDetailsModal] Starting chart render for ${symbol}`);
 
         // Try to find container with retry logic
         let retryCount = 0;
@@ -682,36 +644,36 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             if (!chartContainer) {
                 retryCount++;
                 if (retryCount < maxRetries) {
-                    // // console.log(`[StockDetailsModal] Chart container not found for ${symbol}, retry ${retryCount}/${maxRetries}`);
+                    console.log(`[StockDetailsModal] Chart container not found for ${symbol}, retry ${retryCount}/${maxRetries}`);
                     setTimeout(findAndRenderChart, 100);
                 } else {
-                    // // console.log(`[StockDetailsModal] Chart container not found after ${maxRetries} retries for ${symbol}`);
+                    console.log(`[StockDetailsModal] Chart container not found after ${maxRetries} retries for ${symbol}`);
                 }
                 return;
             }
 
-            // // console.log(`[StockDetailsModal] Chart container found for ${symbol}, clearing and rendering`);
+            console.log(`[StockDetailsModal] Chart container found for ${symbol}, clearing and rendering`);
 
             // Clear container
             chartContainer.innerHTML = '';
 
             // Check if Chart.js and StockChart are available
             if (!window.StockChart) {
-                // // console.log(`[StockDetailsModal] StockChart component not available for ${symbol}`);
+                console.log(`[StockDetailsModal] StockChart component not available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart component not loaded. Please refresh the page.</p></div>';
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
                 return;
             }
 
             if (!window.Chart && typeof Chart === 'undefined') {
-                // // console.log(`[StockDetailsModal] Chart.js library not available for ${symbol}`);
+                console.log(`[StockDetailsModal] Chart.js library not available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart.js library not loaded. Please refresh the page.</p></div>';
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
                 return;
             }
 
             if (chartData.length === 0) {
-                // // console.log(`[StockDetailsModal] No chart data available for ${symbol}`);
+                console.log(`[StockDetailsModal] No chart data available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>No chart data available</p></div>';
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
                 return;
@@ -719,7 +681,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
             // Render chart using ReactDOM.createRoot
             try {
-                // // console.log(`[StockDetailsModal] Creating React root and rendering chart for ${symbol}`);
+                console.log(`[StockDetailsModal] Creating React root and rendering chart for ${symbol}`);
                 // Create or reuse the root
                 if (!chartRootRef.current) {
                     chartRootRef.current = ReactDOM.createRoot(chartContainer);
@@ -732,7 +694,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     onClose: null
                 }));
 
-                // // console.log(`[StockDetailsModal] Chart render completed for ${symbol}`);
+                console.log(`[StockDetailsModal] Chart render completed for ${symbol}`);
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
             } catch (error) {
                 console.error(`[StockDetailsModal] Chart render error for ${symbol}:`, error);
@@ -746,7 +708,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
         return () => {
             if (chartRootRef.current) {
-                // // console.log(`[StockDetailsModal] Cleaning up chart root for ${symbol}`);
+                console.log(`[StockDetailsModal] Cleaning up chart root for ${symbol}`);
                 chartRootRef.current.render(null);
             }
         };
@@ -889,8 +851,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         {/* Stock Info - Vanilla Style */}
                         <div className="stock-details-meta">
                             <div>
-                                <strong data-icon="ceo">CEO:</strong>
-                                <span
+                                <strong data-icon="ceo">CEO:</strong> <span
                                     onClick={() => {
                                         if (stockData.ceo && stockData.ceo !== '-') {
                                             setSelectedCEO({
@@ -905,30 +866,10 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         cursor: stockData.ceo && stockData.ceo !== '-' ? 'pointer' : 'default',
                                         color: stockData.ceo && stockData.ceo !== '-' ? '#0066cc' : 'inherit',
                                         textDecoration: stockData.ceo && stockData.ceo !== '-' ? 'underline' : 'none',
-                                        fontWeight: stockData.ceo && stockData.ceo !== '-' ? '600' : 'normal',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseOver={(e) => {
-                                        if (stockData.ceo && stockData.ceo !== '-') {
-                                            e.currentTarget.style.color = '#0052a3';
-                                        }
-                                    }}
-                                    onMouseOut={(e) => {
-                                        if (stockData.ceo && stockData.ceo !== '-') {
-                                            e.currentTarget.style.color = '#0066cc';
-                                        }
+                                        fontWeight: stockData.ceo && stockData.ceo !== '-' ? '600' : 'normal'
                                     }}
                                     title={stockData.ceo && stockData.ceo !== '-' ? 'Click to view CEO profile' : ''}
-                                >
-                                    {stockData.ceo || '-'}
-                                    {stockData.ceo && stockData.ceo !== '-' && (
-                                        <i className="fas fa-external-link-alt" style={{
-                                            marginLeft: '0.4rem',
-                                            fontSize: '0.75rem',
-                                            opacity: 0.7
-                                        }}></i>
-                                    )}
-                                </span>
+                                >{stockData.ceo || '-'}</span>
                             </div>
                             <div className="stock-description">
                                 <strong data-icon="desc">Description:</strong> 
@@ -1091,17 +1032,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     </>
                 )}
             </div>
-
-            {/* CEO Details Modal */}
-            {ceoModalOpen && (
-                <CEODetailsModal
-                    isOpen={ceoModalOpen}
-                    onClose={() => setCeoModalOpen(false)}
-                    ceoName={selectedCEO.name}
-                    companyName={selectedCEO.company}
-                    companySymbol={selectedCEO.symbol}
-                />
-            )}
+            {ceoModalOpen && React.createElement(CEODetailsModal, {
+                isOpen: ceoModalOpen,
+                onClose: () => setCeoModalOpen(false),
+                ceoName: selectedCEO.name,
+                companyName: selectedCEO.company,
+                companySymbol: selectedCEO.symbol
+            })}
         </div>
     );
 };
@@ -1130,7 +1067,7 @@ const initModal = () => {
 // Open modal function
 window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
     console.time(`StockDetailsModal-${symbol}-modal-open`);
-    // // console.log(`[StockDetailsModal] Opening modal for ${symbol} (fromWatchlist: ${isFromWatchlist})`);
+    console.log(`[StockDetailsModal] Opening modal for ${symbol} (fromWatchlist: ${isFromWatchlist})`);
 
     initModal();
     modalState = { isOpen: true, symbol, isFromWatchlist };
@@ -1138,7 +1075,7 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
         ...modalState,
         onClose: () => {
             console.timeEnd(`StockDetailsModal-${symbol}-modal-open`);
-            // // console.log(`[StockDetailsModal] Modal closed for ${symbol}`);
+            console.log(`[StockDetailsModal] Modal closed for ${symbol}`);
             modalState.isOpen = false;
             if (modalRoot) {
                 modalRoot.render(null);
