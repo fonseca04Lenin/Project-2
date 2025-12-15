@@ -474,7 +474,7 @@ function initializeReactWatchlist() {
         
         return true;
     } else {
-        // // console.warn('⚠️ React root element not found, React component not loaded');
+        console.warn('⚠️ React root element not found, React component not loaded');
         // Available elements check
         return false;
     }
