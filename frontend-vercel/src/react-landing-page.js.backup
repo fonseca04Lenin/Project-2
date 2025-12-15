@@ -102,20 +102,20 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
 
       // Check if username is required for new Google users
       if (result_data.needsUsername) {
-        // // console.log('🆕 New Google user needs username');
+        console.log('🆕 New Google user needs username');
         // Show username collection dialog
         showUsernameDialog(result_data.user, idToken);
         return;
       }
 
       // Success - close dialog and trigger main app authentication
-      // // console.log('Google sign-in successful, closing dialog...');
+      console.log('Google sign-in successful, closing dialog...');
       onOpenChange(false);
       
       // Trigger main app authentication state change
       setTimeout(() => {
         if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-          // // console.log('🔄 Triggering main app auth state change for Google sign-in');
+          console.log('🔄 Triggering main app auth state change for Google sign-in');
           
           // Method 1: Call function directly if available
           if (typeof window.handleAuthStateChange === 'function') {
@@ -127,7 +127,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
             detail: { user: window.firebaseAuth.currentUser }
           });
           window.dispatchEvent(authEvent);
-          // // console.log('📡 Dispatched userAuthenticated event');
+          console.log('📡 Dispatched userAuthenticated event');
         }
       }, 100);
 
@@ -196,13 +196,13 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       }
 
       // Success - close dialog and trigger main app authentication
-      // // console.log('Username set successfully, closing dialog...');
+      console.log('Username set successfully, closing dialog...');
       onOpenChange(false);
       
       // Trigger main app authentication state change
       setTimeout(() => {
         if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-          // // console.log('🔄 Triggering main app auth state change after username set');
+          console.log('🔄 Triggering main app auth state change after username set');
           
           // Method 1: Call function directly if available
           if (typeof window.handleAuthStateChange === 'function') {
@@ -214,7 +214,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
             detail: { user: window.firebaseAuth.currentUser }
           });
           window.dispatchEvent(authEvent);
-          // // console.log('📡 Dispatched userAuthenticated event');
+          console.log('📡 Dispatched userAuthenticated event');
         }
       }, 100);
 
@@ -281,7 +281,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         }
 
         // Success - close dialog and trigger main app authentication
-        // // console.log('Registration successful, closing dialog...');
+        console.log('Registration successful, closing dialog...');
         onOpenChange(false);
         
         // Clear form
@@ -291,7 +291,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         // Trigger main app authentication state change
         setTimeout(() => {
           if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            // // console.log('🔄 Triggering main app auth state change for registration');
+            console.log('🔄 Triggering main app auth state change for registration');
             
             // Method 1: Call function directly if available
             if (typeof window.handleAuthStateChange === 'function') {
@@ -303,7 +303,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
               detail: { user: window.firebaseAuth.currentUser }
             });
             window.dispatchEvent(authEvent);
-            // // console.log('📡 Dispatched userAuthenticated event');
+            console.log('📡 Dispatched userAuthenticated event');
           }
         }, 100);
         
@@ -358,7 +358,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         }
 
         // Success - close dialog and trigger main app authentication
-        // // console.log('Login successful, closing dialog...');
+        console.log('Login successful, closing dialog...');
         onOpenChange(false);
         
         // Clear form
@@ -368,7 +368,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         // Trigger main app authentication state change
         setTimeout(() => {
           if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            // // console.log('🔄 Triggering main app auth state change for login');
+            console.log('🔄 Triggering main app auth state change for login');
             
             // Method 1: Call function directly if available
             if (typeof window.handleAuthStateChange === 'function') {
@@ -380,7 +380,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
               detail: { user: window.firebaseAuth.currentUser }
             });
             window.dispatchEvent(authEvent);
-            // // console.log('📡 Dispatched userAuthenticated event');
+            console.log('📡 Dispatched userAuthenticated event');
           }
         }, 100);
       }
@@ -600,14 +600,14 @@ function StockWatchlistLandingPage() {
 }
 
 // Render the landing page
-// // console.log('🚀 Starting landing page render...');
+console.log('🚀 Starting landing page render...');
 const rootElement = document.getElementById('marketpulse-root');
-// // console.log('📦 Root element:', rootElement);
+console.log('📦 Root element:', rootElement);
 if (rootElement) {
-  // // console.log('✅ Creating React root and rendering...');
+  console.log('✅ Creating React root and rendering...');
   const root = ReactDOM.createRoot(rootElement);
   root.render(<StockWatchlistLandingPage />);
-  // // console.log('✅ Landing page rendered successfully!');
+  console.log('✅ Landing page rendered successfully!');
 } else {
   console.error('❌ Root element not found - marketpulse-root missing');
 }
