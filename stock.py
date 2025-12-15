@@ -4,6 +4,51 @@ import json
 import requests
 import os
 import time
+import threading
+
+class CircuitBreaker:
+    """Circuit breaker pattern to fail fast when external service is down"""
+    def __init__(self, failure_threshold=5, recovery_timeout=60):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN
+        self._lock = threading.Lock()
+
+    def call(self, func, *args, **kwargs):
+        """Execute function with circuit breaker protection"""
+        with self._lock:
+            if self.state == 'OPEN':
+                if time.time() - self.last_failure_time > self.recovery_timeout:
+                    self.state = 'HALF_OPEN'
+                    print("🔄 [CIRCUIT] Switching to HALF_OPEN - testing service")
+                else:
+                    raise Exception("Circuit breaker is OPEN - service unavailable")
+
+            try:
+                result = func(*args, **kwargs)
+                self._on_success()
+                return result
+            except Exception as e:
+                self._on_failure()
+                raise e
+
+    def _on_success(self):
+        """Handle successful call"""
+        if self.state == 'HALF_OPEN':
+            print("✅ [CIRCUIT] Service recovered - switching to CLOSED")
+            self.state = 'CLOSED'
+            self.failure_count = 0
+
+    def _on_failure(self):
+        """Handle failed call"""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.failure_count >= self.failure_threshold:
+            self.state = 'OPEN'
+            print(f"🚫 [CIRCUIT] Switching to OPEN after {self.failure_count} failures")
 
 class NewsAPI:
     def __init__(self):
@@ -472,7 +517,13 @@ class AlpacaAPI:
         self.secret_key = secret_key or os.getenv('ALPACA_SECRET_KEY')
         # Use data API for market data (not trading API)
         self.base_url = base_url or os.getenv('ALPACA_DATA_URL', 'https://data.alpaca.markets/v2')
-        
+
+        # Cache for company names to avoid repeated API calls
+        self._company_name_cache = {}
+
+        # Circuit breaker for API reliability
+        self._circuit_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=30)
+
         if not self.api_key or not self.secret_key:
             print("⚠️ [ALPACA INIT] Warning: Alpaca API keys not set. Alpaca API will not work.")
             print(f"   Looking for: ALPACA_API_KEY and ALPACA_SECRET_KEY")
@@ -489,72 +540,108 @@ class AlpacaAPI:
         }
     
     def get_real_time_data(self, symbol):
-        """Get real-time stock data from Alpaca"""
+        """Get real-time stock data from Alpaca with circuit breaker, retry logic and longer timeouts"""
         if not self.api_key or not self.secret_key:
             print(f"⚠️ [ALPACA] API keys not set for {symbol}")
             return None
-            
+
+        # Check circuit breaker state
+        if self._circuit_breaker.state == 'OPEN':
+            print(f"🚫 [ALPACA] Circuit breaker OPEN for {symbol} - skipping Alpaca API")
+            return None
+
+        def _api_call():
+            # Retry logic: try up to 2 times with increasing timeouts
+            for attempt in range(2):
+                try:
+                    timeout = 8 + (attempt * 2)  # 8s, then 10s
+                    print(f"🔵 [ALPACA] Attempt {attempt + 1}/2 fetching real-time data for {symbol} (timeout: {timeout}s)...")
+
+                    # Try snapshot endpoint first (most reliable for current price)
+                    snapshot_data = self._get_snapshot_data(symbol, timeout)
+                    if snapshot_data:
+                        print(f"✅ [ALPACA] Got snapshot data for {symbol}: ${snapshot_data.get('price', 0):.2f}")
+                        return snapshot_data
+
+                    # Fallback: try latest quote endpoint
+                    print(f"🔄 [ALPACA] Attempt {attempt + 1}/2 trying latest quote endpoint for {symbol}...")
+                    url = f'{self.base_url}/stocks/{symbol}/quotes/latest'
+                    headers = self._get_headers()
+                    response = requests.get(url, headers=headers, timeout=timeout)
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        quote = data.get('quote', {})
+
+                        # Get price (use ask price, bid price, or last price)
+                        price = quote.get('ap') or quote.get('bp') or quote.get('p')
+
+                        if price:
+                            # Get company name from ticker info
+                            name = self._get_company_name(symbol, timeout)
+                            print(f"✅ [ALPACA] Got quote data for {symbol}: ${float(price):.2f} ({name or symbol})")
+                            return {
+                                'name': name or symbol,
+                                'price': float(price)
+                            }
+                    elif response.status_code == 404:
+                        # Stock not found on Alpaca
+                        print(f"⚠️ [ALPACA] Stock {symbol} not found (404)")
+                        return None
+                    elif response.status_code == 429:
+                        # Rate limited - don't retry immediately
+                        print(f"⚠️ [ALPACA] Rate limited for {symbol} (429)")
+                        if attempt < 1:  # Only sleep on first attempt
+                            import time
+                            time.sleep(1)  # Wait 1 second before retry
+                            continue
+                        raise Exception(f"Rate limited: {response.status_code}")
+                    else:
+                        print(f"❌ [ALPACA] API error for {symbol}: {response.status_code} {response.text[:100]}...")
+                        if attempt < 1:  # Retry on first attempt for server errors
+                            continue
+                        raise Exception(f"API error: {response.status_code}")
+
+                except requests.exceptions.Timeout:
+                    print(f"⏰ [ALPACA] Timeout on attempt {attempt + 1}/2 for {symbol} ({timeout}s)")
+                    if attempt < 1:  # Only retry on timeout for first attempt
+                        continue
+                    raise Exception(f"Timeout after {timeout}s")
+                except Exception as e:
+                    print(f"❌ [ALPACA] Exception on attempt {attempt + 1}/2 for {symbol}: {e}")
+                    if attempt < 1:  # Only retry on first attempt for exceptions
+                        continue
+                    raise e
+
+            print(f"❌ [ALPACA] All attempts failed for {symbol}")
+            raise Exception("All API attempts failed")
+
         try:
-            print(f"🔵 [ALPACA] Fetching real-time data for {symbol}...")
-            # Try snapshot endpoint first (most reliable for current price)
-            snapshot_data = self._get_snapshot_data(symbol)
-            if snapshot_data:
-                print(f"✅ [ALPACA] Got snapshot data for {symbol}: ${snapshot_data.get('price', 0):.2f}")
-                return snapshot_data
-            
-            # Fallback: try latest quote endpoint
-            print(f"🔄 [ALPACA] Trying latest quote endpoint for {symbol}...")
-            url = f'{self.base_url}/stocks/{symbol}/quotes/latest'
-            headers = self._get_headers()
-            response = requests.get(url, headers=headers, timeout=5)
-            
-            if response.status_code == 200:
-                data = response.json()
-                quote = data.get('quote', {})
-                
-                # Get price (use ask price, bid price, or last price)
-                price = quote.get('ap') or quote.get('bp') or quote.get('p')
-                
-                if price:
-                    # Get company name from ticker info
-                    name = self._get_company_name(symbol)
-                    print(f"✅ [ALPACA] Got quote data for {symbol}: ${float(price):.2f} ({name or symbol})")
-                    return {
-                        'name': name or symbol,
-                        'price': float(price)
-                    }
-            elif response.status_code == 404:
-                # Stock not found on Alpaca
-                print(f"⚠️ [ALPACA] Stock {symbol} not found (404)")
-                return None
-            else:
-                print(f"❌ [ALPACA] API error for {symbol}: {response.status_code} {response.text}")
-                return None
-                
+            return self._circuit_breaker.call(_api_call)
         except Exception as e:
-            print(f"❌ [ALPACA] Exception retrieving data for {symbol}: {e}")
+            print(f"🚫 [ALPACA] Circuit breaker triggered for {symbol}: {e}")
             return None
     
-    def _get_snapshot_data(self, symbol):
+    def _get_snapshot_data(self, symbol, timeout=8):
         """Get snapshot data (most reliable for current price)"""
         try:
             url = f'{self.base_url}/stocks/{symbol}/snapshot'
             headers = self._get_headers()
-            response = requests.get(url, headers=headers, timeout=5)
-            
+            response = requests.get(url, headers=headers, timeout=timeout)
+
             if response.status_code == 200:
                 data = response.json()
                 # Snapshot contains latestTrade with price
                 latest_trade = data.get('latestTrade', {})
                 price = latest_trade.get('p')
-                
+
                 # If no latest trade, try daily bar
                 if not price:
                     daily_bar = data.get('dailyBar', {})
                     price = daily_bar.get('c')  # Close price
-                
+
                 if price:
-                    name = self._get_company_name(symbol)
+                    name = self._get_company_name(symbol, timeout)
                     print(f"✅ [ALPACA] Got snapshot for {symbol}: ${float(price):.2f} ({name or symbol})")
                     return {
                         'name': name or symbol,
@@ -566,90 +653,135 @@ class AlpacaAPI:
                 print(f"⚠️ [ALPACA] Snapshot request for {symbol} returned {response.status_code}")
         except Exception as e:
             print(f"❌ [ALPACA] Error getting snapshot for {symbol}: {e}")
-        
+
         return None
     
     def get_batch_snapshots(self, symbols):
-        """Get snapshot data for multiple symbols in a single API call (much more efficient!)
-        
+        """Get snapshot data for multiple symbols in a single API call with circuit breaker and retry logic
+
         Args:
             symbols: List of stock symbols (e.g., ['AAPL', 'TSLA', 'MSFT'])
-            
+
         Returns:
             Dictionary mapping symbol to {'name': str, 'price': float} or None if not found
         """
         if not self.api_key or not self.secret_key:
             print(f"⚠️ [ALPACA] API keys not set for batch snapshots")
             return {}
-        
+
         if not symbols:
             return {}
-        
-        try:
-            # Alpaca supports batch snapshots: /stocks/snapshots?symbols=AAPL,TSLA,MSFT
-            symbols_str = ','.join(symbols)
-            url = f'{self.base_url}/stocks/snapshots'
-            params = {'symbols': symbols_str}
-            headers = self._get_headers()
-            
-            print(f"🔵 [ALPACA BATCH] Fetching snapshots for {len(symbols)} symbols: {symbols_str[:50]}...")
-            response = requests.get(url, headers=headers, params=params, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                results = {}
-                
-                # Response is a dictionary where keys are symbols
-                for symbol in symbols:
-                    symbol_data = data.get(symbol, {})
-                    if not symbol_data:
-                        continue
-                    
-                    # Extract price from latestTrade or dailyBar
-                    latest_trade = symbol_data.get('latestTrade', {})
-                    price = latest_trade.get('p')
-                    
-                    if not price:
-                        daily_bar = symbol_data.get('dailyBar', {})
-                        price = daily_bar.get('c')  # Close price
-                    
-                    if price:
-                        # Get company name (cache this if needed for performance)
-                        name = self._get_company_name(symbol)
-                        results[symbol] = {
-                            'name': name or symbol,
-                            'price': float(price)
-                        }
-                        print(f"✅ [ALPACA BATCH] {symbol}: ${float(price):.2f}")
+
+        # Check circuit breaker state
+        if self._circuit_breaker.state == 'OPEN':
+            print(f"🚫 [ALPACA BATCH] Circuit breaker OPEN for {len(symbols)} symbols - skipping Alpaca API")
+            return {}
+
+        def _batch_api_call():
+            # Retry logic for batch requests
+            for attempt in range(2):
+                try:
+                    timeout = 12 + (attempt * 3)  # 12s, then 15s
+                    symbols_str = ','.join(symbols)
+                    url = f'{self.base_url}/stocks/snapshots'
+                    params = {'symbols': symbols_str}
+                    headers = self._get_headers()
+
+                    print(f"🔵 [ALPACA BATCH] Attempt {attempt + 1}/2 fetching {len(symbols)} symbols (timeout: {timeout}s): {symbols_str[:50]}...")
+                    response = requests.get(url, headers=headers, params=params, timeout=timeout)
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        results = {}
+
+                        # Response is a dictionary where keys are symbols
+                        for symbol in symbols:
+                            symbol_data = data.get(symbol, {})
+                            if not symbol_data:
+                                continue
+
+                            # Extract price from latestTrade or dailyBar
+                            latest_trade = symbol_data.get('latestTrade', {})
+                            price = latest_trade.get('p')
+
+                            if not price:
+                                daily_bar = symbol_data.get('dailyBar', {})
+                                price = daily_bar.get('c')  # Close price
+
+                            if price:
+                                # Get company name (will use cache)
+                                name = self._get_company_name(symbol, timeout)
+                                results[symbol] = {
+                                    'name': name or symbol,
+                                    'price': float(price)
+                                }
+                                print(f"✅ [ALPACA BATCH] {symbol}: ${float(price):.2f}")
+                            else:
+                                print(f"⚠️ [ALPACA BATCH] {symbol}: No price data available")
+
+                        print(f"✅ [ALPACA BATCH] Successfully fetched {len(results)}/{len(symbols)} symbols on attempt {attempt + 1}")
+                        return results
+                    elif response.status_code == 429:
+                        print(f"⚠️ [ALPACA BATCH] Rate limit exceeded (429) on attempt {attempt + 1}")
+                        if attempt < 1:
+                            import time
+                            time.sleep(2)  # Wait 2 seconds before retry
+                            continue
+                        raise Exception(f"Rate limit: {response.status_code}")
+                    elif response.status_code >= 500:
+                        print(f"❌ [ALPACA BATCH] Server error {response.status_code} on attempt {attempt + 1}")
+                        if attempt < 1:
+                            import time
+                            time.sleep(1)
+                            continue
+                        raise Exception(f"Server error: {response.status_code}")
                     else:
-                        print(f"⚠️ [ALPACA BATCH] {symbol}: No price data available")
-                
-                print(f"✅ [ALPACA BATCH] Successfully fetched {len(results)}/{len(symbols)} symbols")
-                return results
-            elif response.status_code == 429:
-                print(f"❌ [ALPACA BATCH] Rate limit exceeded (429)")
-                return {}
-            else:
-                print(f"❌ [ALPACA BATCH] API error: {response.status_code} {response.text[:200]}")
-                return {}
-                
+                        print(f"❌ [ALPACA BATCH] API error {response.status_code} on attempt {attempt + 1}: {response.text[:200]}")
+                        raise Exception(f"API error: {response.status_code}")
+
+                except requests.exceptions.Timeout:
+                    print(f"⏰ [ALPACA BATCH] Timeout on attempt {attempt + 1}/2 ({timeout}s)")
+                    if attempt < 1:
+                        continue
+                    raise Exception(f"Timeout after {timeout}s")
+                except Exception as e:
+                    print(f"❌ [ALPACA BATCH] Exception on attempt {attempt + 1}/2: {e}")
+                    if attempt < 1:
+                        continue
+                    raise e
+
+            print(f"❌ [ALPACA BATCH] All attempts failed for {len(symbols)} symbols")
+            raise Exception("All batch API attempts failed")
+
+        try:
+            return self._circuit_breaker.call(_batch_api_call)
         except Exception as e:
-            print(f"❌ [ALPACA BATCH] Exception fetching batch snapshots: {e}")
+            print(f"🚫 [ALPACA BATCH] Circuit breaker triggered for batch request: {e}")
             return {}
     
-    def _get_company_name(self, symbol):
-        """Get company name from Alpaca assets endpoint"""
+    def _get_company_name(self, symbol, timeout=3):
+        """Get company name from Alpaca assets endpoint with caching"""
+        # Check cache first
+        if symbol in self._company_name_cache:
+            return self._company_name_cache[symbol]
+
         try:
             url = f'{self.base_url}/assets/{symbol}'
             headers = self._get_headers()
-            response = requests.get(url, headers=headers, timeout=3)
-            
+            response = requests.get(url, headers=headers, timeout=timeout)
+
             if response.status_code == 200:
                 data = response.json()
-                return data.get('name', symbol)
-        except:
-            pass
-        return None
+                name = data.get('name', symbol)
+                # Cache the result
+                self._company_name_cache[symbol] = name
+                return name
+        except Exception as e:
+            print(f"⚠️ [ALPACA] Error getting company name for {symbol}: {e}")
+
+        # Cache None to avoid repeated failed requests
+        self._company_name_cache[symbol] = symbol
+        return symbol
     
     def get_info(self, symbol):
         """Get company information from Alpaca (limited compared to Yahoo)"""
