@@ -311,14 +311,9 @@ const DashboardRedesign = () => {
         }
     };
 
-    useEffect(() => {
-        // Auto-refresh every 30 seconds
-        const interval = setInterval(() => {
-            loadWatchlistData();
-        }, 30000);
-        
-        return () => clearInterval(interval);
-    }, []);
+    // REMOVED: Auto-refresh conflicted with WebSocket updates
+    // WebSocket provides real-time updates every 30s from backend
+    // Manual refresh available via refresh button if needed
 
     // Backend keep-alive mechanism (deferred to not block initial load)
     useEffect(() => {
@@ -763,65 +758,16 @@ const DashboardRedesign = () => {
         
         // Initial observation with minimal delay to ensure DOM is ready
         const observeTimeout = setTimeout(observeStocks, 100);
-        
-        // Re-observe when watchlist changes (more frequently)
-        const reobserveInterval = setInterval(observeStocks, 1000);
-        
-        const updateLivePrices = async () => {
-            const now = Date.now();
-            
-            // If SocketIO is connected and recently updated, reduce HTTP polling frequency
-            // SocketIO is the primary update mechanism, HTTP is fallback
-            const socketRecentlyUpdated = ref.lastSocketUpdate && (now - ref.lastSocketUpdate < 5000);
-            if (socketRef.current && socketRef.current.connected && socketRecentlyUpdated) {
-                // SocketIO is working well, reduce HTTP polling to every 10 seconds instead of 2
-                // This reduces API load while SocketIO handles real-time updates
-                return;
-            }
-            
-            // Update ALL stocks in watchlist - NO rate limits or restrictions!
-            const stocksToUpdate = [...watchlistData];
-            const updateTime = new Date().toLocaleTimeString();
-            console.log(`\n🔄 [HTTP UPDATE] @ ${updateTime}`);
-            console.log(`   Updating ${stocksToUpdate.length} stocks via HTTP polling`);
-            
-            if (stocksToUpdate.length === 0) return;
-            
-            // Process ALL stocks without any rate limiting
-            for (let i = 0; i < stocksToUpdate.length; i++) {
-                const stock = stocksToUpdate[i];
-                
-                // Minimal delay to prevent API server overload
-                if (i > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 20));
-                }
-                
-                await updateStockPrice(stock.symbol, ref);
-            }
-            
-            setLastUpdate(new Date());
-            
-            // Track HTTP updates
-            if (ref) {
-                ref.httpUpdateCount = (ref.httpUpdateCount || 0) + stocksToProcess.length;
-            }
-        };
-        
-        // Initial update with minimal delay
-        setTimeout(updateLivePrices, 200);
-        
-        // Update frequency: 30s for Alpaca API to avoid rate limits
-        const updateInterval = 30000;
-        console.log(`⏰ Starting live pricing updates every ${updateInterval}ms for ${watchlistData.length} stocks`);
-        ref.interval = setInterval(updateLivePrices, updateInterval);
-        ref.isActive = true;
-        
+
+        // REMOVED: HTTP polling mechanism - WebSocket now handles ALL updates
+        // Backend sends updates every 30s via WebSocket
+        // This eliminates race conditions and respects rate limits
+
+        console.log(`✅ WebSocket-only mode active for ${watchlistData.length} stocks`);
+        console.log(`   Updates via WebSocket every 30s from backend`);
+
         return () => {
-            if (ref.interval) {
-                clearInterval(ref.interval);
-            }
             clearTimeout(observeTimeout);
-            clearInterval(reobserveInterval);
             observer.disconnect();
             ref.isActive = false;
         };

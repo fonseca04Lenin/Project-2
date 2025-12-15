@@ -1001,13 +1001,24 @@ def update_stock_prices():
                 print(f"⚠️ Error updating market status: {market_error}")
             
             # Sleep before next update
-            # Real-time updates: 1 second for watchlist stocks (faster updates)
+            # OPTIMIZED: 30 seconds to respect Alpaca rate limits (200 req/min)
+            # At 30s intervals: 2 updates/min = safe for free tier
             cycle_end_time = time.time()
             cycle_duration = cycle_end_time - current_time
             print(f"⏱️ Update cycle completed in {cycle_duration:.2f} seconds")
-            print(f"😴 Sleeping for 1 second before next update...")
-            print(f"📅 Next update at: {datetime.fromtimestamp(time.time() + 1).strftime('%H:%M:%S')}\n")
-            time.sleep(1)  # Real-time: 1 second for faster live updates
+
+            # Display API stats if available
+            if USE_ALPACA_API and alpaca_api and hasattr(alpaca_api, 'get_queue_stats'):
+                try:
+                    stats = alpaca_api.get_queue_stats()
+                    print(f"📊 API Stats: {stats['requests_last_minute']}/{stats.get('can_request', 'N/A')} req/min | "
+                          f"Total: {stats['total_requests']} | Rate limited: {stats['rate_limited']}")
+                except:
+                    pass
+
+            print(f"😴 Sleeping for 30 seconds before next update...")
+            print(f"📅 Next update at: {datetime.fromtimestamp(time.time() + 30).strftime('%H:%M:%S')}\n")
+            time.sleep(30)  # OPTIMIZED: 30s intervals for rate limit compliance
             
         except Exception as e:
             print(f"❌ Error in price update loop: {e}")
@@ -3108,6 +3119,55 @@ def handle_chat_message(data):
             'error': 'Internal server error',
             'response': 'I\'m sorry, I encountered an error. Please try again.'
         })
+
+# =============================================================================
+# API STATS ENDPOINT FOR MONITORING RATE LIMITS
+# =============================================================================
+
+@app.route('/api/stats', methods=['GET'])
+def get_api_stats():
+    """Get API statistics for monitoring rate limits and performance"""
+    try:
+        stats = {
+            'connected_users': len(connected_users),
+            'alpaca_enabled': USE_ALPACA_API,
+            'timestamp': datetime.now().isoformat()
+        }
+
+        # Add Alpaca-specific stats if available
+        if USE_ALPACA_API and alpaca_api and hasattr(alpaca_api, 'get_queue_stats'):
+            try:
+                alpaca_stats = alpaca_api.get_queue_stats()
+                stats['alpaca'] = alpaca_stats
+
+                # Calculate rate limit health (percentage of available requests)
+                requests_last_min = alpaca_stats.get('requests_last_minute', 0)
+                max_requests = alpaca_stats.get('can_request', 180)
+                health_percentage = ((180 - requests_last_min) / 180) * 100 if requests_last_min <= 180 else 0
+
+                stats['alpaca']['health'] = {
+                    'percentage': round(health_percentage, 1),
+                    'status': 'healthy' if health_percentage > 50 else 'warning' if health_percentage > 20 else 'critical'
+                }
+            except Exception as e:
+                stats['alpaca'] = {'error': str(e)}
+
+        # Add circuit breaker status if available
+        if USE_ALPACA_API and alpaca_api and hasattr(alpaca_api, 'circuit_breaker'):
+            try:
+                cb_states = {}
+                for endpoint, state_dict in alpaca_api.circuit_breaker.endpoint_states.items():
+                    cb_states[endpoint] = {
+                        'state': state_dict['state'],
+                        'failure_count': state_dict['failure_count']
+                    }
+                stats['circuit_breakers'] = cb_states
+            except Exception as e:
+                stats['circuit_breakers'] = {'error': str(e)}
+
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Add startup message that runs when module is imported (for gunicorn)
 print("\n" + "="*80)

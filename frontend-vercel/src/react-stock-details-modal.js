@@ -441,17 +441,14 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             }
         };
 
-        // Initial update with delay
-        console.log(`[StockDetailsModal] Scheduling initial price update for ${symbol} in 1s`);
-        setTimeout(updatePrice, 1000);
-
-        // Update every 30 seconds when modal is open (matches Alpaca/backend timing)
-        console.log(`[StockDetailsModal] Setting up price update interval for ${symbol} (every 30s)`);
-        const priceInterval = setInterval(updatePrice, 30000);
+        // REMOVED: Modal price updates - rely on WebSocket updates instead
+        // Backend WebSocket pushes updates every 30s to all connected clients
+        // Modal will display most recent data from WebSocket
+        console.log(`[StockDetailsModal] Price updates via WebSocket only for ${symbol}`);
+        console.log(`   Backend updates every 30s - no separate modal polling needed`);
 
         return () => {
-            console.log(`[StockDetailsModal] Clearing price update interval for ${symbol}`);
-            clearInterval(priceInterval);
+            // No cleanup needed - WebSocket handles updates
         };
     }, [isOpen, symbol]);
 
