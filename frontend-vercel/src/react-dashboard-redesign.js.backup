@@ -358,8 +358,8 @@ const DashboardRedesign = () => {
             });
             
             socketRef.current.on('connect', () => {
-                // // console.log('✅ WebSocket connected for real-time updates');
-                // // console.log('📡 WebSocket will update ALL stocks in your watchlist automatically');
+                console.log('✅ WebSocket connected for real-time updates');
+                console.log('📡 WebSocket will update ALL stocks in your watchlist automatically');
                 setSocketConnected(true);
                 
                 // Join watchlist updates room when user is available
@@ -391,19 +391,19 @@ const DashboardRedesign = () => {
                 const currentTime = new Date().toLocaleTimeString();
                 
                 // Real-time price update received - ALWAYS use fresh prices
-                // // console.log(`\n${'='.repeat(60)}`);
-                // // console.log(`📡 UPDATE #${updateCount} @ ${currentTime}`);
-                // // console.log(`   Time since last update: ${timeSinceLastUpdate}s`);
-                // // console.log(`   Stocks updated: ${data.prices?.length || 0}`);
-                // // console.log(`   Backend cycle: #${data.cycle || '?'}`);
+                console.log(`\n${'='.repeat(60)}`);
+                console.log(`📡 UPDATE #${updateCount} @ ${currentTime}`);
+                console.log(`   Time since last update: ${timeSinceLastUpdate}s`);
+                console.log(`   Stocks updated: ${data.prices?.length || 0}`);
+                console.log(`   Backend cycle: #${data.cycle || '?'}`);
                 
                 if (data.prices && data.prices.length > 0) {
                     const symbols = data.prices.map(p => p.symbol).join(', ');
-                    // // console.log(`   Symbols: ${symbols}`);
+                    console.log(`   Symbols: ${symbols}`);
                     const sample = data.prices[0];
-                    // // console.log(`   Sample: ${sample.symbol} = $${sample.price} (${sample.change_percent >= 0 ? '+' : ''}${sample.change_percent?.toFixed(2)}%)`);
+                    console.log(`   Sample: ${sample.symbol} = $${sample.price} (${sample.change_percent >= 0 ? '+' : ''}${sample.change_percent?.toFixed(2)}%)`);
                 }
-                // // console.log(`${'='.repeat(60)}\n`);
+                console.log(`${'='.repeat(60)}\n`);
                 
                 lastUpdateTime = now;
                 if (data.prices && Array.isArray(data.prices)) {
@@ -506,22 +506,22 @@ const DashboardRedesign = () => {
             });
             
             socketRef.current.on('disconnect', () => {
-                // // console.log('❌ WebSocket disconnected - falling back to HTTP polling');
+                console.log('❌ WebSocket disconnected - falling back to HTTP polling');
                 setSocketConnected(false);
             });
             
             socketRef.current.on('connect_error', (error) => {
-                // // console.log('❌ WebSocket connection error:', error);
+                console.log('❌ WebSocket connection error:', error);
                 setSocketConnected(false);
             });
             
             socketRef.current.on('reconnect', (attemptNumber) => {
-                // // console.log(`✅ WebSocket reconnected after ${attemptNumber} attempts`);
+                console.log(`✅ WebSocket reconnected after ${attemptNumber} attempts`);
                 setSocketConnected(true);
             });
             
             socketRef.current.on('reconnect_attempt', () => {
-                // // console.log('🔄 Attempting to reconnect WebSocket...');
+                console.log('🔄 Attempting to reconnect WebSocket...');
             });
         }
         
@@ -763,8 +763,8 @@ const DashboardRedesign = () => {
         // Backend sends updates every 30s via WebSocket
         // This eliminates race conditions and respects rate limits
 
-        // // console.log(`✅ WebSocket-only mode active for ${watchlistData.length} stocks`);
-        // // console.log(`   Updates via WebSocket every 30s from backend`);
+        console.log(`✅ WebSocket-only mode active for ${watchlistData.length} stocks`);
+        console.log(`   Updates via WebSocket every 30s from backend`);
 
         return () => {
             clearTimeout(observeTimeout);
@@ -848,7 +848,7 @@ const DashboardRedesign = () => {
             if (window.firebaseAuth?.currentUser && watchlistData.length > 0) {
                 const timeSinceLastLoad = Date.now() - lastSuccessfulLoadRef.current;
                 if (timeSinceLastLoad > WATCHLIST_REFRESH_INTERVAL) {
-                    // // console.log('🔄 Periodic watchlist refresh triggered');
+                    console.log('🔄 Periodic watchlist refresh triggered');
                     loadWatchlistData();
                 }
             }
@@ -876,9 +876,9 @@ const DashboardRedesign = () => {
                 userId: window.firebaseAuth?.currentUser?.uid
             };
             localStorage.setItem(WATCHLIST_CACHE_KEY, JSON.stringify(cacheData));
-            // // console.log('💾 Saved watchlist to localStorage cache');
+            console.log('💾 Saved watchlist to localStorage cache');
         } catch (error) {
-            // // console.warn('⚠️ Failed to save watchlist to cache:', error);
+            console.warn('⚠️ Failed to save watchlist to cache:', error);
         }
     };
 
@@ -886,7 +886,7 @@ const DashboardRedesign = () => {
         try {
             const cachedData = localStorage.getItem(WATCHLIST_CACHE_KEY);
             if (!cachedData) {
-                // // console.log('📭 No watchlist cache found');
+                console.log('📭 No watchlist cache found');
                 return null;
             }
 
@@ -897,22 +897,22 @@ const DashboardRedesign = () => {
             // Check if cache is for current user
             const currentUserId = window.firebaseAuth?.currentUser?.uid;
             if (cache.userId !== currentUserId) {
-                // // console.log('👤 Cache is for different user, ignoring');
+                console.log('👤 Cache is for different user, ignoring');
                 localStorage.removeItem(WATCHLIST_CACHE_KEY);
                 return null;
             }
 
             // Check if cache is expired
             if (cacheAge > WATCHLIST_CACHE_EXPIRY) {
-                // // console.log('⏰ Watchlist cache expired, removing');
+                console.log('⏰ Watchlist cache expired, removing');
                 localStorage.removeItem(WATCHLIST_CACHE_KEY);
                 return null;
             }
 
-            // // console.log(`📖 Loaded watchlist from cache (${Math.round(cacheAge / 1000 / 60)} minutes old)`);
+            console.log(`📖 Loaded watchlist from cache (${Math.round(cacheAge / 1000 / 60)} minutes old)`);
             return cache.data;
         } catch (error) {
-            // // console.warn('⚠️ Failed to load watchlist from cache:', error);
+            console.warn('⚠️ Failed to load watchlist from cache:', error);
             return null;
         }
     };
@@ -920,28 +920,28 @@ const DashboardRedesign = () => {
     const clearWatchlistCache = () => {
         try {
             localStorage.removeItem(WATCHLIST_CACHE_KEY);
-            // // console.log('🗑️ Cleared watchlist cache');
+            console.log('🗑️ Cleared watchlist cache');
         } catch (error) {
-            // // console.warn('⚠️ Failed to clear watchlist cache:', error);
+            console.warn('⚠️ Failed to clear watchlist cache:', error);
         }
     };
 
     const loadWatchlistData = async () => {
         // Prevent multiple simultaneous requests
         if (isLoadingRef.current) {
-            // // console.log('⚠️ Watchlist request already in progress, skipping duplicate request');
+            console.log('⚠️ Watchlist request already in progress, skipping duplicate request');
             return;
         }
 
         try {
             isLoadingRef.current = true;
-            // // console.log('\n' + '='.repeat(80));
-            // // console.log('🔑 LOADING WATCHLIST DATA');
-            // // console.log('='.repeat(80));
+            console.log('\n' + '='.repeat(80));
+            console.log('🔑 LOADING WATCHLIST DATA');
+            console.log('='.repeat(80));
 
             // Check if user is authenticated before making request
             if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-                // // console.log('❌ User not authenticated');
+                console.log('❌ User not authenticated');
                 // User not authenticated, cannot load watchlist
                 clearWatchlistCache(); // Clear cache for logged out user
                 setWatchlistData([]);
@@ -949,12 +949,12 @@ const DashboardRedesign = () => {
                 return;
             }
 
-            // // console.log('✅ User authenticated:', window.firebaseAuth.currentUser.uid);
+            console.log('✅ User authenticated:', window.firebaseAuth.currentUser.uid);
 
             // Try to load from cache first for immediate display
             const cachedWatchlist = loadWatchlistFromCache();
             if (cachedWatchlist && cachedWatchlist.length > 0) {
-                // // console.log(`📊 Displaying ${cachedWatchlist.length} cached watchlist items immediately`);
+                console.log(`📊 Displaying ${cachedWatchlist.length} cached watchlist items immediately`);
                 // Mark cached items to show they need refresh
                 const cachedWithFlag = cachedWatchlist.map(item => ({
                     ...item,
@@ -1013,13 +1013,13 @@ const DashboardRedesign = () => {
             if (response.ok) {
                 let data = await response.json();
                 
-                // // console.log('📦 RECEIVED FROM API:', data.length, 'stocks');
+                console.log('📦 RECEIVED FROM API:', data.length, 'stocks');
                 
                 // Log all symbols received
                 if (Array.isArray(data) && data.length > 0) {
                     const symbols = data.map(s => s.symbol || s.id || 'NO_SYMBOL');
-                    // // console.log('📋 STOCKS RECEIVED FROM BACKEND:');
-                    symbols.forEach((sym, i) => // console.log(`   ${i + 1}. ${sym}`));
+                    console.log('📋 STOCKS RECEIVED FROM BACKEND:');
+                    symbols.forEach((sym, i) => console.log(`   ${i + 1}. ${sym}`));
                 }
                 
                 // Backend already provides prices, so we don't need to fetch individually
@@ -1103,9 +1103,9 @@ const DashboardRedesign = () => {
                         };
                     });
                     
-                    // // console.log('✅ SET WATCHLIST DATA:', formattedData.length, 'stocks');
-                    // // console.log('   Sample stock:', formattedData[0]);
-                    // // console.log('='.repeat(80) + '\n');
+                    console.log('✅ SET WATCHLIST DATA:', formattedData.length, 'stocks');
+                    console.log('   Sample stock:', formattedData[0]);
+                    console.log('='.repeat(80) + '\n');
 
                     // Remove cached flags since we now have fresh data
                     const freshData = formattedData.map(item => ({
@@ -1167,7 +1167,7 @@ const DashboardRedesign = () => {
                                     return true;
                                 }
                             } catch (e) {
-                                // // console.warn(`Failed to fetch price for ${symbol}:`, e);
+                                console.warn(`Failed to fetch price for ${symbol}:`, e);
                             }
                             return false;
                         };
@@ -1180,11 +1180,11 @@ const DashboardRedesign = () => {
                             });
                     }
                 } else {
-                    // // console.warn('⚠️ Watchlist data is empty or not an array');
+                    console.warn('⚠️ Watchlist data is empty or not an array');
                     // Don't clear watchlist if we have cached data
                     const cachedData = loadWatchlistFromCache();
                     if (cachedData && cachedData.length > 0) {
-                        // // console.log('📋 Using cached watchlist data instead of clearing');
+                        console.log('📋 Using cached watchlist data instead of clearing');
                         setWatchlistData(cachedData);
                     } else {
                         setWatchlistData([]);
@@ -1214,7 +1214,7 @@ const DashboardRedesign = () => {
                 // Don't clear watchlist if we have cached data
                 const cachedData = loadWatchlistFromCache();
                 if (cachedData && cachedData.length > 0) {
-                    // // console.log('📋 Keeping cached watchlist data due to API error');
+                    console.log('📋 Keeping cached watchlist data due to API error');
                     setWatchlistData(cachedData);
                     // Show a warning but don't clear the data
                     if (window.showNotification) {
@@ -1236,7 +1236,7 @@ const DashboardRedesign = () => {
             // Don't clear watchlist if we have cached data
             const cachedData = loadWatchlistFromCache();
             if (cachedData && cachedData.length > 0) {
-                // // console.log('📋 Using cached watchlist data due to error');
+                console.log('📋 Using cached watchlist data due to error');
                 setWatchlistData(cachedData);
                 // Show a warning but don't clear the data
                 if (window.showNotification) {
