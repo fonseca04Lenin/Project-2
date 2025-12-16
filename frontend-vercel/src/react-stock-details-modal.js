@@ -1146,7 +1146,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     return (
         <div className="stock-details-modal-overlay" onClick={onClose}>
             <div className="stock-details-modal-content" onClick={(e) => e.stopPropagation()}>
-                {/* Close Button */}
                 <button 
                     className="close-modal-btn" 
                     onClick={onClose}
@@ -1171,7 +1170,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                 {stockData && !loading && (
                     <>
-                        {/* Header */}
                         <div className="modal-header">
                             <div className="modal-header-content">
                             <h2>{stockData.name || symbol}</h2>
@@ -1179,7 +1177,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         </div>
 
-                        {/* Watchlist Info */}
                         {stockData.isInWatchlist && (
                             <div className="watchlist-info-banner">
                                 <div className="watchlist-info-grid">
@@ -1231,7 +1228,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         )}
 
-                        {/* Stock Info - Vanilla Style */}
                         <div className="stock-details-meta">
                             <div>
                                 <strong data-icon="ceo">CEO:</strong> <span
@@ -1289,7 +1285,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         </div>
 
-                        {/* Watchlist Details Section */}
                         {stockData.isInWatchlist && stockData.dateAdded && (
                             <div className="watchlist-details">
                                 <h3>Watchlist Information</h3>
@@ -1360,12 +1355,10 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         )}
 
-                        {/* Notes Section (only for watchlist items) */}
                         {stockData.isInWatchlist && (
                             <WatchlistNotesSection symbol={symbol} initialNotes={stockData.notes || ''} />
                         )}
 
-                        {/* Chart */}
                         <div className="modal-chart">
                             <h3>
                                 <i className="fas fa-chart-area"></i>
@@ -1381,7 +1374,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         </div>
 
-                        {/* News */}
                         {(news.length > 0 || newsLoading) && (
                             <div className="modal-news">
                                 <h3>
