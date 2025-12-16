@@ -88,6 +88,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           idToken: idToken,
           isGoogleSignIn: true
@@ -183,6 +184,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           idToken: idToken,
           username: username
@@ -267,6 +269,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({
             name: formData.name,
             email: formData.email,
@@ -346,6 +349,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify({
             idToken: idToken
           })
