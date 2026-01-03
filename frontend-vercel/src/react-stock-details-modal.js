@@ -297,6 +297,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     try {
                         if (page.revisions && page.revisions[0] && page.revisions[0]['*']) {
                             const wikitext = page.revisions[0]['*'];
+                            console.log('[CEO Modal] Parsing education for:', ceoName);
+                            console.log('[CEO Modal] Wikitext length:', wikitext.length);
 
                             // Parse infobox for education/alma_mater
                             const educationPatterns = [
@@ -309,6 +311,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 const matches = wikitext.matchAll(pattern);
                                 for (const match of matches) {
                                     if (match[1]) {
+                                        console.log('[CEO Modal] Found education match:', match[1]);
                                         // Clean up the education text
                                         let eduText = match[1].trim();
                                         // Remove wiki markup
@@ -317,6 +320,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                         eduText = eduText.replace(/<ref[^>]*>.*?<\/ref>/gi, '');
                                         eduText = eduText.replace(/<[^>]+>/g, '');
                                         eduText = eduText.replace(/&nbsp;/g, ' ');
+                                        console.log('[CEO Modal] Cleaned education text:', eduText);
 
                                         // Split by <br>, line breaks, or semicolons
                                         const schools = eduText.split(/(?:<br\s*\/?>|\\n|\n|;)/i);
@@ -395,6 +399,9 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         console.error('Error parsing education:', eduError);
                     }
 
+                    console.log('[CEO Modal] Final education data:', education);
+                    console.log('[CEO Modal] Education count:', education.length);
+
                     // Verify this is a person's page, not a company
                     const categories = page.categories || [];
                     const isPersonPage = categories.some(cat =>
@@ -418,7 +425,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     // Use simplified display name (first and last only, no titles)
                     const finalDisplayName = searchName;
 
-                    setCeoData({
+                    const ceoDataObj = {
                         name: finalDisplayName,
                         biography: isPersonalBio ? firstParagraph : biography,
                         imageUrl: page.original?.source || null,
@@ -426,7 +433,10 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         found: true,
                         verified: isPersonPage,
                         education: education
-                    });
+                    };
+
+                    console.log('[CEO Modal] Setting CEO data:', ceoDataObj);
+                    setCeoData(ceoDataObj);
                 } else {
                     // No Wikipedia page found - show basic info
                     setCeoData({
@@ -702,7 +712,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         }, ceoData.biography)
                     ),
                     // Education Section
-                    ceoData.education && ceoData.education.length > 0 && React.createElement('div', {
+                    (() => {
+                        console.log('[CEO Modal] Rendering - ceoData.education:', ceoData.education);
+                        console.log('[CEO Modal] Rendering - has education:', ceoData.education && ceoData.education.length > 0);
+                        return ceoData.education && ceoData.education.length > 0;
+                    })() && React.createElement('div', {
                         style: {
                             marginBottom: '1.5rem'
                         }
