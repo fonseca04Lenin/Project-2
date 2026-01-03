@@ -286,11 +286,114 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 if (personPage) {
                     const pageId = personPage.pageid;
 
-                    // Fetch full page content with image
-                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories&exintro=1&explaintext=1&piprop=original&pageids=${pageId}&format=json&origin=*`;
+                    // Fetch full page content with image and full text for education parsing
+                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories|revisions&exintro=1&explaintext=1&piprop=original&rvprop=content&pageids=${pageId}&format=json&origin=*`;
                     const contentResponse = await fetch(contentUrl);
                     const contentData = await contentResponse.json();
                     const page = contentData.query.pages[pageId];
+
+                    // Try to parse education information from wikitext
+                    let education = [];
+                    try {
+                        if (page.revisions && page.revisions[0] && page.revisions[0]['*']) {
+                            const wikitext = page.revisions[0]['*'];
+
+                            // Parse infobox for education/alma_mater
+                            const educationPatterns = [
+                                /\|\s*alma[_\s]mater\s*=\s*([^\n\|]+)/gi,
+                                /\|\s*education\s*=\s*([^\n\|]+)/gi,
+                                /\|\s*alma_mater\s*=\s*([^\n\|]+)/gi
+                            ];
+
+                            for (const pattern of educationPatterns) {
+                                const matches = wikitext.matchAll(pattern);
+                                for (const match of matches) {
+                                    if (match[1]) {
+                                        // Clean up the education text
+                                        let eduText = match[1].trim();
+                                        // Remove wiki markup
+                                        eduText = eduText.replace(/\[\[([^\|\]]+\|)?([^\]]+)\]\]/g, '$2');
+                                        eduText = eduText.replace(/\{\{[^}]+\}\}/g, '');
+                                        eduText = eduText.replace(/<ref[^>]*>.*?<\/ref>/gi, '');
+                                        eduText = eduText.replace(/<[^>]+>/g, '');
+                                        eduText = eduText.replace(/&nbsp;/g, ' ');
+
+                                        // Split by <br>, line breaks, or semicolons
+                                        const schools = eduText.split(/(?:<br\s*\/?>|\\n|\n|;)/i);
+
+                                        for (let school of schools) {
+                                            school = school.trim();
+                                            if (!school || school.length < 3) continue;
+
+                                            // Parse degree information
+                                            let degreeType = null;
+                                            let degreeName = null;
+                                            let schoolName = school;
+
+                                            // Detect degree types
+                                            const degreePatterns = [
+                                                { pattern: /\b(Ph\.?D\.?|Doctor of Philosophy|Doctorate)\b/i, type: 'PhD' },
+                                                { pattern: /\b(M\.?B\.?A\.?|Master of Business Administration)\b/i, type: 'Masters', name: 'MBA' },
+                                                { pattern: /\b(M\.?S\.?|M\.?Sc\.?|Master of Science)\b/i, type: 'Masters', name: 'Master of Science' },
+                                                { pattern: /\b(M\.?A\.?|Master of Arts)\b/i, type: 'Masters', name: 'Master of Arts' },
+                                                { pattern: /\b(M\.?Eng\.?|Master of Engineering)\b/i, type: 'Masters', name: 'Master of Engineering' },
+                                                { pattern: /\b(Master'?s?|M\.)\b/i, type: 'Masters' },
+                                                { pattern: /\b(B\.?S\.?|B\.?Sc\.?|Bachelor of Science)\b/i, type: 'Bachelors', name: 'Bachelor of Science' },
+                                                { pattern: /\b(B\.?A\.?|Bachelor of Arts)\b/i, type: 'Bachelors', name: 'Bachelor of Arts' },
+                                                { pattern: /\b(B\.?Eng\.?|Bachelor of Engineering)\b/i, type: 'Bachelors', name: 'Bachelor of Engineering' },
+                                                { pattern: /\b(B\.?B\.?A\.?|Bachelor of Business Administration)\b/i, type: 'Bachelors', name: 'BBA' },
+                                                { pattern: /\b(Bachelor'?s?|B\.)\b/i, type: 'Bachelors' }
+                                            ];
+
+                                            for (const deg of degreePatterns) {
+                                                const match = school.match(deg.pattern);
+                                                if (match) {
+                                                    degreeType = deg.type;
+                                                    if (deg.name) {
+                                                        degreeName = deg.name;
+                                                    } else if (match[0]) {
+                                                        degreeName = match[0].trim();
+                                                    }
+                                                    break;
+                                                }
+                                            }
+
+                                            // Try to extract specific degree name if present (in parentheses or after comma)
+                                            if (!degreeName) {
+                                                const degreeNameMatch = school.match(/,\s*([A-Z][^,\(]+?)(?:\(|$)/);
+                                                if (degreeNameMatch) {
+                                                    degreeName = degreeNameMatch[1].trim();
+                                                }
+                                            }
+
+                                            // Extract school name (remove degree info)
+                                            schoolName = school
+                                                .replace(/\([^)]*\)/g, '') // Remove parentheses
+                                                .replace(/,\s*(19|20)\d{2}/, '') // Remove years
+                                                .replace(/[,\-–]\s*(Ph\.?D\.?|M\.?B\.?A\.?|M\.?S\.?|B\.?S\.?|B\.?A\.?|Master'?s?|Bachelor'?s?|Doctorate).*$/i, '')
+                                                .trim();
+
+                                            // Clean up school name
+                                            if (schoolName.match(/^(at|in|from)\s+/i)) {
+                                                schoolName = schoolName.replace(/^(at|in|from)\s+/i, '').trim();
+                                            }
+
+                                            // Only add if we have a meaningful school name
+                                            if (schoolName && schoolName.length > 2 && !schoolName.match(/^(and|or|the)$/i)) {
+                                                education.push({
+                                                    school: schoolName,
+                                                    degree: degreeName,
+                                                    degreeType: degreeType
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (eduError) {
+                        console.error('Error parsing education:', eduError);
+                    }
 
                     // Verify this is a person's page, not a company
                     const categories = page.categories || [];
@@ -321,7 +424,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         imageUrl: page.original?.source || null,
                         wikipediaUrl: `https://en.wikipedia.org/?curid=${pageId}`,
                         found: true,
-                        verified: isPersonPage
+                        verified: isPersonPage,
+                        education: education
                     });
                 } else {
                     // No Wikipedia page found - show basic info
@@ -331,7 +435,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         imageUrl: null,
                         wikipediaUrl: null,
                         found: false,
-                        verified: false
+                        verified: false,
+                        education: []
                     });
                 }
             } catch (err) {
@@ -342,7 +447,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     imageUrl: null,
                     wikipediaUrl: null,
                     found: false,
-                    verified: false
+                    verified: false,
+                    education: []
                 });
             } finally {
                 setLoading(false);
@@ -594,6 +700,132 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 whiteSpace: 'pre-wrap'
                             }
                         }, ceoData.biography)
+                    ),
+                    // Education Section
+                    ceoData.education && ceoData.education.length > 0 && React.createElement('div', {
+                        style: {
+                            marginBottom: '1.5rem'
+                        }
+                    },
+                        React.createElement('div', {
+                            style: {
+                                color: colors.secondary,
+                                fontSize: '0.85rem',
+                                letterSpacing: '0.05em',
+                                marginBottom: '1rem',
+                                paddingBottom: '0.5rem',
+                                borderBottom: `1px solid ${colors.border}`
+                            }
+                        }, 'EDUCATION:'),
+                        React.createElement('div', {
+                            style: {
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1rem'
+                            }
+                        },
+                            ceoData.education.map((edu, index) =>
+                                React.createElement('div', {
+                                    key: index,
+                                    style: {
+                                        background: colors.surface,
+                                        border: `1px solid ${colors.border}`,
+                                        padding: '1rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.5rem'
+                                    }
+                                },
+                                    React.createElement('div', {
+                                        style: {
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem'
+                                        }
+                                    },
+                                        React.createElement('i', {
+                                            className: 'fas fa-graduation-cap',
+                                            style: {
+                                                color: colors.primary,
+                                                fontSize: '1.2rem'
+                                            }
+                                        }),
+                                        React.createElement('span', {
+                                            style: {
+                                                color: colors.textBright,
+                                                fontSize: '1rem',
+                                                fontWeight: 'bold',
+                                                flex: 1
+                                            }
+                                        }, edu.school)
+                                    ),
+                                    (edu.degree || edu.degreeType) && React.createElement('div', {
+                                        style: {
+                                            paddingLeft: '2rem',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '0.25rem'
+                                        }
+                                    },
+                                        edu.degree && React.createElement('div', {
+                                            style: {
+                                                color: colors.text,
+                                                fontSize: '0.9rem'
+                                            }
+                                        },
+                                            React.createElement('span', {
+                                                style: {
+                                                    color: colors.secondary,
+                                                    fontSize: '0.8rem',
+                                                    letterSpacing: '0.05em'
+                                                }
+                                            }, 'DEGREE: '),
+                                            React.createElement('span', null, edu.degree)
+                                        ),
+                                        edu.degreeType && React.createElement('div', {
+                                            style: {
+                                                color: colors.text,
+                                                fontSize: '0.9rem'
+                                            }
+                                        },
+                                            React.createElement('span', {
+                                                style: {
+                                                    color: colors.secondary,
+                                                    fontSize: '0.8rem',
+                                                    letterSpacing: '0.05em'
+                                                }
+                                            }, 'TYPE: '),
+                                            React.createElement('span', {
+                                                style: {
+                                                    display: 'inline-block',
+                                                    padding: '0.15rem 0.5rem',
+                                                    background: edu.degreeType === 'PhD'
+                                                        ? 'rgba(138, 43, 226, 0.2)'
+                                                        : edu.degreeType === 'Masters'
+                                                        ? 'rgba(0, 255, 136, 0.2)'
+                                                        : 'rgba(30, 144, 255, 0.2)',
+                                                    border: `1px solid ${
+                                                        edu.degreeType === 'PhD'
+                                                        ? 'rgba(138, 43, 226, 0.5)'
+                                                        : edu.degreeType === 'Masters'
+                                                        ? colors.primary
+                                                        : 'rgba(30, 144, 255, 0.5)'
+                                                    }`,
+                                                    color: edu.degreeType === 'PhD'
+                                                        ? '#ba8bff'
+                                                        : edu.degreeType === 'Masters'
+                                                        ? colors.primary
+                                                        : '#5eb3ff',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 'bold',
+                                                    letterSpacing: '0.05em'
+                                                }
+                                            }, edu.degreeType)
+                                        )
+                                    )
+                                )
+                            )
+                        )
                     ),
                     // Wikipedia Link
                     ceoData.wikipediaUrl && React.createElement('div', {
