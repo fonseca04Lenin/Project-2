@@ -286,25 +286,36 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 if (personPage) {
                     const pageId = personPage.pageid;
 
-                    // Fetch full page content with image and full text for education parsing
-                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories|revisions&exintro=1&explaintext=1&piprop=original&rvprop=content&rvslots=*&pageids=${pageId}&format=json&origin=*`;
+                    // Fetch page content with image, categories, and extract for biography
+                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories&exintro=1&explaintext=1&piprop=original&pageids=${pageId}&format=json&origin=*`;
                     const contentResponse = await fetch(contentUrl);
                     const contentData = await contentResponse.json();
                     const page = contentData.query.pages[pageId];
 
-                    // Try to parse education information from wikitext
+                    // Make a separate API call to get wikitext for education parsing
                     let education = [];
                     try {
+                        const wikitextUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&pageids=${pageId}&format=json&origin=*`;
+                        const wikitextResponse = await fetch(wikitextUrl);
+                        const wikitextData = await wikitextResponse.json();
+                        const wikitextPage = wikitextData.query.pages[pageId];
+                        
                         // Support both old format (revisions[0]['*']) and new format (revisions[0].slots.main['*'])
                         let wikitext = null;
-                        if (page.revisions && page.revisions[0]) {
-                            if (page.revisions[0].slots && page.revisions[0].slots.main && page.revisions[0].slots.main['*']) {
+                        if (wikitextPage.revisions && wikitextPage.revisions[0]) {
+                            if (wikitextPage.revisions[0].slots && wikitextPage.revisions[0].slots.main && wikitextPage.revisions[0].slots.main['*']) {
                                 // New API format
-                                wikitext = page.revisions[0].slots.main['*'];
-                            } else if (page.revisions[0]['*']) {
+                                wikitext = wikitextPage.revisions[0].slots.main['*'];
+                            } else if (wikitextPage.revisions[0]['*']) {
                                 // Old API format (backwards compatibility)
-                                wikitext = page.revisions[0]['*'];
+                                wikitext = wikitextPage.revisions[0]['*'];
                             }
+                        }
+                        
+                        console.log('[CEO Modal] Wikitext found:', !!wikitext);
+                        if (wikitext) {
+                            console.log('[CEO Modal] Wikitext length:', wikitext.length);
+                            console.log('[CEO Modal] Wikitext sample (first 1000 chars):', wikitext.substring(0, 1000));
                         }
                         
                         if (wikitext) {
