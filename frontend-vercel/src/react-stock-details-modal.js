@@ -287,7 +287,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     const pageId = personPage.pageid;
 
                     // Fetch full page content with image and full text for education parsing
-                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories|revisions&exintro=1&explaintext=1&piprop=original&rvprop=content&pageids=${pageId}&format=json&origin=*`;
+                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories|revisions&exintro=1&explaintext=1&piprop=original&rvprop=content&rvslots=*&pageids=${pageId}&format=json&origin=*`;
                     const contentResponse = await fetch(contentUrl);
                     const contentData = await contentResponse.json();
                     const page = contentData.query.pages[pageId];
@@ -295,8 +295,19 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     // Try to parse education information from wikitext
                     let education = [];
                     try {
-                        if (page.revisions && page.revisions[0] && page.revisions[0]['*']) {
-                            const wikitext = page.revisions[0]['*'];
+                        // Support both old format (revisions[0]['*']) and new format (revisions[0].slots.main['*'])
+                        let wikitext = null;
+                        if (page.revisions && page.revisions[0]) {
+                            if (page.revisions[0].slots && page.revisions[0].slots.main && page.revisions[0].slots.main['*']) {
+                                // New API format
+                                wikitext = page.revisions[0].slots.main['*'];
+                            } else if (page.revisions[0]['*']) {
+                                // Old API format (backwards compatibility)
+                                wikitext = page.revisions[0]['*'];
+                            }
+                        }
+                        
+                        if (wikitext) {
                             console.log('[CEO Modal] Parsing education for:', ceoName);
                             console.log('[CEO Modal] Wikitext length:', wikitext.length);
 
