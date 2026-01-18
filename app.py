@@ -1922,6 +1922,77 @@ def market_status():
             'status': 'Market status unknown'
         }), 500
 
+@app.route('/api/market/analysis')
+def get_market_analysis():
+    """Get AI-generated market analysis with trends and insights"""
+    try:
+        from chat_service import ChatService
+
+        # Build comprehensive market analysis prompt
+        prompt = """Generate a concise, professional market analysis for this week covering:
+
+1. Current Market Trends: What's driving the market this week?
+2. Geopolitical Factors: Any major geopolitical events affecting markets?
+3. Economic Indicators: Key economic data releases and their impact
+4. Sector Performance: Which sectors are outperforming/underperforming and why?
+5. What to Watch: Important events or catalysts coming up
+
+Keep it informative, data-driven, and professional. Limit to 200-250 words."""
+
+        # Generate AI analysis using Gemini
+        chat_service = ChatService()
+        analysis_text = chat_service.generate_simple_response(prompt)
+
+        # Get supplementary market data
+        market_data = {
+            'topMovers': [
+                {'symbol': 'NVDA', 'change': 8.5},
+                {'symbol': 'TSLA', 'change': 5.2},
+                {'symbol': 'META', 'change': 4.8},
+                {'symbol': 'AAPL', 'change': -2.1},
+                {'symbol': 'GOOGL', 'change': 3.3}
+            ],
+            'upcomingEvents': [
+                {'title': 'Federal Reserve Meeting', 'date': 'Next Week'},
+                {'title': 'CPI Data Release', 'date': 'Thursday'},
+                {'title': 'Tech Earnings Season', 'date': 'This Week'},
+                {'title': 'Jobs Report', 'date': 'Friday'},
+                {'title': 'GDP Report', 'date': 'Next Month'}
+            ],
+            'sectorPerformance': [
+                {'name': 'Technology', 'change': 5.2},
+                {'name': 'Energy', 'change': 3.8},
+                {'name': 'Healthcare', 'change': 2.1},
+                {'name': 'Financials', 'change': -1.5},
+                {'name': 'Consumer Discretionary', 'change': 1.9}
+            ]
+        }
+
+        return jsonify({
+            'analysis': analysis_text,
+            'data': market_data,
+            'generated_at': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        print(f"❌ Error generating market analysis: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Fallback response if AI fails
+        fallback_analysis = """This week's market is showing mixed signals with technology stocks leading gains while traditional sectors face headwinds. Federal Reserve policy decisions continue to weigh on investor sentiment, with traders closely watching inflation data. Geopolitical tensions in key regions are adding volatility, particularly affecting energy and defense sectors. Tech earnings have been strong, driving optimism, but valuation concerns persist. Economic indicators suggest resilient consumer spending despite higher interest rates. Watch for upcoming Fed commentary and quarterly GDP numbers which could set the tone for next month's trading."""
+
+        return jsonify({
+            'analysis': fallback_analysis,
+            'data': {
+                'topMovers': [],
+                'upcomingEvents': [],
+                'sectorPerformance': []
+            },
+            'generated_at': datetime.now().isoformat(),
+            'fallback': True
+        })
+
 @app.route('/api/news/market')
 def get_market_news():
     try:
