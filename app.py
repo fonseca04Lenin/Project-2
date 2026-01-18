@@ -69,18 +69,24 @@ CORS(app,
      expose_headers=['Content-Type', 'Authorization', 'X-API-Source'],
      vary_header=False)
 
-# Custom CORS handler for Vercel preview deployments (dynamic URLs not in allowed_origins)
+# Custom CORS handler to ensure all origins get proper headers
 @app.after_request
 def after_request(response):
-    """Handle dynamic Vercel preview deployment URLs"""
+    """Ensure CORS headers are set for all allowed origins"""
     origin = request.headers.get('Origin', '')
 
-    # Only handle origins not already covered by CORS()
-    if origin and 'vercel.app' in origin and not response.headers.get('Access-Control-Allow-Origin'):
-        # Allow Vercel preview deployments (e.g., project-name-git-branch-username.vercel.app)
+    # Check if origin is in allowed list or is a Vercel deployment
+    is_allowed = (
+        origin in allowed_origins or
+        (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin))
+    )
+
+    if is_allowed and origin:
+        # Set all necessary CORS headers for preflight and actual requests
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        print(f"✅ CORS: Added dynamic Vercel origin: {origin}")
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
 
     return response
 
