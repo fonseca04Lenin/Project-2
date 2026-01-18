@@ -2874,6 +2874,16 @@ const NewsView = () => {
                 })}
 
                 {(loading ? Array.from({length:6}) : articles.slice(1, displayCount)).map((a, i) => {
+                    // Generate fallback image URL using Unsplash Source API
+                    const getImageUrl = () => {
+                        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
+                            return a.image_url;
+                        }
+                        // Fallback: Use Unsplash Source API for generic financial images
+                        const seed = a?.title ? encodeURIComponent(a.title.substring(0, 20)) : 'stock-market';
+                        return `https://source.unsplash.com/1920x1080/?finance,stock-market,business,${seed}`;
+                    };
+
                     const articleUrl = a?.url || a?.link;
                     const handleCardClick = (e) => {
                         // Don't navigate if clicking on the "Read More" link
@@ -2884,24 +2894,50 @@ const NewsView = () => {
                             window.open(articleUrl, '_blank', 'noopener,noreferrer');
                         }
                     };
-                    
+
                     return (
-                        <div 
-                            key={`card-${i}`} 
+                        <div
+                            key={`card-${i}`}
                             className="news-card"
                             onClick={handleCardClick}
                             style={{ cursor: articleUrl ? 'pointer' : 'default' }}
                         >
-                        <div className="news-content">
-                            <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
-                            <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
-                            <p>{loading ? '' : (a.description || '')}</p>
-                            <div className="news-meta">
-                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                            <div className="news-image-container">
+                                {loading ? (
+                                    <div className="news-image-placeholder">
+                                        <i className="fas fa-chart-line"></i>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <img
+                                            src={getImageUrl()}
+                                            alt={a?.title || 'News image'}
+                                            className="news-image"
+                                            onError={(e) => {
+                                                // If image fails to load, hide image and show placeholder
+                                                e.target.style.display = 'none';
+                                                const placeholder = e.target.parentElement.querySelector('.news-image-placeholder');
+                                                if (placeholder) {
+                                                    placeholder.style.display = 'flex';
+                                                }
+                                            }}
+                                        />
+                                        <div className="news-image-placeholder" style={{ display: 'none' }}>
+                                            <i className="fas fa-chart-line"></i>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="news-content">
+                                <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
+                                <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
+                                <p>{loading ? '' : (a.description || '')}</p>
+                                <div className="news-meta">
+                                    <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
+                                    {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                                </div>
                             </div>
                         </div>
-                    </div>
                     );
                 })}
             </div>
