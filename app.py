@@ -271,20 +271,30 @@ active_stocks_timestamps = defaultdict(dict)  # user_id -> {symbol: timestamp}
 ACTIVE_STOCK_TIMEOUT = 60  # Remove from active after 60 seconds of inactivity
 
 def cleanup_inactive_connections():
-    """Clean up inactive WebSocket connections"""
+    """Clean up inactive WebSocket connections and associated data"""
     current_time = time.time()
     to_remove = []
-    
+
     for sid, timestamp in connection_timestamps.items():
         if current_time - timestamp > CONNECTION_TIMEOUT:
             to_remove.append(sid)
-    
+
     for sid in to_remove:
+        user_id = connected_users.get(sid)
+
+        # Clean up main tracking dicts
         if sid in connected_users:
             del connected_users[sid]
         if sid in connection_timestamps:
             del connection_timestamps[sid]
-    
+
+        # Clean up active stocks tracking (fix memory leak)
+        if user_id:
+            if user_id in active_stocks:
+                del active_stocks[user_id]
+            if user_id in active_stocks_timestamps:
+                del active_stocks_timestamps[user_id]
+
     if to_remove:
         print(f"🧹 Cleaned up {len(to_remove)} inactive WebSocket connections")
 
@@ -294,13 +304,23 @@ def limit_connections():
         # Remove oldest connections
         sorted_connections = sorted(connection_timestamps.items(), key=lambda x: x[1])
         to_remove = sorted_connections[:len(connected_users) - MAX_CONNECTIONS]
-        
+
         for sid, _ in to_remove:
+            user_id = connected_users.get(sid)
+
+            # Clean up main tracking dicts
             if sid in connected_users:
                 del connected_users[sid]
             if sid in connection_timestamps:
                 del connection_timestamps[sid]
-        
+
+            # Clean up active stocks tracking (fix memory leak)
+            if user_id:
+                if user_id in active_stocks:
+                    del active_stocks[user_id]
+                if user_id in active_stocks_timestamps:
+                    del active_stocks_timestamps[user_id]
+
         print(f"🧹 Removed {len(to_remove)} old connections to stay under limit")
 
 # Improved request tracking with automatic cleanup
@@ -617,10 +637,20 @@ def handle_connect():
 def handle_disconnect():
     print(f"Client disconnected: {request.sid}")
     # Clean up connection tracking
+    user_id = connected_users.get(request.sid)
+
     if request.sid in connected_users:
         del connected_users[request.sid]
     if request.sid in connection_timestamps:
         del connection_timestamps[request.sid]
+
+    # Clean up active stocks tracking (fix memory leak)
+    if user_id:
+        if user_id in active_stocks:
+            del active_stocks[user_id]
+        if user_id in active_stocks_timestamps:
+            del active_stocks_timestamps[user_id]
+        print(f"🧹 Cleaned up active stocks for user {user_id}")
 
 @socketio.on('join_user_room')
 def handle_join_user_room(data):
@@ -666,25 +696,29 @@ def handle_join_news_updates():
 @socketio.on('track_stock_view')
 def handle_track_stock_view(data):
     """Track which stock a user is actively viewing for priority updates"""
+    from utils import sanitize_stock_symbol, validate_stock_symbol
     try:
         user_id = data.get('user_id')
-        symbol = data.get('symbol', '').upper()
-        
-        if user_id and symbol:
+        symbol = sanitize_stock_symbol(data.get('symbol', ''))
+
+        if user_id and symbol and validate_stock_symbol(symbol):
             active_stocks[user_id].add(symbol)
             active_stocks_timestamps[user_id][symbol] = time.time()
             print(f"👁️ User {user_id} is viewing {symbol} - adding to priority queue")
+        elif symbol and not validate_stock_symbol(symbol):
+            print(f"⚠️ Invalid symbol rejected in track_stock_view: {symbol}")
     except Exception as e:
         print(f"Error tracking stock view: {e}")
 
 @socketio.on('untrack_stock_view')
 def handle_untrack_stock_view(data):
     """Stop tracking a stock when user stops viewing it"""
+    from utils import sanitize_stock_symbol, validate_stock_symbol
     try:
         user_id = data.get('user_id')
-        symbol = data.get('symbol', '').upper()
-        
-        if user_id and symbol:
+        symbol = sanitize_stock_symbol(data.get('symbol', ''))
+
+        if user_id and symbol and validate_stock_symbol(symbol):
             active_stocks[user_id].discard(symbol)
             active_stocks_timestamps[user_id].pop(symbol, None)
             print(f"👁️ User {user_id} stopped viewing {symbol}")
@@ -1561,10 +1595,17 @@ def add_to_watchlist():
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     data = request.get_json()
-    symbol = data.get('symbol', '').upper()
+
+    # Import validation utilities
+    from utils import sanitize_stock_symbol, validate_stock_symbol
+
+    symbol = sanitize_stock_symbol(data.get('symbol', ''))
 
     if not symbol:
         return jsonify({'error': 'Please provide a stock symbol'}), 400
+
+    if not validate_stock_symbol(symbol):
+        return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     # Get additional options from request
     category = data.get('category', 'General')
@@ -2437,17 +2478,22 @@ def get_alerts():
 
 @app.route('/api/alerts', methods=['POST'])
 def create_alert():
+    from utils import sanitize_stock_symbol, validate_stock_symbol
+
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
     data = request.get_json()
-    symbol = data.get('symbol', '').upper()
+    symbol = sanitize_stock_symbol(data.get('symbol', ''))
     target_price = data.get('target_price')
     alert_type = data.get('alert_type', 'above')
 
     if not symbol or target_price is None:
         return jsonify({'error': 'Symbol and target price are required'}), 400
+
+    if not validate_stock_symbol(symbol):
+        return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     try:
         target_price = float(target_price)
