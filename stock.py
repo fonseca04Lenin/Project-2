@@ -323,11 +323,12 @@ class NewsAPI:
 
 class YahooFinanceAPI:
     def __init__(self):
-        self.cache = SmartCache(default_ttl=300)  # 5 min cache for Yahoo data
+        self.cache = SmartCache(default_ttl=30)  # 30s cache for real-time data consistency
 
     def search_stocks(self, query, limit=10):
         """Search stocks by name or symbol"""
         cache_key = f"search:{query}:{limit}"
+        # Search results can be cached longer (5min) as they change less frequently
         cached = self.cache.get(cache_key, max_age=300)
         if cached:
             return cached

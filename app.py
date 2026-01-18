@@ -69,55 +69,27 @@ CORS(app,
      expose_headers=['Content-Type', 'Authorization', 'X-API-Source'],
      vary_header=False)
 
-# Custom CORS handler for Vercel preview deployments
-# Also supports explicit allowlist via FRONTEND_ORIGINS (comma-separated)
+# Custom CORS handler for Vercel preview deployments (dynamic URLs not in allowed_origins)
 @app.after_request
 def after_request(response):
-    """Add CORS headers for frontend domains"""
+    """Handle dynamic Vercel preview deployment URLs"""
     origin = request.headers.get('Origin', '')
-    path = request.path
 
-    # Build allowlist from env and defaults
-    extra_origins = os.getenv('FRONTEND_ORIGINS', '')
-    allowlist = {o.strip() for o in extra_origins.split(',') if o.strip()}
-    allowlist.update({
-        'localhost',
-        '127.0.0.1',
-        'vercel.app',
-        'stock-watchlist-frontend.vercel.app'
-    })
-
-    def is_allowed(o: str) -> bool:
-        if not o:
-            return False
-        return any(allowed in o for allowed in allowlist)
-
-    # Log CORS handling
-    print(f"🌐 CORS after_request - Origin: {origin}, Path: {path}, Method: {request.method}")
-
-    if is_allowed(origin):
+    # Only handle origins not already covered by CORS()
+    if origin and 'vercel.app' in origin and not response.headers.get('Access-Control-Allow-Origin'):
+        # Allow Vercel preview deployments (e.g., project-name-git-branch-username.vercel.app)
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
-        print(f"✅ CORS headers added for origin: {origin}")
-    else:
-        print(f"⚠️ CORS origin not matched: {origin}")
-
-    # Log response headers for debugging
-    cors_origin = response.headers.get('Access-Control-Allow-Origin', 'NOT SET')
-    print(f"📋 Response CORS headers - Allow-Origin: {cors_origin}, Status: {response.status_code}")
+        print(f"✅ CORS: Added dynamic Vercel origin: {origin}")
 
     return response
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 
-# Session configuration for cross-origin setup (Vercel frontend + Railway backend)
+# NOTE: Session-based auth removed - app uses Firebase token authentication only
+# Cross-origin sessions (Vercel<->Railway) don't work reliably with cookies
 is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RAILWAY_ENVIRONMENT') is not None
-app.config['SESSION_COOKIE_SECURE'] = True  # Always secure in production
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requests
 
 # Initialize extensions
 # Use threading async mode to avoid eventlet blocking Firestore calls
@@ -139,8 +111,8 @@ def unauthorized():
         return jsonify({'error': 'Authentication required'}), 401
     return redirect('/')
 
-# Debug session configuration
-print(f"🔧 Session Config - Secure: {app.config['SESSION_COOKIE_SECURE']}, SameSite: {app.config['SESSION_COOKIE_SAMESITE']}, Production: {is_production}")
+# Debug configuration
+print(f"🔧 App Config - Production: {is_production}, Token Auth: Enabled")
 
 # Register blueprints
 app.register_blueprint(auth)
@@ -1117,16 +1089,6 @@ def get_market_status():
             'last_updated': datetime.now().isoformat()
         }
 
-@app.route('/api/search', methods=['OPTIONS'])
-def search_stock_options():
-    """Handle CORS preflight for /api/search"""
-    response = jsonify({})
-    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
-
 @app.route('/api/search', methods=['POST'])
 def search_stock():
     from utils import sanitize_stock_symbol, validate_stock_symbol
@@ -1455,24 +1417,6 @@ def authenticate_request():
         import traceback
         print(f"❌ Traceback: {traceback.format_exc()}")
         return None
-
-@app.route('/api/watchlist', methods=['OPTIONS'])
-def watchlist_options():
-    """Handle CORS preflight for /api/watchlist"""
-    origin = request.headers.get('Origin', '')
-    print(f"🔵 OPTIONS preflight for /api/watchlist from origin: {origin}")
-    
-    response = jsonify({})
-    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
-        print(f"✅ OPTIONS response headers set for origin: {origin}")
-    else:
-        print(f"⚠️ OPTIONS origin not matched: {origin}")
-    
-    return response
 
 @app.route('/api/watchlist', methods=['GET'])
 def get_watchlist_route():
@@ -1888,24 +1832,6 @@ def get_chart_data(symbol):
         return jsonify(chart_data)
     else:
         return jsonify({'error': 'Could not retrieve chart data'}), 404
-
-@app.route('/api/market-status', methods=['OPTIONS'])
-def market_status_options():
-    """Handle CORS preflight for /api/market-status"""
-    origin = request.headers.get('Origin', '')
-    print(f"🔵 OPTIONS preflight for /api/market-status from origin: {origin}")
-    
-    response = jsonify({})
-    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID'
-        print(f"✅ OPTIONS response headers set for origin: {origin}")
-    else:
-        print(f"⚠️ OPTIONS origin not matched: {origin}")
-    
-    return response
 
 @app.route('/api/market-status')
 def market_status():
@@ -2879,7 +2805,7 @@ def api_root():
 # HEALTH CHECK ENDPOINT
 # =============================================================================
 
-@app.route('/api/health', methods=['GET', 'OPTIONS'])
+@app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint for Railway - must respond quickly"""
     try:
