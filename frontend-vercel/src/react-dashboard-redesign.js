@@ -3523,7 +3523,6 @@ const IntelligenceView = () => {
     const [earnings, setEarnings] = useState([]);
     const [insider, setInsider] = useState([]);
     const [analyst, setAnalyst] = useState([]);
-    const [optionsData, setOptionsData] = useState([]);
 
     useEffect(() => {
         loadCurrentTab();
@@ -3549,7 +3548,6 @@ const IntelligenceView = () => {
         if (activeTab === 'earnings') return loadEarnings();
         if (activeTab === 'insider') return loadInsider();
         if (activeTab === 'analyst') return loadAnalyst();
-        if (activeTab === 'options') return loadOptions();
     };
 
     const loadEarnings = async () => {
@@ -3594,19 +3592,23 @@ const IntelligenceView = () => {
         } finally { setLoading(false); }
     };
 
-    const loadOptions = async () => {
-        try {
-            setLoading(true); setError('');
-            const { authHeaders, API_BASE } = await withAuth();
-            const r = await fetch(`${API_BASE}/api/market/options/${encodeURIComponent(symbol)}`, { headers: authHeaders, credentials: 'include' });
-            if (!r.ok) throw new Error('Failed to fetch options');
-            const data = await r.json();
-            setOptionsData(Array.isArray(data?.chains) ? data.chains : Array.isArray(data) ? data : []);
-        } catch (e) {
-            setError('Unable to load options');
-            setOptionsData([]);
-        } finally { setLoading(false); }
-    };
+    // Data source label component
+    const DataSourceLabel = ({ source }) => (
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 0.75rem',
+            background: 'rgba(0, 217, 36, 0.1)',
+            borderRadius: '4px',
+            fontSize: '0.75rem',
+            color: 'rgba(255, 255, 255, 0.6)',
+            marginTop: '1rem'
+        }}>
+            <i className="fas fa-database" style={{ color: '#00D924' }}></i>
+            <span>Data provided by <strong style={{ color: '#fff' }}>{source}</strong></span>
+        </div>
+    );
 
     return (
         <div className="intelligence-view">
@@ -3616,12 +3618,11 @@ const IntelligenceView = () => {
                     <button className={`intel-tab ${activeTab==='earnings'?'active':''}`} onClick={()=>setActiveTab('earnings')}>Earnings</button>
                     <button className={`intel-tab ${activeTab==='insider'?'active':''}`} onClick={()=>setActiveTab('insider')}>Insider Trading</button>
                     <button className={`intel-tab ${activeTab==='analyst'?'active':''}`} onClick={()=>setActiveTab('analyst')}>Analyst Ratings</button>
-                    <button className={`intel-tab ${activeTab==='options'?'active':''}`} onClick={()=>setActiveTab('options')}>Options</button>
                 </div>
             </div>
 
             <div className="intel-controls" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', margin: '0 0 1rem 0' }}>
-                <input 
+                <input
                     className="search-input"
                     style={{ maxWidth: '220px' }}
                     value={symbol}
@@ -3645,7 +3646,7 @@ const IntelligenceView = () => {
                                 const date = new Date(item.earnings_date);
                                 formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             }
-                            
+
                             return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{loading ? '—' : (item.symbol || item.ticker || '—')}</div>
@@ -3653,11 +3654,12 @@ const IntelligenceView = () => {
                                     <div className="intel-company">{loading ? 'Loading…' : (item.company_name || item.company || item.name || '—')}</div>
                                     <div className="intel-date">{loading ? '' : formattedDate}</div>
                                 </div>
-                                <div className="intel-estimate">{loading ? '' : (item.estimate ? `Est: ${item.estimate}` : '')}</div>
+                                <div className="intel-estimate">{loading ? '' : (item.estimate ? `Est: $${item.estimate}` : '')}</div>
                             </div>
                             );
                         })}
                     </div>
+                    <DataSourceLabel source="Finnhub - Earnings Calendar API" />
                 </div>
             )}
 
@@ -3676,10 +3678,11 @@ const IntelligenceView = () => {
                                 const date = new Date(t.date);
                                 formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             }
-                            if (!loading && t.transaction_type && t.shares && t.price) {
-                                formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()} @ $${t.price.toFixed(2)}`;
+                            if (!loading && t.transaction_type && t.shares) {
+                                const priceStr = t.price ? ` @ $${t.price.toFixed(2)}` : '';
+                                formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()}${priceStr}`;
                             }
-                            
+
                             return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{symbol}</div>
@@ -3692,6 +3695,7 @@ const IntelligenceView = () => {
                             );
                         })}
                     </div>
+                    <DataSourceLabel source="Finnhub - SEC Insider Transactions" />
                 </div>
             )}
 
@@ -3709,7 +3713,7 @@ const IntelligenceView = () => {
                                 const date = new Date(r.date);
                                 formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             }
-                            
+
                             return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{symbol}</div>
@@ -3722,27 +3726,7 @@ const IntelligenceView = () => {
                             );
                         })}
                     </div>
-                </div>
-            )}
-
-            {activeTab === 'options' && (
-                <div className="intel-card">
-                    <div className="intel-header">
-                        <h3><i className="fas fa-stream"></i> Options Flow</h3>
-                        <span className="intel-count">{optionsData.length}</span>
-                    </div>
-                    <div className="intel-list">
-                        {(loading ? Array.from({length:5}) : optionsData).slice(0,5).map((o, i) => (
-                            <div key={i} className="intel-item">
-                                <div className="intel-symbol">{symbol}</div>
-                                <div className="intel-details">
-                                    <div className="intel-company">{loading ? 'Loading…' : `${o.type || o.side || '—'} ${o.strike ? `@ ${o.strike}` : ''}`}</div>
-                                    <div className="intel-date">{loading ? '' : (o.expiration || o.exp || '—')}</div>
-                                </div>
-                                <div className="intel-estimate">{loading ? '' : (o.premium ? `$${o.premium}` : '')}</div>
-                            </div>
-                        ))}
-                    </div>
+                    <DataSourceLabel source="Finnhub - Wall Street Analyst Recommendations" />
                 </div>
             )}
         </div>
