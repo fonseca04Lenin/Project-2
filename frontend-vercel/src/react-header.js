@@ -103,7 +103,7 @@ const ModernHeader = () => {
                 <div className="header-left">
                     <div className="app-brand">
                         <i className="fas fa-chart-line brand-icon"></i>
-                        <h1 className="brand-title">Watchlist Pro</h1>
+                        <h1 className="brand-title">AI Stock Sage</h1>
                     </div>
                 </div>
                 

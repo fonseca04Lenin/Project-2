@@ -1676,7 +1676,7 @@ const DashboardRedesign = () => {
             <header className="dashboard-header">
                 <div className="header-left">
                     <h1 className="logo">
-                        <i className="fas fa-chart-line"></i> Stock Watchlist Pro
+                        <i className="fas fa-chart-line"></i> AI Stock Sage
                     </h1>
                     <nav className="nav-tabs">
                         <button 
