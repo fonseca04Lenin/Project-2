@@ -77,10 +77,10 @@ def after_request(response):
     """Ensure CORS headers are set for all allowed origins"""
     origin = request.headers.get('Origin', '')
 
-    # Check if origin is in allowed list or is a Vercel deployment
+    # Check if origin is in allowed list or is a known deployment domain
     is_allowed = (
         origin in allowed_origins or
-        (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin))
+        (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin or 'aistocksage.com' in origin))
     )
 
     if is_allowed and origin:
