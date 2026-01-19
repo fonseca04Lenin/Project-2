@@ -10,7 +10,7 @@ function LandingHeader() {
         <div className="landing-header-left">
           <div className="landing-brand">
             <i className="fas fa-chart-line landing-brand-icon"></i>
-            <span className="landing-brand-text">Stock Watchlist Pro</span>
+            <span className="landing-brand-text">AI Stock Sage</span>
           </div>
         </div>
         
@@ -551,7 +551,7 @@ function HeroSection() {
       <section className="stock-watchlist-hero">
         <div className="stock-watchlist-container">
           <h1 className="stock-watchlist-title">
-            Stock Watchlist Pro
+            AI Stock Sage
           </h1>
 
           <p className="stock-watchlist-subtitle">
