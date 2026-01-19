@@ -3260,44 +3260,92 @@ const WhatsWhatView = () => {
                     gap: '1.5rem',
                     marginBottom: '2rem'
                 }}>
-                    {/* Market Movers */}
+                    {/* What's Hot - Top Market Movers */}
                     <div style={{
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        padding: '1.5rem'
+                        background: 'linear-gradient(135deg, rgba(0, 217, 36, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                        border: '1px solid rgba(0, 217, 36, 0.2)',
+                        borderRadius: '16px',
+                        padding: '2rem',
+                        minHeight: '450px',
+                        gridColumn: 'span 1'
                     }}>
                         <h4 style={{
-                            fontSize: '1.125rem',
-                            fontWeight: '600',
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
                             color: '#fff',
-                            marginBottom: '1rem',
+                            marginBottom: '1.5rem',
                             display: 'flex',
                             alignItems: 'center'
                         }}>
-                            <i className="fas fa-rocket" style={{ color: '#00D924', marginRight: '0.75rem' }}></i>
-                            Top Movers This Week
+                            <i className="fas fa-fire" style={{ color: '#FF6B35', marginRight: '0.75rem', fontSize: '1.25rem' }}></i>
+                            What's Hot
+                            <span style={{
+                                marginLeft: 'auto',
+                                fontSize: '0.75rem',
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                fontWeight: '400'
+                            }}>Top 5 Movers</span>
                         </h4>
                         <div style={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                            {marketData.topMovers ? (
+                            {marketData.topMovers && marketData.topMovers.length > 0 ? (
                                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                                     {marketData.topMovers.slice(0, 5).map((stock, idx) => (
                                         <li key={idx} style={{
-                                            padding: '0.75rem 0',
-                                            borderBottom: idx < 4 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center'
-                                        }}>
-                                            <span>{stock.symbol}</span>
-                                            <span style={{ color: stock.change >= 0 ? '#00D924' : '#FF6B35', fontWeight: '600' }}>
-                                                {stock.change >= 0 ? '+' : ''}{stock.change}%
-                                            </span>
+                                            padding: '1.25rem',
+                                            marginBottom: idx < 4 ? '0.75rem' : 0,
+                                            background: 'rgba(255, 255, 255, 0.03)',
+                                            borderRadius: '10px',
+                                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                                            transition: 'transform 0.2s, background 0.2s',
+                                            cursor: 'pointer'
+                                        }}
+                                        onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
+                                        onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'; e.currentTarget.style.transform = 'translateX(0)'; }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    <span style={{
+                                                        fontSize: '0.75rem',
+                                                        color: 'rgba(255, 255, 255, 0.4)',
+                                                        fontWeight: '600',
+                                                        width: '20px'
+                                                    }}>#{idx + 1}</span>
+                                                    <div>
+                                                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#fff' }}>{stock.symbol}</div>
+                                                        {stock.sector && (
+                                                            <div style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)', marginTop: '0.25rem' }}>
+                                                                {stock.sector}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{
+                                                        color: stock.change >= 0 ? '#00D924' : '#FF6B35',
+                                                        fontWeight: '700',
+                                                        fontSize: '1.25rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem'
+                                                    }}>
+                                                        <i className={stock.change >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'} style={{ fontSize: '0.875rem' }}></i>
+                                                        {stock.change >= 0 ? '+' : ''}{stock.change}%
+                                                    </div>
+                                                    {stock.price && (
+                                                        <div style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)', marginTop: '0.25rem' }}>
+                                                            ${stock.price.toLocaleString()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <p>Loading market movers...</p>
+                                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem' }}></i>
+                                    <p>Loading top movers...</p>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -3341,42 +3389,70 @@ const WhatsWhatView = () => {
 
                     {/* Sector Performance */}
                     <div style={{
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        padding: '1.5rem'
+                        background: 'linear-gradient(135deg, rgba(0, 149, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                        border: '1px solid rgba(0, 149, 255, 0.2)',
+                        borderRadius: '16px',
+                        padding: '2rem',
+                        minHeight: '450px'
                     }}>
                         <h4 style={{
-                            fontSize: '1.125rem',
-                            fontWeight: '600',
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
                             color: '#fff',
-                            marginBottom: '1rem',
+                            marginBottom: '1.5rem',
                             display: 'flex',
                             alignItems: 'center'
                         }}>
-                            <i className="fas fa-layer-group" style={{ color: '#00D924', marginRight: '0.75rem' }}></i>
+                            <i className="fas fa-chart-pie" style={{ color: '#0095FF', marginRight: '0.75rem', fontSize: '1.25rem' }}></i>
                             Sector Performance
+                            <span style={{
+                                marginLeft: 'auto',
+                                fontSize: '0.75rem',
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                fontWeight: '400'
+                            }}>Weekly Change</span>
                         </h4>
                         <div style={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                            {marketData.sectorPerformance ? (
+                            {marketData.sectorPerformance && marketData.sectorPerformance.length > 0 ? (
                                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                    {marketData.sectorPerformance.slice(0, 5).map((sector, idx) => (
+                                    {marketData.sectorPerformance.slice(0, 6).map((sector, idx) => (
                                         <li key={idx} style={{
-                                            padding: '0.75rem 0',
-                                            borderBottom: idx < 4 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                                            padding: '1rem',
+                                            marginBottom: idx < 5 ? '0.5rem' : 0,
+                                            background: 'rgba(255, 255, 255, 0.03)',
+                                            borderRadius: '8px',
                                             display: 'flex',
                                             justifyContent: 'space-between',
-                                            alignItems: 'center'
-                                        }}>
-                                            <span>{sector.name}</span>
-                                            <span style={{ color: sector.change >= 0 ? '#00D924' : '#FF6B35', fontWeight: '600' }}>
+                                            alignItems: 'center',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
+                                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <div style={{
+                                                    width: '8px',
+                                                    height: '8px',
+                                                    borderRadius: '50%',
+                                                    background: sector.change >= 0 ? '#00D924' : '#FF6B35'
+                                                }}></div>
+                                                <span style={{ fontWeight: '500' }}>{sector.name}</span>
+                                            </div>
+                                            <span style={{
+                                                color: sector.change >= 0 ? '#00D924' : '#FF6B35',
+                                                fontWeight: '700',
+                                                fontSize: '1rem'
+                                            }}>
                                                 {sector.change >= 0 ? '+' : ''}{sector.change}%
                                             </span>
                                         </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <p>Loading sector data...</p>
+                                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem' }}></i>
+                                    <p>Loading sector data...</p>
+                                </div>
                             )}
                         </div>
                     </div>

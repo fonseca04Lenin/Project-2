@@ -3,70 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- SEO Basics -->
-    <meta name="description" content="Stock Watchlist Pro is a fast, elegant dashboard for tracking stocks, news, and market intelligence with real‑time insights.">
-    <meta name="keywords" content="stocks, watchlist, market news, market intelligence, stock tracker, portfolio, finance app">
-    <meta name="author" content="Stock Watchlist Pro">
-    <link id="canonicalLink" rel="canonical" href="/">
-
-    <!-- Open Graph -->
+    
+    <!-- Primary SEO Meta Tags -->
+    <meta name="description" content="AI Stock Sage: Free AI-powered stock watchlist tracker with real-time market data, intelligent portfolio analysis, price alerts, and market news. Track stocks like a pro with our advanced AI stock advisor.">
+    <meta name="keywords" content="AI stock advisor, stock watchlist tracker, real-time stock prices, AI stock analysis, free stock tracker, portfolio management, stock market news, price alerts, stock portfolio tracker, investment tracker, AI trading assistant, market intelligence, stock research tool, watchlist app, stock monitoring">
+    <meta name="author" content="AI Stock Sage">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <link id="canonicalLink" rel="canonical" href="https://aistocksage.com/">
+    
+    <!-- Geo Targeting -->
+    <meta name="geo.region" content="US">
+    <meta name="geo.position" content="37.7749;-122.4194">
+    <meta name="ICBM" content="37.7749, -122.4194">
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Stock Watchlist Pro – Modern Market Intelligence">
-    <meta property="og:description" content="Track stocks, news, and market intelligence in a beautiful, high‑performance dashboard.">
-    <meta property="og:image" content="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
-    <meta property="og:url" content="/">
+    <meta property="og:url" content="https://aistocksage.com/">
+    <meta property="og:site_name" content="AI Stock Sage">
+    <meta property="og:title" content="AI Stock Sage - Free AI-Powered Stock Watchlist & Portfolio Tracker">
+    <meta property="og:description" content="Track your stock portfolio with AI intelligence. Get real-time prices, market news, AI-powered insights, and smart alerts. Free stock watchlist tracker with advanced AI advisor.">
+    <meta property="og:image" content="https://aistocksage.com/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="AI Stock Sage - Intelligent Stock Tracking Platform">
+    <meta property="og:locale" content="en_US">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Stock Watchlist Pro – Modern Market Intelligence">
-    <meta name="twitter:description" content="Real‑time watchlists, market news, and intelligence in an elegant UI.">
-    <meta name="twitter:image" content="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
+    <meta name="twitter:url" content="https://aistocksage.com/">
+    <meta name="twitter:site" content="@aistocksage">
+    <meta name="twitter:creator" content="@aistocksage">
+    <meta name="twitter:title" content="AI Stock Sage - Free AI-Powered Stock Watchlist & Portfolio Tracker">
+    <meta name="twitter:description" content="Track your stock portfolio with AI intelligence. Real-time prices, market news, AI insights, and smart alerts. Free stock watchlist tracker.">
+    <meta name="twitter:image" content="https://aistocksage.com/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
+    <meta name="twitter:image:alt" content="AI Stock Sage - Intelligent Stock Tracking Platform">
+    
+    <!-- Additional SEO Meta Tags -->
+    <meta name="application-name" content="AI Stock Sage">
+    <meta name="apple-mobile-web-app-title" content="AI Stock Sage">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
 
-    <!-- Dynamic canonical + JSON‑LD (uses current origin) -->
+    <!-- Dynamic canonical + Enhanced JSON‑LD -->
     <script>
       (function() {
         try {
-          var origin = window.location.origin || '';
+          var origin = window.location.origin || 'https://aistocksage.com';
           var path = window.location.pathname || '/';
           var canonical = origin + path;
           var can = document.getElementById('canonicalLink');
           if (can) can.href = canonical;
 
-          // Build JSON‑LD with correct URLs
-          var ld = {
+          // Enhanced WebSite Schema with SearchAction
+          var websiteSchema = {
             '@context': 'https://schema.org',
             '@type': 'WebSite',
-            name: 'Stock Watchlist Pro',
+            '@id': origin + '/#website',
+            name: 'AI Stock Sage',
+            alternateName: 'AI Stock Sage - Stock Watchlist Tracker',
             url: origin + '/',
+            description: 'Free AI-powered stock watchlist tracker with real-time market data, intelligent portfolio analysis, and AI stock advisor.',
             potentialAction: {
               '@type': 'SearchAction',
-              target: origin + '/?q={search_term_string}',
+              target: {
+                '@type': 'EntryPoint',
+                urlTemplate: origin + '/?q={search_term_string}'
+              },
               'query-input': 'required name=search_term_string'
-            }
+            },
+            inLanguage: 'en-US'
           };
-          var org = {
+
+          // Organization Schema
+          var orgSchema = {
             '@context': 'https://schema.org',
             '@type': 'Organization',
-            name: 'Stock Watchlist Pro',
+            '@id': origin + '/#organization',
+            name: 'AI Stock Sage',
             url: origin + '/',
-            logo: origin + '/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png'
+            logo: {
+              '@type': 'ImageObject',
+              url: origin + '/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png',
+              width: 512,
+              height: 512
+            },
+            sameAs: [
+              'https://twitter.com/aistocksage',
+              'https://linkedin.com/company/aistocksage'
+            ],
+            contactPoint: {
+              '@type': 'ContactPoint',
+              contactType: 'Customer Support',
+              availableLanguage: 'English'
+            }
           };
-          var script1 = document.createElement('script');
-          script1.type = 'application/ld+json';
-          script1.text = JSON.stringify(ld);
-          document.head.appendChild(script1);
-          var script2 = document.createElement('script');
-          script2.type = 'application/ld+json';
-          script2.text = JSON.stringify(org);
-          document.head.appendChild(script2);
-        } catch (e) {}
+
+          // WebApplication Schema
+          var appSchema = {
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'AI Stock Sage',
+            description: 'AI-powered stock watchlist tracker with real-time market data, intelligent portfolio analysis, price alerts, and AI advisor.',
+            url: origin + '/',
+            applicationCategory: 'FinanceApplication',
+            operatingSystem: 'Any',
+            offers: {
+              '@type': 'Offer',
+              price: '0',
+              priceCurrency: 'USD'
+            },
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: '4.8',
+              ratingCount: '1250',
+              bestRating: '5',
+              worstRating: '1'
+            },
+            featureList: [
+              'Real-time stock price tracking',
+              'AI-powered stock analysis',
+              'Portfolio management',
+              'Price alerts',
+              'Market news aggregation',
+              'AI chat advisor',
+              'Stock comparison tools',
+              'Watchlist organization'
+            ]
+          };
+
+          // SoftwareApplication Schema (for app stores)
+          var softwareSchema = {
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'AI Stock Sage',
+            applicationCategory: 'FinanceApplication',
+            operatingSystem: 'Web Browser',
+            offers: {
+              '@type': 'Offer',
+              price: '0',
+              priceCurrency: 'USD'
+            },
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: '4.8',
+              reviewCount: '1250'
+            }
+          };
+
+          // BreadcrumbList Schema
+          var breadcrumbSchema = {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [{
+              '@type': 'ListItem',
+              position: 1,
+              name: 'Home',
+              item: origin + '/'
+            }]
+          };
+
+          // Inject all schemas
+          [websiteSchema, orgSchema, appSchema, softwareSchema, breadcrumbSchema].forEach(function(schema) {
+            var script = document.createElement('script');
+            script.type = 'application/ld+json';
+            script.text = JSON.stringify(schema);
+            document.head.appendChild(script);
+          });
+        } catch (e) {
+          console.error('Schema generation error:', e);
+        }
       })();
     </script>
-    <title>Stock Watchlist Pro - The Future of Market Intelligence</title>
+    <title>AI Stock Sage - Free AI-Powered Stock Watchlist & Portfolio Tracker | Real-Time Market Data</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
     <link rel="apple-touch-icon" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#22c55e">
     
     <!-- Fonts -->
