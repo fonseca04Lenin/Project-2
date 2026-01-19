@@ -1922,6 +1922,124 @@ def market_status():
             'status': 'Market status unknown'
         }), 500
 
+def get_real_top_movers():
+    """Fetch real top movers from the market with sector information"""
+    try:
+        import yfinance as yf
+
+        # Popular stocks across different sectors to check
+        stock_universe = [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'AMD',
+            'JPM', 'BAC', 'WFC', 'GS', 'MS',  # Financials
+            'XOM', 'CVX', 'COP', 'SLB',  # Energy
+            'JNJ', 'PFE', 'UNH', 'ABBV', 'MRK',  # Healthcare
+            'WMT', 'HD', 'NKE', 'MCD', 'SBUX',  # Consumer
+            'DIS', 'NFLX', 'CMCSA',  # Media
+            'BA', 'CAT', 'HON', 'GE',  # Industrials
+            'V', 'MA', 'PYPL',  # Payments
+        ]
+
+        top_movers = []
+
+        for symbol in stock_universe:
+            try:
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period='5d')  # Get last week's data
+
+                if len(hist) >= 2:
+                    # Calculate percentage change from first to last day
+                    first_close = hist['Close'].iloc[0]
+                    last_close = hist['Close'].iloc[-1]
+                    pct_change = ((last_close - first_close) / first_close) * 100
+
+                    # Get sector information
+                    info = ticker.info
+                    sector = info.get('sector', 'Unknown')
+
+                    top_movers.append({
+                        'symbol': symbol,
+                        'change': round(pct_change, 2),
+                        'sector': sector,
+                        'price': round(last_close, 2)
+                    })
+            except Exception as e:
+                print(f"Error fetching data for {symbol}: {e}")
+                continue
+
+        # Sort by absolute change (biggest movers, positive or negative)
+        top_movers.sort(key=lambda x: abs(x['change']), reverse=True)
+
+        # Return top 5
+        return top_movers[:5]
+
+    except Exception as e:
+        print(f"Error fetching top movers: {e}")
+        # Return fallback data
+        return [
+            {'symbol': 'NVDA', 'change': 8.5, 'sector': 'Technology'},
+            {'symbol': 'TSLA', 'change': 5.2, 'sector': 'Consumer Cyclical'},
+            {'symbol': 'META', 'change': 4.8, 'sector': 'Communication Services'},
+            {'symbol': 'AAPL', 'change': -2.1, 'sector': 'Technology'},
+            {'symbol': 'GOOGL', 'change': 3.3, 'sector': 'Communication Services'}
+        ]
+
+def get_real_sector_performance():
+    """Fetch real sector performance using sector ETFs"""
+    try:
+        import yfinance as yf
+
+        # Major sector ETFs
+        sector_etfs = {
+            'XLK': 'Technology',
+            'XLF': 'Financials',
+            'XLE': 'Energy',
+            'XLV': 'Healthcare',
+            'XLY': 'Consumer Discretionary',
+            'XLP': 'Consumer Staples',
+            'XLI': 'Industrials',
+            'XLB': 'Materials',
+            'XLU': 'Utilities',
+            'XLRE': 'Real Estate',
+            'XLC': 'Communication Services'
+        }
+
+        sector_performance = []
+
+        for symbol, sector_name in sector_etfs.items():
+            try:
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period='5d')
+
+                if len(hist) >= 2:
+                    first_close = hist['Close'].iloc[0]
+                    last_close = hist['Close'].iloc[-1]
+                    pct_change = ((last_close - first_close) / first_close) * 100
+
+                    sector_performance.append({
+                        'name': sector_name,
+                        'change': round(pct_change, 2),
+                        'symbol': symbol
+                    })
+            except Exception as e:
+                print(f"Error fetching sector ETF {symbol}: {e}")
+                continue
+
+        # Sort by change (best performing first)
+        sector_performance.sort(key=lambda x: x['change'], reverse=True)
+
+        return sector_performance
+
+    except Exception as e:
+        print(f"Error fetching sector performance: {e}")
+        # Return fallback data
+        return [
+            {'name': 'Technology', 'change': 3.5},
+            {'name': 'Energy', 'change': 2.8},
+            {'name': 'Healthcare', 'change': 1.5},
+            {'name': 'Financials', 'change': -0.5},
+            {'name': 'Consumer Discretionary', 'change': 1.2}
+        ]
+
 @app.route('/api/market/analysis')
 def get_market_analysis():
     """Get AI-generated market analysis with trends and insights"""
@@ -1943,15 +2061,15 @@ Keep it informative, data-driven, and professional. Limit to 200-250 words."""
         chat_service = ChatService()
         analysis_text = chat_service.generate_simple_response(prompt)
 
+        # Get real top movers from the market
+        top_movers = get_real_top_movers()
+
+        # Get real sector performance
+        sector_performance = get_real_sector_performance()
+
         # Get supplementary market data
         market_data = {
-            'topMovers': [
-                {'symbol': 'NVDA', 'change': 8.5},
-                {'symbol': 'TSLA', 'change': 5.2},
-                {'symbol': 'META', 'change': 4.8},
-                {'symbol': 'AAPL', 'change': -2.1},
-                {'symbol': 'GOOGL', 'change': 3.3}
-            ],
+            'topMovers': top_movers,
             'upcomingEvents': [
                 {'title': 'Federal Reserve Meeting', 'date': 'Next Week'},
                 {'title': 'CPI Data Release', 'date': 'Thursday'},
@@ -1959,13 +2077,7 @@ Keep it informative, data-driven, and professional. Limit to 200-250 words."""
                 {'title': 'Jobs Report', 'date': 'Friday'},
                 {'title': 'GDP Report', 'date': 'Next Month'}
             ],
-            'sectorPerformance': [
-                {'name': 'Technology', 'change': 5.2},
-                {'name': 'Energy', 'change': 3.8},
-                {'name': 'Healthcare', 'change': 2.1},
-                {'name': 'Financials', 'change': -1.5},
-                {'name': 'Consumer Discretionary', 'change': 1.9}
-            ]
+            'sectorPerformance': sector_performance
         }
 
         return jsonify({
