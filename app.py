@@ -2045,6 +2045,24 @@ def get_real_sector_performance():
 @app.route('/api/market/analysis')
 def get_market_analysis():
     """Get AI-generated market analysis with trends and insights"""
+    # Get market data first (independent of AI) - these have their own fallbacks
+    top_movers = get_real_top_movers()
+    sector_performance = get_real_sector_performance()
+
+    # Build market data object
+    market_data = {
+        'topMovers': top_movers,
+        'upcomingEvents': [
+            {'title': 'Federal Reserve Meeting', 'date': 'Next Week'},
+            {'title': 'CPI Data Release', 'date': 'Thursday'},
+            {'title': 'Tech Earnings Season', 'date': 'This Week'},
+            {'title': 'Jobs Report', 'date': 'Friday'},
+            {'title': 'GDP Report', 'date': 'Next Month'}
+        ],
+        'sectorPerformance': sector_performance
+    }
+
+    # Try to generate AI analysis
     try:
         from chat_service import ChatService
 
@@ -2063,25 +2081,6 @@ Keep it informative, data-driven, and professional. Limit to 200-250 words."""
         chat_service = ChatService()
         analysis_text = chat_service.generate_simple_response(prompt)
 
-        # Get real top movers from the market
-        top_movers = get_real_top_movers()
-
-        # Get real sector performance
-        sector_performance = get_real_sector_performance()
-
-        # Get supplementary market data
-        market_data = {
-            'topMovers': top_movers,
-            'upcomingEvents': [
-                {'title': 'Federal Reserve Meeting', 'date': 'Next Week'},
-                {'title': 'CPI Data Release', 'date': 'Thursday'},
-                {'title': 'Tech Earnings Season', 'date': 'This Week'},
-                {'title': 'Jobs Report', 'date': 'Friday'},
-                {'title': 'GDP Report', 'date': 'Next Month'}
-            ],
-            'sectorPerformance': sector_performance
-        }
-
         return jsonify({
             'analysis': analysis_text,
             'data': market_data,
@@ -2089,20 +2088,16 @@ Keep it informative, data-driven, and professional. Limit to 200-250 words."""
         })
 
     except Exception as e:
-        print(f"❌ Error generating market analysis: {e}")
+        print(f"❌ Error generating AI market analysis: {e}")
         import traceback
         traceback.print_exc()
 
-        # Fallback response if AI fails
+        # Fallback response if AI fails - but still include market data
         fallback_analysis = """This week's market is showing mixed signals with technology stocks leading gains while traditional sectors face headwinds. Federal Reserve policy decisions continue to weigh on investor sentiment, with traders closely watching inflation data. Geopolitical tensions in key regions are adding volatility, particularly affecting energy and defense sectors. Tech earnings have been strong, driving optimism, but valuation concerns persist. Economic indicators suggest resilient consumer spending despite higher interest rates. Watch for upcoming Fed commentary and quarterly GDP numbers which could set the tone for next month's trading."""
 
         return jsonify({
             'analysis': fallback_analysis,
-            'data': {
-                'topMovers': [],
-                'upcomingEvents': [],
-                'sectorPerformance': []
-            },
+            'data': market_data,
             'generated_at': datetime.now().isoformat(),
             'fallback': True
         })
