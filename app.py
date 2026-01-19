@@ -2710,227 +2710,142 @@ def delete_alert(alert_id):
 # Market Intelligence Endpoints
 @app.route('/api/market/earnings')
 def get_earnings_calendar():
-    """Get upcoming earnings dates with recent data"""
+    """Get upcoming earnings dates from Finnhub API"""
     try:
-        # Get current date and next 30 days for realistic earnings dates
-        from datetime import datetime, timedelta
-        import random
-        today = datetime.now()
-        
-        # Major companies with realistic earnings patterns
-        companies = [
-            {'symbol': 'AAPL', 'name': 'Apple Inc.', 'base_estimate': 2.15},
-            {'symbol': 'MSFT', 'name': 'Microsoft Corporation', 'base_estimate': 2.82},
-            {'symbol': 'GOOGL', 'name': 'Alphabet Inc.', 'base_estimate': 1.62},
-            {'symbol': 'TSLA', 'name': 'Tesla, Inc.', 'base_estimate': 0.85},
-            {'symbol': 'NVDA', 'name': 'NVIDIA Corporation', 'base_estimate': 4.25},
-            {'symbol': 'AMZN', 'name': 'Amazon.com, Inc.', 'base_estimate': 0.95},
-            {'symbol': 'META', 'name': 'Meta Platforms, Inc.', 'base_estimate': 3.45},
-            {'symbol': 'NFLX', 'name': 'Netflix, Inc.', 'base_estimate': 2.10},
-            {'symbol': 'AMD', 'name': 'Advanced Micro Devices, Inc.', 'base_estimate': 0.75},
-            {'symbol': 'INTC', 'name': 'Intel Corporation', 'base_estimate': 0.45},
-            {'symbol': 'CRM', 'name': 'Salesforce, Inc.', 'base_estimate': 1.85},
-            {'symbol': 'ORCL', 'name': 'Oracle Corporation', 'base_estimate': 1.25},
-            {'symbol': 'ADBE', 'name': 'Adobe Inc.', 'base_estimate': 3.20},
-            {'symbol': 'PYPL', 'name': 'PayPal Holdings, Inc.', 'base_estimate': 1.15},
-            {'symbol': 'SQ', 'name': 'Block, Inc.', 'base_estimate': 0.35}
-        ]
-        
-        # Generate 8-12 earnings events for the next 30 days
+        # Fetch real earnings data from Finnhub
+        earnings_raw = finnhub_api.get_earnings_calendar()
+
+        if not earnings_raw:
+            return jsonify([])
+
+        # Transform Finnhub data to our format
         earnings_data = []
-        num_events = random.randint(8, 12)
-        
-        for i in range(num_events):
-            company = random.choice(companies)
-            days_ahead = random.randint(1, 30)
-            estimate_variation = random.uniform(0.8, 1.2)  # ±20% variation
-            estimate = round(company['base_estimate'] * estimate_variation, 2)
-            
+        for item in earnings_raw:
             earnings_data.append({
-                'symbol': company['symbol'],
-                'company_name': company['name'],
-                'earnings_date': (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d'),
-                'estimate': estimate,
-                'actual': None,
-                'surprise': None
+                'symbol': item.get('symbol', ''),
+                'company_name': item.get('symbol', ''),  # Finnhub doesn't return company name
+                'earnings_date': item.get('date', ''),
+                'estimate': item.get('epsEstimate'),
+                'actual': item.get('epsActual'),
+                'surprise': item.get('epsSurprise'),
+                'quarter': item.get('quarter'),
+                'year': item.get('year'),
+                'hour': item.get('hour', '')  # BMO (before market open) or AMC (after market close)
             })
-        
+
         # Sort by earnings date
         earnings_data.sort(key=lambda x: x['earnings_date'])
-        
+
         return jsonify(earnings_data)
     except Exception as e:
+        print(f"Error fetching earnings calendar: {e}")
         return jsonify({'error': 'Could not fetch earnings data'}), 500
 
 @app.route('/api/market/insider-trading/<symbol>')
 def get_insider_trading(symbol):
-    """Get recent insider trading data for a symbol"""
+    """Get recent insider trading data for a symbol from Finnhub API"""
     try:
         symbol = symbol.upper()
-        from datetime import datetime, timedelta
-        today = datetime.now()
-        
-        # Get current stock price for realistic data
-        stock, api_used = get_stock_with_fallback(symbol)
-        if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-        
-        current_price = stock.price
-        
-        # Generate dynamic insider trading data based on symbol
+
+        # Fetch real insider transactions from Finnhub
+        transactions_raw = finnhub_api.get_insider_transactions(symbol)
+
+        if not transactions_raw:
+            return jsonify([])
+
+        # Transform Finnhub data to our format
         insider_data = []
-        
-        # Different executives for different companies
-        executives = {
-            'AAPL': [
-                {'name': 'Tim Cook', 'title': 'CEO'},
-                {'name': 'Luca Maestri', 'title': 'CFO'},
-                {'name': 'Jeff Williams', 'title': 'COO'}
-            ],
-            'MSFT': [
-                {'name': 'Satya Nadella', 'title': 'CEO'},
-                {'name': 'Amy Hood', 'title': 'CFO'},
-                {'name': 'Brad Smith', 'title': 'President'}
-            ],
-            'GOOGL': [
-                {'name': 'Sundar Pichai', 'title': 'CEO'},
-                {'name': 'Ruth Porat', 'title': 'CFO'},
-                {'name': 'Kent Walker', 'title': 'President'}
-            ],
-            'TSLA': [
-                {'name': 'Elon Musk', 'title': 'CEO'},
-                {'name': 'Zach Kirkhorn', 'title': 'CFO'},
-                {'name': 'Drew Baglino', 'title': 'CTO'}
-            ],
-            'NVDA': [
-                {'name': 'Jensen Huang', 'title': 'CEO'},
-                {'name': 'Colette Kress', 'title': 'CFO'},
-                {'name': 'Debora Shoquist', 'title': 'COO'}
-            ],
-            'AMZN': [
-                {'name': 'Andy Jassy', 'title': 'CEO'},
-                {'name': 'Brian Olsavsky', 'title': 'CFO'},
-                {'name': 'David Clark', 'title': 'COO'}
-            ],
-            'META': [
-                {'name': 'Mark Zuckerberg', 'title': 'CEO'},
-                {'name': 'Susan Li', 'title': 'CFO'},
-                {'name': 'Sheryl Sandberg', 'title': 'COO'}
-            ]
-        }
-        
-        # Get executives for this symbol or use generic ones
-        symbol_executives = executives.get(symbol, [
-            {'name': 'John Smith', 'title': 'CEO'},
-            {'name': 'Jane Doe', 'title': 'CFO'},
-            {'name': 'Mike Johnson', 'title': 'COO'}
-        ])
-        
-        # Generate 2-4 insider transactions
-        import random
-        num_transactions = random.randint(2, 4)
-        
-        for i in range(num_transactions):
-            executive = symbol_executives[i % len(symbol_executives)]
-            transaction_type = random.choice(['BUY', 'SELL'])
-            shares = random.randint(1000, 50000)
-            price_variation = random.uniform(0.95, 1.05)  # ±5% from current price
-            price = round(current_price * price_variation, 2)
-            value = shares * price
-            days_ago = random.randint(1, 30)
-            
+        for item in transactions_raw:
+            # Determine transaction type from change value
+            change = item.get('change', 0)
+            transaction_type = 'BUY' if change > 0 else 'SELL'
+
             insider_data.append({
-                'filer_name': executive['name'],
-                'title': executive['title'],
+                'filer_name': item.get('name', 'Unknown'),
+                'title': item.get('position', ''),
                 'transaction_type': transaction_type,
-                'shares': shares,
-                'price': price,
-                'date': (today - timedelta(days=days_ago)).strftime('%Y-%m-%d'),
-                'value': value
+                'shares': abs(change) if change else item.get('share', 0),
+                'price': item.get('transactionPrice', 0),
+                'date': item.get('transactionDate', ''),
+                'value': abs(change * item.get('transactionPrice', 0)) if change and item.get('transactionPrice') else 0,
+                'filing_date': item.get('filingDate', '')
             })
-        
+
         # Sort by date (most recent first)
         insider_data.sort(key=lambda x: x['date'], reverse=True)
-        
+
         return jsonify(insider_data)
     except Exception as e:
+        print(f"Error fetching insider trading for {symbol}: {e}")
         return jsonify({'error': f'Could not fetch insider trading data for {symbol}'}), 500
 
 @app.route('/api/market/analyst-ratings/<symbol>')
 def get_analyst_ratings(symbol):
-    """Get current analyst ratings and price targets"""
+    """Get current analyst ratings and price targets from Finnhub API"""
     try:
         symbol = symbol.upper()
-        from datetime import datetime, timedelta
-        today = datetime.now()
-        
-        # Get current stock price for realistic data
-        stock, api_used = get_stock_with_fallback(symbol)
-        if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-        
-        current_price = stock.price
-        
-        # Major investment banks
-        banks = [
-            'Goldman Sachs', 'Morgan Stanley', 'JP Morgan', 'Bank of America',
-            'Citigroup', 'Wells Fargo', 'Deutsche Bank', 'Credit Suisse',
-            'Barclays', 'UBS', 'RBC Capital', 'Jefferies', 'Cowen',
-            'Piper Sandler', 'Raymond James', 'Stifel', 'BMO Capital'
-        ]
-        
-        # Generate analyst ratings
-        import random
-        num_analysts = random.randint(4, 8)
-        ratings = []
-        price_targets = []
-        
-        for i in range(num_analysts):
-            bank = random.choice(banks)
-            rating = random.choice(['BUY', 'HOLD', 'SELL'])
-            
-            # Generate realistic price target based on current price
-            if rating == 'BUY':
-                target_multiplier = random.uniform(1.1, 1.4)  # 10-40% upside
-            elif rating == 'HOLD':
-                target_multiplier = random.uniform(0.95, 1.15)  # -5% to +15%
-            else:  # SELL
-                target_multiplier = random.uniform(0.7, 0.95)  # -5% to -30%
-            
-            price_target = round(current_price * target_multiplier, 2)
-            price_targets.append(price_target)
-            
-            days_ago = random.randint(1, 30)
-            
-            ratings.append({
-                'firm': bank,
-                'rating': rating,
-                'price_target': price_target,
-                'date': (today - timedelta(days=days_ago)).strftime('%Y-%m-%d')
-            })
-        
-        # Calculate consensus
-        buy_count = sum(1 for r in ratings if r['rating'] == 'BUY')
-        sell_count = sum(1 for r in ratings if r['rating'] == 'SELL')
-        
-        if buy_count > sell_count:
+
+        # Fetch real recommendation trends from Finnhub
+        recommendations = finnhub_api.get_recommendation_trends(symbol)
+        price_target_data = finnhub_api.get_price_target(symbol)
+
+        if not recommendations:
+            return jsonify({'symbol': symbol, 'analysts': [], 'consensus_rating': 'N/A'})
+
+        # Get the most recent recommendation period
+        latest = recommendations[0] if recommendations else {}
+
+        # Calculate consensus from Finnhub data
+        strong_buy = latest.get('strongBuy', 0)
+        buy = latest.get('buy', 0)
+        hold = latest.get('hold', 0)
+        sell = latest.get('sell', 0)
+        strong_sell = latest.get('strongSell', 0)
+
+        total_buy = strong_buy + buy
+        total_sell = sell + strong_sell
+
+        if total_buy > total_sell and total_buy > hold:
             consensus = 'BUY'
-        elif sell_count > buy_count:
+        elif total_sell > total_buy and total_sell > hold:
             consensus = 'SELL'
         else:
             consensus = 'HOLD'
-        
+
+        # Transform to analyst list format for frontend
+        analysts = []
+        period = latest.get('period', '')
+
+        # Create entries based on recommendation counts
+        if strong_buy > 0:
+            analysts.append({'firm': f'{strong_buy} Analysts', 'rating': 'STRONG BUY', 'date': period})
+        if buy > 0:
+            analysts.append({'firm': f'{buy} Analysts', 'rating': 'BUY', 'date': period})
+        if hold > 0:
+            analysts.append({'firm': f'{hold} Analysts', 'rating': 'HOLD', 'date': period})
+        if sell > 0:
+            analysts.append({'firm': f'{sell} Analysts', 'rating': 'SELL', 'date': period})
+        if strong_sell > 0:
+            analysts.append({'firm': f'{strong_sell} Analysts', 'rating': 'STRONG SELL', 'date': period})
+
+        # Add price targets from Finnhub
+        for analyst in analysts:
+            analyst['price_target'] = price_target_data.get('targetMean')
+
         ratings_data = {
             'symbol': symbol,
             'consensus_rating': consensus,
-            'price_target_avg': round(sum(price_targets) / len(price_targets), 2),
-            'price_target_high': max(price_targets),
-            'price_target_low': min(price_targets),
-            'analysts': ratings
+            'price_target_avg': price_target_data.get('targetMean'),
+            'price_target_high': price_target_data.get('targetHigh'),
+            'price_target_low': price_target_data.get('targetLow'),
+            'analysts': analysts,
+            'total_analysts': strong_buy + buy + hold + sell + strong_sell,
+            'period': period
         }
-        
+
         return jsonify(ratings_data)
     except Exception as e:
+        print(f"Error fetching analyst ratings for {symbol}: {e}")
         return jsonify({'error': f'Could not fetch analyst ratings for {symbol}'}), 500
 
 @app.route('/api/market/options/<symbol>')

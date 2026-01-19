@@ -884,6 +884,78 @@ class FinnhubAPI:
             print(f'Error fetching Finnhub profile for {symbol}: {e}')
             return {'ceo': '-', 'description': '-'}
 
+    def get_earnings_calendar(self, from_date=None, to_date=None):
+        """Get upcoming earnings calendar from Finnhub API"""
+        try:
+            from datetime import datetime, timedelta
+            if not from_date:
+                from_date = datetime.now().strftime('%Y-%m-%d')
+            if not to_date:
+                to_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+
+            url = f'{self.base_url}calendar/earnings'
+            params = {'from': from_date, 'to': to_date, 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                earnings = data.get('earningsCalendar', [])
+                return earnings[:20] if earnings else []
+            else:
+                print(f'Finnhub earnings calendar error: {response.status_code}')
+                return []
+        except Exception as e:
+            print(f'Error fetching Finnhub earnings calendar: {e}')
+            return []
+
+    def get_insider_transactions(self, symbol):
+        """Get insider transactions for a symbol from Finnhub API"""
+        try:
+            url = f'{self.base_url}stock/insider-transactions'
+            params = {'symbol': symbol, 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                transactions = data.get('data', [])
+                return transactions[:10] if transactions else []
+            else:
+                print(f'Finnhub insider transactions error: {response.status_code}')
+                return []
+        except Exception as e:
+            print(f'Error fetching Finnhub insider transactions for {symbol}: {e}')
+            return []
+
+    def get_recommendation_trends(self, symbol):
+        """Get analyst recommendation trends for a symbol from Finnhub API"""
+        try:
+            url = f'{self.base_url}stock/recommendation'
+            params = {'symbol': symbol, 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                return data if data else []
+            else:
+                print(f'Finnhub recommendation error: {response.status_code}')
+                return []
+        except Exception as e:
+            print(f'Error fetching Finnhub recommendations for {symbol}: {e}')
+            return []
+
+    def get_price_target(self, symbol):
+        """Get analyst price target for a symbol from Finnhub API"""
+        try:
+            url = f'{self.base_url}stock/price-target'
+            params = {'symbol': symbol, 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                return data if data else {}
+            else:
+                print(f'Finnhub price target error: {response.status_code}')
+                return {}
+        except Exception as e:
+            print(f'Error fetching Finnhub price target for {symbol}: {e}')
+            return {}
+
 class AlphaVantageAPI:
     """Alpha Vantage API - Free tier: 5 calls/minute, 500 calls/day"""
     def __init__(self, api_key=None):
