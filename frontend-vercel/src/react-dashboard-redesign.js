@@ -1895,11 +1895,13 @@ const DashboardRedesign = () => {
                 {activeView === 'assistant' && <AIAssistantView />}
             </div>
 
-            {/* Floating Assistant - Always Available */}
-            <button className="floating-ai-btn" onClick={() => setActiveView('assistant')}>
-                <i className="fas fa-comments"></i>
-                <span className="tooltip">Open Assistant</span>
-            </button>
+            {/* Floating Assistant - Hidden when already in assistant view */}
+            {activeView !== 'assistant' && (
+                <button className="floating-ai-btn" onClick={() => setActiveView('assistant')}>
+                    <i className="fas fa-comments"></i>
+                    <span className="tooltip">Open Assistant</span>
+                </button>
+            )}
         </div>
     );
 };
@@ -3946,79 +3948,217 @@ const AIAssistantView = () => {
     };
 
     const quickPrompts = [
-        "Analyze my watchlist performance",
-        "What stocks should I add?",
-        "Market outlook for tech sector",
-        "Compare AAPL and MSFT"
+        { icon: "fa-chart-line", text: "Analyze my watchlist" },
+        { icon: "fa-search-dollar", text: "What stocks should I buy?" },
+        { icon: "fa-microchip", text: "Tech sector outlook" },
+        { icon: "fa-balance-scale", text: "Compare AAPL vs MSFT" }
     ];
 
     return (
-        <div className="assistant-view simple">
-            <div className="assistant-header" style={{justifyContent:'center', textAlign:'center'}}>
-                <div>
-                    <h2>Ask anything</h2>
-                    <p>Simple, fast answers about markets and your watchlist</p>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            maxWidth: '900px',
+            margin: '0 auto',
+            padding: '2rem'
+        }}>
+            {/* Header */}
+            <div style={{
+                textAlign: 'center',
+                marginBottom: '2rem'
+            }}>
+                <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #00D924, #00a81c)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1rem',
+                    boxShadow: '0 8px 24px rgba(0, 217, 36, 0.3)'
+                }}>
+                    <i className="fas fa-robot" style={{ fontSize: '1.75rem', color: '#fff' }}></i>
                 </div>
+                <h2 style={{
+                    fontSize: '1.75rem',
+                    fontWeight: '700',
+                    color: '#fff',
+                    marginBottom: '0.5rem'
+                }}>AI Stock Assistant</h2>
+                <p style={{
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    fontSize: '0.9375rem'
+                }}>Ask about markets, stocks, or your watchlist</p>
             </div>
 
-            <div className="assistant-chat">
-                {/* Messages on top */}
-                <div className="assistant-messages minimal">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className={`assistant-msg ${msg.type}`}>
-                            <div className="assistant-msg-content minimal">
-                                <p>{msg.content}</p>
-                            </div>
-                        </div>
-                    ))}
-                    {isTyping && (
-                        <div className="assistant-msg ai">
-                            <div className="assistant-msg-content minimal">
-                                <div className="typing-indicator">
-                                    <span></span><span></span><span></span>
+            {/* Messages Area */}
+            <div style={{
+                flex: 1,
+                overflowY: 'auto',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem'
+            }}>
+                {messages.map((msg) => (
+                    <div key={msg.id} style={{
+                        display: 'flex',
+                        justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start'
+                    }}>
+                        <div style={{
+                            maxWidth: '80%',
+                            padding: '1rem 1.25rem',
+                            borderRadius: msg.type === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                            background: msg.type === 'user'
+                                ? 'linear-gradient(135deg, #00D924, #00a81c)'
+                                : msg.type === 'error'
+                                ? 'rgba(255, 107, 53, 0.15)'
+                                : 'rgba(255, 255, 255, 0.08)',
+                            color: msg.type === 'user' ? '#fff' : msg.type === 'error' ? '#FF6B35' : 'rgba(255, 255, 255, 0.9)',
+                            fontSize: '0.9375rem',
+                            lineHeight: '1.5',
+                            boxShadow: msg.type === 'user' ? '0 4px 12px rgba(0, 217, 36, 0.2)' : 'none'
+                        }}>
+                            {msg.type === 'ai' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <i className="fas fa-robot" style={{ color: '#00D924', fontSize: '0.75rem' }}></i>
+                                    <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.5)' }}>AI Assistant</span>
                                 </div>
+                            )}
+                            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                        </div>
+                    </div>
+                ))}
+                {isTyping && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div style={{
+                            padding: '1rem 1.5rem',
+                            borderRadius: '16px 16px 16px 4px',
+                            background: 'rgba(255, 255, 255, 0.08)'
+                        }}>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00D924', animation: 'pulse 1.4s infinite', animationDelay: '0s' }}></span>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00D924', animation: 'pulse 1.4s infinite', animationDelay: '0.2s' }}></span>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00D924', animation: 'pulse 1.4s infinite', animationDelay: '0.4s' }}></span>
                             </div>
                         </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* Quick prompts when no messages */}
-                {messages.length === 0 && (
-                    <div className="quick-prompts" style={{justifyContent:'center'}}>
-                        {quickPrompts.map((prompt, index) => (
-                            <button 
-                                key={index}
-                                className="prompt-btn"
-                                onClick={() => setInputValue(prompt)}
-                            >
-                                {prompt}
-                            </button>
-                        ))}
                     </div>
                 )}
-
-                {/* Input box at the bottom */}
-                <div className="assistant-input searchlike">
-                    <i className="fas fa-message"></i>
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Ask anything…"
-                        className="assistant-input-field"
-                    />
-                    <button 
-                        className="send-btn"
-                        onClick={sendMessage}
-                        disabled={!inputValue || isTyping}
-                        aria-label="Send"
-                    >
-                        <i className="fas fa-arrow-up"></i>
-                    </button>
-                </div>
+                <div ref={messagesEndRef} />
             </div>
+
+            {/* Quick Prompts - Only show when no messages */}
+            {messages.length === 0 && (
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '0.75rem',
+                    marginBottom: '1.5rem'
+                }}>
+                    {quickPrompts.map((prompt, index) => (
+                        <button
+                            key={index}
+                            onClick={() => setInputValue(prompt.text)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '1rem 1.25rem',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                fontSize: '0.875rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                textAlign: 'left'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.background = 'rgba(0, 217, 36, 0.1)';
+                                e.currentTarget.style.borderColor = 'rgba(0, 217, 36, 0.3)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                            }}
+                        >
+                            <i className={`fas ${prompt.icon}`} style={{ color: '#00D924', fontSize: '1rem' }}></i>
+                            <span>{prompt.text}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Input Area */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 1rem',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '16px',
+                transition: 'all 0.2s ease'
+            }}>
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask about stocks, markets, or your portfolio..."
+                    disabled={!currentUser}
+                    style={{
+                        flex: 1,
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: '#fff',
+                        fontSize: '0.9375rem',
+                        padding: '0.5rem'
+                    }}
+                />
+                <button
+                    onClick={sendMessage}
+                    disabled={!inputValue.trim() || isTyping || !currentUser}
+                    style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '12px',
+                        background: inputValue.trim() && !isTyping ? 'linear-gradient(135deg, #00D924, #00a81c)' : 'rgba(255, 255, 255, 0.1)',
+                        border: 'none',
+                        color: inputValue.trim() && !isTyping ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+                        cursor: inputValue.trim() && !isTyping ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <i className="fas fa-paper-plane" style={{ fontSize: '0.875rem' }}></i>
+                </button>
+            </div>
+
+            {/* Login prompt if not authenticated */}
+            {!currentUser && (
+                <p style={{
+                    textAlign: 'center',
+                    color: 'rgba(255, 255, 255, 0.4)',
+                    fontSize: '0.8125rem',
+                    marginTop: '1rem'
+                }}>
+                    <i className="fas fa-lock" style={{ marginRight: '0.5rem' }}></i>
+                    Sign in to chat with the AI assistant
+                </p>
+            )}
+
+            <style>{`
+                @keyframes pulse {
+                    0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+                    40% { transform: scale(1); opacity: 1; }
+                }
+            `}</style>
         </div>
     );
 };
