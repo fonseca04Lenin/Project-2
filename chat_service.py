@@ -460,7 +460,36 @@ class ChatService:
             elif function_name and "remove_stock_from_watchlist" in function_name:
                 symbol = result.get("data", {}).get("symbol", "")
                 return f"SUCCESS: Stock removed from watchlist. Respond with ONLY this EXACT message and NOTHING else: '✅ Successfully removed {symbol} from your watchlist.' DO NOT show any JSON or additional data."
-            
+            elif function_name and "analyze_watchlist" in function_name:
+                # Pass full analysis data for detailed response
+                data = result.get("data", {})
+                total = data.get("total_stocks", 0)
+                up = data.get("stocks_up", 0)
+                down = data.get("stocks_down", 0)
+                flat = data.get("stocks_flat", 0)
+                avg = data.get("average_change", 0)
+                top = data.get("top_performers", [])
+                worst = data.get("worst_performers", [])
+                sectors = data.get("sectors", {})
+
+                # Format top performers
+                top_str = ", ".join([f"{s['symbol']} ({s['change']:+.2f}%)" for s in top]) if top else "None"
+                worst_str = ", ".join([f"{s['symbol']} ({s['change']:+.2f}%)" for s in worst]) if worst else "None"
+                sectors_str = ", ".join([f"{k}: {len(v)} stocks" for k, v in sectors.items() if k != "Unknown"]) if sectors else "Mixed"
+
+                return f"""SUCCESS: WATCHLIST ANALYSIS DATA - You MUST present this data in a friendly, personalized way:
+
+📊 PORTFOLIO OVERVIEW:
+- Total stocks owned: {total}
+- Stocks up today: {up} | Down: {down} | Flat: {flat}
+- Average portfolio change: {avg:+.2f}%
+
+🏆 TOP PERFORMERS: {top_str}
+📉 BIGGEST LOSERS: {worst_str}
+🏢 SECTOR MIX: {sectors_str}
+
+INSTRUCTIONS: Present this as a personalized portfolio analysis. Say things like "You own {total} stocks" and "Your portfolio is up/down". Mention the top performers by name. If sectors are available, mention "You have a mix of [sectors]". Be conversational and helpful. DO NOT just say "Analyzed X stocks" - give the user real insights about THEIR portfolio."""
+
             message = result.get("message", "Success")
             # Make it VERY explicit
             return f"SUCCESS: {message}. Use this exact information in your response to the user."
