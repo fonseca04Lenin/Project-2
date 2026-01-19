@@ -1924,69 +1924,97 @@ def market_status():
             'status': 'Market status unknown'
         }), 500
 
+# Cache for market data (10 minute TTL)
+_market_data_cache = {
+    'top_movers': {'data': None, 'timestamp': None},
+    'sector_performance': {'data': None, 'timestamp': None}
+}
+_CACHE_TTL_SECONDS = 600  # 10 minutes
+
+def _is_cache_valid(cache_key):
+    """Check if cache is still valid"""
+    cache = _market_data_cache.get(cache_key, {})
+    if cache.get('data') is None or cache.get('timestamp') is None:
+        return False
+    age = (datetime.now() - cache['timestamp']).total_seconds()
+    return age < _CACHE_TTL_SECONDS
+
 def get_real_top_movers():
-    """Fetch real top movers from the market with sector information"""
+    """Fetch real top movers using batch download (FAST)"""
+    # Check cache first
+    if _is_cache_valid('top_movers'):
+        print("✅ Using cached top movers data")
+        return _market_data_cache['top_movers']['data']
+
     try:
         import yfinance as yf
 
-        # Popular stocks across different sectors to check
+        # Reduced list of major stocks (faster)
         stock_universe = [
             'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'AMD',
-            'JPM', 'BAC', 'WFC', 'GS', 'MS',  # Financials
-            'XOM', 'CVX', 'COP', 'SLB',  # Energy
-            'JNJ', 'PFE', 'UNH', 'ABBV', 'MRK',  # Healthcare
-            'WMT', 'HD', 'NKE', 'MCD', 'SBUX',  # Consumer
-            'DIS', 'NFLX', 'CMCSA',  # Media
-            'BA', 'CAT', 'HON', 'GE',  # Industrials
-            'V', 'MA', 'PYPL',  # Payments
+            'JPM', 'BAC', 'XOM', 'JNJ', 'V', 'WMT', 'DIS', 'NFLX'
         ]
 
-        top_movers = []
+        # Sector mapping (avoid extra API calls)
+        sector_map = {
+            'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology',
+            'AMZN': 'Consumer Cyclical', 'META': 'Technology', 'TSLA': 'Consumer Cyclical',
+            'NVDA': 'Technology', 'AMD': 'Technology', 'JPM': 'Financial Services',
+            'BAC': 'Financial Services', 'XOM': 'Energy', 'JNJ': 'Healthcare',
+            'V': 'Financial Services', 'WMT': 'Consumer Defensive', 'DIS': 'Communication Services',
+            'NFLX': 'Communication Services'
+        }
 
+        # BATCH DOWNLOAD - One request for all symbols!
+        print(f"📊 Fetching top movers for {len(stock_universe)} stocks (batch)...")
+        data = yf.download(stock_universe, period='5d', progress=False, threads=True)
+
+        top_movers = []
         for symbol in stock_universe:
             try:
-                ticker = yf.Ticker(symbol)
-                hist = ticker.history(period='5d')  # Get last week's data
+                if symbol in data['Close'].columns:
+                    closes = data['Close'][symbol].dropna()
+                    if len(closes) >= 2:
+                        first_close = closes.iloc[0]
+                        last_close = closes.iloc[-1]
+                        pct_change = ((last_close - first_close) / first_close) * 100
 
-                if len(hist) >= 2:
-                    # Calculate percentage change from first to last day
-                    first_close = hist['Close'].iloc[0]
-                    last_close = hist['Close'].iloc[-1]
-                    pct_change = ((last_close - first_close) / first_close) * 100
-
-                    # Get sector information
-                    info = ticker.info
-                    sector = info.get('sector', 'Unknown')
-
-                    top_movers.append({
-                        'symbol': symbol,
-                        'change': round(pct_change, 2),
-                        'sector': sector,
-                        'price': round(last_close, 2)
-                    })
+                        top_movers.append({
+                            'symbol': symbol,
+                            'change': round(pct_change, 2),
+                            'sector': sector_map.get(symbol, 'Unknown'),
+                            'price': round(last_close, 2)
+                        })
             except Exception as e:
-                print(f"Error fetching data for {symbol}: {e}")
                 continue
 
-        # Sort by absolute change (biggest movers, positive or negative)
+        # Sort by absolute change
         top_movers.sort(key=lambda x: abs(x['change']), reverse=True)
+        result = top_movers[:5]
 
-        # Return top 5
-        return top_movers[:5]
+        # Cache the result
+        _market_data_cache['top_movers'] = {'data': result, 'timestamp': datetime.now()}
+        print(f"✅ Cached top movers: {[m['symbol'] for m in result]}")
+
+        return result
 
     except Exception as e:
         print(f"Error fetching top movers: {e}")
-        # Return fallback data
         return [
-            {'symbol': 'NVDA', 'change': 8.5, 'sector': 'Technology'},
-            {'symbol': 'TSLA', 'change': 5.2, 'sector': 'Consumer Cyclical'},
-            {'symbol': 'META', 'change': 4.8, 'sector': 'Communication Services'},
-            {'symbol': 'AAPL', 'change': -2.1, 'sector': 'Technology'},
-            {'symbol': 'GOOGL', 'change': 3.3, 'sector': 'Communication Services'}
+            {'symbol': 'NVDA', 'change': 8.5, 'sector': 'Technology', 'price': 950.00},
+            {'symbol': 'TSLA', 'change': 5.2, 'sector': 'Consumer Cyclical', 'price': 250.00},
+            {'symbol': 'META', 'change': 4.8, 'sector': 'Technology', 'price': 500.00},
+            {'symbol': 'AAPL', 'change': -2.1, 'sector': 'Technology', 'price': 180.00},
+            {'symbol': 'GOOGL', 'change': 3.3, 'sector': 'Technology', 'price': 175.00}
         ]
 
 def get_real_sector_performance():
-    """Fetch real sector performance using sector ETFs"""
+    """Fetch real sector performance using batch download (FAST)"""
+    # Check cache first
+    if _is_cache_valid('sector_performance'):
+        print("✅ Using cached sector performance data")
+        return _market_data_cache['sector_performance']['data']
+
     try:
         import yfinance as yf
 
@@ -2005,41 +2033,47 @@ def get_real_sector_performance():
             'XLC': 'Communication Services'
         }
 
-        sector_performance = []
+        symbols = list(sector_etfs.keys())
 
+        # BATCH DOWNLOAD - One request for all ETFs!
+        print(f"📊 Fetching sector performance for {len(symbols)} ETFs (batch)...")
+        data = yf.download(symbols, period='5d', progress=False, threads=True)
+
+        sector_performance = []
         for symbol, sector_name in sector_etfs.items():
             try:
-                ticker = yf.Ticker(symbol)
-                hist = ticker.history(period='5d')
+                if symbol in data['Close'].columns:
+                    closes = data['Close'][symbol].dropna()
+                    if len(closes) >= 2:
+                        first_close = closes.iloc[0]
+                        last_close = closes.iloc[-1]
+                        pct_change = ((last_close - first_close) / first_close) * 100
 
-                if len(hist) >= 2:
-                    first_close = hist['Close'].iloc[0]
-                    last_close = hist['Close'].iloc[-1]
-                    pct_change = ((last_close - first_close) / first_close) * 100
-
-                    sector_performance.append({
-                        'name': sector_name,
-                        'change': round(pct_change, 2),
-                        'symbol': symbol
-                    })
+                        sector_performance.append({
+                            'name': sector_name,
+                            'change': round(pct_change, 2),
+                            'symbol': symbol
+                        })
             except Exception as e:
-                print(f"Error fetching sector ETF {symbol}: {e}")
                 continue
 
-        # Sort by change (best performing first)
+        # Sort by change
         sector_performance.sort(key=lambda x: x['change'], reverse=True)
+
+        # Cache the result
+        _market_data_cache['sector_performance'] = {'data': sector_performance, 'timestamp': datetime.now()}
+        print(f"✅ Cached sector performance: {len(sector_performance)} sectors")
 
         return sector_performance
 
     except Exception as e:
         print(f"Error fetching sector performance: {e}")
-        # Return fallback data
         return [
-            {'name': 'Technology', 'change': 3.5},
-            {'name': 'Energy', 'change': 2.8},
-            {'name': 'Healthcare', 'change': 1.5},
-            {'name': 'Financials', 'change': -0.5},
-            {'name': 'Consumer Discretionary', 'change': 1.2}
+            {'name': 'Technology', 'change': 3.5, 'symbol': 'XLK'},
+            {'name': 'Energy', 'change': 2.8, 'symbol': 'XLE'},
+            {'name': 'Healthcare', 'change': 1.5, 'symbol': 'XLV'},
+            {'name': 'Financials', 'change': -0.5, 'symbol': 'XLF'},
+            {'name': 'Consumer Discretionary', 'change': 1.2, 'symbol': 'XLY'}
         ]
 
 @app.route('/api/market/analysis')
