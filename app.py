@@ -41,6 +41,8 @@ allowed_origins = [
     "file://",  # Local file serving
     "null",  # For local file origins
     "https://stock-watchlist-frontend.vercel.app",  # Main Vercel deployment
+    "https://aistocksage.com",  # Custom domain
+    "https://www.aistocksage.com",  # Custom domain with www
 ]
 
 # Add specific frontend URL from environment if available
