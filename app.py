@@ -71,6 +71,25 @@ CORS(app,
      expose_headers=['Content-Type', 'Authorization', 'X-API-Source'],
      vary_header=False)
 
+# Handle OPTIONS preflight requests for all routes
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight OPTIONS requests"""
+    if request.method == 'OPTIONS':
+        origin = request.headers.get('Origin', '')
+        is_allowed = (
+            origin in allowed_origins or
+            (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin or 'aistocksage.com' in origin))
+        )
+        if is_allowed and origin:
+            response = app.make_default_options_response()
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
+            response.headers['Access-Control-Max-Age'] = '86400'
+            return response
+
 # Custom CORS handler to ensure all origins get proper headers
 @app.after_request
 def after_request(response):
