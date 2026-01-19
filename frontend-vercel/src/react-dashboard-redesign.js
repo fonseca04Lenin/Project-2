@@ -1704,8 +1704,8 @@ const DashboardRedesign = () => {
                             className={`nav-tab ${activeView === 'whatswhat' ? 'active' : ''}`}
                             onClick={() => setActiveView('whatswhat')}
                         >
-                            <i className="fas fa-compass"></i>
-                            <span>What's What</span>
+                            <i className="fas fa-fire"></i>
+                            <span>What's Hot</span>
                         </button>
                         <button
                             className={`nav-tab ${activeView === 'intelligence' ? 'active' : ''}`}
@@ -3013,7 +3013,7 @@ const NewsView = () => {
     );
 };
 
-// What's What View Component - Market Analysis & Trends
+// What's Hot View Component - Market Analysis & Trends
 const WhatsWhatView = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -3110,8 +3110,8 @@ const WhatsWhatView = () => {
                         WebkitTextFillColor: 'transparent',
                         marginBottom: '0.5rem'
                     }}>
-                        <i className="fas fa-compass" style={{ marginRight: '0.75rem' }}></i>
-                        What's What in the Market
+                        <i className="fas fa-fire" style={{ marginRight: '0.75rem' }}></i>
+                        What's Hot in the Market
                     </h2>
                     <p style={{
                         color: 'rgba(255, 255, 255, 0.6)',
@@ -3343,8 +3343,8 @@ const WhatsWhatView = () => {
                                 </ul>
                             ) : (
                                 <div style={{ textAlign: 'center', padding: '2rem' }}>
-                                    <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem' }}></i>
-                                    <p>Loading top movers...</p>
+                                    <i className="fas fa-chart-line" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem', display: 'block' }}></i>
+                                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No movers data available</p>
                                 </div>
                             )}
                         </div>
@@ -3450,8 +3450,8 @@ const WhatsWhatView = () => {
                                 </ul>
                             ) : (
                                 <div style={{ textAlign: 'center', padding: '2rem' }}>
-                                    <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem' }}></i>
-                                    <p>Loading sector data...</p>
+                                    <i className="fas fa-chart-pie" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem', display: 'block' }}></i>
+                                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No sector data available</p>
                                 </div>
                             )}
                         </div>
