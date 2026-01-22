@@ -1,5 +1,78 @@
+# AI Stock Sage - Robots.txt
+# Domain: aistocksage.com
+# Updated: 2026-01-18
+
+# Allow all search engines
 User-agent: *
 Allow: /
+Allow: /static/
+Allow: /static/css/
+Allow: /static/js/
+Allow: /*.css$
+Allow: /*.js$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.svg$
+Allow: /*.webp$
 
-Sitemap: /sitemap.xml
+# Disallow admin or sensitive areas (if any exist in future)
+Disallow: /api/
+Disallow: /sessions/
+Disallow: /*.json$ 
+Disallow: /firebase-config.js
 
+# Allow specific important JSON files for SEO
+Allow: /sitemap.xml
+Allow: /manifest.json
+
+# Crawl-delay (optional, helps prevent overwhelming server)
+# Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://aistocksage.com/sitemap.xml
+
+# Google-specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Googlebot-Image
+Allow: /
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.svg$
+Allow: /*.webp$
+
+# Bing-specific
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 0
+
+# Yahoo
+User-agent: Slurp
+Allow: /
+
+# DuckDuckGo
+User-agent: DuckDuckBot
+Allow: /
+
+# Yandex
+User-agent: Yandex
+Allow: /
+
+# Baidu
+User-agent: Baiduspider
+Allow: /
+
+# Block bad bots (optional)
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: dotbot
+Disallow: /
