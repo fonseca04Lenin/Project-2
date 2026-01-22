@@ -1968,6 +1968,99 @@ def get_company_news(symbol):
     except Exception as e:
         return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
 
+
+# AI Analysis cache - 4 hour TTL
+_ai_analysis_cache = {}  # {symbol: {"data": ..., "timestamp": ...}}
+ANALYSIS_CACHE_TTL = 4 * 60 * 60  # 4 hours in seconds
+
+
+@app.route('/api/stock/<symbol>/ai-analysis', methods=['GET'])
+def get_stock_ai_analysis(symbol):
+    """Generate AI analysis of stock movement"""
+    try:
+        # Authenticate request
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        symbol = symbol.upper()
+        current_time = time.time()
+
+        # Check cache first
+        if symbol in _ai_analysis_cache:
+            cached = _ai_analysis_cache[symbol]
+            cache_age = current_time - cached['timestamp']
+            if cache_age < ANALYSIS_CACHE_TTL:
+                # Return cached result
+                cached_data = cached['data'].copy()
+                cached_data['cached'] = True
+                cached_data['cache_age_minutes'] = int(cache_age / 60)
+                return jsonify(cached_data)
+
+        # Get stock data
+        stock_data = yahoo_finance_api.get_real_time_data(symbol)
+        if not stock_data:
+            return jsonify({
+                'success': False,
+                'error': f'Could not fetch stock data for {symbol}'
+            }), 404
+
+        # Get news for context
+        try:
+            news = news_api.get_company_news(symbol, limit=5)
+        except Exception as e:
+            print(f"Warning: Could not fetch news for AI analysis of {symbol}: {e}")
+            news = []
+
+        # Generate AI analysis
+        from chat_service import chat_service
+
+        result = chat_service.generate_stock_analysis(
+            symbol=symbol,
+            price_data={
+                'price': stock_data.get('price', 0),
+                'priceChange': stock_data.get('change', 0),
+                'priceChangePercent': stock_data.get('changePercent', 0),
+                'name': stock_data.get('name', symbol)
+            },
+            news=news
+        )
+
+        if not result.get('success'):
+            return jsonify({
+                'success': False,
+                'symbol': symbol,
+                'error': result.get('error', 'Analysis failed')
+            }), 500
+
+        # Build response
+        response_data = {
+            'success': True,
+            'symbol': symbol,
+            'analysis': result.get('analysis'),
+            'cached': False,
+            'cache_age_minutes': 0,
+            'generated_at': datetime.now().isoformat()
+        }
+
+        # Cache the result
+        _ai_analysis_cache[symbol] = {
+            'data': response_data,
+            'timestamp': current_time
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        print(f"Error in AI analysis for {symbol}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'symbol': symbol,
+            'error': f'Analysis failed: {str(e)[:100]}'
+        }), 500
+
 @app.route('/api/market/top-performer', methods=['GET'])
 def get_top_performer_by_date():
     """Return the top performing stock for a specific date within a universe.

@@ -1374,5 +1374,144 @@ CRITICAL RULES:
                 "response": f"I'm sorry, I encountered an error processing your message: {str(e)}. Please try again."
             }
 
+    def generate_stock_analysis(self, symbol: str, price_data: dict, news: list) -> dict:
+        """Generate AI analysis for stock movement - separate from chat to avoid conversation pollution"""
+        try:
+            logger.info(f"Generating AI analysis for {symbol}")
+
+            # Check if Gemini client is available
+            if not self.gemini_client:
+                logger.error("Gemini client not initialized for stock analysis")
+                return {
+                    "success": False,
+                    "error": "AI service unavailable"
+                }
+
+            # Extract price information
+            price = price_data.get('price', 0)
+            price_change = price_data.get('priceChange', price_data.get('change', 0))
+            percent_change = price_data.get('priceChangePercent', price_data.get('changePercent', price_data.get('percentageChange', 0)))
+            company_name = price_data.get('name', symbol)
+
+            # Determine direction
+            direction = "up" if percent_change >= 0 else "down"
+
+            # Format news headlines
+            news_headlines = ""
+            if news:
+                for i, article in enumerate(news[:5]):
+                    title = article.get('title', '')
+                    published = article.get('published_at', article.get('publishedAt', ''))
+                    news_headlines += f"- {title} ({published})\n"
+            else:
+                news_headlines = "No recent news available"
+
+            # Create the analysis prompt
+            prompt = f"""You are a financial analyst. Analyze why {symbol} ({company_name}) stock moved {direction} {abs(percent_change):.2f}% today/this week.
+
+Current Price: ${price:.2f}
+Price Change: {percent_change:+.2f}%
+Direction: {direction}
+
+Recent News Headlines:
+{news_headlines}
+
+Provide a brief analysis (2-3 sentences) explaining the likely reasons for this movement. Focus on:
+1. Any specific news that correlates with the movement
+2. Sector/market trends if no specific news
+3. Be honest if the reason is unclear
+
+Format your response as JSON (and ONLY JSON, no other text):
+{{
+  "summary": "Brief 2-3 sentence explanation",
+  "key_factors": ["Factor 1", "Factor 2"],
+  "sentiment": "bullish|bearish|neutral",
+  "confidence": "high|medium|low"
+}}"""
+
+            # Call Gemini API
+            logger.info(f"Calling Gemini API for stock analysis of {symbol}")
+            response = self.gemini_client.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.4,
+                    "max_output_tokens": 500
+                },
+                safety_settings=[
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                ]
+            )
+
+            # Extract response text
+            response_text = None
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    parts = candidate.content.parts
+                    for part in parts:
+                        if hasattr(part, 'text'):
+                            response_text = part.text
+                            break
+
+            if not response_text:
+                logger.error(f"No response text from Gemini for {symbol}")
+                return {
+                    "success": False,
+                    "error": "No response from AI"
+                }
+
+            # Parse JSON response
+            try:
+                # Clean up response text (remove markdown code blocks if present)
+                clean_text = response_text.strip()
+                if clean_text.startswith("```json"):
+                    clean_text = clean_text[7:]
+                if clean_text.startswith("```"):
+                    clean_text = clean_text[3:]
+                if clean_text.endswith("```"):
+                    clean_text = clean_text[:-3]
+                clean_text = clean_text.strip()
+
+                analysis = json.loads(clean_text)
+                logger.info(f"Successfully parsed AI analysis for {symbol}")
+
+                return {
+                    "success": True,
+                    "analysis": analysis
+                }
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse AI response as JSON for {symbol}: {e}")
+                logger.error(f"Response text: {response_text}")
+                # Return raw text as summary fallback
+                return {
+                    "success": True,
+                    "analysis": {
+                        "summary": response_text[:500],
+                        "key_factors": [],
+                        "sentiment": "neutral",
+                        "confidence": "low"
+                    }
+                }
+
+        except Exception as e:
+            error_str = str(e)
+            logger.error(f"Error generating stock analysis for {symbol}: {error_str}")
+
+            # Check for quota errors
+            if "429" in error_str or "quota" in error_str.lower():
+                return {
+                    "success": False,
+                    "error": "AI quota exceeded, try again later"
+                }
+
+            return {
+                "success": False,
+                "error": f"Analysis failed: {str(e)[:100]}"
+            }
+
+
 # Global chat service instance
 chat_service = ChatService()
