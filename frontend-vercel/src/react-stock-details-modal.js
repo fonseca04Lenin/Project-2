@@ -1041,6 +1041,9 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             setStockData(null);
             setChartData(null);
             setNews([]);
+            setAiAnalysis(null);
+            setAiLoading(true);
+            setAiError(null);
 
             try {
                 // Auth headers timing
@@ -1160,9 +1163,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 })();
 
                 // Load AI analysis in background (don't block modal)
-                setAiLoading(true);
-                setAiError(null);
-                setAiAnalysis(null);
                 (async () => {
                     try {
                         console.log(`[StockDetailsModal] Fetching AI analysis for ${symbol}`);
@@ -1198,6 +1198,9 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             } catch (err) {
                 console.error(`[StockDetailsModal] Error loading data for ${symbol}:`, err);
                 setError(err.message || 'Failed to load stock details');
+                // Also stop AI loading if main fetch fails
+                setAiLoading(false);
+                setAiError('Unable to load AI analysis');
             } finally {
                 setLoading(false);
                 console.timeEnd(`StockDetailsModal-${symbol}-total`);
@@ -1683,7 +1686,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         </div>
 
                         {/* AI Market Insight Section */}
-                        {(aiAnalysis || aiLoading) && (
+                        {(aiAnalysis || aiLoading || aiError) && (
                             <div className="modal-ai-analysis">
                                 <h3>
                                     <i className="fas fa-robot"></i>
