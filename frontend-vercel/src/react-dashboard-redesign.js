@@ -1676,7 +1676,7 @@ const DashboardRedesign = () => {
             <header className="dashboard-header">
                 <div className="header-left">
                     <h1 className="logo">
-                        <i className="fas fa-chart-line"></i> Stock Watchlist Pro
+                        <i className="fas fa-chart-line"></i> AI Stock Sage
                     </h1>
                     <nav className="nav-tabs">
                         <button 
@@ -1693,14 +1693,21 @@ const DashboardRedesign = () => {
                             <i className="fas fa-briefcase"></i>
                             <span>Watchlist</span>
                         </button>
-                        <button 
+                        <button
                             className={`nav-tab ${activeView === 'news' ? 'active' : ''}`}
                             onClick={() => setActiveView('news')}
                         >
                             <i className="fas fa-bullhorn"></i>
                             <span>News</span>
                         </button>
-                        <button 
+                        <button
+                            className={`nav-tab ${activeView === 'whatswhat' ? 'active' : ''}`}
+                            onClick={() => setActiveView('whatswhat')}
+                        >
+                            <i className="fas fa-fire"></i>
+                            <span>What's Hot</span>
+                        </button>
+                        <button
                             className={`nav-tab ${activeView === 'intelligence' ? 'active' : ''}`}
                             onClick={() => setActiveView('intelligence')}
                         >
@@ -1882,16 +1889,19 @@ const DashboardRedesign = () => {
                     />
                 )}
                 {activeView === 'news' && <NewsView />}
+                {activeView === 'whatswhat' && <WhatsWhatView />}
                 {activeView === 'intelligence' && <IntelligenceView />}
                 {activeView === 'trading' && <TradingView />}
                 {activeView === 'assistant' && <AIAssistantView />}
             </div>
 
-            {/* Floating Assistant - Always Available */}
-            <button className="floating-ai-btn" onClick={() => setActiveView('assistant')}>
-                <i className="fas fa-comments"></i>
-                <span className="tooltip">Open Assistant</span>
-            </button>
+            {/* Floating Assistant - Hidden when already in assistant view */}
+            {activeView !== 'assistant' && (
+                <button className="floating-ai-btn" onClick={() => setActiveView('assistant')}>
+                    <i className="fas fa-comments"></i>
+                    <span className="tooltip">Open Assistant</span>
+                </button>
+            )}
         </div>
     );
 };
@@ -2874,6 +2884,16 @@ const NewsView = () => {
                 })}
 
                 {(loading ? Array.from({length:6}) : articles.slice(1, displayCount)).map((a, i) => {
+                    // Generate fallback image URL using Unsplash Source API
+                    const getImageUrl = () => {
+                        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
+                            return a.image_url;
+                        }
+                        // Fallback: Use Unsplash Source API for generic financial images
+                        const seed = a?.title ? encodeURIComponent(a.title.substring(0, 20)) : 'stock-market';
+                        return `https://source.unsplash.com/1920x1080/?finance,stock-market,business,${seed}`;
+                    };
+
                     const articleUrl = a?.url || a?.link;
                     const handleCardClick = (e) => {
                         // Don't navigate if clicking on the "Read More" link
@@ -2884,24 +2904,50 @@ const NewsView = () => {
                             window.open(articleUrl, '_blank', 'noopener,noreferrer');
                         }
                     };
-                    
+
                     return (
-                        <div 
-                            key={`card-${i}`} 
+                        <div
+                            key={`card-${i}`}
                             className="news-card"
                             onClick={handleCardClick}
                             style={{ cursor: articleUrl ? 'pointer' : 'default' }}
                         >
-                        <div className="news-content">
-                            <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
-                            <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
-                            <p>{loading ? '' : (a.description || '')}</p>
-                            <div className="news-meta">
-                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                            <div className="news-image-container">
+                                {loading ? (
+                                    <div className="news-image-placeholder">
+                                        <i className="fas fa-chart-line"></i>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <img
+                                            src={getImageUrl()}
+                                            alt={a?.title || 'News image'}
+                                            className="news-image"
+                                            onError={(e) => {
+                                                // If image fails to load, hide image and show placeholder
+                                                e.target.style.display = 'none';
+                                                const placeholder = e.target.parentElement.querySelector('.news-image-placeholder');
+                                                if (placeholder) {
+                                                    placeholder.style.display = 'flex';
+                                                }
+                                            }}
+                                        />
+                                        <div className="news-image-placeholder" style={{ display: 'none' }}>
+                                            <i className="fas fa-chart-line"></i>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="news-content">
+                                <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
+                                <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
+                                <p>{loading ? '' : (a.description || '')}</p>
+                                <div className="news-meta">
+                                    <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
+                                    {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                                </div>
                             </div>
                         </div>
-                    </div>
                     );
                 })}
             </div>
@@ -2969,6 +3015,507 @@ const NewsView = () => {
     );
 };
 
+// What's Hot View Component - Market Analysis & Trends
+const WhatsWhatView = () => {
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [analysis, setAnalysis] = useState('');
+    const [displayedText, setDisplayedText] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [typingComplete, setTypingComplete] = useState(false);
+    const [marketData, setMarketData] = useState(null);
+    const typingRef = useRef(null);
+
+    useEffect(() => {
+        loadMarketAnalysis();
+    }, []);
+
+    const loadMarketAnalysis = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            const authHeaders = await window.getAuthHeaders();
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const r = await fetch(`${API_BASE}/api/market/analysis`, {
+                headers: authHeaders,
+                credentials: 'include'
+            });
+            if (!r.ok) throw new Error('Failed to fetch market analysis');
+            const data = await r.json();
+            setAnalysis(data.analysis || '');
+            setMarketData(data.data || null);
+            setLoading(false);
+            // Start typing animation
+            setTimeout(() => startTypingAnimation(data.analysis || ''), 100);
+        } catch (e) {
+            console.error('Error loading market analysis:', e);
+            setError('Unable to load market analysis');
+            setLoading(false);
+        }
+    };
+
+    const startTypingAnimation = (text) => {
+        setIsTyping(true);
+        setDisplayedText('');
+        const words = text.split(' ');
+        let currentIndex = 0;
+
+        const typeNextWord = () => {
+            if (currentIndex < words.length) {
+                setDisplayedText(prev => prev + (currentIndex > 0 ? ' ' : '') + words[currentIndex]);
+                currentIndex++;
+                typingRef.current = setTimeout(typeNextWord, 50); // 50ms per word
+            } else {
+                setIsTyping(false);
+                setTypingComplete(true);
+            }
+        };
+
+        typeNextWord();
+    };
+
+    useEffect(() => {
+        return () => {
+            if (typingRef.current) {
+                clearTimeout(typingRef.current);
+            }
+        };
+    }, []);
+
+    const skipTyping = () => {
+        if (typingRef.current) {
+            clearTimeout(typingRef.current);
+        }
+        setDisplayedText(analysis);
+        setIsTyping(false);
+        setTypingComplete(true);
+    };
+
+    return (
+        <div className="whatswhat-view" style={{
+            padding: '2rem',
+            maxWidth: '1400px',
+            margin: '0 auto'
+        }}>
+            <div className="view-header" style={{
+                marginBottom: '2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+            }}>
+                <div>
+                    <h2 style={{
+                        fontSize: '2rem',
+                        fontWeight: '700',
+                        background: 'linear-gradient(135deg, #00D924, #FF6B35)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        marginBottom: '0.5rem'
+                    }}>
+                        <i className="fas fa-fire" style={{ marginRight: '0.75rem' }}></i>
+                        What's Hot in the Market
+                    </h2>
+                    <p style={{
+                        color: 'rgba(255, 255, 255, 0.6)',
+                        fontSize: '0.9375rem'
+                    }}>
+                        AI-powered market insights, trends, and geopolitical analysis
+                    </p>
+                </div>
+                <button
+                    onClick={loadMarketAnalysis}
+                    disabled={loading}
+                    style={{
+                        padding: '0.75rem 1.5rem',
+                        background: 'rgba(0, 217, 36, 0.1)',
+                        border: '1px solid rgba(0, 217, 36, 0.3)',
+                        borderRadius: '6px',
+                        color: '#00D924',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s ease'
+                    }}
+                >
+                    <i className={`fas fa-${loading ? 'spinner fa-spin' : 'sync-alt'}`} style={{ marginRight: '0.5rem' }}></i>
+                    Refresh Analysis
+                </button>
+            </div>
+
+            {/* Main AI Analysis Card */}
+            <div style={{
+                background: 'linear-gradient(135deg, rgba(0, 217, 36, 0.05), rgba(255, 107, 53, 0.05))',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                padding: '2.5rem',
+                marginBottom: '2rem',
+                position: 'relative',
+                overflow: 'hidden'
+            }}>
+                {/* Animated gradient overlay */}
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    background: 'linear-gradient(90deg, #00D924, #FF6B35, #00D924)',
+                    backgroundSize: '200% 100%',
+                    animation: isTyping ? 'gradientMove 2s linear infinite' : 'none'
+                }}></div>
+
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '1.5rem'
+                }}>
+                    <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #00D924, #FF6B35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: '1rem'
+                    }}>
+                        <i className="fas fa-brain" style={{ color: '#fff' }}></i>
+                    </div>
+                    <div>
+                        <h3 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: '600',
+                            color: '#fff',
+                            marginBottom: '0.25rem'
+                        }}>
+                            This Week's Market Landscape
+                        </h3>
+                        <p style={{
+                            fontSize: '0.875rem',
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            margin: 0
+                        }}>
+                            Generated {new Date().toLocaleDateString()} • AI-Powered Analysis
+                        </p>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                        <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#00D924', marginBottom: '1rem' }}></i>
+                        <p style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Analyzing current market conditions...</p>
+                    </div>
+                ) : error ? (
+                    <div style={{
+                        padding: '2rem',
+                        background: 'rgba(255, 107, 53, 0.1)',
+                        border: '1px solid rgba(255, 107, 53, 0.3)',
+                        borderRadius: '8px',
+                        textAlign: 'center'
+                    }}>
+                        <i className="fas fa-exclamation-circle" style={{ fontSize: '2rem', color: '#FF6B35', marginBottom: '1rem' }}></i>
+                        <p style={{ color: 'rgba(255, 255, 255, 0.7)' }}>{error}</p>
+                    </div>
+                ) : (
+                    <>
+                        <div style={{
+                            fontSize: '1.125rem',
+                            lineHeight: '1.8',
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            marginBottom: '1.5rem',
+                            minHeight: '200px'
+                        }}>
+                            {displayedText}
+                            {isTyping && <span className="typing-cursor" style={{
+                                display: 'inline-block',
+                                width: '2px',
+                                height: '1.2em',
+                                background: '#00D924',
+                                marginLeft: '4px',
+                                animation: 'blink 1s infinite'
+                            }}></span>}
+                        </div>
+                        {isTyping && (
+                            <button
+                                onClick={skipTyping}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '6px',
+                                    color: 'rgba(255, 255, 255, 0.6)',
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <i className="fas fa-forward" style={{ marginRight: '0.5rem' }}></i>
+                                Skip Animation
+                            </button>
+                        )}
+                    </>
+                )}
+            </div>
+
+            {/* Supporting Content Grid */}
+            {typingComplete && marketData && (
+                <div className="supporting-content" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                    gap: '1.5rem',
+                    marginBottom: '2rem'
+                }}>
+                    {/* What's Hot - Top Market Movers */}
+                    <div style={{
+                        background: 'linear-gradient(135deg, rgba(0, 217, 36, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                        border: '1px solid rgba(0, 217, 36, 0.2)',
+                        borderRadius: '16px',
+                        padding: '2rem',
+                        minHeight: '450px',
+                        gridColumn: 'span 1'
+                    }}>
+                        <h4 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
+                            color: '#fff',
+                            marginBottom: '1.5rem',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}>
+                            <i className="fas fa-fire" style={{ color: '#FF6B35', marginRight: '0.75rem', fontSize: '1.25rem' }}></i>
+                            What's Hot
+                            <span style={{
+                                marginLeft: 'auto',
+                                fontSize: '0.75rem',
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                fontWeight: '400'
+                            }}>Top 5 Movers</span>
+                        </h4>
+                        <div style={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                            {marketData.topMovers && marketData.topMovers.length > 0 ? (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                    {marketData.topMovers.slice(0, 5).map((stock, idx) => (
+                                        <li key={idx} style={{
+                                            padding: '1.25rem',
+                                            marginBottom: idx < 4 ? '0.75rem' : 0,
+                                            background: 'rgba(255, 255, 255, 0.03)',
+                                            borderRadius: '10px',
+                                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                                            transition: 'transform 0.2s, background 0.2s',
+                                            cursor: 'pointer'
+                                        }}
+                                        onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
+                                        onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'; e.currentTarget.style.transform = 'translateX(0)'; }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    <span style={{
+                                                        fontSize: '0.75rem',
+                                                        color: 'rgba(255, 255, 255, 0.4)',
+                                                        fontWeight: '600',
+                                                        width: '20px'
+                                                    }}>#{idx + 1}</span>
+                                                    <div>
+                                                        <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#fff' }}>{stock.symbol}</div>
+                                                        {stock.sector && (
+                                                            <div style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)', marginTop: '0.25rem' }}>
+                                                                {stock.sector}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{
+                                                        color: stock.change >= 0 ? '#00D924' : '#FF6B35',
+                                                        fontWeight: '700',
+                                                        fontSize: '1.25rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem'
+                                                    }}>
+                                                        <i className={stock.change >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'} style={{ fontSize: '0.875rem' }}></i>
+                                                        {stock.change >= 0 ? '+' : ''}{stock.change}%
+                                                    </div>
+                                                    {stock.price && (
+                                                        <div style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)', marginTop: '0.25rem' }}>
+                                                            ${stock.price.toLocaleString()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <i className="fas fa-chart-line" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem', display: 'block' }}></i>
+                                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No movers data available</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Key Economic Events */}
+                    <div style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '12px',
+                        padding: '1.5rem'
+                    }}>
+                        <h4 style={{
+                            fontSize: '1.125rem',
+                            fontWeight: '600',
+                            color: '#fff',
+                            marginBottom: '1rem',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}>
+                            <i className="fas fa-calendar-alt" style={{ color: '#FF6B35', marginRight: '0.75rem' }}></i>
+                            Upcoming Events
+                        </h4>
+                        <div style={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                            {marketData.upcomingEvents ? (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                    {marketData.upcomingEvents.slice(0, 5).map((event, idx) => (
+                                        <li key={idx} style={{
+                                            padding: '0.75rem 0',
+                                            borderBottom: idx < 4 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
+                                        }}>
+                                            <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{event.title}</div>
+                                            <div style={{ fontSize: '0.8125rem', color: 'rgba(255, 255, 255, 0.5)' }}>{event.date}</div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p>Loading upcoming events...</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Sector Performance */}
+                    <div style={{
+                        background: 'linear-gradient(135deg, rgba(0, 149, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                        border: '1px solid rgba(0, 149, 255, 0.2)',
+                        borderRadius: '16px',
+                        padding: '2rem',
+                        minHeight: '450px'
+                    }}>
+                        <h4 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
+                            color: '#fff',
+                            marginBottom: '1.5rem',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}>
+                            <i className="fas fa-chart-pie" style={{ color: '#0095FF', marginRight: '0.75rem', fontSize: '1.25rem' }}></i>
+                            Sector Performance
+                            <span style={{
+                                marginLeft: 'auto',
+                                fontSize: '0.75rem',
+                                color: 'rgba(255, 255, 255, 0.5)',
+                                fontWeight: '400'
+                            }}>Weekly Change</span>
+                        </h4>
+                        <div style={{ fontSize: '0.9375rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                            {marketData.sectorPerformance && marketData.sectorPerformance.length > 0 ? (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                    {marketData.sectorPerformance.slice(0, 6).map((sector, idx) => (
+                                        <li key={idx} style={{
+                                            padding: '1rem',
+                                            marginBottom: idx < 5 ? '0.5rem' : 0,
+                                            background: 'rgba(255, 255, 255, 0.03)',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'}
+                                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <div style={{
+                                                    width: '8px',
+                                                    height: '8px',
+                                                    borderRadius: '50%',
+                                                    background: sector.change >= 0 ? '#00D924' : '#FF6B35'
+                                                }}></div>
+                                                <span style={{ fontWeight: '500' }}>{sector.name}</span>
+                                            </div>
+                                            <span style={{
+                                                color: sector.change >= 0 ? '#00D924' : '#FF6B35',
+                                                fontWeight: '700',
+                                                fontSize: '1rem'
+                                            }}>
+                                                {sector.change >= 0 ? '+' : ''}{sector.change}%
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <i className="fas fa-chart-pie" style={{ fontSize: '2rem', color: 'rgba(255, 255, 255, 0.3)', marginBottom: '1rem', display: 'block' }}></i>
+                                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No sector data available</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Geopolitical Insights */}
+            {typingComplete && (
+                <div style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '12px',
+                    padding: '2rem',
+                    marginBottom: '2rem'
+                }}>
+                    <h3 style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '600',
+                        color: '#fff',
+                        marginBottom: '1.5rem',
+                        display: 'flex',
+                        alignItems: 'center'
+                    }}>
+                        <i className="fas fa-globe" style={{ color: '#FF6B35', marginRight: '0.75rem' }}></i>
+                        Geopolitical Factors
+                    </h3>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                        gap: '1rem'
+                    }}>
+                        <div style={{ padding: '1rem', background: 'rgba(0, 217, 36, 0.05)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '0.5rem' }}>Federal Reserve</div>
+                            <div style={{ fontSize: '1rem', color: '#fff', fontWeight: '600' }}>Interest Rate Decision Pending</div>
+                        </div>
+                        <div style={{ padding: '1rem', background: 'rgba(255, 107, 53, 0.05)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '0.5rem' }}>Global Trade</div>
+                            <div style={{ fontSize: '1rem', color: '#fff', fontWeight: '600' }}>Supply Chain Developments</div>
+                        </div>
+                        <div style={{ padding: '1rem', background: 'rgba(0, 217, 36, 0.05)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.5)', marginBottom: '0.5rem' }}>Energy Markets</div>
+                            <div style={{ fontSize: '1rem', color: '#fff', fontWeight: '600' }}>Oil Prices Fluctuating</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes gradientMove {
+                    0% { background-position: 0% 50%; }
+                    100% { background-position: 200% 50%; }
+                }
+                @keyframes blink {
+                    0%, 50% { opacity: 1; }
+                    51%, 100% { opacity: 0; }
+                }
+            `}</style>
+        </div>
+    );
+};
+
 // Intelligence View Component
 const IntelligenceView = () => {
     const [activeTab, setActiveTab] = useState('earnings');
@@ -2978,7 +3525,6 @@ const IntelligenceView = () => {
     const [earnings, setEarnings] = useState([]);
     const [insider, setInsider] = useState([]);
     const [analyst, setAnalyst] = useState([]);
-    const [optionsData, setOptionsData] = useState([]);
 
     useEffect(() => {
         loadCurrentTab();
@@ -3004,7 +3550,6 @@ const IntelligenceView = () => {
         if (activeTab === 'earnings') return loadEarnings();
         if (activeTab === 'insider') return loadInsider();
         if (activeTab === 'analyst') return loadAnalyst();
-        if (activeTab === 'options') return loadOptions();
     };
 
     const loadEarnings = async () => {
@@ -3049,19 +3594,23 @@ const IntelligenceView = () => {
         } finally { setLoading(false); }
     };
 
-    const loadOptions = async () => {
-        try {
-            setLoading(true); setError('');
-            const { authHeaders, API_BASE } = await withAuth();
-            const r = await fetch(`${API_BASE}/api/market/options/${encodeURIComponent(symbol)}`, { headers: authHeaders, credentials: 'include' });
-            if (!r.ok) throw new Error('Failed to fetch options');
-            const data = await r.json();
-            setOptionsData(Array.isArray(data?.chains) ? data.chains : Array.isArray(data) ? data : []);
-        } catch (e) {
-            setError('Unable to load options');
-            setOptionsData([]);
-        } finally { setLoading(false); }
-    };
+    // Data source label component
+    const DataSourceLabel = ({ source }) => (
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 0.75rem',
+            background: 'rgba(0, 217, 36, 0.1)',
+            borderRadius: '4px',
+            fontSize: '0.75rem',
+            color: 'rgba(255, 255, 255, 0.6)',
+            marginTop: '1rem'
+        }}>
+            <i className="fas fa-database" style={{ color: '#00D924' }}></i>
+            <span>Data provided by <strong style={{ color: '#fff' }}>{source}</strong></span>
+        </div>
+    );
 
     return (
         <div className="intelligence-view">
@@ -3071,12 +3620,11 @@ const IntelligenceView = () => {
                     <button className={`intel-tab ${activeTab==='earnings'?'active':''}`} onClick={()=>setActiveTab('earnings')}>Earnings</button>
                     <button className={`intel-tab ${activeTab==='insider'?'active':''}`} onClick={()=>setActiveTab('insider')}>Insider Trading</button>
                     <button className={`intel-tab ${activeTab==='analyst'?'active':''}`} onClick={()=>setActiveTab('analyst')}>Analyst Ratings</button>
-                    <button className={`intel-tab ${activeTab==='options'?'active':''}`} onClick={()=>setActiveTab('options')}>Options</button>
                 </div>
             </div>
 
             <div className="intel-controls" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', margin: '0 0 1rem 0' }}>
-                <input 
+                <input
                     className="search-input"
                     style={{ maxWidth: '220px' }}
                     value={symbol}
@@ -3100,7 +3648,7 @@ const IntelligenceView = () => {
                                 const date = new Date(item.earnings_date);
                                 formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             }
-                            
+
                             return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{loading ? '—' : (item.symbol || item.ticker || '—')}</div>
@@ -3108,11 +3656,12 @@ const IntelligenceView = () => {
                                     <div className="intel-company">{loading ? 'Loading…' : (item.company_name || item.company || item.name || '—')}</div>
                                     <div className="intel-date">{loading ? '' : formattedDate}</div>
                                 </div>
-                                <div className="intel-estimate">{loading ? '' : (item.estimate ? `Est: ${item.estimate}` : '')}</div>
+                                <div className="intel-estimate">{loading ? '' : (item.estimate ? `Est: $${item.estimate}` : '')}</div>
                             </div>
                             );
                         })}
                     </div>
+                    <DataSourceLabel source="Finnhub - Earnings Calendar API" />
                 </div>
             )}
 
@@ -3131,10 +3680,11 @@ const IntelligenceView = () => {
                                 const date = new Date(t.date);
                                 formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             }
-                            if (!loading && t.transaction_type && t.shares && t.price) {
-                                formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()} @ $${t.price.toFixed(2)}`;
+                            if (!loading && t.transaction_type && t.shares) {
+                                const priceStr = t.price ? ` @ $${t.price.toFixed(2)}` : '';
+                                formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()}${priceStr}`;
                             }
-                            
+
                             return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{symbol}</div>
@@ -3147,6 +3697,7 @@ const IntelligenceView = () => {
                             );
                         })}
                     </div>
+                    <DataSourceLabel source="Finnhub - SEC Insider Transactions" />
                 </div>
             )}
 
@@ -3164,7 +3715,7 @@ const IntelligenceView = () => {
                                 const date = new Date(r.date);
                                 formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                             }
-                            
+
                             return (
                             <div key={i} className="intel-item">
                                 <div className="intel-symbol">{symbol}</div>
@@ -3177,27 +3728,7 @@ const IntelligenceView = () => {
                             );
                         })}
                     </div>
-                </div>
-            )}
-
-            {activeTab === 'options' && (
-                <div className="intel-card">
-                    <div className="intel-header">
-                        <h3><i className="fas fa-stream"></i> Options Flow</h3>
-                        <span className="intel-count">{optionsData.length}</span>
-                    </div>
-                    <div className="intel-list">
-                        {(loading ? Array.from({length:5}) : optionsData).slice(0,5).map((o, i) => (
-                            <div key={i} className="intel-item">
-                                <div className="intel-symbol">{symbol}</div>
-                                <div className="intel-details">
-                                    <div className="intel-company">{loading ? 'Loading…' : `${o.type || o.side || '—'} ${o.strike ? `@ ${o.strike}` : ''}`}</div>
-                                    <div className="intel-date">{loading ? '' : (o.expiration || o.exp || '—')}</div>
-                                </div>
-                                <div className="intel-estimate">{loading ? '' : (o.premium ? `$${o.premium}` : '')}</div>
-                            </div>
-                        ))}
-                    </div>
+                    <DataSourceLabel source="Finnhub - Wall Street Analyst Recommendations" />
                 </div>
             )}
         </div>
@@ -3417,79 +3948,217 @@ const AIAssistantView = () => {
     };
 
     const quickPrompts = [
-        "Analyze my watchlist performance",
-        "What stocks should I add?",
-        "Market outlook for tech sector",
-        "Compare AAPL and MSFT"
+        { icon: "fa-chart-line", text: "Analyze my watchlist" },
+        { icon: "fa-search-dollar", text: "What stocks should I buy?" },
+        { icon: "fa-microchip", text: "Tech sector outlook" },
+        { icon: "fa-balance-scale", text: "Compare AAPL vs MSFT" }
     ];
 
     return (
-        <div className="assistant-view simple">
-            <div className="assistant-header" style={{justifyContent:'center', textAlign:'center'}}>
-                <div>
-                    <h2>Ask anything</h2>
-                    <p>Simple, fast answers about markets and your watchlist</p>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            maxWidth: '900px',
+            margin: '0 auto',
+            padding: '2rem'
+        }}>
+            {/* Header */}
+            <div style={{
+                textAlign: 'center',
+                marginBottom: '2rem'
+            }}>
+                <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #00D924, #00a81c)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1rem',
+                    boxShadow: '0 8px 24px rgba(0, 217, 36, 0.3)'
+                }}>
+                    <i className="fas fa-robot" style={{ fontSize: '1.75rem', color: '#fff' }}></i>
                 </div>
+                <h2 style={{
+                    fontSize: '1.75rem',
+                    fontWeight: '700',
+                    color: '#fff',
+                    marginBottom: '0.5rem'
+                }}>AI Stock Assistant</h2>
+                <p style={{
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    fontSize: '0.9375rem'
+                }}>Ask about markets, stocks, or your watchlist</p>
             </div>
 
-            <div className="assistant-chat">
-                {/* Messages on top */}
-                <div className="assistant-messages minimal">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className={`assistant-msg ${msg.type}`}>
-                            <div className="assistant-msg-content minimal">
-                                <p>{msg.content}</p>
-                            </div>
-                        </div>
-                    ))}
-                    {isTyping && (
-                        <div className="assistant-msg ai">
-                            <div className="assistant-msg-content minimal">
-                                <div className="typing-indicator">
-                                    <span></span><span></span><span></span>
+            {/* Messages Area */}
+            <div style={{
+                flex: 1,
+                overflowY: 'auto',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem'
+            }}>
+                {messages.map((msg) => (
+                    <div key={msg.id} style={{
+                        display: 'flex',
+                        justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start'
+                    }}>
+                        <div style={{
+                            maxWidth: '80%',
+                            padding: '1rem 1.25rem',
+                            borderRadius: msg.type === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                            background: msg.type === 'user'
+                                ? 'linear-gradient(135deg, #00D924, #00a81c)'
+                                : msg.type === 'error'
+                                ? 'rgba(255, 107, 53, 0.15)'
+                                : 'rgba(255, 255, 255, 0.08)',
+                            color: msg.type === 'user' ? '#fff' : msg.type === 'error' ? '#FF6B35' : 'rgba(255, 255, 255, 0.9)',
+                            fontSize: '0.9375rem',
+                            lineHeight: '1.5',
+                            boxShadow: msg.type === 'user' ? '0 4px 12px rgba(0, 217, 36, 0.2)' : 'none'
+                        }}>
+                            {msg.type === 'ai' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <i className="fas fa-robot" style={{ color: '#00D924', fontSize: '0.75rem' }}></i>
+                                    <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.5)' }}>AI Assistant</span>
                                 </div>
+                            )}
+                            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                        </div>
+                    </div>
+                ))}
+                {isTyping && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div style={{
+                            padding: '1rem 1.5rem',
+                            borderRadius: '16px 16px 16px 4px',
+                            background: 'rgba(255, 255, 255, 0.08)'
+                        }}>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00D924', animation: 'pulse 1.4s infinite', animationDelay: '0s' }}></span>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00D924', animation: 'pulse 1.4s infinite', animationDelay: '0.2s' }}></span>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00D924', animation: 'pulse 1.4s infinite', animationDelay: '0.4s' }}></span>
                             </div>
                         </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* Quick prompts when no messages */}
-                {messages.length === 0 && (
-                    <div className="quick-prompts" style={{justifyContent:'center'}}>
-                        {quickPrompts.map((prompt, index) => (
-                            <button 
-                                key={index}
-                                className="prompt-btn"
-                                onClick={() => setInputValue(prompt)}
-                            >
-                                {prompt}
-                            </button>
-                        ))}
                     </div>
                 )}
-
-                {/* Input box at the bottom */}
-                <div className="assistant-input searchlike">
-                    <i className="fas fa-message"></i>
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Ask anything…"
-                        className="assistant-input-field"
-                    />
-                    <button 
-                        className="send-btn"
-                        onClick={sendMessage}
-                        disabled={!inputValue || isTyping}
-                        aria-label="Send"
-                    >
-                        <i className="fas fa-arrow-up"></i>
-                    </button>
-                </div>
+                <div ref={messagesEndRef} />
             </div>
+
+            {/* Quick Prompts - Only show when no messages */}
+            {messages.length === 0 && (
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '0.75rem',
+                    marginBottom: '1.5rem'
+                }}>
+                    {quickPrompts.map((prompt, index) => (
+                        <button
+                            key={index}
+                            onClick={() => setInputValue(prompt.text)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '1rem 1.25rem',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                fontSize: '0.875rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                textAlign: 'left'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.background = 'rgba(0, 217, 36, 0.1)';
+                                e.currentTarget.style.borderColor = 'rgba(0, 217, 36, 0.3)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                            }}
+                        >
+                            <i className={`fas ${prompt.icon}`} style={{ color: '#00D924', fontSize: '1rem' }}></i>
+                            <span>{prompt.text}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Input Area */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 1rem',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '16px',
+                transition: 'all 0.2s ease'
+            }}>
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask about stocks, markets, or your portfolio..."
+                    disabled={!currentUser}
+                    style={{
+                        flex: 1,
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: '#fff',
+                        fontSize: '0.9375rem',
+                        padding: '0.5rem'
+                    }}
+                />
+                <button
+                    onClick={sendMessage}
+                    disabled={!inputValue.trim() || isTyping || !currentUser}
+                    style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '12px',
+                        background: inputValue.trim() && !isTyping ? 'linear-gradient(135deg, #00D924, #00a81c)' : 'rgba(255, 255, 255, 0.1)',
+                        border: 'none',
+                        color: inputValue.trim() && !isTyping ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+                        cursor: inputValue.trim() && !isTyping ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <i className="fas fa-paper-plane" style={{ fontSize: '0.875rem' }}></i>
+                </button>
+            </div>
+
+            {/* Login prompt if not authenticated */}
+            {!currentUser && (
+                <p style={{
+                    textAlign: 'center',
+                    color: 'rgba(255, 255, 255, 0.4)',
+                    fontSize: '0.8125rem',
+                    marginTop: '1rem'
+                }}>
+                    <i className="fas fa-lock" style={{ marginRight: '0.5rem' }}></i>
+                    Sign in to chat with the AI assistant
+                </p>
+            )}
+
+            <style>{`
+                @keyframes pulse {
+                    0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+                    40% { transform: scale(1); opacity: 1; }
+                }
+            `}</style>
         </div>
     );
 };

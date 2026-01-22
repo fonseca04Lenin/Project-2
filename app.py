@@ -41,6 +41,8 @@ allowed_origins = [
     "file://",  # Local file serving
     "null",  # For local file origins
     "https://stock-watchlist-frontend.vercel.app",  # Main Vercel deployment
+    "https://aistocksage.com",  # Custom domain
+    "https://www.aistocksage.com",  # Custom domain with www
 ]
 
 # Add specific frontend URL from environment if available
@@ -69,55 +71,52 @@ CORS(app,
      expose_headers=['Content-Type', 'Authorization', 'X-API-Source'],
      vary_header=False)
 
-# Custom CORS handler for Vercel preview deployments
-# Also supports explicit allowlist via FRONTEND_ORIGINS (comma-separated)
+# Handle OPTIONS preflight requests for all routes
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight OPTIONS requests"""
+    if request.method == 'OPTIONS':
+        origin = request.headers.get('Origin', '')
+        is_allowed = (
+            origin in allowed_origins or
+            (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin or 'aistocksage.com' in origin))
+        )
+        if is_allowed and origin:
+            response = app.make_default_options_response()
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
+            response.headers['Access-Control-Max-Age'] = '86400'
+            return response
+
+# Custom CORS handler to ensure all origins get proper headers
 @app.after_request
 def after_request(response):
-    """Add CORS headers for frontend domains"""
+    """Ensure CORS headers are set for all allowed origins"""
     origin = request.headers.get('Origin', '')
-    path = request.path
 
-    # Build allowlist from env and defaults
-    extra_origins = os.getenv('FRONTEND_ORIGINS', '')
-    allowlist = {o.strip() for o in extra_origins.split(',') if o.strip()}
-    allowlist.update({
-        'localhost',
-        '127.0.0.1',
-        'vercel.app',
-        'stock-watchlist-frontend.vercel.app'
-    })
+    # Check if origin is in allowed list or is a known deployment domain
+    is_allowed = (
+        origin in allowed_origins or
+        (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin or 'aistocksage.com' in origin))
+    )
 
-    def is_allowed(o: str) -> bool:
-        if not o:
-            return False
-        return any(allowed in o for allowed in allowlist)
-
-    # Log CORS handling
-    print(f"🌐 CORS after_request - Origin: {origin}, Path: {path}, Method: {request.method}")
-
-    if is_allowed(origin):
+    if is_allowed and origin:
+        # Set all necessary CORS headers for preflight and actual requests
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
-        print(f"✅ CORS headers added for origin: {origin}")
-    else:
-        print(f"⚠️ CORS origin not matched: {origin}")
-
-    # Log response headers for debugging
-    cors_origin = response.headers.get('Access-Control-Allow-Origin', 'NOT SET')
-    print(f"📋 Response CORS headers - Allow-Origin: {cors_origin}, Status: {response.status_code}")
 
     return response
 
 # Configuration
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 
-# Session configuration for cross-origin setup (Vercel frontend + Railway backend)
+# NOTE: Session-based auth removed - app uses Firebase token authentication only
+# Cross-origin sessions (Vercel<->Railway) don't work reliably with cookies
 is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RAILWAY_ENVIRONMENT') is not None
-app.config['SESSION_COOKIE_SECURE'] = True  # Always secure in production
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin requests
 
 # Initialize extensions
 # Use threading async mode to avoid eventlet blocking Firestore calls
@@ -139,8 +138,8 @@ def unauthorized():
         return jsonify({'error': 'Authentication required'}), 401
     return redirect('/')
 
-# Debug session configuration
-print(f"🔧 Session Config - Secure: {app.config['SESSION_COOKIE_SECURE']}, SameSite: {app.config['SESSION_COOKIE_SAMESITE']}, Production: {is_production}")
+# Debug configuration
+print(f"🔧 App Config - Production: {is_production}, Token Auth: Enabled")
 
 # Register blueprints
 app.register_blueprint(auth)
@@ -299,20 +298,30 @@ active_stocks_timestamps = defaultdict(dict)  # user_id -> {symbol: timestamp}
 ACTIVE_STOCK_TIMEOUT = 60  # Remove from active after 60 seconds of inactivity
 
 def cleanup_inactive_connections():
-    """Clean up inactive WebSocket connections"""
+    """Clean up inactive WebSocket connections and associated data"""
     current_time = time.time()
     to_remove = []
-    
+
     for sid, timestamp in connection_timestamps.items():
         if current_time - timestamp > CONNECTION_TIMEOUT:
             to_remove.append(sid)
-    
+
     for sid in to_remove:
+        user_id = connected_users.get(sid)
+
+        # Clean up main tracking dicts
         if sid in connected_users:
             del connected_users[sid]
         if sid in connection_timestamps:
             del connection_timestamps[sid]
-    
+
+        # Clean up active stocks tracking (fix memory leak)
+        if user_id:
+            if user_id in active_stocks:
+                del active_stocks[user_id]
+            if user_id in active_stocks_timestamps:
+                del active_stocks_timestamps[user_id]
+
     if to_remove:
         print(f"🧹 Cleaned up {len(to_remove)} inactive WebSocket connections")
 
@@ -322,13 +331,23 @@ def limit_connections():
         # Remove oldest connections
         sorted_connections = sorted(connection_timestamps.items(), key=lambda x: x[1])
         to_remove = sorted_connections[:len(connected_users) - MAX_CONNECTIONS]
-        
+
         for sid, _ in to_remove:
+            user_id = connected_users.get(sid)
+
+            # Clean up main tracking dicts
             if sid in connected_users:
                 del connected_users[sid]
             if sid in connection_timestamps:
                 del connection_timestamps[sid]
-        
+
+            # Clean up active stocks tracking (fix memory leak)
+            if user_id:
+                if user_id in active_stocks:
+                    del active_stocks[user_id]
+                if user_id in active_stocks_timestamps:
+                    del active_stocks_timestamps[user_id]
+
         print(f"🧹 Removed {len(to_remove)} old connections to stay under limit")
 
 # Improved request tracking with automatic cleanup
@@ -645,10 +664,20 @@ def handle_connect():
 def handle_disconnect():
     print(f"Client disconnected: {request.sid}")
     # Clean up connection tracking
+    user_id = connected_users.get(request.sid)
+
     if request.sid in connected_users:
         del connected_users[request.sid]
     if request.sid in connection_timestamps:
         del connection_timestamps[request.sid]
+
+    # Clean up active stocks tracking (fix memory leak)
+    if user_id:
+        if user_id in active_stocks:
+            del active_stocks[user_id]
+        if user_id in active_stocks_timestamps:
+            del active_stocks_timestamps[user_id]
+        print(f"🧹 Cleaned up active stocks for user {user_id}")
 
 @socketio.on('join_user_room')
 def handle_join_user_room(data):
@@ -694,25 +723,29 @@ def handle_join_news_updates():
 @socketio.on('track_stock_view')
 def handle_track_stock_view(data):
     """Track which stock a user is actively viewing for priority updates"""
+    from utils import sanitize_stock_symbol, validate_stock_symbol
     try:
         user_id = data.get('user_id')
-        symbol = data.get('symbol', '').upper()
-        
-        if user_id and symbol:
+        symbol = sanitize_stock_symbol(data.get('symbol', ''))
+
+        if user_id and symbol and validate_stock_symbol(symbol):
             active_stocks[user_id].add(symbol)
             active_stocks_timestamps[user_id][symbol] = time.time()
             print(f"👁️ User {user_id} is viewing {symbol} - adding to priority queue")
+        elif symbol and not validate_stock_symbol(symbol):
+            print(f"⚠️ Invalid symbol rejected in track_stock_view: {symbol}")
     except Exception as e:
         print(f"Error tracking stock view: {e}")
 
 @socketio.on('untrack_stock_view')
 def handle_untrack_stock_view(data):
     """Stop tracking a stock when user stops viewing it"""
+    from utils import sanitize_stock_symbol, validate_stock_symbol
     try:
         user_id = data.get('user_id')
-        symbol = data.get('symbol', '').upper()
-        
-        if user_id and symbol:
+        symbol = sanitize_stock_symbol(data.get('symbol', ''))
+
+        if user_id and symbol and validate_stock_symbol(symbol):
             active_stocks[user_id].discard(symbol)
             active_stocks_timestamps[user_id].pop(symbol, None)
             print(f"👁️ User {user_id} stopped viewing {symbol}")
@@ -1117,16 +1150,6 @@ def get_market_status():
             'last_updated': datetime.now().isoformat()
         }
 
-@app.route('/api/search', methods=['OPTIONS'])
-def search_stock_options():
-    """Handle CORS preflight for /api/search"""
-    response = jsonify({})
-    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
-
 @app.route('/api/search', methods=['POST'])
 def search_stock():
     from utils import sanitize_stock_symbol, validate_stock_symbol
@@ -1456,24 +1479,6 @@ def authenticate_request():
         print(f"❌ Traceback: {traceback.format_exc()}")
         return None
 
-@app.route('/api/watchlist', methods=['OPTIONS'])
-def watchlist_options():
-    """Handle CORS preflight for /api/watchlist"""
-    origin = request.headers.get('Origin', '')
-    print(f"🔵 OPTIONS preflight for /api/watchlist from origin: {origin}")
-    
-    response = jsonify({})
-    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
-        print(f"✅ OPTIONS response headers set for origin: {origin}")
-    else:
-        print(f"⚠️ OPTIONS origin not matched: {origin}")
-    
-    return response
-
 @app.route('/api/watchlist', methods=['GET'])
 def get_watchlist_route():
     """Lightweight watchlist endpoint with current prices"""
@@ -1617,10 +1622,17 @@ def add_to_watchlist():
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     data = request.get_json()
-    symbol = data.get('symbol', '').upper()
+
+    # Import validation utilities
+    from utils import sanitize_stock_symbol, validate_stock_symbol
+
+    symbol = sanitize_stock_symbol(data.get('symbol', ''))
 
     if not symbol:
         return jsonify({'error': 'Please provide a stock symbol'}), 400
+
+    if not validate_stock_symbol(symbol):
+        return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     # Get additional options from request
     category = data.get('category', 'General')
@@ -1889,24 +1901,6 @@ def get_chart_data(symbol):
     else:
         return jsonify({'error': 'Could not retrieve chart data'}), 404
 
-@app.route('/api/market-status', methods=['OPTIONS'])
-def market_status_options():
-    """Handle CORS preflight for /api/market-status"""
-    origin = request.headers.get('Origin', '')
-    print(f"🔵 OPTIONS preflight for /api/market-status from origin: {origin}")
-    
-    response = jsonify({})
-    if origin and ('vercel.app' in origin or 'localhost' in origin or '127.0.0.1' in origin):
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID'
-        print(f"✅ OPTIONS response headers set for origin: {origin}")
-    else:
-        print(f"⚠️ OPTIONS origin not matched: {origin}")
-    
-    return response
-
 @app.route('/api/market-status')
 def market_status():
     """Get market status using Eastern Time"""
@@ -1948,6 +1942,218 @@ def market_status():
             'is_open': False,
             'status': 'Market status unknown'
         }), 500
+
+# Cache for market data (10 minute TTL)
+_market_data_cache = {
+    'top_movers': {'data': None, 'timestamp': None},
+    'sector_performance': {'data': None, 'timestamp': None}
+}
+_CACHE_TTL_SECONDS = 600  # 10 minutes
+
+def _is_cache_valid(cache_key):
+    """Check if cache is still valid"""
+    cache = _market_data_cache.get(cache_key, {})
+    if cache.get('data') is None or cache.get('timestamp') is None:
+        return False
+    age = (datetime.now() - cache['timestamp']).total_seconds()
+    return age < _CACHE_TTL_SECONDS
+
+def get_real_top_movers():
+    """Fetch real top movers using batch download (FAST)"""
+    # Check cache first
+    if _is_cache_valid('top_movers'):
+        print("✅ Using cached top movers data")
+        return _market_data_cache['top_movers']['data']
+
+    try:
+        import yfinance as yf
+
+        # Reduced list of major stocks (faster)
+        stock_universe = [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'AMD',
+            'JPM', 'BAC', 'XOM', 'JNJ', 'V', 'WMT', 'DIS', 'NFLX'
+        ]
+
+        # Sector mapping (avoid extra API calls)
+        sector_map = {
+            'AAPL': 'Technology', 'MSFT': 'Technology', 'GOOGL': 'Technology',
+            'AMZN': 'Consumer Cyclical', 'META': 'Technology', 'TSLA': 'Consumer Cyclical',
+            'NVDA': 'Technology', 'AMD': 'Technology', 'JPM': 'Financial Services',
+            'BAC': 'Financial Services', 'XOM': 'Energy', 'JNJ': 'Healthcare',
+            'V': 'Financial Services', 'WMT': 'Consumer Defensive', 'DIS': 'Communication Services',
+            'NFLX': 'Communication Services'
+        }
+
+        # BATCH DOWNLOAD - One request for all symbols!
+        print(f"📊 Fetching top movers for {len(stock_universe)} stocks (batch)...")
+        data = yf.download(stock_universe, period='5d', progress=False, threads=True)
+
+        top_movers = []
+        for symbol in stock_universe:
+            try:
+                if symbol in data['Close'].columns:
+                    closes = data['Close'][symbol].dropna()
+                    if len(closes) >= 2:
+                        first_close = closes.iloc[0]
+                        last_close = closes.iloc[-1]
+                        pct_change = ((last_close - first_close) / first_close) * 100
+
+                        top_movers.append({
+                            'symbol': symbol,
+                            'change': round(pct_change, 2),
+                            'sector': sector_map.get(symbol, 'Unknown'),
+                            'price': round(last_close, 2)
+                        })
+            except Exception as e:
+                continue
+
+        # Sort by absolute change
+        top_movers.sort(key=lambda x: abs(x['change']), reverse=True)
+        result = top_movers[:5]
+
+        # Cache the result
+        _market_data_cache['top_movers'] = {'data': result, 'timestamp': datetime.now()}
+        print(f"✅ Cached top movers: {[m['symbol'] for m in result]}")
+
+        return result
+
+    except Exception as e:
+        print(f"Error fetching top movers: {e}")
+        return [
+            {'symbol': 'NVDA', 'change': 8.5, 'sector': 'Technology', 'price': 950.00},
+            {'symbol': 'TSLA', 'change': 5.2, 'sector': 'Consumer Cyclical', 'price': 250.00},
+            {'symbol': 'META', 'change': 4.8, 'sector': 'Technology', 'price': 500.00},
+            {'symbol': 'AAPL', 'change': -2.1, 'sector': 'Technology', 'price': 180.00},
+            {'symbol': 'GOOGL', 'change': 3.3, 'sector': 'Technology', 'price': 175.00}
+        ]
+
+def get_real_sector_performance():
+    """Fetch real sector performance using batch download (FAST)"""
+    # Check cache first
+    if _is_cache_valid('sector_performance'):
+        print("✅ Using cached sector performance data")
+        return _market_data_cache['sector_performance']['data']
+
+    try:
+        import yfinance as yf
+
+        # Major sector ETFs
+        sector_etfs = {
+            'XLK': 'Technology',
+            'XLF': 'Financials',
+            'XLE': 'Energy',
+            'XLV': 'Healthcare',
+            'XLY': 'Consumer Discretionary',
+            'XLP': 'Consumer Staples',
+            'XLI': 'Industrials',
+            'XLB': 'Materials',
+            'XLU': 'Utilities',
+            'XLRE': 'Real Estate',
+            'XLC': 'Communication Services'
+        }
+
+        symbols = list(sector_etfs.keys())
+
+        # BATCH DOWNLOAD - One request for all ETFs!
+        print(f"📊 Fetching sector performance for {len(symbols)} ETFs (batch)...")
+        data = yf.download(symbols, period='5d', progress=False, threads=True)
+
+        sector_performance = []
+        for symbol, sector_name in sector_etfs.items():
+            try:
+                if symbol in data['Close'].columns:
+                    closes = data['Close'][symbol].dropna()
+                    if len(closes) >= 2:
+                        first_close = closes.iloc[0]
+                        last_close = closes.iloc[-1]
+                        pct_change = ((last_close - first_close) / first_close) * 100
+
+                        sector_performance.append({
+                            'name': sector_name,
+                            'change': round(pct_change, 2),
+                            'symbol': symbol
+                        })
+            except Exception as e:
+                continue
+
+        # Sort by change
+        sector_performance.sort(key=lambda x: x['change'], reverse=True)
+
+        # Cache the result
+        _market_data_cache['sector_performance'] = {'data': sector_performance, 'timestamp': datetime.now()}
+        print(f"✅ Cached sector performance: {len(sector_performance)} sectors")
+
+        return sector_performance
+
+    except Exception as e:
+        print(f"Error fetching sector performance: {e}")
+        return [
+            {'name': 'Technology', 'change': 3.5, 'symbol': 'XLK'},
+            {'name': 'Energy', 'change': 2.8, 'symbol': 'XLE'},
+            {'name': 'Healthcare', 'change': 1.5, 'symbol': 'XLV'},
+            {'name': 'Financials', 'change': -0.5, 'symbol': 'XLF'},
+            {'name': 'Consumer Discretionary', 'change': 1.2, 'symbol': 'XLY'}
+        ]
+
+@app.route('/api/market/analysis')
+def get_market_analysis():
+    """Get AI-generated market analysis with trends and insights"""
+    # Get market data first (independent of AI) - these have their own fallbacks
+    top_movers = get_real_top_movers()
+    sector_performance = get_real_sector_performance()
+
+    # Build market data object
+    market_data = {
+        'topMovers': top_movers,
+        'upcomingEvents': [
+            {'title': 'Federal Reserve Meeting', 'date': 'Next Week'},
+            {'title': 'CPI Data Release', 'date': 'Thursday'},
+            {'title': 'Tech Earnings Season', 'date': 'This Week'},
+            {'title': 'Jobs Report', 'date': 'Friday'},
+            {'title': 'GDP Report', 'date': 'Next Month'}
+        ],
+        'sectorPerformance': sector_performance
+    }
+
+    # Try to generate AI analysis
+    try:
+        from chat_service import ChatService
+
+        # Build comprehensive market analysis prompt
+        prompt = """Generate a concise, professional market analysis for this week covering:
+
+1. Current Market Trends: What's driving the market this week?
+2. Geopolitical Factors: Any major geopolitical events affecting markets?
+3. Economic Indicators: Key economic data releases and their impact
+4. Sector Performance: Which sectors are outperforming/underperforming and why?
+5. What to Watch: Important events or catalysts coming up
+
+Keep it informative, data-driven, and professional. Limit to 200-250 words."""
+
+        # Generate AI analysis using Gemini
+        chat_service = ChatService()
+        analysis_text = chat_service.generate_simple_response(prompt)
+
+        return jsonify({
+            'analysis': analysis_text,
+            'data': market_data,
+            'generated_at': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        print(f"❌ Error generating AI market analysis: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Fallback response if AI fails - but still include market data
+        fallback_analysis = """This week's market is showing mixed signals with technology stocks leading gains while traditional sectors face headwinds. Federal Reserve policy decisions continue to weigh on investor sentiment, with traders closely watching inflation data. Geopolitical tensions in key regions are adding volatility, particularly affecting energy and defense sectors. Tech earnings have been strong, driving optimism, but valuation concerns persist. Economic indicators suggest resilient consumer spending despite higher interest rates. Watch for upcoming Fed commentary and quarterly GDP numbers which could set the tone for next month's trading."""
+
+        return jsonify({
+            'analysis': fallback_analysis,
+            'data': market_data,
+            'generated_at': datetime.now().isoformat(),
+            'fallback': True
+        })
 
 @app.route('/api/news/market')
 def get_market_news():
@@ -2604,17 +2810,22 @@ def get_alerts():
 
 @app.route('/api/alerts', methods=['POST'])
 def create_alert():
+    from utils import sanitize_stock_symbol, validate_stock_symbol
+
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
     data = request.get_json()
-    symbol = data.get('symbol', '').upper()
+    symbol = sanitize_stock_symbol(data.get('symbol', ''))
     target_price = data.get('target_price')
     alert_type = data.get('alert_type', 'above')
 
     if not symbol or target_price is None:
         return jsonify({'error': 'Symbol and target price are required'}), 400
+
+    if not validate_stock_symbol(symbol):
+        return jsonify({'error': 'Invalid stock symbol format'}), 400
 
     try:
         target_price = float(target_price)
@@ -2645,302 +2856,143 @@ def delete_alert(alert_id):
 # Market Intelligence Endpoints
 @app.route('/api/market/earnings')
 def get_earnings_calendar():
-    """Get upcoming earnings dates with recent data"""
+    """Get upcoming earnings dates from Finnhub API"""
     try:
-        # Get current date and next 30 days for realistic earnings dates
-        from datetime import datetime, timedelta
-        import random
-        today = datetime.now()
-        
-        # Major companies with realistic earnings patterns
-        companies = [
-            {'symbol': 'AAPL', 'name': 'Apple Inc.', 'base_estimate': 2.15},
-            {'symbol': 'MSFT', 'name': 'Microsoft Corporation', 'base_estimate': 2.82},
-            {'symbol': 'GOOGL', 'name': 'Alphabet Inc.', 'base_estimate': 1.62},
-            {'symbol': 'TSLA', 'name': 'Tesla, Inc.', 'base_estimate': 0.85},
-            {'symbol': 'NVDA', 'name': 'NVIDIA Corporation', 'base_estimate': 4.25},
-            {'symbol': 'AMZN', 'name': 'Amazon.com, Inc.', 'base_estimate': 0.95},
-            {'symbol': 'META', 'name': 'Meta Platforms, Inc.', 'base_estimate': 3.45},
-            {'symbol': 'NFLX', 'name': 'Netflix, Inc.', 'base_estimate': 2.10},
-            {'symbol': 'AMD', 'name': 'Advanced Micro Devices, Inc.', 'base_estimate': 0.75},
-            {'symbol': 'INTC', 'name': 'Intel Corporation', 'base_estimate': 0.45},
-            {'symbol': 'CRM', 'name': 'Salesforce, Inc.', 'base_estimate': 1.85},
-            {'symbol': 'ORCL', 'name': 'Oracle Corporation', 'base_estimate': 1.25},
-            {'symbol': 'ADBE', 'name': 'Adobe Inc.', 'base_estimate': 3.20},
-            {'symbol': 'PYPL', 'name': 'PayPal Holdings, Inc.', 'base_estimate': 1.15},
-            {'symbol': 'SQ', 'name': 'Block, Inc.', 'base_estimate': 0.35}
-        ]
-        
-        # Generate 8-12 earnings events for the next 30 days
+        # Fetch real earnings data from Finnhub
+        earnings_raw = finnhub_api.get_earnings_calendar()
+
+        if not earnings_raw:
+            return jsonify([])
+
+        # Transform Finnhub data to our format
         earnings_data = []
-        num_events = random.randint(8, 12)
-        
-        for i in range(num_events):
-            company = random.choice(companies)
-            days_ahead = random.randint(1, 30)
-            estimate_variation = random.uniform(0.8, 1.2)  # ±20% variation
-            estimate = round(company['base_estimate'] * estimate_variation, 2)
-            
+        for item in earnings_raw:
             earnings_data.append({
-                'symbol': company['symbol'],
-                'company_name': company['name'],
-                'earnings_date': (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d'),
-                'estimate': estimate,
-                'actual': None,
-                'surprise': None
+                'symbol': item.get('symbol', ''),
+                'company_name': item.get('symbol', ''),  # Finnhub doesn't return company name
+                'earnings_date': item.get('date', ''),
+                'estimate': item.get('epsEstimate'),
+                'actual': item.get('epsActual'),
+                'surprise': item.get('epsSurprise'),
+                'quarter': item.get('quarter'),
+                'year': item.get('year'),
+                'hour': item.get('hour', '')  # BMO (before market open) or AMC (after market close)
             })
-        
+
         # Sort by earnings date
         earnings_data.sort(key=lambda x: x['earnings_date'])
-        
+
         return jsonify(earnings_data)
     except Exception as e:
+        print(f"Error fetching earnings calendar: {e}")
         return jsonify({'error': 'Could not fetch earnings data'}), 500
 
 @app.route('/api/market/insider-trading/<symbol>')
 def get_insider_trading(symbol):
-    """Get recent insider trading data for a symbol"""
+    """Get recent insider trading data for a symbol from Finnhub API"""
     try:
         symbol = symbol.upper()
-        from datetime import datetime, timedelta
-        today = datetime.now()
-        
-        # Get current stock price for realistic data
-        stock, api_used = get_stock_with_fallback(symbol)
-        if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-        
-        current_price = stock.price
-        
-        # Generate dynamic insider trading data based on symbol
+
+        # Fetch real insider transactions from Finnhub
+        transactions_raw = finnhub_api.get_insider_transactions(symbol)
+
+        if not transactions_raw:
+            return jsonify([])
+
+        # Transform Finnhub data to our format
         insider_data = []
-        
-        # Different executives for different companies
-        executives = {
-            'AAPL': [
-                {'name': 'Tim Cook', 'title': 'CEO'},
-                {'name': 'Luca Maestri', 'title': 'CFO'},
-                {'name': 'Jeff Williams', 'title': 'COO'}
-            ],
-            'MSFT': [
-                {'name': 'Satya Nadella', 'title': 'CEO'},
-                {'name': 'Amy Hood', 'title': 'CFO'},
-                {'name': 'Brad Smith', 'title': 'President'}
-            ],
-            'GOOGL': [
-                {'name': 'Sundar Pichai', 'title': 'CEO'},
-                {'name': 'Ruth Porat', 'title': 'CFO'},
-                {'name': 'Kent Walker', 'title': 'President'}
-            ],
-            'TSLA': [
-                {'name': 'Elon Musk', 'title': 'CEO'},
-                {'name': 'Zach Kirkhorn', 'title': 'CFO'},
-                {'name': 'Drew Baglino', 'title': 'CTO'}
-            ],
-            'NVDA': [
-                {'name': 'Jensen Huang', 'title': 'CEO'},
-                {'name': 'Colette Kress', 'title': 'CFO'},
-                {'name': 'Debora Shoquist', 'title': 'COO'}
-            ],
-            'AMZN': [
-                {'name': 'Andy Jassy', 'title': 'CEO'},
-                {'name': 'Brian Olsavsky', 'title': 'CFO'},
-                {'name': 'David Clark', 'title': 'COO'}
-            ],
-            'META': [
-                {'name': 'Mark Zuckerberg', 'title': 'CEO'},
-                {'name': 'Susan Li', 'title': 'CFO'},
-                {'name': 'Sheryl Sandberg', 'title': 'COO'}
-            ]
-        }
-        
-        # Get executives for this symbol or use generic ones
-        symbol_executives = executives.get(symbol, [
-            {'name': 'John Smith', 'title': 'CEO'},
-            {'name': 'Jane Doe', 'title': 'CFO'},
-            {'name': 'Mike Johnson', 'title': 'COO'}
-        ])
-        
-        # Generate 2-4 insider transactions
-        import random
-        num_transactions = random.randint(2, 4)
-        
-        for i in range(num_transactions):
-            executive = symbol_executives[i % len(symbol_executives)]
-            transaction_type = random.choice(['BUY', 'SELL'])
-            shares = random.randint(1000, 50000)
-            price_variation = random.uniform(0.95, 1.05)  # ±5% from current price
-            price = round(current_price * price_variation, 2)
-            value = shares * price
-            days_ago = random.randint(1, 30)
-            
+        for item in transactions_raw:
+            # Determine transaction type from change value
+            change = item.get('change', 0)
+            transaction_type = 'BUY' if change > 0 else 'SELL'
+
             insider_data.append({
-                'filer_name': executive['name'],
-                'title': executive['title'],
+                'filer_name': item.get('name', 'Unknown'),
+                'title': item.get('position', ''),
                 'transaction_type': transaction_type,
-                'shares': shares,
-                'price': price,
-                'date': (today - timedelta(days=days_ago)).strftime('%Y-%m-%d'),
-                'value': value
+                'shares': abs(change) if change else item.get('share', 0),
+                'price': item.get('transactionPrice', 0),
+                'date': item.get('transactionDate', ''),
+                'value': abs(change * item.get('transactionPrice', 0)) if change and item.get('transactionPrice') else 0,
+                'filing_date': item.get('filingDate', '')
             })
-        
+
         # Sort by date (most recent first)
         insider_data.sort(key=lambda x: x['date'], reverse=True)
-        
+
         return jsonify(insider_data)
     except Exception as e:
+        print(f"Error fetching insider trading for {symbol}: {e}")
         return jsonify({'error': f'Could not fetch insider trading data for {symbol}'}), 500
 
 @app.route('/api/market/analyst-ratings/<symbol>')
 def get_analyst_ratings(symbol):
-    """Get current analyst ratings and price targets"""
+    """Get current analyst ratings and price targets from Finnhub API"""
     try:
         symbol = symbol.upper()
-        from datetime import datetime, timedelta
-        today = datetime.now()
-        
-        # Get current stock price for realistic data
-        stock, api_used = get_stock_with_fallback(symbol)
-        if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-        
-        current_price = stock.price
-        
-        # Major investment banks
-        banks = [
-            'Goldman Sachs', 'Morgan Stanley', 'JP Morgan', 'Bank of America',
-            'Citigroup', 'Wells Fargo', 'Deutsche Bank', 'Credit Suisse',
-            'Barclays', 'UBS', 'RBC Capital', 'Jefferies', 'Cowen',
-            'Piper Sandler', 'Raymond James', 'Stifel', 'BMO Capital'
-        ]
-        
-        # Generate analyst ratings
-        import random
-        num_analysts = random.randint(4, 8)
-        ratings = []
-        price_targets = []
-        
-        for i in range(num_analysts):
-            bank = random.choice(banks)
-            rating = random.choice(['BUY', 'HOLD', 'SELL'])
-            
-            # Generate realistic price target based on current price
-            if rating == 'BUY':
-                target_multiplier = random.uniform(1.1, 1.4)  # 10-40% upside
-            elif rating == 'HOLD':
-                target_multiplier = random.uniform(0.95, 1.15)  # -5% to +15%
-            else:  # SELL
-                target_multiplier = random.uniform(0.7, 0.95)  # -5% to -30%
-            
-            price_target = round(current_price * target_multiplier, 2)
-            price_targets.append(price_target)
-            
-            days_ago = random.randint(1, 30)
-            
-            ratings.append({
-                'firm': bank,
-                'rating': rating,
-                'price_target': price_target,
-                'date': (today - timedelta(days=days_ago)).strftime('%Y-%m-%d')
-            })
-        
-        # Calculate consensus
-        buy_count = sum(1 for r in ratings if r['rating'] == 'BUY')
-        sell_count = sum(1 for r in ratings if r['rating'] == 'SELL')
-        
-        if buy_count > sell_count:
+
+        # Fetch real recommendation trends from Finnhub
+        recommendations = finnhub_api.get_recommendation_trends(symbol)
+        price_target_data = finnhub_api.get_price_target(symbol)
+
+        if not recommendations:
+            return jsonify({'symbol': symbol, 'analysts': [], 'consensus_rating': 'N/A'})
+
+        # Get the most recent recommendation period
+        latest = recommendations[0] if recommendations else {}
+
+        # Calculate consensus from Finnhub data
+        strong_buy = latest.get('strongBuy', 0)
+        buy = latest.get('buy', 0)
+        hold = latest.get('hold', 0)
+        sell = latest.get('sell', 0)
+        strong_sell = latest.get('strongSell', 0)
+
+        total_buy = strong_buy + buy
+        total_sell = sell + strong_sell
+
+        if total_buy > total_sell and total_buy > hold:
             consensus = 'BUY'
-        elif sell_count > buy_count:
+        elif total_sell > total_buy and total_sell > hold:
             consensus = 'SELL'
         else:
             consensus = 'HOLD'
-        
+
+        # Transform to analyst list format for frontend
+        analysts = []
+        period = latest.get('period', '')
+
+        # Create entries based on recommendation counts
+        if strong_buy > 0:
+            analysts.append({'firm': f'{strong_buy} Analysts', 'rating': 'STRONG BUY', 'date': period})
+        if buy > 0:
+            analysts.append({'firm': f'{buy} Analysts', 'rating': 'BUY', 'date': period})
+        if hold > 0:
+            analysts.append({'firm': f'{hold} Analysts', 'rating': 'HOLD', 'date': period})
+        if sell > 0:
+            analysts.append({'firm': f'{sell} Analysts', 'rating': 'SELL', 'date': period})
+        if strong_sell > 0:
+            analysts.append({'firm': f'{strong_sell} Analysts', 'rating': 'STRONG SELL', 'date': period})
+
+        # Add price targets from Finnhub
+        for analyst in analysts:
+            analyst['price_target'] = price_target_data.get('targetMean')
+
         ratings_data = {
             'symbol': symbol,
             'consensus_rating': consensus,
-            'price_target_avg': round(sum(price_targets) / len(price_targets), 2),
-            'price_target_high': max(price_targets),
-            'price_target_low': min(price_targets),
-            'analysts': ratings
+            'price_target_avg': price_target_data.get('targetMean'),
+            'price_target_high': price_target_data.get('targetHigh'),
+            'price_target_low': price_target_data.get('targetLow'),
+            'analysts': analysts,
+            'total_analysts': strong_buy + buy + hold + sell + strong_sell,
+            'period': period
         }
-        
+
         return jsonify(ratings_data)
     except Exception as e:
+        print(f"Error fetching analyst ratings for {symbol}: {e}")
         return jsonify({'error': f'Could not fetch analyst ratings for {symbol}'}), 500
-
-@app.route('/api/market/options/<symbol>')
-def get_options_data(symbol):
-    """Get current options data for a symbol"""
-    try:
-        symbol = symbol.upper()
-        from datetime import datetime, timedelta
-        today = datetime.now()
-        
-        # Get current stock price for realistic data
-        stock, api_used = get_stock_with_fallback(symbol)
-        if not stock:
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-        
-        current_price = stock.price
-        
-        # Generate current options data with realistic expiration dates
-        next_week = today + timedelta(days=7)
-        next_month = today + timedelta(days=30)
-        next_quarter = today + timedelta(days=90)
-        
-        # Generate realistic strike prices around current price
-        import random
-        call_options = []
-        put_options = []
-        
-        # Generate call options (strikes above current price)
-        for i in range(3):
-            strike = round(current_price * (1 + (i + 1) * 0.05), 2)  # 5%, 10%, 15% above
-            bid = round(max(0.01, (strike - current_price) * 0.8), 2)
-            ask = round(bid * 1.1, 2)
-            volume = random.randint(100, 2000)
-            open_interest = random.randint(500, 5000)
-            
-            call_options.append({
-                'strike': strike,
-                'expiration': next_week.strftime('%Y-%m-%d'),
-                'bid': bid,
-                'ask': ask,
-                'volume': volume,
-                'open_interest': open_interest
-            })
-        
-        # Generate put options (strikes below current price)
-        for i in range(3):
-            strike = round(current_price * (1 - (i + 1) * 0.05), 2)  # 5%, 10%, 15% below
-            bid = round(max(0.01, (current_price - strike) * 0.8), 2)
-            ask = round(bid * 1.1, 2)
-            volume = random.randint(100, 1500)
-            open_interest = random.randint(300, 4000)
-            
-            put_options.append({
-                'strike': strike,
-                'expiration': next_week.strftime('%Y-%m-%d'),
-                'bid': bid,
-                'ask': ask,
-                'volume': volume,
-                'open_interest': open_interest
-            })
-        
-        options_data = {
-            'symbol': symbol,
-            'current_price': current_price,
-            'expiration_dates': [
-                next_week.strftime('%Y-%m-%d'),
-                next_month.strftime('%Y-%m-%d'),
-                next_quarter.strftime('%Y-%m-%d')
-            ],
-            'call_options': call_options,
-            'put_options': put_options
-        }
-        return jsonify(options_data)
-    except Exception as e:
-        return jsonify({'error': f'Could not fetch options data for {symbol}'}), 500
 
 # =============================================================================
 # BASIC ENDPOINTS
@@ -2972,7 +3024,7 @@ def api_root():
 # HEALTH CHECK ENDPOINT
 # =============================================================================
 
-@app.route('/api/health', methods=['GET', 'OPTIONS'])
+@app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint for Railway - must respond quickly"""
     try:
