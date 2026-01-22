@@ -66,10 +66,20 @@ def initialize_firebase():
     
     return firebase_initialized
 
-# Don't initialize Firebase on module load - make it lazy
-# This allows the app to start even if Firebase credentials are missing
-# Firebase will be initialized when first needed via get_firestore_client()
-print("ℹ️ Firebase initialization deferred - will initialize on first use")
+# Initialize Firebase immediately on module load - fail fast if credentials are missing
+# The app requires Firebase for auth and watchlist functionality
+print("🔄 Attempting Firebase initialization...")
+if not initialize_firebase():
+    print("=" * 80)
+    print("❌ CRITICAL: Firebase initialization failed!")
+    print("❌ This app requires Firebase credentials to function.")
+    print("❌ Please configure FIREBASE_CREDENTIALS_BASE64 environment variable")
+    print("❌ or provide firebase-credentials.json file")
+    print("=" * 80)
+    # Allow app to start but Firebase features will not work
+    print("⚠️  App will start but Firebase-dependent features will fail")
+else:
+    print("✅ Firebase initialized successfully on module load")
 
 def get_firestore_client():
     """Get the Firestore client instance with connection pooling"""
@@ -341,88 +351,7 @@ class FirebaseService:
         except Exception as e:
             print(f"❌ Error setting username: {e}")
             return False
-    
-    @staticmethod
-    def add_to_watchlist(user_id, symbol, company_name):
-        """Add stock to user's watchlist
 
-        DEPRECATED: This method is deprecated. Use watchlist_service.WatchlistService.add_stock() instead.
-        This method will be removed in a future version.
-        """
-        warnings.warn(
-            "FirebaseService.add_to_watchlist() is deprecated. Use watchlist_service.WatchlistService.add_stock() instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        try:
-            if not firebase_initialized or not db:
-                raise Exception("Firebase not initialized. Cannot add to watchlist.")
-                
-            watchlist_data = {
-                'symbol': symbol.upper(),
-                'company_name': company_name,
-                'added_at': datetime.utcnow(),
-                'last_updated': datetime.utcnow()
-            }
-            
-            db.collection('users').document(user_id).collection('watchlist').document(symbol.upper()).set(watchlist_data)
-            print(f"✅ Added {symbol.upper()} to watchlist for user {user_id}")
-            return True
-        except Exception as e:
-            print(f"❌ Error adding to watchlist: {e}")
-            return False
-    
-    @staticmethod
-    def remove_from_watchlist(user_id, symbol):
-        """Remove stock from user's watchlist
-
-        DEPRECATED: This method is deprecated. Use watchlist_service.WatchlistService.remove_stock() instead.
-        This method will be removed in a future version.
-        """
-        warnings.warn(
-            "FirebaseService.remove_from_watchlist() is deprecated. Use watchlist_service.WatchlistService.remove_stock() instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        try:
-            if not firebase_initialized or not db:
-                raise Exception("Firebase not initialized. Cannot remove from watchlist.")
-                
-            db.collection('users').document(user_id).collection('watchlist').document(symbol.upper()).delete()
-            print(f"✅ Removed {symbol.upper()} from watchlist for user {user_id}")
-            return True
-        except Exception as e:
-            print(f"❌ Error removing from watchlist: {e}")
-            return False
-    
-    @staticmethod
-    def get_watchlist(user_id):
-        """Get user's watchlist
-
-        DEPRECATED: This method is deprecated. Use watchlist_service.WatchlistService.get_watchlist() instead.
-        This method will be removed in a future version.
-        """
-        warnings.warn(
-            "FirebaseService.get_watchlist() is deprecated. Use watchlist_service.WatchlistService.get_watchlist() instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        try:
-            if not firebase_initialized or not db:
-                print("❌ Firebase not initialized. Cannot get watchlist.")
-                return []
-                
-            watchlist = []
-            docs = db.collection('users').document(user_id).collection('watchlist').stream()
-            for doc in docs:
-                watchlist.append(doc.to_dict())
-            
-            print(f"✅ Retrieved {len(watchlist)} items from watchlist for user {user_id}")
-            return watchlist
-        except Exception as e:
-            print(f"❌ Error getting watchlist: {e}")
-            return []
-    
     @staticmethod
     def create_alert(user_id, symbol, target_price, alert_type):
         """Create a price alert"""

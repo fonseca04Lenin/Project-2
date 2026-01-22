@@ -460,7 +460,36 @@ class ChatService:
             elif function_name and "remove_stock_from_watchlist" in function_name:
                 symbol = result.get("data", {}).get("symbol", "")
                 return f"SUCCESS: Stock removed from watchlist. Respond with ONLY this EXACT message and NOTHING else: '✅ Successfully removed {symbol} from your watchlist.' DO NOT show any JSON or additional data."
-            
+            elif function_name and "analyze_watchlist" in function_name:
+                # Pass full analysis data for detailed response
+                data = result.get("data", {})
+                total = data.get("total_stocks", 0)
+                up = data.get("stocks_up", 0)
+                down = data.get("stocks_down", 0)
+                flat = data.get("stocks_flat", 0)
+                avg = data.get("average_change", 0)
+                top = data.get("top_performers", [])
+                worst = data.get("worst_performers", [])
+                sectors = data.get("sectors", {})
+
+                # Format top performers
+                top_str = ", ".join([f"{s['symbol']} ({s['change']:+.2f}%)" for s in top]) if top else "None"
+                worst_str = ", ".join([f"{s['symbol']} ({s['change']:+.2f}%)" for s in worst]) if worst else "None"
+                sectors_str = ", ".join([f"{k}: {len(v)} stocks" for k, v in sectors.items() if k != "Unknown"]) if sectors else "Mixed"
+
+                return f"""SUCCESS: WATCHLIST ANALYSIS DATA - You MUST present this data in a friendly, personalized way:
+
+📊 PORTFOLIO OVERVIEW:
+- Total stocks owned: {total}
+- Stocks up today: {up} | Down: {down} | Flat: {flat}
+- Average portfolio change: {avg:+.2f}%
+
+🏆 TOP PERFORMERS: {top_str}
+📉 BIGGEST LOSERS: {worst_str}
+🏢 SECTOR MIX: {sectors_str}
+
+INSTRUCTIONS: Present this as a personalized portfolio analysis. Say things like "You own {total} stocks" and "Your portfolio is up/down". Mention the top performers by name. If sectors are available, mention "You have a mix of [sectors]". Be conversational and helpful. DO NOT just say "Analyzed X stocks" - give the user real insights about THEIR portfolio."""
+
             message = result.get("message", "Success")
             # Make it VERY explicit
             return f"SUCCESS: {message}. Use this exact information in your response to the user."
@@ -505,27 +534,44 @@ class ChatService:
                 # Get user's watchlist and analyze performance
                 context = self._get_user_context(user_id)
                 watchlist = context.get('watchlist', [])
-                
+
                 if not watchlist:
                     return {
                         "success": True,
                         "data": {"message": "No stocks in watchlist to analyze"},
                         "message": "User has no stocks in watchlist"
                     }
-                
+
                 # Calculate basic metrics
                 total_change = sum(item.get('change_percent', 0) for item in watchlist)
                 avg_change = total_change / len(watchlist) if watchlist else 0
-                
+
+                # Sort stocks by performance
+                sorted_by_change = sorted(watchlist, key=lambda x: x.get('change_percent', 0), reverse=True)
+                top_performers = sorted_by_change[:3]  # Top 3 gainers
+                worst_performers = sorted_by_change[-3:][::-1]  # Bottom 3 (reversed to show worst first)
+                worst_performers = [s for s in worst_performers if s.get('change_percent', 0) < 0]  # Only show losers
+
+                # Group by sector if available
+                sectors = {}
+                for stock in watchlist:
+                    sector = stock.get('sector', 'Unknown')
+                    if sector not in sectors:
+                        sectors[sector] = []
+                    sectors[sector].append(stock.get('symbol', 'N/A'))
+
                 analysis = {
                     "total_stocks": len(watchlist),
                     "average_change": round(avg_change, 2),
                     "stocks_up": len([s for s in watchlist if s.get('change_percent', 0) > 0]),
                     "stocks_down": len([s for s in watchlist if s.get('change_percent', 0) < 0]),
                     "stocks_flat": len([s for s in watchlist if s.get('change_percent', 0) == 0]),
+                    "top_performers": [{"symbol": s.get('symbol'), "change": s.get('change_percent', 0), "price": s.get('price', 0)} for s in top_performers],
+                    "worst_performers": [{"symbol": s.get('symbol'), "change": s.get('change_percent', 0), "price": s.get('price', 0)} for s in worst_performers],
+                    "sectors": sectors,
                     "watchlist": watchlist
                 }
-                
+
                 return {
                     "success": True,
                     "data": analysis,
@@ -1093,7 +1139,30 @@ CRITICAL RULES:
 
 18. **DON'T VERBOSE**: When listing your current watchlist, just give symbols and brief performance - don't analyze every single stock unless asked
 
-19. **REMEMBER**: You are a GENERAL business/finance assistant with stock-specific functions. You MUST answer general questions using your knowledge. DO NOT refuse general questions."""
+19. **REMEMBER**: You are a GENERAL business/finance assistant with stock-specific functions. You MUST answer general questions using your knowledge. DO NOT refuse general questions.
+
+20. **WATCHLIST ANALYSIS FORMAT**: When user asks to "analyze my watchlist" or similar, present the analysis in this EXACT format:
+
+📊 **Watchlist Analysis**
+
+**Overview:**
+- Total stocks: X
+- Stocks up: X | Stocks down: X | Flat: X
+- Average change: +X.XX%
+
+**Top Performers:**
+1. SYMBOL +X.XX%
+2. SYMBOL +X.XX%
+3. SYMBOL +X.XX%
+
+**Biggest Losers:**
+1. SYMBOL -X.XX%
+2. SYMBOL -X.XX%
+
+**Insights:**
+[Provide 1-2 sentences of actual analysis based on the data - e.g., "Your portfolio is tech-heavy with 60% in technology stocks. Consider diversifying into other sectors."]
+
+NEVER just say "I analyzed your watchlist" without showing the actual data. Always show specific numbers and stock symbols."""
 
             # Prepare messages for Gemini API
             # Combine system prompt and user message
