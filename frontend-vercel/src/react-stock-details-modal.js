@@ -986,6 +986,11 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
     const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
 
+    // AI Analysis State
+    const [aiAnalysis, setAiAnalysis] = useState(null);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState(null);
+
     // Helper function to clean CEO name (remove titles, extract first and last name)
     const cleanCEOName = (name) => {
         if (!name || name === '-') return name;
@@ -1151,6 +1156,41 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     } finally {
                         setNewsLoading(false);
                         console.timeEnd(`StockDetailsModal-${symbol}-news-api`);
+                    }
+                })();
+
+                // Load AI analysis in background (don't block modal)
+                setAiLoading(true);
+                setAiError(null);
+                setAiAnalysis(null);
+                (async () => {
+                    try {
+                        console.log(`[StockDetailsModal] Fetching AI analysis for ${symbol}`);
+                        const authHeaders = await window.getAuthHeaders();
+                        const response = await fetch(`${API_BASE}/api/stock/${symbol}/ai-analysis`, {
+                            headers: {
+                                ...authHeaders
+                            },
+                            credentials: 'include'
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success) {
+                                console.log(`[StockDetailsModal] AI analysis received for ${symbol}`);
+                                setAiAnalysis(data);
+                            } else {
+                                console.log(`[StockDetailsModal] AI analysis failed for ${symbol}: ${data.error}`);
+                                setAiError(data.error || 'Unable to load AI analysis');
+                            }
+                        } else {
+                            console.log(`[StockDetailsModal] AI analysis API failed for ${symbol}, status: ${response.status}`);
+                            setAiError('Unable to load AI analysis');
+                        }
+                    } catch (err) {
+                        console.error(`[StockDetailsModal] AI analysis error for ${symbol}:`, err);
+                        setAiError('Unable to load AI analysis');
+                    } finally {
+                        setAiLoading(false);
                     }
                 })();
 
@@ -1641,6 +1681,57 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                 )}
                             </div>
                         </div>
+
+                        {/* AI Market Insight Section */}
+                        {(aiAnalysis || aiLoading) && (
+                            <div className="modal-ai-analysis">
+                                <h3>
+                                    <i className="fas fa-robot"></i>
+                                    AI Market Insight
+                                    {aiAnalysis?.cached && (
+                                        <span className="cache-badge">
+                                            Updated {aiAnalysis.cache_age_minutes}m ago
+                                        </span>
+                                    )}
+                                </h3>
+                                {aiLoading ? (
+                                    <div className="ai-loading">
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                        <span>Analyzing market factors...</span>
+                                    </div>
+                                ) : aiError ? (
+                                    <div className="ai-error">
+                                        <i className="fas fa-exclamation-circle"></i>
+                                        <span>{aiError}</span>
+                                    </div>
+                                ) : aiAnalysis?.analysis ? (
+                                    <div className="ai-content">
+                                        <p className="ai-summary">{aiAnalysis.analysis.summary}</p>
+                                        {aiAnalysis.analysis.key_factors?.length > 0 && (
+                                            <div className="ai-factors">
+                                                <strong>Key Factors:</strong>
+                                                <ul>
+                                                    {aiAnalysis.analysis.key_factors.map((factor, i) => (
+                                                        <li key={i}>{factor}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        <div className="ai-meta">
+                                            <span className={`sentiment ${aiAnalysis.analysis.sentiment}`}>
+                                                {aiAnalysis.analysis.sentiment}
+                                            </span>
+                                            <span className="confidence">
+                                                Confidence: {aiAnalysis.analysis.confidence}
+                                            </span>
+                                        </div>
+                                        <p className="ai-disclaimer">
+                                            AI-generated analysis based on recent news. Not financial advice.
+                                        </p>
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
 
                         {(news.length > 0 || newsLoading) && (
                             <div className="modal-news">
