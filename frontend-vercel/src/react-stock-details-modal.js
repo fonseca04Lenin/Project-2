@@ -980,16 +980,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [chartData, setChartData] = useState(null);
     const [news, setNews] = useState([]);
     const [newsLoading, setNewsLoading] = useState(false);
+    const [aiInsight, setAiInsight] = useState(null);
+    const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const chartRootRef = useRef(null);
 
     // CEO Modal State
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
     const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
-
-    // AI Analysis State
-    const [aiAnalysis, setAiAnalysis] = useState(null);
-    const [aiLoading, setAiLoading] = useState(false);
-    const [aiError, setAiError] = useState(null);
 
     // Helper function to clean CEO name (remove titles, extract first and last name)
     const cleanCEOName = (name) => {
@@ -1041,9 +1038,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             setStockData(null);
             setChartData(null);
             setNews([]);
-            setAiAnalysis(null);
-            setAiLoading(true);
-            setAiError(null);
 
             try {
                 // Auth headers timing
@@ -1162,35 +1156,26 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     }
                 })();
 
-                // Load AI analysis in background (don't block modal)
+                // Load AI insight in background
+                setAiInsightLoading(true);
+                setAiInsight(null);
                 (async () => {
                     try {
-                        console.log(`[StockDetailsModal] Fetching AI analysis for ${symbol}`);
-                        const authHeaders = await window.getAuthHeaders();
-                        const response = await fetch(`${API_BASE}/api/stock/${symbol}/ai-analysis`, {
-                            headers: {
-                                ...authHeaders
-                            },
+                        console.log(`[StockDetailsModal] Fetching AI insight for ${symbol}`);
+                        const insightResp = await fetch(`${API_BASE}/api/stock/${symbol}/ai-insight`, {
                             credentials: 'include'
                         });
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data.success) {
-                                console.log(`[StockDetailsModal] AI analysis received for ${symbol}`);
-                                setAiAnalysis(data);
-                            } else {
-                                console.log(`[StockDetailsModal] AI analysis failed for ${symbol}: ${data.error}`);
-                                setAiError(data.error || 'Unable to load AI analysis');
-                            }
+                        if (insightResp.ok) {
+                            const insightData = await insightResp.json();
+                            console.log(`[StockDetailsModal] AI insight received for ${symbol}`);
+                            setAiInsight(insightData);
                         } else {
-                            console.log(`[StockDetailsModal] AI analysis API failed for ${symbol}, status: ${response.status}`);
-                            setAiError('Unable to load AI analysis');
+                            console.log(`[StockDetailsModal] AI insight API failed for ${symbol}, status: ${insightResp.status}`);
                         }
-                    } catch (err) {
-                        console.error(`[StockDetailsModal] AI analysis error for ${symbol}:`, err);
-                        setAiError('Unable to load AI analysis');
+                    } catch (error) {
+                        console.log(`[StockDetailsModal] AI insight API error for ${symbol}:`, error);
                     } finally {
-                        setAiLoading(false);
+                        setAiInsightLoading(false);
                     }
                 })();
 
@@ -1198,9 +1183,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             } catch (err) {
                 console.error(`[StockDetailsModal] Error loading data for ${symbol}:`, err);
                 setError(err.message || 'Failed to load stock details');
-                // Also stop AI loading if main fetch fails
-                setAiLoading(false);
-                setAiError('Unable to load AI analysis');
             } finally {
                 setLoading(false);
                 console.timeEnd(`StockDetailsModal-${symbol}-total`);
@@ -1539,6 +1521,88 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         )}
 
+                        {/* AI Insight Section */}
+                        <div className="ai-insight-section" style={{
+                            margin: '1.5rem 0',
+                            padding: '1.25rem',
+                            background: 'linear-gradient(135deg, rgba(0, 217, 36, 0.08) 0%, rgba(0, 149, 255, 0.08) 100%)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(0, 217, 36, 0.2)'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                marginBottom: '0.75rem'
+                            }}>
+                                <i className="fas fa-robot" style={{
+                                    fontSize: '1.25rem',
+                                    color: '#00D924'
+                                }}></i>
+                                <h4 style={{
+                                    margin: 0,
+                                    fontSize: '1rem',
+                                    fontWeight: '600',
+                                    color: '#fff'
+                                }}>AI Market Insight</h4>
+                                {aiInsightLoading && (
+                                    <i className="fas fa-spinner fa-spin" style={{
+                                        marginLeft: 'auto',
+                                        color: 'rgba(255, 255, 255, 0.5)'
+                                    }}></i>
+                                )}
+                            </div>
+                            {aiInsightLoading ? (
+                                <p style={{
+                                    margin: 0,
+                                    fontSize: '0.9rem',
+                                    color: 'rgba(255, 255, 255, 0.6)',
+                                    fontStyle: 'italic'
+                                }}>Analyzing market conditions...</p>
+                            ) : aiInsight?.ai_insight ? (
+                                <div>
+                                    {aiInsight.change_percent !== undefined && (
+                                        <div style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            padding: '0.25rem 0.75rem',
+                                            background: aiInsight.change_percent >= 0
+                                                ? 'rgba(0, 217, 36, 0.15)'
+                                                : 'rgba(239, 68, 68, 0.15)',
+                                            borderRadius: '20px',
+                                            marginBottom: '0.75rem'
+                                        }}>
+                                            <i className={aiInsight.change_percent >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'}
+                                               style={{
+                                                   fontSize: '0.75rem',
+                                                   color: aiInsight.change_percent >= 0 ? '#00D924' : '#ef4444'
+                                               }}></i>
+                                            <span style={{
+                                                fontSize: '0.875rem',
+                                                fontWeight: '600',
+                                                color: aiInsight.change_percent >= 0 ? '#00D924' : '#ef4444'
+                                            }}>
+                                                {aiInsight.change_percent >= 0 ? '+' : ''}{aiInsight.change_percent}% (5 days)
+                                            </span>
+                                        </div>
+                                    )}
+                                    <p style={{
+                                        margin: 0,
+                                        fontSize: '0.9rem',
+                                        lineHeight: '1.6',
+                                        color: 'rgba(255, 255, 255, 0.85)'
+                                    }}>{aiInsight.ai_insight}</p>
+                                </div>
+                            ) : (
+                                <p style={{
+                                    margin: 0,
+                                    fontSize: '0.9rem',
+                                    color: 'rgba(255, 255, 255, 0.5)'
+                                }}>AI insight unavailable at this time.</p>
+                            )}
+                        </div>
+
                         <div className="stock-details-meta">
                             <div>
                                 <strong data-icon="ceo">CEO:</strong> <span
@@ -1562,7 +1626,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                 >{cleanCEOName(stockData.ceo) || '-'}</span>
                             </div>
                             <div className="stock-description">
-                                <strong data-icon="desc">Description:</strong> 
+                                <strong data-icon="desc">Description:</strong>
                                 <span>{stockData.description || '-'}</span>
                             </div>
                             <div>
@@ -1684,57 +1748,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                 )}
                             </div>
                         </div>
-
-                        {/* AI Market Insight Section */}
-                        {(aiAnalysis || aiLoading || aiError) && (
-                            <div className="modal-ai-analysis">
-                                <h3>
-                                    <i className="fas fa-robot"></i>
-                                    AI Market Insight
-                                    {aiAnalysis?.cached && (
-                                        <span className="cache-badge">
-                                            Updated {aiAnalysis.cache_age_minutes}m ago
-                                        </span>
-                                    )}
-                                </h3>
-                                {aiLoading ? (
-                                    <div className="ai-loading">
-                                        <i className="fas fa-spinner fa-spin"></i>
-                                        <span>Analyzing market factors...</span>
-                                    </div>
-                                ) : aiError ? (
-                                    <div className="ai-error">
-                                        <i className="fas fa-exclamation-circle"></i>
-                                        <span>{aiError}</span>
-                                    </div>
-                                ) : aiAnalysis?.analysis ? (
-                                    <div className="ai-content">
-                                        <p className="ai-summary">{aiAnalysis.analysis.summary}</p>
-                                        {aiAnalysis.analysis.key_factors?.length > 0 && (
-                                            <div className="ai-factors">
-                                                <strong>Key Factors:</strong>
-                                                <ul>
-                                                    {aiAnalysis.analysis.key_factors.map((factor, i) => (
-                                                        <li key={i}>{factor}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                        <div className="ai-meta">
-                                            <span className={`sentiment ${aiAnalysis.analysis.sentiment}`}>
-                                                {aiAnalysis.analysis.sentiment}
-                                            </span>
-                                            <span className="confidence">
-                                                Confidence: {aiAnalysis.analysis.confidence}
-                                            </span>
-                                        </div>
-                                        <p className="ai-disclaimer">
-                                            AI-generated analysis based on recent news. Not financial advice.
-                                        </p>
-                                    </div>
-                                ) : null}
-                            </div>
-                        )}
 
                         {(news.length > 0 || newsLoading) && (
                             <div className="modal-news">
