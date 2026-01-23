@@ -2457,13 +2457,12 @@ def get_stock_ai_insight(symbol):
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
         direction = "up" if change_pct >= 0 else "down"
-        prompt = f"""In 2 sentences, explain why {name} ({symbol}) stock is {direction} {abs(change_pct):.1f}% today.
-Current price: ${price:.2f}
+        prompt = f"""In exactly 2 sentences of plain text (no JSON, no markdown, no formatting), explain why {name} ({symbol}) stock moved {direction} {abs(change_pct):.1f}%.
 
-Recent headlines:
-{news_context if news_context else "No recent news available"}
+Price: ${price:.2f}
+Headlines: {news_context if news_context else "No recent news"}
 
-Be specific and mention likely catalysts. No disclaimers."""
+Just provide the explanation directly. No bullet points, no headers, no JSON."""
 
         print(f"🤖 [AI Insight] Calling Gemini for {symbol}")
         response = chat_service.gemini_client.generate_content(
@@ -2485,6 +2484,14 @@ Be specific and mention likely catalysts. No disclaimers."""
             insight_text = response.text.strip()
 
         if insight_text:
+            # Clean up any JSON/markdown formatting that may have leaked through
+            import re
+            insight_text = re.sub(r'^```(json)?', '', insight_text)
+            insight_text = re.sub(r'```$', '', insight_text)
+            insight_text = re.sub(r'^\s*\{.*"summary"\s*:\s*"', '', insight_text)
+            insight_text = re.sub(r'"\s*,?\s*"key_factors.*$', '', insight_text, flags=re.DOTALL)
+            insight_text = insight_text.strip().strip('"').strip()
+
             print(f"✅ [AI Insight] Generated for {symbol}: {insight_text[:80]}...")
             return jsonify({
                 'symbol': symbol,
