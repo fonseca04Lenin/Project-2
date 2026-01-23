@@ -2497,11 +2497,20 @@ Be specific and mention likely catalysts. No disclaimers."""
 
     except Exception as e:
         import traceback
-        print(f"❌ [AI Insight] Error for {symbol}: {e}")
+        error_msg = str(e)
+        print(f"❌ [AI Insight] Error for {symbol}: {error_msg}")
         traceback.print_exc()
+
+        # Return the actual error for debugging
+        if '429' in error_msg or 'quota' in error_msg.lower():
+            return jsonify({
+                'symbol': symbol,
+                'ai_insight': 'AI quota exceeded. Please try again later.'
+            }), 200
+
         return jsonify({
             'symbol': symbol,
-            'ai_insight': 'Unable to generate insight at this time.'
+            'ai_insight': f'Error: {error_msg[:100]}'  # Show actual error
         }), 200
 
 @app.route('/api/sectors/batch', methods=['POST'])
