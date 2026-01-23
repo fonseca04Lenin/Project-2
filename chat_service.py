@@ -1581,6 +1581,46 @@ Format your response as JSON (and ONLY JSON, no other text):
                 "error": f"Analysis failed: {str(e)[:100]}"
             }
 
+    def generate_simple_response(self, prompt: str) -> str:
+        """Generate a simple text response from a prompt - used for quick AI insights"""
+        try:
+            if not self.gemini_client:
+                logger.error("Gemini client not initialized for simple response")
+                return "AI service temporarily unavailable."
+
+            logger.info("Generating simple AI response")
+            response = self.gemini_client.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.5,
+                    "max_output_tokens": 300
+                },
+                safety_settings=[
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                ]
+            )
+
+            # Extract response text
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            return part.text.strip()
+
+            # Fallback: try direct text access
+            if hasattr(response, 'text') and response.text:
+                return response.text.strip()
+
+            return "Unable to generate insight."
+
+        except Exception as e:
+            logger.error(f"Error generating simple response: {e}")
+            return "Unable to generate insight at this time."
+
 
 # Global chat service instance
 chat_service = ChatService()
