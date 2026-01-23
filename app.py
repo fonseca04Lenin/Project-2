@@ -2427,20 +2427,27 @@ def get_stock_ai_insight(symbol):
 
     try:
         import yfinance as yf
-        from chat_service import ChatService
+        from chat_service import chat_service  # Use global instance
+        import traceback
+
+        print(f"🤖 [AI Insight] Starting for {symbol}")
 
         # Get stock data
         stock_data = yf.download(symbol, period='5d', progress=False)
         if stock_data.empty:
+            print(f"❌ [AI Insight] No stock data for {symbol}")
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
         closes = stock_data['Close'].dropna()
         if len(closes) < 2:
-            return jsonify({'ai_insight': 'Insufficient data to analyze stock movement.'}), 200
+            return jsonify({'ai_insight': 'Insufficient data to analyze stock movement.', 'symbol': symbol}), 200
 
-        first_close = closes.iloc[0]
-        last_close = closes.iloc[-1]
+        # Convert pandas values to Python floats
+        first_close = float(closes.iloc[0])
+        last_close = float(closes.iloc[-1])
         pct_change = ((last_close - first_close) / first_close) * 100
+
+        print(f"📊 [AI Insight] {symbol}: {first_close:.2f} -> {last_close:.2f} ({pct_change:+.2f}%)")
 
         # Get company info for context
         info = yahoo_finance_api.get_info(symbol)
@@ -2449,7 +2456,6 @@ def get_stock_ai_insight(symbol):
 
         # Generate AI insight
         direction = "up" if pct_change >= 0 else "down"
-        chat_service = ChatService()
 
         prompt = f"""Provide a brief, insightful explanation (2-3 sentences) for why {company_name} ({symbol}) stock is {direction} {abs(pct_change):.1f}% over the past 5 days.
 
@@ -2461,7 +2467,9 @@ Consider factors like:
 
 Be specific and informative. Don't use phrases like "based on my analysis" - just state the likely reasons directly."""
 
+        print(f"🤖 [AI Insight] Calling Gemini for {symbol}")
         ai_insight = chat_service.generate_simple_response(prompt)
+        print(f"✅ [AI Insight] Generated for {symbol}: {ai_insight[:100]}...")
 
         return jsonify({
             'symbol': symbol,
@@ -2470,7 +2478,9 @@ Be specific and informative. Don't use phrases like "based on my analysis" - jus
         })
 
     except Exception as e:
-        print(f"Error generating AI insight for {symbol}: {e}")
+        import traceback
+        print(f"❌ [AI Insight] Error for {symbol}: {e}")
+        traceback.print_exc()
         return jsonify({
             'symbol': symbol,
             'ai_insight': f'Unable to generate insight at this time.'
