@@ -2427,20 +2427,27 @@ def get_stock_ai_insight(symbol):
 
     try:
         from chat_service import chat_service
-        import google.generativeai as genai
+        import yfinance as yf
 
         print(f"🤖 [AI Insight] Starting for {symbol}")
 
-        # Get stock data from Yahoo Finance API
-        stock_data = yahoo_finance_api.get_real_time_data(symbol)
-        if not stock_data:
-            print(f"❌ [AI Insight] No stock data for {symbol}")
+        # Get stock data directly from yfinance for price change info
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+
+            price = info.get('currentPrice') or info.get('regularMarketPrice') or 0
+            prev_close = info.get('regularMarketPreviousClose') or info.get('previousClose') or price
+            change = price - prev_close if prev_close else 0
+            change_pct = ((price - prev_close) / prev_close * 100) if prev_close and prev_close != 0 else 0
+            name = info.get('shortName') or info.get('longName') or symbol
+        except Exception as e:
+            print(f"⚠️ [AI Insight] yfinance error for {symbol}: {e}")
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
-        price = stock_data.get('price', 0)
-        change = stock_data.get('change', 0)
-        change_pct = stock_data.get('changePercent', 0)
-        name = stock_data.get('name', symbol)
+        if not price:
+            print(f"❌ [AI Insight] No price data for {symbol}")
+            return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
         # Get news headlines for context
         news_context = ""
