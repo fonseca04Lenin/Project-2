@@ -1958,6 +1958,49 @@ def _is_cache_valid(cache_key):
     age = (datetime.now() - cache['timestamp']).total_seconds()
     return age < _CACHE_TTL_SECONDS
 
+def generate_ai_reasons_for_movers(movers):
+    """Generate AI explanations for why stocks are moving"""
+    try:
+        from chat_service import ChatService
+        chat_service = ChatService()
+
+        # Build a prompt for all movers at once (more efficient)
+        stocks_info = "\n".join([
+            f"- {m['symbol']} ({m['sector']}): {'+' if m['change'] >= 0 else ''}{m['change']}% at ${m['price']}"
+            for m in movers
+        ])
+
+        prompt = f"""For each of these top moving stocks today, provide a brief 1-sentence explanation of why it might be moving. Be specific and mention likely catalysts like earnings, news, sector trends, or market conditions. Keep each explanation under 20 words.
+
+{stocks_info}
+
+Format your response as:
+SYMBOL: reason
+(one per line, no extra text)"""
+
+        response = chat_service.generate_simple_response(prompt)
+
+        # Parse the response and map reasons to movers
+        reasons = {}
+        for line in response.strip().split('\n'):
+            if ':' in line:
+                parts = line.split(':', 1)
+                symbol = parts[0].strip().upper()
+                reason = parts[1].strip() if len(parts) > 1 else ''
+                reasons[symbol] = reason
+
+        # Add reasons to movers
+        for mover in movers:
+            mover['ai_reason'] = reasons.get(mover['symbol'], '')
+
+        print(f"✅ Generated AI reasons for {len(reasons)} movers")
+        return movers
+
+    except Exception as e:
+        print(f"⚠️ Failed to generate AI reasons: {e}")
+        # Return movers without AI reasons
+        return movers
+
 def get_real_top_movers():
     """Fetch real top movers using batch download (FAST)"""
     # Check cache first
@@ -2011,6 +2054,9 @@ def get_real_top_movers():
         top_movers.sort(key=lambda x: abs(x['change']), reverse=True)
         result = top_movers[:5]
 
+        # Generate AI reasons for top movers
+        result = generate_ai_reasons_for_movers(result)
+
         # Cache the result
         _market_data_cache['top_movers'] = {'data': result, 'timestamp': datetime.now()}
         print(f"✅ Cached top movers: {[m['symbol'] for m in result]}")
@@ -2020,11 +2066,11 @@ def get_real_top_movers():
     except Exception as e:
         print(f"Error fetching top movers: {e}")
         return [
-            {'symbol': 'NVDA', 'change': 8.5, 'sector': 'Technology', 'price': 950.00},
-            {'symbol': 'TSLA', 'change': 5.2, 'sector': 'Consumer Cyclical', 'price': 250.00},
-            {'symbol': 'META', 'change': 4.8, 'sector': 'Technology', 'price': 500.00},
-            {'symbol': 'AAPL', 'change': -2.1, 'sector': 'Technology', 'price': 180.00},
-            {'symbol': 'GOOGL', 'change': 3.3, 'sector': 'Technology', 'price': 175.00}
+            {'symbol': 'NVDA', 'change': 8.5, 'sector': 'Technology', 'price': 950.00, 'ai_reason': 'Strong AI chip demand and data center growth driving momentum.'},
+            {'symbol': 'TSLA', 'change': 5.2, 'sector': 'Consumer Cyclical', 'price': 250.00, 'ai_reason': 'EV delivery numbers exceeded expectations this quarter.'},
+            {'symbol': 'META', 'change': 4.8, 'sector': 'Technology', 'price': 500.00, 'ai_reason': 'Ad revenue growth and AI investments boosting investor confidence.'},
+            {'symbol': 'AAPL', 'change': -2.1, 'sector': 'Technology', 'price': 180.00, 'ai_reason': 'iPhone sales concerns in China weighing on shares.'},
+            {'symbol': 'GOOGL', 'change': 3.3, 'sector': 'Technology', 'price': 175.00, 'ai_reason': 'Cloud growth and AI search integration driving gains.'}
         ]
 
 def get_real_sector_performance():
@@ -2280,6 +2326,62 @@ def get_company_info(symbol):
         })
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+
+@app.route('/api/stock/<symbol>/ai-insight')
+def get_stock_ai_insight(symbol):
+    """Get AI-generated insight explaining why a stock is moving"""
+    symbol = symbol.upper()
+
+    try:
+        import yfinance as yf
+        from chat_service import ChatService
+
+        # Get stock data
+        stock_data = yf.download(symbol, period='5d', progress=False)
+        if stock_data.empty:
+            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+
+        closes = stock_data['Close'].dropna()
+        if len(closes) < 2:
+            return jsonify({'ai_insight': 'Insufficient data to analyze stock movement.'}), 200
+
+        first_close = closes.iloc[0]
+        last_close = closes.iloc[-1]
+        pct_change = ((last_close - first_close) / first_close) * 100
+
+        # Get company info for context
+        info = yahoo_finance_api.get_info(symbol)
+        company_name = info.get('shortName', info.get('longName', symbol))
+        sector = info.get('sector', 'Unknown')
+
+        # Generate AI insight
+        direction = "up" if pct_change >= 0 else "down"
+        chat_service = ChatService()
+
+        prompt = f"""Provide a brief, insightful explanation (2-3 sentences) for why {company_name} ({symbol}) stock is {direction} {abs(pct_change):.1f}% over the past 5 days.
+
+Consider factors like:
+- Recent earnings or financial news
+- Sector trends ({sector})
+- Market conditions
+- Company-specific developments
+
+Be specific and informative. Don't use phrases like "based on my analysis" - just state the likely reasons directly."""
+
+        ai_insight = chat_service.generate_simple_response(prompt)
+
+        return jsonify({
+            'symbol': symbol,
+            'change_percent': round(pct_change, 2),
+            'ai_insight': ai_insight
+        })
+
+    except Exception as e:
+        print(f"Error generating AI insight for {symbol}: {e}")
+        return jsonify({
+            'symbol': symbol,
+            'ai_insight': f'Unable to generate insight at this time.'
+        }), 200
 
 @app.route('/api/sectors/batch', methods=['POST'])
 def get_sectors_batch():
