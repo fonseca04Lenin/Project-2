@@ -2440,8 +2440,6 @@ def get_stock_ai_insight(symbol):
             prev_close = info.get('regularMarketPreviousClose') or info.get('previousClose') or 0
             name = info.get('shortName') or info.get('longName') or symbol
 
-            print(f"📊 [AI Insight] {symbol}: price={price}, prev_close={prev_close}, name={name}")
-
             if price and prev_close and prev_close != 0:
                 change = price - prev_close
                 change_pct = (change / prev_close) * 100
@@ -2449,7 +2447,7 @@ def get_stock_ai_insight(symbol):
                 change = 0
                 change_pct = 0
 
-            print(f"📊 [AI Insight] {symbol}: change={change:.2f}, change_pct={change_pct:.2f}%")
+            print(f"📊 [AI Insight] {symbol}: ${price:.2f} ({change_pct:+.2f}%)")
 
         except Exception as e:
             import traceback
@@ -2484,33 +2482,24 @@ Headlines: {news_context if news_context else "No recent news"}
 Just provide the explanation directly. No bullet points, no headers, no JSON."""
 
         print(f"🤖 [AI Insight] Calling Gemini for {symbol}")
-        print(f"🤖 [AI Insight] Prompt: {prompt[:200]}...")
 
         response = chat_service.gemini_client.generate_content(
             prompt,
-            generation_config={"temperature": 0.5, "max_output_tokens": 150}
+            generation_config={"temperature": 0.5, "max_output_tokens": 300}
         )
-
-        # Debug: print raw response
-        print(f"🤖 [AI Insight] Raw response type: {type(response)}")
-        if hasattr(response, 'text'):
-            print(f"🤖 [AI Insight] response.text: {response.text[:200] if response.text else 'None'}...")
 
         # Extract text from response
         insight_text = None
         if hasattr(response, 'candidates') and response.candidates:
             candidate = response.candidates[0]
-            print(f"🤖 [AI Insight] Candidate: {candidate}")
             if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
                 for part in candidate.content.parts:
                     if hasattr(part, 'text') and part.text:
                         insight_text = part.text.strip()
-                        print(f"🤖 [AI Insight] Extracted text: {insight_text[:200]}...")
                         break
 
         if not insight_text and hasattr(response, 'text'):
             insight_text = response.text.strip()
-            print(f"🤖 [AI Insight] Fallback text: {insight_text[:200]}...")
 
         if insight_text:
             # Clean up any JSON/markdown formatting that may have leaked through
