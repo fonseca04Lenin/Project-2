@@ -2486,11 +2486,20 @@ Just provide the explanation directly. No bullet points, no headers, no JSON."""
         if insight_text:
             # Clean up any JSON/markdown formatting that may have leaked through
             import re
-            insight_text = re.sub(r'^```(json)?', '', insight_text)
-            insight_text = re.sub(r'```$', '', insight_text)
-            insight_text = re.sub(r'^\s*\{.*"summary"\s*:\s*"', '', insight_text)
-            insight_text = re.sub(r'"\s*,?\s*"key_factors.*$', '', insight_text, flags=re.DOTALL)
-            insight_text = insight_text.strip().strip('"').strip()
+            import json
+
+            # If response looks like JSON, try to extract summary
+            if insight_text.strip().startswith('{') or '```json' in insight_text:
+                try:
+                    # Remove markdown code blocks
+                    clean = re.sub(r'^```json\s*', '', insight_text.strip())
+                    clean = re.sub(r'\s*```$', '', clean)
+                    # Try to parse as JSON
+                    parsed = json.loads(clean)
+                    if isinstance(parsed, dict) and 'summary' in parsed:
+                        insight_text = parsed['summary']
+                except:
+                    pass  # Keep original if JSON parsing fails
 
             print(f"✅ [AI Insight] Generated for {symbol}: {insight_text[:80]}...")
             return jsonify({
