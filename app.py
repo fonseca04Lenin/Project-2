@@ -2426,56 +2426,47 @@ def get_stock_ai_insight(symbol):
     symbol = symbol.upper()
 
     try:
-        import yfinance as yf
-        from chat_service import chat_service  # Use global instance
-        import traceback
+        from chat_service import chat_service
 
         print(f"🤖 [AI Insight] Starting for {symbol}")
 
-        # Get stock data
-        stock_data = yf.download(symbol, period='5d', progress=False)
-        if stock_data.empty:
+        # Get stock data from Yahoo Finance API
+        stock_data = yahoo_finance_api.get_real_time_data(symbol)
+        if not stock_data:
             print(f"❌ [AI Insight] No stock data for {symbol}")
-            return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+            return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
-        closes = stock_data['Close'].dropna()
-        if len(closes) < 2:
-            return jsonify({'ai_insight': 'Insufficient data to analyze stock movement.', 'symbol': symbol}), 200
+        # Get news for context
+        try:
+            news = news_api.get_company_news(symbol, limit=3)
+        except:
+            news = []
 
-        # Convert pandas values to Python floats
-        first_close = float(closes.iloc[0])
-        last_close = float(closes.iloc[-1])
-        pct_change = ((last_close - first_close) / first_close) * 100
+        # Use existing generate_stock_analysis method
+        result = chat_service.generate_stock_analysis(
+            symbol=symbol,
+            price_data={
+                'price': stock_data.get('price', 0),
+                'priceChange': stock_data.get('change', 0),
+                'priceChangePercent': stock_data.get('changePercent', 0),
+                'name': stock_data.get('name', symbol)
+            },
+            news=news
+        )
 
-        print(f"📊 [AI Insight] {symbol}: {first_close:.2f} -> {last_close:.2f} ({pct_change:+.2f}%)")
-
-        # Get company info for context
-        info = yahoo_finance_api.get_info(symbol)
-        company_name = info.get('shortName', info.get('longName', symbol))
-        sector = info.get('sector', 'Unknown')
-
-        # Generate AI insight
-        direction = "up" if pct_change >= 0 else "down"
-
-        prompt = f"""Provide a brief, insightful explanation (2-3 sentences) for why {company_name} ({symbol}) stock is {direction} {abs(pct_change):.1f}% over the past 5 days.
-
-Consider factors like:
-- Recent earnings or financial news
-- Sector trends ({sector})
-- Market conditions
-- Company-specific developments
-
-Be specific and informative. Don't use phrases like "based on my analysis" - just state the likely reasons directly."""
-
-        print(f"🤖 [AI Insight] Calling Gemini for {symbol}")
-        ai_insight = chat_service.generate_simple_response(prompt)
-        print(f"✅ [AI Insight] Generated for {symbol}: {ai_insight[:100]}...")
-
-        return jsonify({
-            'symbol': symbol,
-            'change_percent': round(pct_change, 2),
-            'ai_insight': ai_insight
-        })
+        if result.get('success') and result.get('analysis'):
+            analysis = result['analysis']
+            return jsonify({
+                'symbol': symbol,
+                'change_percent': stock_data.get('changePercent', 0),
+                'ai_insight': analysis.get('summary', 'No insight available.')
+            })
+        else:
+            print(f"❌ [AI Insight] Analysis failed for {symbol}: {result.get('error')}")
+            return jsonify({
+                'symbol': symbol,
+                'ai_insight': 'Unable to generate insight at this time.'
+            }), 200
 
     except Exception as e:
         import traceback
@@ -2483,7 +2474,7 @@ Be specific and informative. Don't use phrases like "based on my analysis" - jus
         traceback.print_exc()
         return jsonify({
             'symbol': symbol,
-            'ai_insight': f'Unable to generate insight at this time.'
+            'ai_insight': 'Unable to generate insight at this time.'
         }), 200
 
 @app.route('/api/sectors/batch', methods=['POST'])
