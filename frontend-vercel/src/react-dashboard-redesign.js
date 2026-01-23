@@ -3301,6 +3301,7 @@ const WhatsWhatView = () => {
                                             transition: 'transform 0.2s, background 0.2s',
                                             cursor: 'pointer'
                                         }}
+                                        onClick={() => window.openStockDetailsModalReact && window.openStockDetailsModalReact(stock.symbol)}
                                         onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
                                         onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'; e.currentTarget.style.transform = 'translateX(0)'; }}
                                         >
@@ -3340,6 +3341,23 @@ const WhatsWhatView = () => {
                                                     )}
                                                 </div>
                                             </div>
+                                            {stock.ai_reason && (
+                                                <div style={{
+                                                    marginTop: '0.75rem',
+                                                    padding: '0.75rem',
+                                                    background: 'rgba(0, 217, 36, 0.08)',
+                                                    borderRadius: '8px',
+                                                    borderLeft: `3px solid ${stock.change >= 0 ? '#00D924' : '#FF6B35'}`
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                                        <i className="fas fa-robot" style={{ fontSize: '0.75rem', color: '#00D924' }}></i>
+                                                        <span style={{ fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.5)', fontWeight: '600', textTransform: 'uppercase' }}>AI Insight</span>
+                                                    </div>
+                                                    <p style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)', margin: 0, lineHeight: '1.4' }}>
+                                                        {stock.ai_reason}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>
