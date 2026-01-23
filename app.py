@@ -2427,6 +2427,7 @@ def get_stock_ai_insight(symbol):
 
     try:
         from chat_service import chat_service
+        import google.generativeai as genai
 
         print(f"🤖 [AI Insight] Starting for {symbol}")
 
@@ -2436,37 +2437,63 @@ def get_stock_ai_insight(symbol):
             print(f"❌ [AI Insight] No stock data for {symbol}")
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
-        # Get news for context
+        price = stock_data.get('price', 0)
+        change = stock_data.get('change', 0)
+        change_pct = stock_data.get('changePercent', 0)
+        name = stock_data.get('name', symbol)
+
+        # Get news headlines for context
+        news_context = ""
         try:
             news = news_api.get_company_news(symbol, limit=3)
+            if news:
+                news_context = "\n".join([f"- {n.get('title', '')}" for n in news[:3]])
         except:
-            news = []
+            pass
 
-        # Use existing generate_stock_analysis method
-        result = chat_service.generate_stock_analysis(
-            symbol=symbol,
-            price_data={
-                'price': stock_data.get('price', 0),
-                'priceChange': stock_data.get('change', 0),
-                'priceChangePercent': stock_data.get('changePercent', 0),
-                'name': stock_data.get('name', symbol)
-            },
-            news=news
+        # Direct Gemini call with simple text response (no JSON parsing)
+        if not chat_service.gemini_client:
+            print(f"❌ [AI Insight] Gemini client not available")
+            return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
+
+        direction = "up" if change_pct >= 0 else "down"
+        prompt = f"""In 2 sentences, explain why {name} ({symbol}) stock is {direction} {abs(change_pct):.1f}% today.
+Current price: ${price:.2f}
+
+Recent headlines:
+{news_context if news_context else "No recent news available"}
+
+Be specific and mention likely catalysts. No disclaimers."""
+
+        print(f"🤖 [AI Insight] Calling Gemini for {symbol}")
+        response = chat_service.gemini_client.generate_content(
+            prompt,
+            generation_config={"temperature": 0.5, "max_output_tokens": 150}
         )
 
-        if result.get('success') and result.get('analysis'):
-            analysis = result['analysis']
+        # Extract text from response
+        insight_text = None
+        if hasattr(response, 'candidates') and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                for part in candidate.content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        insight_text = part.text.strip()
+                        break
+
+        if not insight_text and hasattr(response, 'text'):
+            insight_text = response.text.strip()
+
+        if insight_text:
+            print(f"✅ [AI Insight] Generated for {symbol}: {insight_text[:80]}...")
             return jsonify({
                 'symbol': symbol,
-                'change_percent': stock_data.get('changePercent', 0),
-                'ai_insight': analysis.get('summary', 'No insight available.')
+                'change_percent': round(change_pct, 2),
+                'ai_insight': insight_text
             })
         else:
-            print(f"❌ [AI Insight] Analysis failed for {symbol}: {result.get('error')}")
-            return jsonify({
-                'symbol': symbol,
-                'ai_insight': 'Unable to generate insight at this time.'
-            }), 200
+            print(f"❌ [AI Insight] No text in response for {symbol}")
+            return jsonify({'symbol': symbol, 'ai_insight': 'Unable to generate insight.'}), 200
 
     except Exception as e:
         import traceback
