@@ -36,7 +36,7 @@ class ImprovedCircuitBreaker:
             if state['state'] == 'OPEN':
                 if time.time() - state['last_failure_time'] > self.recovery_timeout:
                     state['state'] = 'HALF_OPEN'
-                    print(f"🔄 [CIRCUIT:{endpoint_key}] HALF_OPEN - testing service")
+                    print(f"[CIRCUIT:{endpoint_key}] HALF_OPEN - testing service")
                 else:
                     raise Exception(f"Circuit breaker OPEN for {endpoint_key}")
 
@@ -53,7 +53,7 @@ class ImprovedCircuitBreaker:
         with self._lock:
             state = self.endpoint_states[endpoint_key]
             if state['state'] == 'HALF_OPEN':
-                print(f"✅ [CIRCUIT:{endpoint_key}] Service recovered - CLOSED")
+                print(f"[CIRCUIT:{endpoint_key}] Service recovered - CLOSED")
                 state['state'] = 'CLOSED'
                 state['failure_count'] = 0
 
@@ -219,7 +219,7 @@ class SmartCache:
 
 class NewsAPI:
     def __init__(self):
-        self.api_key = '4ba3e56d52e54611b9485cdd2e28e679'
+        self.api_key = os.getenv('NEWS_API_KEY', 'demo')
 
     def get_market_news(self, limit=10, query=None):
         """Get general market news using NewsAPI.org"""
@@ -571,9 +571,9 @@ class ImprovedAlpacaAPI:
         self._company_name_cache = {}
 
         if not self.api_key or not self.secret_key:
-            print("⚠️ [ALPACA] Warning: API keys not set")
+            print("[ALPACA] Warning: API keys not set")
         else:
-            print(f"✅ [ALPACA] Initialized with improved rate limiting")
+            print(f"[ALPACA] Initialized with improved rate limiting")
             print(f"   Max requests/min: {self.request_queue.max_requests_per_minute}")
 
     def _get_headers(self):
@@ -642,7 +642,7 @@ class ImprovedAlpacaAPI:
                             'name': name or symbol,
                             'price': float(price)
                         }
-                        print(f"✅ [ALPACA] {symbol}: ${float(price):.2f}")
+                        print(f"[ALPACA] {symbol}: ${float(price):.2f}")
 
                         # Cache the result
                         cache_key = f"price:{symbol}"
@@ -650,24 +650,24 @@ class ImprovedAlpacaAPI:
 
                         return result
                     else:
-                        print(f"⚠️ [ALPACA] {symbol}: No price data")
+                        print(f"[ALPACA] {symbol}: No price data")
                         return None
 
                 elif response.status_code == 404:
-                    print(f"⚠️ [ALPACA] {symbol} not found")
+                    print(f"[ALPACA] {symbol} not found")
                     return None
 
                 elif response.status_code == 429:
-                    print(f"⚠️ [ALPACA] Rate limited for {symbol}")
+                    print(f"[ALPACA] Rate limited for {symbol}")
                     self.request_queue.stats['rate_limited'] += 1
                     raise Exception(f"Rate limited: {response.status_code}")
 
                 else:
-                    print(f"❌ [ALPACA] {symbol}: HTTP {response.status_code}")
+                    print(f"[ALPACA] {symbol}: HTTP {response.status_code}")
                     raise Exception(f"API error: {response.status_code}")
 
             except requests.exceptions.Timeout:
-                print(f"⏰ [ALPACA] Timeout for {symbol}")
+                print(f"[ALPACA] Timeout for {symbol}")
                 raise Exception(f"Timeout after {timeout}s")
 
         try:
@@ -754,16 +754,16 @@ class ImprovedAlpacaAPI:
                         cache_key = f"price:{symbol}"
                         self.cache.set(cache_key, result)
 
-                print(f"✅ [ALPACA BATCH] Fetched {len(results)}/{len(symbols_to_fetch)} symbols")
+                print(f"[ALPACA BATCH] Fetched {len(results)}/{len(symbols_to_fetch)} symbols")
                 return results
 
             elif response.status_code == 429:
-                print(f"⚠️ [ALPACA BATCH] Rate limited")
+                print(f"[ALPACA BATCH] Rate limited")
                 self.request_queue.stats['rate_limited'] += 1
                 raise Exception("Rate limited")
 
             else:
-                print(f"❌ [ALPACA BATCH] HTTP {response.status_code}")
+                print(f"[ALPACA BATCH] HTTP {response.status_code}")
                 raise Exception(f"API error: {response.status_code}")
 
         try:
@@ -789,7 +789,7 @@ class ImprovedAlpacaAPI:
                 self._company_name_cache[symbol] = name
                 return name
         except Exception as e:
-            print(f"⚠️ [ALPACA] Error getting name for {symbol}: {e}")
+            print(f"[ALPACA] Error getting name for {symbol}: {e}")
 
         self._company_name_cache[symbol] = symbol
         return symbol
@@ -851,7 +851,7 @@ AlpacaAPI = ImprovedAlpacaAPI
 
 class FinnhubAPI:
     def __init__(self, api_key=None):
-        self.api_key = api_key or 'c34391qad3i8edlcgrgg'
+        self.api_key = api_key or os.getenv('FINNHUB_API_KEY', 'demo')
         self.base_url = 'https://finnhub.io/api/v1/'
 
     def get_company_profile(self, symbol):

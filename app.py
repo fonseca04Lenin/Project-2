@@ -60,7 +60,7 @@ vercel_domains = [
 allowed_origins.extend(vercel_domains)
 
 print(f"🌐 CORS allowed origins: {allowed_origins}")
-print(f"🚀 Railway deployment - CORS configured for Vercel frontend")
+print(f"Railway deployment - CORS configured for Vercel frontend")
 
 # Enable CORS with specific auth-friendly settings
 CORS(app,
@@ -139,7 +139,7 @@ def unauthorized():
     return redirect('/')
 
 # Debug configuration
-print(f"🔧 App Config - Production: {is_production}, Token Auth: Enabled")
+print(f"App Config - Production: {is_production}, Token Auth: Enabled")
 
 # Register blueprints
 app.register_blueprint(auth)
@@ -159,20 +159,20 @@ if USE_ALPACA_API:
     print("=" * 60)
     print("🔵 ALPACA API CONFIGURATION")
     print("=" * 60)
-    print(f"✅ Alpaca API enabled: {USE_ALPACA_API}")
-    print(f"🔑 API keys configured: {has_keys}")
+    print(f"Alpaca API enabled: {USE_ALPACA_API}")
+    print(f"API keys configured: {has_keys}")
     if alpaca_api:
         print(f"🌐 Base URL: {alpaca_api.base_url}")
         if has_keys:
-            print(f"🔑 API Key: {alpaca_api.api_key[:8]}...{alpaca_api.api_key[-4:] if len(alpaca_api.api_key) > 12 else '***'}")
-    print("📊 Will use Alpaca for price data with Yahoo fallback")
+            print(f"API Key: {alpaca_api.api_key[:8]}...{alpaca_api.api_key[-4:] if len(alpaca_api.api_key) > 12 else '***'}")
+    print("Will use Alpaca for price data with Yahoo fallback")
     print("=" * 60)
 else:
     print("=" * 60)
     print("🟡 YAHOO FINANCE ONLY MODE")
     print("=" * 60)
     print("ℹ️ Alpaca API disabled - using Yahoo Finance only")
-    print("💡 To enable Alpaca, set USE_ALPACA_API=true in environment variables")
+    print("To enable Alpaca, set USE_ALPACA_API=true in environment variables")
     print("=" * 60)
 
 def get_price_api():
@@ -194,16 +194,16 @@ def get_stock_with_fallback(symbol):
             stock.retrieve_data()
             # If we got valid data, return it
             if stock.name and stock.price and 'not found' not in stock.name.lower():
-                print(f"✅ [ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
+                print(f"[ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
                 api_used = 'alpaca'
                 # Add metadata to stock object
                 if not hasattr(stock, '_api_source'):
                     stock._api_source = 'alpaca'
                 return stock, api_used
             else:
-                print(f"⚠️ [ALPACA] Got data for {symbol} but it's invalid, falling back to Yahoo")
+                print(f"[ALPACA] Got data for {symbol} but it's invalid, falling back to Yahoo")
         except Exception as e:
-            print(f"❌ [ALPACA] Failed for {symbol}, falling back to Yahoo: {e}")
+            print(f"[ALPACA] Failed for {symbol}, falling back to Yahoo: {e}")
     
     # Fallback to Yahoo Finance
     try:
@@ -211,14 +211,14 @@ def get_stock_with_fallback(symbol):
         stock = Stock(symbol, yahoo_finance_api)
         stock.retrieve_data()
         if stock.name and stock.price:
-            print(f"✅ [YAHOO] Successfully fetched {symbol} from Yahoo: ${stock.price:.2f} ({stock.name})")
+            print(f"[YAHOO] Successfully fetched {symbol} from Yahoo: ${stock.price:.2f} ({stock.name})")
         api_used = 'yahoo'
         # Add metadata to stock object
         if not hasattr(stock, '_api_source'):
             stock._api_source = 'yahoo'
         return stock, api_used
     except Exception as e:
-        print(f"❌ [YAHOO] Also failed for {symbol}: {e}")
+        print(f"[YAHOO] Also failed for {symbol}: {e}")
         return None, 'none'  # Return 'none' instead of None to avoid issues
 
 def get_stock_alpaca_only(symbol):
@@ -227,7 +227,7 @@ def get_stock_alpaca_only(symbol):
     Returns tuple: (stock, api_used) where api_used is 'alpaca' or None if failed
     """
     if not USE_ALPACA_API or not alpaca_api:
-        print(f"❌ [WATCHLIST] Alpaca API not enabled or not available for {symbol}")
+        print(f"[WATCHLIST] Alpaca API not enabled or not available for {symbol}")
         return None, None
     
     try:
@@ -237,16 +237,16 @@ def get_stock_alpaca_only(symbol):
         
         # If we got valid data, return it
         if stock.name and stock.price and 'not found' not in stock.name.lower():
-            print(f"✅ [WATCHLIST-ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
+            print(f"[WATCHLIST-ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
             api_used = 'alpaca'
             if not hasattr(stock, '_api_source'):
                 stock._api_source = 'alpaca'
             return stock, api_used
         else:
-            print(f"❌ [WATCHLIST-ALPACA] Got invalid data for {symbol}, returning None")
+            print(f"[WATCHLIST-ALPACA] Got invalid data for {symbol}, returning None")
             return None, None
     except Exception as e:
-        print(f"❌ [WATCHLIST-ALPACA] Failed for {symbol}: {e}")
+        print(f"[WATCHLIST-ALPACA] Failed for {symbol}: {e}")
         return None, None
 
 # Initialize Watchlist Service lazily - don't block app startup
@@ -264,13 +264,13 @@ def get_watchlist_service_lazy():
             firestore_client = get_firestore_client()
             if firestore_client is not None:
                 watchlist_service = get_watchlist_service(firestore_client)
-                print("✅ WatchlistService initialized successfully")
+                print("WatchlistService initialized successfully")
             else:
-                print("⚠️ Firestore client not available - WatchlistService unavailable")
+                print("Firestore client not available - WatchlistService unavailable")
         except Exception as e:
-            print(f"❌ Failed to initialize WatchlistService: {e}")
+            print(f"Failed to initialize WatchlistService: {e}")
             import traceback
-            print(f"❌ WatchlistService traceback: {traceback.format_exc()}")
+            print(f"WatchlistService traceback: {traceback.format_exc()}")
             firestore_client = None
             watchlist_service = None
     return watchlist_service
@@ -436,7 +436,7 @@ def with_timeout(seconds=25):
                 result = func(*args, **kwargs)
                 return result
             except TimeoutError:
-                print(f"⏰ Function {func.__name__} timed out after {seconds} seconds")
+                print(f"Function {func.__name__} timed out after {seconds} seconds")
                 return jsonify({'error': 'Request timed out'}), 408
             finally:
                 # Cancel timeout and restore old handler
@@ -453,7 +453,7 @@ def index():
 def test_watchlist_service():
     """Test endpoint to verify watchlist service is working"""
     try:
-        print("🧪 Testing watchlist service...")
+        print("Testing watchlist service...")
         # Test if service is initialized (lazy)
         service = get_watchlist_service_lazy()
         if service is None:
@@ -472,7 +472,7 @@ def test_watchlist_service():
             'firestore_available': db_available
         })
     except Exception as e:
-        print(f"❌ WatchlistService test failed: {e}")
+        print(f"WatchlistService test failed: {e}")
         return jsonify({'error': f'WatchlistService test failed: {str(e)}'}), 500
 
 # Debug endpoints - only enabled in development
@@ -733,7 +733,7 @@ def handle_track_stock_view(data):
             active_stocks_timestamps[user_id][symbol] = time.time()
             print(f"👁️ User {user_id} is viewing {symbol} - adding to priority queue")
         elif symbol and not validate_stock_symbol(symbol):
-            print(f"⚠️ Invalid symbol rejected in track_stock_view: {symbol}")
+            print(f"Invalid symbol rejected in track_stock_view: {symbol}")
     except Exception as e:
         print(f"Error tracking stock view: {e}")
 
@@ -771,7 +771,7 @@ def handle_track_search_stock(data):
 # Optimized real-time stock price updates with memory management
 def update_stock_prices():
     """Memory-optimized background task to update stock prices"""
-    print("🔄 Starting memory-optimized price update task...")
+    print("Starting memory-optimized price update task...")
     
     # NO CACHING - Always fetch fresh prices for real-time updates
     update_cycle_count = 0
@@ -789,8 +789,8 @@ def update_stock_prices():
                 continue
             
             print(f"\n{'='*80}")
-            print(f"📊 [REALTIME UPDATE CYCLE #{update_cycle_count}] - {datetime.now().strftime('%H:%M:%S')}")
-            print(f"📊 Updating prices for {len(connected_users)} connected users...")
+            print(f"[REALTIME UPDATE CYCLE #{update_cycle_count}] - {datetime.now().strftime('%H:%M:%S')}")
+            print(f"Updating prices for {len(connected_users)} connected users...")
             print(f"{'='*80}")
             
             # Collect unique symbols across all users to batch API calls
@@ -819,7 +819,7 @@ def update_stock_prices():
                             continue  # Skip if service not available
                         watchlist = service.get_watchlist(user_id, limit=None)
                         if watchlist:
-                            print(f"📋 [REALTIME] Loaded {len(watchlist)} stocks for user {user_id}")
+                            print(f"[REALTIME] Loaded {len(watchlist)} stocks for user {user_id}")
                             user_watchlists[user_id] = watchlist
                             for item in watchlist:
                                 # Use .get() to safely access symbol field
@@ -828,9 +828,9 @@ def update_stock_prices():
                                     all_symbols.add(symbol)
                                     print(f"  ✓ Added {symbol} to update queue")
                                 else:
-                                    print(f"  ⚠️ Skipping item without symbol: {item.keys()}")
+                                    print(f"  Skipping item without symbol: {item.keys()}")
                         else:
-                            print(f"⚠️ [REALTIME] No watchlist found for user {user_id}")
+                            print(f"[REALTIME] No watchlist found for user {user_id}")
                         
                         # Add actively viewed/searched stocks to priority queue
                         if user_id in active_stocks:
@@ -838,7 +838,7 @@ def update_stock_prices():
                                 priority_symbols.add(symbol)
                                 all_symbols.add(symbol)  # Also add to regular update queue
                     except Exception as e:
-                        print(f"❌ Error getting watchlist for user {user_id}: {e}")
+                        print(f"Error getting watchlist for user {user_id}: {e}")
                         import traceback
                         traceback.print_exc()
                         continue
@@ -853,7 +853,7 @@ def update_stock_prices():
             regular_to_fetch = [s for s in all_symbols if s not in priority_symbols]
             all_symbols_to_fetch = priority_to_fetch + regular_to_fetch
             
-            print(f"🎯 [REALTIME] Total symbols to update: {len(all_symbols_to_fetch)}")
+            print(f"[REALTIME] Total symbols to update: {len(all_symbols_to_fetch)}")
             print(f"   Priority: {len(priority_to_fetch)}, Regular: {len(regular_to_fetch)}")
             if all_symbols_to_fetch:
                 print(f"   Symbols: {', '.join(list(all_symbols_to_fetch)[:20])}{'...' if len(all_symbols_to_fetch) > 20 else ''}")
@@ -862,7 +862,7 @@ def update_stock_prices():
             batch_failed_symbols = set()  # Track symbols that failed in batch
             if all_symbols_to_fetch and USE_ALPACA_API and alpaca_api:
                 try:
-                    print(f"🔄 [REALTIME] Batch updating {len(all_symbols_to_fetch)} symbols ({len(priority_to_fetch)} priority) via Alpaca batch API...")
+                    print(f"[REALTIME] Batch updating {len(all_symbols_to_fetch)} symbols ({len(priority_to_fetch)} priority) via Alpaca batch API...")
                     # Fetch in batches of 50 (Alpaca supports up to 100, but 50 is safer)
                     batch_size = 50
                     for i in range(0, len(all_symbols_to_fetch), batch_size):
@@ -896,14 +896,14 @@ def update_stock_prices():
                         if i + batch_size < len(all_symbols_to_fetch):
                             time.sleep(0.1)  # Reduced delay for real-time (was 0.5s)
                     
-                    print(f"✅ [REALTIME] Batch updated {len(updated_symbols)} symbols ({len(priority_to_fetch)} priority)")
+                    print(f"[REALTIME] Batch updated {len(updated_symbols)} symbols ({len(priority_to_fetch)} priority)")
                     if batch_failed_symbols:
-                        print(f"⚠️ [REALTIME] {len(batch_failed_symbols)} symbols failed in batch, will retry individually: {list(batch_failed_symbols)[:10]}")
+                        print(f"[REALTIME] {len(batch_failed_symbols)} symbols failed in batch, will retry individually: {list(batch_failed_symbols)[:10]}")
                     
                 except Exception as e:
-                    print(f"⚠️ [REALTIME] Batch update failed, falling back to individual calls: {e}")
+                    print(f"[REALTIME] Batch update failed, falling back to individual calls: {e}")
                     import traceback
-                    print(f"⚠️ [REALTIME] Batch error traceback: {traceback.format_exc()}")
+                    print(f"[REALTIME] Batch error traceback: {traceback.format_exc()}")
                     # If batch completely failed, mark all symbols as failed
                     batch_failed_symbols = set(all_symbols_to_fetch)
             
@@ -927,7 +927,7 @@ def update_stock_prices():
                 regular_failed = [s for s in symbols_needing_individual_fetch if s not in priority_symbols]
                 symbols_to_process = priority_failed + regular_failed
                 
-                print(f"🔄 [REALTIME] Fetching {len(symbols_to_process)} symbols individually ({len(priority_failed)} priority)...")
+                print(f"[REALTIME] Fetching {len(symbols_to_process)} symbols individually ({len(priority_failed)} priority)...")
                 
                 for symbol in symbols_to_process[:50]:  # Increased limit for real-time
                     try:
@@ -936,26 +936,26 @@ def update_stock_prices():
                         time.sleep(delay)
                         
                         # Get fresh data for watchlist - try Alpaca first, then Yahoo fallback
-                        print(f"🔄 [REALTIME] Updating price for {symbol} {'(PRIORITY)' if symbol in priority_symbols else ''}...")
+                        print(f"[REALTIME] Updating price for {symbol} {'(PRIORITY)' if symbol in priority_symbols else ''}...")
                         stock, api_used = get_stock_alpaca_only(symbol)
                         
                         # Fallback to Yahoo if Alpaca fails - NEVER skip stocks, always get fresh price
                         if not stock or not stock.price or stock.price == 0:
-                            print(f"⚠️ [REALTIME] Alpaca failed for {symbol}, trying Yahoo fallback...")
+                            print(f"[REALTIME] Alpaca failed for {symbol}, trying Yahoo fallback...")
                             try:
                                 stock = Stock(symbol, yahoo_finance_api)
                                 stock.retrieve_data()
                                 api_used = 'yahoo'
                                 if stock and stock.price:
-                                    print(f"✅ [REALTIME] Yahoo fallback successful for {symbol}: ${stock.price:.2f}")
+                                    print(f"[REALTIME] Yahoo fallback successful for {symbol}: ${stock.price:.2f}")
                                 else:
-                                    print(f"❌ [REALTIME] Yahoo fallback also failed for {symbol}")
+                                    print(f"[REALTIME] Yahoo fallback also failed for {symbol}")
                                     continue
                             except Exception as yahoo_error:
-                                print(f"❌ [REALTIME] Yahoo fallback failed for {symbol}: {yahoo_error}")
+                                print(f"[REALTIME] Yahoo fallback failed for {symbol}: {yahoo_error}")
                                 continue
                         
-                        print(f"✅ [REALTIME] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
+                        print(f"[REALTIME] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
                         
                         if stock.name and 'not found' not in stock.name.lower():
                             stock_data = {
@@ -970,7 +970,7 @@ def update_stock_prices():
                             updated_symbols[symbol] = stock_data
                         
                     except Exception as e:
-                        print(f"⚠️ Error updating {symbol}: {e}")
+                        print(f"Error updating {symbol}: {e}")
                         continue
             
             # Send updates to users - ensure ALL watchlist stocks get updates
@@ -1007,7 +1007,7 @@ def update_stock_prices():
                         else:
                             # If stock wasn't updated in this cycle, still send current data
                             # This ensures frontend knows the stock exists even if update failed
-                            print(f"⚠️ [REALTIME] Symbol {symbol} not in updated_symbols for user {user_id}, may need fallback fetch")
+                            print(f"[REALTIME] Symbol {symbol} not in updated_symbols for user {user_id}, may need fallback fetch")
                     
                     if user_updates:
                         room_name = f"watchlist_{user_id}"
@@ -1016,12 +1016,12 @@ def update_stock_prices():
                             'timestamp': datetime.now().isoformat(),
                             'cycle': update_cycle_count
                         }, room=room_name)
-                        print(f"✅ [REALTIME] Sent {len(user_updates)} stock updates to user {user_id} (Cycle #{update_cycle_count})")
+                        print(f"[REALTIME] Sent {len(user_updates)} stock updates to user {user_id} (Cycle #{update_cycle_count})")
                     else:
-                        print(f"⚠️ [REALTIME] No updates to send for user {user_id} (watchlist has {len(watchlist)} stocks, updated_symbols has {len(updated_symbols)} symbols)")
+                        print(f"[REALTIME] No updates to send for user {user_id} (watchlist has {len(watchlist)} stocks, updated_symbols has {len(updated_symbols)} symbols)")
                         
                 except Exception as e:
-                    print(f"⚠️ Error sending updates to user {user_id}: {e}")
+                    print(f"Error sending updates to user {user_id}: {e}")
                     continue
             
             # No cache cleanup needed - we don't cache anymore
@@ -1031,7 +1031,7 @@ def update_stock_prices():
                 market_status = get_market_status()
                 socketio.emit('market_status_updated', market_status, room="market_updates")
             except Exception as market_error:
-                print(f"⚠️ Error updating market status: {market_error}")
+                print(f"Error updating market status: {market_error}")
             
             # Sleep before next update
             # OPTIMIZED: 30 seconds to respect Alpaca rate limits (200 req/min)
@@ -1044,7 +1044,7 @@ def update_stock_prices():
             if USE_ALPACA_API and alpaca_api and hasattr(alpaca_api, 'get_queue_stats'):
                 try:
                     stats = alpaca_api.get_queue_stats()
-                    print(f"📊 API Stats: {stats['requests_last_minute']}/{stats.get('can_request', 'N/A')} req/min | "
+                    print(f"API Stats: {stats['requests_last_minute']}/{stats.get('can_request', 'N/A')} req/min | "
                           f"Total: {stats['total_requests']} | Rate limited: {stats['rate_limited']}")
                 except:
                     pass
@@ -1054,7 +1054,7 @@ def update_stock_prices():
             time.sleep(30)  # OPTIMIZED: 30s intervals for rate limit compliance
             
         except Exception as e:
-            print(f"❌ Error in price update loop: {e}")
+            print(f"Error in price update loop: {e}")
             import gc
             gc.collect()  # Force garbage collection on error
             print("😴 Sleeping for 3 minutes after error...")
@@ -1063,7 +1063,7 @@ def update_stock_prices():
 # Start background task for price updates
 def start_price_updates():
     """Start the background price update task with proper memory management"""
-    print("🚀 Starting memory-optimized price update background task...")
+    print("Starting memory-optimized price update background task...")
     
     # Add enhanced memory cleanup
     import gc
@@ -1084,12 +1084,12 @@ def start_price_updates():
                     import psutil
                     process = psutil.Process()
                     memory_mb = process.memory_info().rss / 1024 / 1024
-                    print(f"📊 Current memory usage: {memory_mb:.1f} MB")
+                    print(f"Current memory usage: {memory_mb:.1f} MB")
                 except ImportError:
                     pass  # psutil not available
                     
             except Exception as e:
-                print(f"⚠️ Memory cleanup error: {e}")
+                print(f"Memory cleanup error: {e}")
     
     # Start memory cleanup thread
     cleanup_thread = threading.Thread(target=cleanup_memory, daemon=True, name="MemoryCleanupThread")
@@ -1099,7 +1099,7 @@ def start_price_updates():
     # Start price update thread (now re-enabled with memory optimizations)
     price_thread = threading.Thread(target=update_stock_prices, daemon=True, name="PriceUpdateThread")
     price_thread.start()
-    print("🚀 Memory-optimized price update background thread started")
+    print("Memory-optimized price update background thread started")
 
 # Market status function
 def get_market_status():
@@ -1172,7 +1172,7 @@ def search_stock():
         return jsonify({'error': 'Invalid stock symbol format'}), 400
     
     print(f"🔍 [API] /api/search called for symbol: {symbol}")
-    print(f"🔧 [API] USE_ALPACA_API = {USE_ALPACA_API}, alpaca_api available = {alpaca_api is not None}")
+    print(f"[API] USE_ALPACA_API = {USE_ALPACA_API}, alpaca_api available = {alpaca_api is not None}")
     
     # Check if this is a watchlist request (from frontend dashboard)
     # For watchlist requests, use Alpaca only (no Yahoo fallback)
@@ -1180,20 +1180,20 @@ def search_stock():
                           request.referrer and 'dashboard' in request.referrer.lower()
     
     if is_watchlist_request:
-        print(f"📋 [WATCHLIST] Using Alpaca-only for watchlist request: {symbol}")
+        print(f"[WATCHLIST] Using Alpaca-only for watchlist request: {symbol}")
         stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
             # If Alpaca fails for watchlist, return error instead of falling back to Yahoo
-            print(f"❌ [WATCHLIST] Alpaca failed for {symbol}, returning error (no Yahoo fallback)")
+            print(f"[WATCHLIST] Alpaca failed for {symbol}, returning error (no Yahoo fallback)")
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
     else:
         # For non-watchlist requests, use fallback
         stock, api_used = get_stock_with_fallback(symbol)
     if not stock:
-        print(f"❌ [API] Could not retrieve stock data for {symbol}")
+        print(f"[API] Could not retrieve stock data for {symbol}")
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     
-    print(f"✅ [API] Returning stock data for {symbol}: ${stock.price:.2f} ({stock.name}) - Source: {api_used.upper() if api_used else 'UNKNOWN'}")
+    print(f"[API] Returning stock data for {symbol}: ${stock.price:.2f} ({stock.name}) - Source: {api_used.upper() if api_used else 'UNKNOWN'}")
     
     if stock.name and 'not found' not in stock.name.lower():
         #last month's price
@@ -1233,7 +1233,7 @@ def search_stock():
         # Add custom header to show which API was used
         api_source_header = api_used.upper() if api_used else 'YAHOO'
         response.headers['X-API-Source'] = api_source_header
-        print(f"📤 [API] Sending response for {symbol} with apiSource: {response_data['apiSource']}, header: {api_source_header}")
+        print(f"[API] Sending response for {symbol} with apiSource: {response_data['apiSource']}, header: {api_source_header}")
         return response
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -1259,7 +1259,7 @@ def get_stock_data(symbol):
 
     try:
         # This endpoint is used for watchlist price updates, so use Alpaca only
-        print(f"📋 [WATCHLIST] /api/stock/{symbol} - Using Alpaca-only for watchlist price update")
+        print(f"[WATCHLIST] /api/stock/{symbol} - Using Alpaca-only for watchlist price update")
         stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
@@ -1342,7 +1342,7 @@ def search_stocks():
             })
             
     except Exception as e:
-        print(f"⚠️ Error searching stocks for '{query}': {e}")
+        print(f"Error searching stocks for '{query}': {e}")
         # Return a fallback response instead of 500 error
         return jsonify({
             'results': [],
@@ -1395,7 +1395,7 @@ def search_companies():
         })
             
     except Exception as e:
-        print(f"⚠️ Error searching companies for '{query}': {e}")
+        print(f"Error searching companies for '{query}': {e}")
         # Return a fallback response instead of 500 error
         return jsonify({
             'results': [],
@@ -1425,15 +1425,15 @@ def authenticate_request():
         auth_header = request.headers.get('Authorization')
         user_id_header = request.headers.get('X-User-ID')
 
-        print(f"🔐 Token auth attempt - Header: {auth_header[:20] if auth_header else 'None'}, UserID: {user_id_header}")
+        print(f"Token auth attempt - Header: {auth_header[:20] if auth_header else 'None'}, UserID: {user_id_header}")
 
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.replace('Bearer ', '')
-            print(f"🔑 Token received, length: {len(token)}")
+            print(f"Token received, length: {len(token)}")
             
             # Check if user ID header is provided
             if not user_id_header:
-                print("❌ Missing X-User-ID header")
+                print("Missing X-User-ID header")
                 return None
             
             try:
@@ -1442,14 +1442,14 @@ def authenticate_request():
                 print(f"🔍 Token decoded: {decoded_token is not None}")
                 
                 if not decoded_token:
-                    print("❌ Token verification failed - invalid token")
+                    print("Token verification failed - invalid token")
                     return None
                 
                 token_uid = decoded_token.get('uid')
-                print(f"✅ Token UID: {token_uid}, Header UID: {user_id_header}")
+                print(f"Token UID: {token_uid}, Header UID: {user_id_header}")
                 
                 if token_uid != user_id_header:
-                    print(f"❌ UID mismatch - Token: {token_uid}, Header: {user_id_header}")
+                    print(f"UID mismatch - Token: {token_uid}, Header: {user_id_header}")
                     return None
                 
                 if decoded_token and token_uid == user_id_header:
@@ -1462,21 +1462,21 @@ def authenticate_request():
                         'id': uid  # Ensure id field exists for compatibility
                     }
                     firebase_user = FirebaseUser(user_profile)
-                    print(f"✅ User authenticated from token: {firebase_user.email}")
+                    print(f"User authenticated from token: {firebase_user.email}")
                     # Don't cache - always verify fresh to prevent stale failures
                     return firebase_user
             except Exception as e:
-                print(f"❌ Token authentication failed: {e}")
+                print(f"Token authentication failed: {e}")
                 import traceback
-                print(f"❌ Traceback: {traceback.format_exc()}")
+                print(f"Traceback: {traceback.format_exc()}")
                 return None
 
-        print("❌ No valid authentication method found")
+        print("No valid authentication method found")
         return None
     except Exception as e:
-        print(f"❌ Authentication error: {e}")
+        print(f"Authentication error: {e}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        print(f"Traceback: {traceback.format_exc()}")
         return None
 
 @app.route('/api/watchlist', methods=['GET'])
@@ -1488,12 +1488,12 @@ def get_watchlist_route():
     
     user = authenticate_request()
     if not user:
-        print(f"❌ Authentication failed for /api/watchlist")
+        print(f"Authentication failed for /api/watchlist")
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check rate limit
     if not rate_limiter.is_allowed(user.id):
-        print(f"⚠️ Rate limit exceeded for user: {user.id}")
+        print(f"Rate limit exceeded for user: {user.id}")
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     try:
@@ -1505,13 +1505,13 @@ def get_watchlist_route():
         try:
             service = ensure_watchlist_service()
         except Exception as service_error:
-            print(f"❌ Failed to initialize watchlist service: {service_error}")
+            print(f"Failed to initialize watchlist service: {service_error}")
             import traceback
-            print(f"❌ Traceback: {traceback.format_exc()}")
+            print(f"Traceback: {traceback.format_exc()}")
             return jsonify({'error': 'Service unavailable'}), 503
         
         # Get watchlist items from Firestore with timeout protection
-        print(f"📋 Fetching watchlist from Firestore...")
+        print(f"Fetching watchlist from Firestore...")
         watchlist = []
         
         # Try to fetch with timeout protection
@@ -1520,14 +1520,14 @@ def get_watchlist_route():
             # Use a reasonable limit (100 items) to prevent timeouts
             # The service will default to 100 if limit is None
             watchlist = service.get_watchlist(user.id, limit=100)
-            print(f"📋 Retrieved {len(watchlist)} items from Firebase")
+            print(f"Retrieved {len(watchlist)} items from Firebase")
         except Exception as firestore_error:
-            print(f"⚠️ Firestore query error: {firestore_error}")
+            print(f"Firestore query error: {firestore_error}")
             import traceback
-            print(f"⚠️ Traceback: {traceback.format_exc()}")
+            print(f"Traceback: {traceback.format_exc()}")
             # Return empty list if Firestore fails - don't block the request
             watchlist = []
-            print(f"📋 Returning empty watchlist due to Firestore error")
+            print(f"Returning empty watchlist due to Firestore error")
         
         # Log all symbols from Firebase
         if watchlist:
@@ -1539,9 +1539,9 @@ def get_watchlist_route():
                 if len(firebase_symbols) > 10:
                     print(f"   ... and {len(firebase_symbols) - 10} more")
             except Exception as log_error:
-                print(f"⚠️ Error logging symbols: {log_error}")
+                print(f"Error logging symbols: {log_error}")
         else:
-            print(f"⚠️ NO STOCKS IN FIREBASE WATCHLIST")
+            print(f"NO STOCKS IN FIREBASE WATCHLIST")
         
         # For now, return watchlist without prices to prevent hanging
         # Prices can be fetched on-demand by the frontend
@@ -1573,17 +1573,17 @@ def get_watchlist_route():
                             continue
                     cleaned_watchlist.append(cleaned_item)
                 except Exception as item_error:
-                    print(f"⚠️ Error cleaning item: {item_error}")
+                    print(f"Error cleaning item: {item_error}")
                     # Skip problematic items
                     continue
             
             watchlist_with_prices = cleaned_watchlist
         except Exception as clean_error:
-            print(f"⚠️ Error cleaning watchlist: {clean_error}")
+            print(f"Error cleaning watchlist: {clean_error}")
             # Return original watchlist if cleaning fails
             pass
         
-        print(f"\n✅ RETURNING {len(watchlist_with_prices)} items")
+        print(f"\nRETURNING {len(watchlist_with_prices)} items")
         print(f"{'='*80}\n")
         
         # Return response with proper error handling
@@ -1591,16 +1591,16 @@ def get_watchlist_route():
             response = jsonify(watchlist_with_prices)
             return response
         except Exception as json_error:
-            print(f"❌ Error serializing watchlist to JSON: {json_error}")
+            print(f"Error serializing watchlist to JSON: {json_error}")
             import traceback
-            print(f"❌ Traceback: {traceback.format_exc()}")
+            print(f"Traceback: {traceback.format_exc()}")
             # Return empty list if JSON serialization fails
             return jsonify([]), 500
             
     except Exception as e:
-        print(f"❌ Error in get_watchlist_route: {e}")
+        print(f"Error in get_watchlist_route: {e}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        print(f"Traceback: {traceback.format_exc()}")
         # Fallback to empty list on error - ensure CORS headers are set
         try:
             return jsonify({'error': 'Internal server error', 'items': []}), 500
@@ -1618,7 +1618,7 @@ def add_to_watchlist():
     
     # Check rate limit
     if not rate_limiter.is_allowed(user.id):
-        print(f"⚠️ Rate limit exceeded for user: {user.id}")
+        print(f"Rate limit exceeded for user: {user.id}")
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     data = request.get_json()
@@ -1649,16 +1649,16 @@ def add_to_watchlist():
         # Get current stock price to store as original price (Alpaca only for watchlist)
         current_price = None
         try:
-            print(f"📋 [WATCHLIST] Using Alpaca-only for adding stock to watchlist: {symbol}")
+            print(f"[WATCHLIST] Using Alpaca-only for adding stock to watchlist: {symbol}")
             stock, api_used = get_stock_alpaca_only(symbol)
             if stock and stock.price and stock.price > 0:
                 current_price = stock.price
                 print(f"💰 Current price for {symbol} from Alpaca: ${current_price}")
             else:
-                print(f"❌ Could not get current price for {symbol} from Alpaca (no Yahoo fallback)")
+                print(f"Could not get current price for {symbol} from Alpaca (no Yahoo fallback)")
                 return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
         except Exception as price_error:
-            print(f"❌ Error getting current price for {symbol} from Alpaca: {price_error}")
+            print(f"Error getting current price for {symbol} from Alpaca: {price_error}")
             return jsonify({'error': f'Failed to fetch stock data from Alpaca API: {str(price_error)}'}), 500
         
         # Ensure watchlist service is initialized
@@ -1679,14 +1679,14 @@ def add_to_watchlist():
         )
         
         if result['success']:
-            print(f"✅ Successfully added {symbol} to watchlist")
+            print(f"Successfully added {symbol} to watchlist")
             return jsonify(result)
         else:
-            print(f"⚠️ Failed to add {symbol}: {result['message']}")
+            print(f"Failed to add {symbol}: {result['message']}")
             return jsonify({'error': result['message']}), 400
     
     except Exception as e:
-        print(f"⚠️ Error adding stock to watchlist: {e}")
+        print(f"Error adding stock to watchlist: {e}")
         return jsonify({'error': f'Failed to add {symbol} to watchlist'}), 500
 
 @app.route('/api/watchlist/<symbol>', methods=['DELETE'])
@@ -1993,11 +1993,11 @@ SYMBOL: reason
         for mover in movers:
             mover['ai_reason'] = reasons.get(mover['symbol'], '')
 
-        print(f"✅ Generated AI reasons for {len(reasons)} movers")
+        print(f"Generated AI reasons for {len(reasons)} movers")
         return movers
 
     except Exception as e:
-        print(f"⚠️ Failed to generate AI reasons: {e}")
+        print(f"Failed to generate AI reasons: {e}")
         # Return movers without AI reasons
         return movers
 
@@ -2005,7 +2005,7 @@ def get_real_top_movers():
     """Fetch real top movers using batch download (FAST)"""
     # Check cache first
     if _is_cache_valid('top_movers'):
-        print("✅ Using cached top movers data")
+        print("Using cached top movers data")
         return _market_data_cache['top_movers']['data']
 
     try:
@@ -2028,7 +2028,7 @@ def get_real_top_movers():
         }
 
         # BATCH DOWNLOAD - One request for all symbols!
-        print(f"📊 Fetching top movers for {len(stock_universe)} stocks (batch)...")
+        print(f"Fetching top movers for {len(stock_universe)} stocks (batch)...")
         data = yf.download(stock_universe, period='5d', progress=False, threads=True)
 
         top_movers = []
@@ -2059,7 +2059,7 @@ def get_real_top_movers():
 
         # Cache the result
         _market_data_cache['top_movers'] = {'data': result, 'timestamp': datetime.now()}
-        print(f"✅ Cached top movers: {[m['symbol'] for m in result]}")
+        print(f"Cached top movers: {[m['symbol'] for m in result]}")
 
         return result
 
@@ -2077,7 +2077,7 @@ def get_real_sector_performance():
     """Fetch real sector performance using batch download (FAST)"""
     # Check cache first
     if _is_cache_valid('sector_performance'):
-        print("✅ Using cached sector performance data")
+        print("Using cached sector performance data")
         return _market_data_cache['sector_performance']['data']
 
     try:
@@ -2101,7 +2101,7 @@ def get_real_sector_performance():
         symbols = list(sector_etfs.keys())
 
         # BATCH DOWNLOAD - One request for all ETFs!
-        print(f"📊 Fetching sector performance for {len(symbols)} ETFs (batch)...")
+        print(f"Fetching sector performance for {len(symbols)} ETFs (batch)...")
         data = yf.download(symbols, period='5d', progress=False, threads=True)
 
         sector_performance = []
@@ -2127,7 +2127,7 @@ def get_real_sector_performance():
 
         # Cache the result
         _market_data_cache['sector_performance'] = {'data': sector_performance, 'timestamp': datetime.now()}
-        print(f"✅ Cached sector performance: {len(sector_performance)} sectors")
+        print(f"Cached sector performance: {len(sector_performance)} sectors")
 
         return sector_performance
 
@@ -2187,7 +2187,7 @@ Keep it informative, data-driven, and professional. Limit to 200-250 words."""
         })
 
     except Exception as e:
-        print(f"❌ Error generating AI market analysis: {e}")
+        print(f"Error generating AI market analysis: {e}")
         import traceback
         traceback.print_exc()
 
@@ -2429,7 +2429,7 @@ def get_stock_ai_insight(symbol):
         from chat_service import chat_service
         import yfinance as yf
 
-        print(f"🤖 [AI Insight] Starting for {symbol}")
+        print(f"[AI Insight] Starting for {symbol}")
 
         # Get stock data directly from yfinance for price change info
         try:
@@ -2447,16 +2447,16 @@ def get_stock_ai_insight(symbol):
                 change = 0
                 change_pct = 0
 
-            print(f"📊 [AI Insight] {symbol}: ${price:.2f} ({change_pct:+.2f}%)")
+            print(f"[AI Insight] {symbol}: ${price:.2f} ({change_pct:+.2f}%)")
 
         except Exception as e:
             import traceback
-            print(f"⚠️ [AI Insight] yfinance error for {symbol}: {e}")
+            print(f"[AI Insight] yfinance error for {symbol}: {e}")
             traceback.print_exc()
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
         if not price:
-            print(f"❌ [AI Insight] No price data for {symbol}")
+            print(f"[AI Insight] No price data for {symbol}")
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
         # Get news headlines for context
@@ -2470,7 +2470,7 @@ def get_stock_ai_insight(symbol):
 
         # Direct Gemini call with simple text response (no JSON parsing)
         if not chat_service.gemini_client:
-            print(f"❌ [AI Insight] Gemini client not available")
+            print(f"[AI Insight] Gemini client not available")
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
         direction = "up" if change_pct >= 0 else "down"
@@ -2481,7 +2481,7 @@ Headlines: {news_context if news_context else "No recent news"}
 
 Just provide the explanation directly. No bullet points, no headers, no JSON."""
 
-        print(f"🤖 [AI Insight] Calling Gemini for {symbol}")
+        print(f"[AI Insight] Calling Gemini for {symbol}")
 
         response = chat_service.gemini_client.generate_content(
             prompt,
@@ -2519,20 +2519,20 @@ Just provide the explanation directly. No bullet points, no headers, no JSON."""
                 except:
                     pass  # Keep original if JSON parsing fails
 
-            print(f"✅ [AI Insight] Generated for {symbol}: {insight_text[:80]}...")
+            print(f"[AI Insight] Generated for {symbol}: {insight_text[:80]}...")
             return jsonify({
                 'symbol': symbol,
                 'change_percent': round(change_pct, 2),
                 'ai_insight': insight_text
             })
         else:
-            print(f"❌ [AI Insight] No text in response for {symbol}")
+            print(f"[AI Insight] No text in response for {symbol}")
             return jsonify({'symbol': symbol, 'ai_insight': 'Unable to generate insight.'}), 200
 
     except Exception as e:
         import traceback
         error_msg = str(e)
-        print(f"❌ [AI Insight] Error for {symbol}: {error_msg}")
+        print(f"[AI Insight] Error for {symbol}: {error_msg}")
         traceback.print_exc()
 
         # Return the actual error for debugging
@@ -2595,13 +2595,13 @@ def get_watchlist_stock_details(symbol):
         except RuntimeError as e:
             return jsonify({'error': str(e)}), 503
         if not watchlist_item:
-            print(f"❌ Stock {symbol} not found in watchlist for user {user.id}")
+            print(f"Stock {symbol} not found in watchlist for user {user.id}")
             return jsonify({'error': f'Stock "{symbol}" not found in watchlist'}), 404
         
-        print(f"✅ Found watchlist item for {symbol}")
+        print(f"Found watchlist item for {symbol}")
         
         # Get current stock data (Alpaca only for watchlist)
-        print(f"📋 [WATCHLIST] Using Alpaca-only for watchlist details: {symbol}")
+        print(f"[WATCHLIST] Using Alpaca-only for watchlist details: {symbol}")
         stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
@@ -2621,13 +2621,13 @@ def get_watchlist_stock_details(symbol):
         
         # Handle legacy data: if no original price, set current price as original
         if not original_price and current_price:
-            print(f"🔄 Setting current price as original price for legacy stock {symbol}")
+            print(f"Setting current price as original price for legacy stock {symbol}")
             try:
                 service = ensure_watchlist_service()
                 service.update_stock(user.id, symbol, original_price=current_price)
                 original_price = current_price
             except RuntimeError:
-                print("⚠️ Could not update original price - service unavailable")
+                print("Could not update original price - service unavailable")
         
         if original_price and current_price and original_price > 0:
             price_change = current_price - original_price
@@ -2664,7 +2664,7 @@ def get_watchlist_stock_details(symbol):
         })
         
     except Exception as e:
-        print(f"⚠️ Error getting watchlist stock details for {symbol}: {e}")
+        print(f"Error getting watchlist stock details for {symbol}: {e}")
         return jsonify({'error': f'Failed to get stock details for {symbol}'}), 500
 
 @app.route('/api/alpaca/connect', methods=['POST'])
@@ -2701,7 +2701,7 @@ def connect_alpaca_account():
             
             account_data = response.json()
         except Exception as e:
-            print(f"❌ Error verifying Alpaca credentials: {e}")
+            print(f"Error verifying Alpaca credentials: {e}")
             return jsonify({'error': 'Failed to verify Alpaca credentials. Please check your keys.'}), 401
         
         # Encrypt and store credentials
@@ -2724,7 +2724,7 @@ def connect_alpaca_account():
             'alpaca_account_status': account_data.get('status', '')
         }, merge=True)
         
-        print(f"✅ Alpaca account connected for user {user.id}")
+        print(f"Alpaca account connected for user {user.id}")
         return jsonify({
             'success': True,
             'message': 'Alpaca account connected successfully',
@@ -2734,7 +2734,7 @@ def connect_alpaca_account():
         })
         
     except Exception as e:
-        print(f"⚠️ Error connecting Alpaca account: {e}")
+        print(f"Error connecting Alpaca account: {e}")
         import traceback
         print(traceback.format_exc())
         return jsonify({'error': f'Failed to connect Alpaca account: {str(e)}'}), 500
@@ -2759,11 +2759,11 @@ def disconnect_alpaca_account():
             'alpaca_disconnected_at': datetime.utcnow()
         })
         
-        print(f"✅ Alpaca account disconnected for user {user.id}")
+        print(f"Alpaca account disconnected for user {user.id}")
         return jsonify({'success': True, 'message': 'Alpaca account disconnected successfully'})
         
     except Exception as e:
-        print(f"⚠️ Error disconnecting Alpaca account: {e}")
+        print(f"Error disconnecting Alpaca account: {e}")
         return jsonify({'error': f'Failed to disconnect Alpaca account: {str(e)}'}), 500
 
 @app.route('/api/alpaca/status', methods=['GET'])
@@ -2797,7 +2797,7 @@ def get_alpaca_status():
             return jsonify({'connected': False})
             
     except Exception as e:
-        print(f"⚠️ Error getting Alpaca status: {e}")
+        print(f"Error getting Alpaca status: {e}")
         return jsonify({'error': f'Failed to get Alpaca status: {str(e)}'}), 500
 
 @app.route('/api/alpaca/positions', methods=['GET'])
@@ -2868,7 +2868,7 @@ def get_alpaca_positions():
         })
         
     except Exception as e:
-        print(f"⚠️ Error fetching Alpaca positions: {e}")
+        print(f"Error fetching Alpaca positions: {e}")
         import traceback
         print(traceback.format_exc())
         return jsonify({'error': f'Failed to fetch positions: {str(e)}'}), 500
@@ -2955,7 +2955,7 @@ def sync_alpaca_positions():
                 added_count += 1
                 
             except Exception as e:
-                print(f"⚠️ Error adding {symbol} to watchlist: {e}")
+                print(f"Error adding {symbol} to watchlist: {e}")
                 continue
         
         return jsonify({
@@ -2966,7 +2966,7 @@ def sync_alpaca_positions():
         })
         
     except Exception as e:
-        print(f"⚠️ Error syncing Alpaca positions: {e}")
+        print(f"Error syncing Alpaca positions: {e}")
         import traceback
         print(traceback.format_exc())
         return jsonify({'error': f'Failed to sync positions: {str(e)}'}), 500
@@ -3262,9 +3262,9 @@ def chat_endpoint():
             }), 500
             
     except Exception as e:
-        print(f"❌ Chat endpoint error: {e}")
+        print(f"Chat endpoint error: {e}")
         import traceback
-        print(f"❌ Full traceback: {traceback.format_exc()}")
+        print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': f'Internal server error: {str(e)}',
@@ -3292,7 +3292,7 @@ def get_chat_history():
         })
         
     except Exception as e:
-        print(f"❌ Chat history error: {e}")
+        print(f"Chat history error: {e}")
         return jsonify({
             'success': False,
             'error': 'Could not retrieve chat history'
@@ -3318,7 +3318,7 @@ def clear_chat_history():
         })
         
     except Exception as e:
-        print(f"❌ Clear chat history error: {e}")
+        print(f"Clear chat history error: {e}")
         return jsonify({
             'success': False,
             'error': 'Could not clear chat history'
@@ -3349,7 +3349,7 @@ def chat_status():
         })
         
     except Exception as e:
-        print(f"❌ Chat status error: {e}")
+        print(f"Chat status error: {e}")
         return jsonify({
             'success': False,
             'error': 'Could not get chat status'
@@ -3390,9 +3390,9 @@ def test_gemini_api():
         })
         
     except Exception as e:
-        print(f"❌ Gemini test error: {e}")
+        print(f"Gemini test error: {e}")
         import traceback
-        print(f"❌ Full traceback: {traceback.format_exc()}")
+        print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': str(e),
@@ -3432,7 +3432,7 @@ def handle_chat_message(data):
             })
             
     except Exception as e:
-        print(f"❌ WebSocket chat error: {e}")
+        print(f"WebSocket chat error: {e}")
         emit('chat_error', {
             'error': 'Internal server error',
             'response': 'I\'m sorry, I encountered an error. Please try again.'
@@ -3489,23 +3489,23 @@ def get_api_stats():
 
 # Add startup message that runs when module is imported (for gunicorn)
 print("\n" + "="*80)
-print("🚀 Stock Watchlist App - Initializing...")
+print("Stock Watchlist App - Initializing...")
 print("="*80)
-print(f"🔧 Debug mode: {Config.DEBUG}")
-print(f"🌍 Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}")
-print(f"🔑 Firebase credentials: {'configured' if os.path.exists(Config.FIREBASE_CREDENTIALS_PATH) or os.environ.get('FIREBASE_CREDENTIALS_BASE64') else 'not found (will initialize on demand)'}")
-print("✅ App module loaded successfully - services will initialize on demand")
+print(f"Debug mode: {Config.DEBUG}")
+print(f"Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}")
+print(f"Firebase credentials: {'configured' if os.path.exists(Config.FIREBASE_CREDENTIALS_PATH) or os.environ.get('FIREBASE_CREDENTIALS_BASE64') else 'not found (will initialize on demand)'}")
+print("App module loaded successfully - services will initialize on demand")
 print("="*80 + "\n")
 
 if __name__ == '__main__':
     port = Config.PORT
-    print("\n🚀 Starting Stock Watchlist App...")
-    print("🔥 Using Firebase for authentication and data storage")
-    print("⚡ Starting real-time price updates...")
+    print("\nStarting Stock Watchlist App...")
+    print("Using Firebase for authentication and data storage")
+    print("Starting real-time price updates...")
     print(f"🌐 Server running on port: {port}")
-    print(f"🔧 Debug mode: {Config.DEBUG}")
-    print(f"🔑 Firebase project: {Config.FIREBASE_PROJECT_ID}")
-    print(f"🌍 Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}\n")
+    print(f"Debug mode: {Config.DEBUG}")
+    print(f"Firebase project: {Config.FIREBASE_PROJECT_ID}")
+    print(f"Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}\n")
     
     try:
         # Skip background tasks for Railway deployment initially
@@ -3513,15 +3513,15 @@ if __name__ == '__main__':
             print("🚂 Railway environment detected - skipping background tasks")
         else:
             # Start the background price update task
-            print("📊 Starting price update task...")
+            print("Starting price update task...")
             start_price_updates()
-            print("✅ Price update task started")
+            print("Price update task started")
         
         print("🌐 Starting Flask server...")
         socketio.run(app, debug=Config.DEBUG, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
         
     except Exception as e:
-        print(f"❌ Failed to start server: {e}")
+        print(f"Failed to start server: {e}")
         import traceback
-        print(f"❌ Startup traceback: {traceback.format_exc()}")
+        print(f"Startup traceback: {traceback.format_exc()}")
         raise 

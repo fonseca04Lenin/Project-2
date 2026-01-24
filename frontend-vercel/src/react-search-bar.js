@@ -3,7 +3,7 @@
  * Converts the vanilla JS search bar to React while maintaining all functionality
  */
 
-// // console.log('🚀 React Search Bar script starting to load...');
+// // console.log('React Search Bar script starting to load...');
 
 // Wait for React to be available
 function waitForReact() {
@@ -19,12 +19,12 @@ function waitForReact() {
 // Test if we can access React
 try {
     const { useState, useEffect, useRef } = React;
-    // // console.log('✅ React destructuring successful');
+    // // console.log('React destructuring successful');
 } catch (error) {
-    console.error('❌ React not available:', error);
+    console.error('React not available:', error);
     // Wait for React to load
     waitForReact().then(() => {
-        // // console.log('✅ React loaded, proceeding with initialization');
+        // // console.log('React loaded, proceeding with initialization');
         initializeReactSearchBar();
     });
 }
@@ -308,14 +308,14 @@ function initializeReactSearchBar() {
             const root = ReactDOM.createRoot(searchSection);
             root.render(React.createElement(SearchBarComponent));
             
-            // // console.log('✅ React Search Bar component loaded successfully');
+            // // console.log('React Search Bar component loaded successfully');
             return true;
         } catch (error) {
-            console.error('❌ Error rendering React Search Bar:', error);
+            console.error('Error rendering React Search Bar:', error);
             return false;
         }
     } else {
-        // // console.warn('⚠️ Search section not found, React Search Bar not loaded');
+        // // console.warn('Search section not found, React Search Bar not loaded');
         // // console.log('Available sections:', document.querySelectorAll('section'));
         return false;
     }
@@ -345,7 +345,7 @@ async function initializeWhenReady() {
 
 // Start initialization
 initializeWhenReady().catch(error => {
-    console.error('❌ Error during initialization:', error);
+    console.error('Error during initialization:', error);
     createFallbackSearchBar();
 });
 
@@ -367,21 +367,21 @@ setTimeout(() => {
 // Final fallback - create basic search bar if React still hasn't rendered after 5 seconds
 setTimeout(() => {
     if (!document.querySelector('.search-section .search-container')) {
-        // // console.log('🔧 React failed, creating fallback search bar...');
+        // // console.log('React failed, creating fallback search bar...');
         createFallbackSearchBar();
     }
 }, 5000);
 
 // Fallback: Create basic search bar if React fails
 function createFallbackSearchBar() {
-    // // console.log('🔧 Creating fallback search bar...');
+    // // console.log('Creating fallback search bar...');
     
     const searchSection = document.querySelector('.search-section');
-    // // console.log('🔧 Search section found:', !!searchSection);
+    // // console.log('Search section found:', !!searchSection);
     
     if (!searchSection) {
-        console.error('❌ No search section found for fallback');
-        // // console.log('🔧 Available elements:', {
+        console.error('No search section found for fallback');
+        // // console.log('Available elements:', {
             sections: document.querySelectorAll('section').length,
             searchSections: document.querySelectorAll('.search-section').length,
             main: !!document.querySelector('main'),
@@ -390,7 +390,7 @@ function createFallbackSearchBar() {
         return;
     }
     
-    // // console.log('🔧 Search section innerHTML before:', searchSection.innerHTML);
+    // // console.log('Search section innerHTML before:', searchSection.innerHTML);
     
     searchSection.innerHTML = `
         <div class="search-container">
@@ -405,26 +405,26 @@ function createFallbackSearchBar() {
         </div>
     `;
     
-    // // console.log('🔧 Search section innerHTML after:', searchSection.innerHTML);
+    // // console.log('Search section innerHTML after:', searchSection.innerHTML);
     
     // Add basic functionality
     const searchInput = document.getElementById('fallbackSearchInput');
     const searchBtn = document.getElementById('fallbackSearchBtn');
     
-    // // console.log('🔧 Search input found:', !!searchInput);
-    // // console.log('🔧 Search button found:', !!searchBtn);
+    // // console.log('Search input found:', !!searchInput);
+    // // console.log('Search button found:', !!searchBtn);
     
     if (searchInput && searchBtn) {
         searchBtn.addEventListener('click', () => {
             const query = searchInput.value.trim();
-            // // console.log('🔧 Fallback search clicked for:', query);
+            // // console.log('Fallback search clicked for:', query);
             if (query) {
                 // Try to use existing search functionality
                 if (window.searchStock) {
-                    // // console.log('🔧 Using existing searchStock function');
+                    // // console.log('Using existing searchStock function');
                     window.searchStock();
                 } else {
-                    // // console.log('🔧 No existing search function, showing alert');
+                    // // console.log('No existing search function, showing alert');
                     alert(`Searching for: ${query}`);
                 }
             }
@@ -432,21 +432,21 @@ function createFallbackSearchBar() {
         
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                // // console.log('🔧 Enter key pressed');
+                // // console.log('Enter key pressed');
                 searchBtn.click();
             }
         });
         
-        // // console.log('✅ Fallback search bar created and functional');
+        // // console.log('Fallback search bar created and functional');
     } else {
-        console.error('❌ Failed to find search input or button after creation');
+        console.error('Failed to find search input or button after creation');
     }
 }
 
 // Final fallback - create basic search bar
 setTimeout(() => {
     if (!document.querySelector('.search-section .search-container')) {
-        // // console.log('🔧 React failed, creating fallback search bar...');
+        // // console.log('React failed, creating fallback search bar...');
         createFallbackSearchBar();
     }
 }, 5000);
