@@ -25,42 +25,42 @@ def initialize_firebase():
         # Try to use base64 encoded credentials first (for production deployment)
         credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
         if credentials_base64:
-            print("🔑 Loading Firebase credentials from base64 environment variable")
+            print("Loading Firebase credentials from base64 environment variable")
             try:
                 credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
                 credentials_dict = json.loads(credentials_json)
                 cred = credentials.Certificate(credentials_dict)
                 firebase_admin.initialize_app(cred)
                 firebase_initialized = True
-                print("✅ Firebase initialized successfully with base64 credentials")
+                print("Firebase initialized successfully with base64 credentials")
             except Exception as e:
-                print(f"❌ Failed to initialize Firebase with base64 credentials: {e}")
+                print(f"Failed to initialize Firebase with base64 credentials: {e}")
                 return False
                 
         elif os.path.exists(Config.FIREBASE_CREDENTIALS_PATH):
-            print(f"🔑 Loading Firebase credentials from: {Config.FIREBASE_CREDENTIALS_PATH}")
+            print(f"Loading Firebase credentials from: {Config.FIREBASE_CREDENTIALS_PATH}")
             try:
                 cred = credentials.Certificate(Config.FIREBASE_CREDENTIALS_PATH)
                 firebase_admin.initialize_app(cred)
                 firebase_initialized = True
-                print("✅ Firebase initialized successfully with file credentials")
+                print("Firebase initialized successfully with file credentials")
             except Exception as e:
-                print(f"❌ Failed to initialize Firebase with file credentials: {e}")
+                print(f"Failed to initialize Firebase with file credentials: {e}")
                 return False
         else:
-            print(f"❌ Firebase credentials not found - FIREBASE_CREDENTIALS_BASE64 env var missing and {Config.FIREBASE_CREDENTIALS_PATH} file not found")
-            print("❌ Firebase authentication is required for this application to function")
+            print(f"Firebase credentials not found - FIREBASE_CREDENTIALS_BASE64 env var missing and {Config.FIREBASE_CREDENTIALS_PATH} file not found")
+            print("Firebase authentication is required for this application to function")
             firebase_initialized = False
             return False
             
         # Initialize Firestore client only if Firebase is properly initialized
         if firebase_initialized:
             db = firestore.client()
-            print("✅ Firestore client initialized successfully")
+            print("Firestore client initialized successfully")
             return True
             
     except Exception as e:
-        print(f"❌ Critical Firebase initialization error: {e}")
+        print(f"Critical Firebase initialization error: {e}")
         firebase_initialized = False
         return False
     
@@ -68,18 +68,18 @@ def initialize_firebase():
 
 # Initialize Firebase immediately on module load - fail fast if credentials are missing
 # The app requires Firebase for auth and watchlist functionality
-print("🔄 Attempting Firebase initialization...")
+print("Attempting Firebase initialization...")
 if not initialize_firebase():
     print("=" * 80)
-    print("❌ CRITICAL: Firebase initialization failed!")
-    print("❌ This app requires Firebase credentials to function.")
-    print("❌ Please configure FIREBASE_CREDENTIALS_BASE64 environment variable")
-    print("❌ or provide firebase-credentials.json file")
+    print("CRITICAL: Firebase initialization failed!")
+    print("This app requires Firebase credentials to function.")
+    print("Please configure FIREBASE_CREDENTIALS_BASE64 environment variable")
+    print("or provide firebase-credentials.json file")
     print("=" * 80)
     # Allow app to start but Firebase features will not work
-    print("⚠️  App will start but Firebase-dependent features will fail")
+    print(" App will start but Firebase-dependent features will fail")
 else:
-    print("✅ Firebase initialized successfully on module load")
+    print("Firebase initialized successfully on module load")
 
 def get_firestore_client():
     """Get the Firestore client instance with connection pooling"""
@@ -97,9 +97,9 @@ def get_firestore_client():
     if db is None and firebase_initialized:
         try:
             db = firestore.client()
-            print("✅ New Firestore client created")
+            print("New Firestore client created")
         except Exception as e:
-            print(f"❌ Failed to create Firestore client: {e}")
+            print(f"Failed to create Firestore client: {e}")
             return None
     
     return db
@@ -131,8 +131,8 @@ class FirebaseService:
                 display_name=name
             )
             
-            print(f"✅ Firebase Auth user created: {user_record.uid}")
-            print(f"🚀 Using Firebase Authentication only (no Firestore storage)")
+            print(f"Firebase Auth user created: {user_record.uid}")
+            print(f"Using Firebase Authentication only (no Firestore storage)")
             
             return {
                 'uid': user_record.uid,
@@ -142,7 +142,7 @@ class FirebaseService:
             }
             
         except Exception as e:
-            print(f"❌ Error creating user: {e}")
+            print(f"Error creating user: {e}")
             raise Exception(f"Failed to create user: {str(e)}")
     
     @staticmethod
@@ -150,18 +150,18 @@ class FirebaseService:
         """Get user data from Firestore"""
         try:
             if not firebase_initialized or not db:
-                print("❌ Firebase or Firestore not initialized")
+                print("Firebase or Firestore not initialized")
                 return None
                 
             doc = db.collection('users').document(user_id).get()
             if doc.exists:
                 return FirebaseUser(doc.to_dict())
             else:
-                print(f"⚠️ User not found in Firestore: {user_id}")
+                print(f"User not found in Firestore: {user_id}")
                 return None
                 
         except Exception as e:
-            print(f"❌ Error getting user by ID: {e}")
+            print(f"Error getting user by ID: {e}")
             return None
     
     @staticmethod
@@ -169,7 +169,7 @@ class FirebaseService:
         """Get user by email from Firestore - Note: Use token-based auth instead for better performance"""
         try:
             if not firebase_initialized or not db:
-                print("❌ Firebase or Firestore not initialized")
+                print("Firebase or Firestore not initialized")
                 return None
             
             # Note: Firestore email queries can be slow. Token-based authentication is preferred.
@@ -178,13 +178,13 @@ class FirebaseService:
             query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
             for doc in query:
                 user_data = doc.to_dict()
-                print(f"✅ Found user in Firestore: {user_data.get('name')}")
+                print(f"Found user in Firestore: {user_data.get('name')}")
                 return FirebaseUser(user_data)
             
-            print(f"⚠️ User not found with email: {email}")
+            print(f"User not found with email: {email}")
             return None
         except Exception as e:
-            print(f"❌ Error getting user by email: {e}")
+            print(f"Error getting user by email: {e}")
             return None
     
     @staticmethod
@@ -192,11 +192,11 @@ class FirebaseService:
         """Authenticate user using Firebase Auth ID token"""
         try:
             if not firebase_initialized:
-                print("⚠️ Firebase not initialized, cannot verify token")
+                print("Firebase not initialized, cannot verify token")
                 return None
 
             if not id_token:
-                print("⚠️ No ID token provided")
+                print("No ID token provided")
                 return None
 
             # Verify the ID token
@@ -205,7 +205,7 @@ class FirebaseService:
             email = decoded_token.get('email', '')
             name = decoded_token.get('name', '') or decoded_token.get('display_name', '')
 
-            print(f"✅ Token verified for user: {uid} ({email})")
+            print(f"Token verified for user: {uid} ({email})")
 
             # Get additional user details from Firebase Auth
             try:
@@ -217,9 +217,9 @@ class FirebaseService:
                     'created_at': datetime.utcnow(),
                     'last_login': datetime.utcnow()
                 }
-                print(f"✅ Firebase Auth user profile: {user_profile['name']} ({user_profile['email']})")
+                print(f"Firebase Auth user profile: {user_profile['name']} ({user_profile['email']})")
             except Exception as auth_e:
-                print(f"⚠️ Could not get Firebase Auth details, using token data: {auth_e}")
+                print(f"Could not get Firebase Auth details, using token data: {auth_e}")
                 # Fallback to token data
                 user_profile = {
                     'uid': uid,
@@ -240,7 +240,7 @@ class FirebaseService:
                     existing_data = {}
                     if existing_user.exists:
                         existing_data = existing_user.to_dict()
-                        print(f"✅ Found existing user in Firestore with data: {existing_data}")
+                        print(f"Found existing user in Firestore with data: {existing_data}")
                     
                     # Merge existing data with new profile data
                     user_doc = {
@@ -252,20 +252,20 @@ class FirebaseService:
                         'username': existing_data.get('username', None)  # Keep existing username or None
                     }
                     user_doc_ref.set(user_doc, merge=True)
-                    print(f"✅ User stored in Firestore: {uid}")
+                    print(f"User stored in Firestore: {uid}")
                     
                     # Add username to user_profile for FirebaseUser
                     user_profile['username'] = existing_data.get('username', None)
                 else:
-                    print("⚠️ Firestore not available, user not stored")
+                    print("Firestore not available, user not stored")
             except Exception as store_e:
-                print(f"⚠️ Could not store user in Firestore: {store_e}")
+                print(f"Could not store user in Firestore: {store_e}")
 
-            print(f"✅ Returning Firebase Auth user profile for {uid}")
+            print(f"Returning Firebase Auth user profile for {uid}")
             return FirebaseUser(user_profile)
 
         except Exception as e:
-            print(f"❌ Token verification failed: {e}")
+            print(f"Token verification failed: {e}")
             return None
     
     @staticmethod
@@ -275,22 +275,22 @@ class FirebaseService:
             # Ensure Firebase is initialized before verifying token
             # This is critical - token verification requires Firebase Admin SDK to be initialized
             if not firebase_initialized:
-                print("⚠️ Firebase not initialized, attempting to initialize...")
+                print("Firebase not initialized, attempting to initialize...")
                 initialize_firebase()
                 
             if not firebase_initialized:
-                print("❌ Firebase not initialized - cannot verify token")
+                print("Firebase not initialized - cannot verify token")
                 return None
 
-            print(f"🔐 Verifying Firebase token, Firebase initialized: {firebase_initialized}")
+            print(f"Verifying Firebase token, Firebase initialized: {firebase_initialized}")
             decoded_token = auth.verify_id_token(id_token)
-            print(f"✅ Token verified successfully for user: {decoded_token.get('uid')}")
+            print(f"Token verified successfully for user: {decoded_token.get('uid')}")
             return decoded_token
         except Exception as e:
-            print(f"❌ Error verifying token: {e}")
-            print(f"❌ Firebase initialized status: {firebase_initialized}")
+            print(f"Error verifying token: {e}")
+            print(f"Firebase initialized status: {firebase_initialized}")
             import traceback
-            print(f"❌ Traceback: {traceback.format_exc()}")
+            print(f"Traceback: {traceback.format_exc()}")
             return None
     
     @staticmethod
@@ -298,16 +298,16 @@ class FirebaseService:
         """Update user's last login time"""
         try:
             if not firebase_initialized or not db:
-                print("❌ Firebase or Firestore not initialized")
+                print("Firebase or Firestore not initialized")
                 return False
                 
             db.collection('users').document(user_id).update({
                 'last_login': datetime.utcnow()
             })
-            print(f"✅ Updated last login for user: {user_id}")
+            print(f"Updated last login for user: {user_id}")
             return True
         except Exception as e:
-            print(f"❌ Error updating last login: {e}")
+            print(f"Error updating last login: {e}")
             return False
     
     @staticmethod
@@ -315,7 +315,7 @@ class FirebaseService:
         """Check if username is already taken"""
         try:
             if not firebase_initialized or not db:
-                print("❌ Firebase or Firestore not initialized")
+                print("Firebase or Firestore not initialized")
                 return True  # Assume taken if we can't check
                 
             # Query users collection for existing username
@@ -328,7 +328,7 @@ class FirebaseService:
             return is_taken
             
         except Exception as e:
-            print(f"❌ Error checking username availability: {e}")
+            print(f"Error checking username availability: {e}")
             return True  # Assume taken if we can't check
     
     @staticmethod
@@ -336,7 +336,7 @@ class FirebaseService:
         """Set username for a user and return updated user data"""
         try:
             if not firebase_initialized or not db:
-                print("❌ Firebase or Firestore not initialized")
+                print("Firebase or Firestore not initialized")
                 return False
                 
             # Update user document with username
@@ -345,11 +345,11 @@ class FirebaseService:
                 'updated_at': datetime.utcnow()
             }
             db.collection('users').document(user_id).update(update_data)
-            print(f"✅ Set username '{username}' for user: {user_id}")
+            print(f"Set username '{username}' for user: {user_id}")
             return True
             
         except Exception as e:
-            print(f"❌ Error setting username: {e}")
+            print(f"Error setting username: {e}")
             return False
 
     @staticmethod
@@ -371,10 +371,10 @@ class FirebaseService:
             
             alert_id = str(uuid.uuid4())
             db.collection('users').document(user_id).collection('alerts').document(alert_id).set(alert_data)
-            print(f"✅ Created alert {alert_id} for user {user_id}")
+            print(f"Created alert {alert_id} for user {user_id}")
             return alert_id
         except Exception as e:
-            print(f"❌ Error creating alert: {e}")
+            print(f"Error creating alert: {e}")
             return None
     
     @staticmethod
@@ -382,7 +382,7 @@ class FirebaseService:
         """Get user's alerts"""
         try:
             if not firebase_initialized or not db:
-                print("❌ Firebase not initialized. Cannot get alerts.")
+                print("Firebase not initialized. Cannot get alerts.")
                 return []
                 
             alerts = []
@@ -397,10 +397,10 @@ class FirebaseService:
                 alert_data['id'] = doc.id
                 alerts.append(alert_data)
             
-            print(f"✅ Retrieved {len(alerts)} alerts for user {user_id}")
+            print(f"Retrieved {len(alerts)} alerts for user {user_id}")
             return alerts
         except Exception as e:
-            print(f"❌ Error getting alerts: {e}")
+            print(f"Error getting alerts: {e}")
             return []
     
     @staticmethod
@@ -422,7 +422,7 @@ class FirebaseService:
         """Check if any alerts should be triggered"""
         try:
             if not firebase_initialized or not db:
-                print("❌ Firebase not initialized. Cannot check triggered alerts.")
+                print("Firebase not initialized. Cannot check triggered alerts.")
                 return []
                 
             triggered_alerts = []
@@ -450,9 +450,9 @@ class FirebaseService:
                         'triggered_at': datetime.utcnow()
                     })
                     triggered_alerts.append(alert_data)
-                    print(f"✅ Alert triggered for {symbol} at ${current_price}")
+                    print(f"Alert triggered for {symbol} at ${current_price}")
             
             return triggered_alerts
         except Exception as e:
-            print(f"❌ Error checking triggered alerts: {e}")
+            print(f"Error checking triggered alerts: {e}")
             return [] 

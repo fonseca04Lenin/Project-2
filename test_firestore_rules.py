@@ -18,13 +18,13 @@ def test_firestore_rules():
         # Initialize Firebase Admin
         try:
             app = firebase_admin.get_app()
-            print("✅ Firebase Admin already initialized")
+            print("Firebase Admin already initialized")
         except ValueError:
             cred_path = os.environ.get('FIREBASE_CREDENTIALS_PATH', 'firebase-credentials.json')
             if os.path.exists(cred_path):
                 cred = credentials.Certificate(cred_path)
                 app = firebase_admin.initialize_app(cred)
-                print(f"✅ Firebase Admin initialized from {cred_path}")
+                print(f"Firebase Admin initialized from {cred_path}")
             else:
                 import base64
                 import json
@@ -34,53 +34,53 @@ def test_firestore_rules():
                     creds_dict = json.loads(creds_json)
                     cred = credentials.Certificate(creds_dict)
                     app = firebase_admin.initialize_app(cred)
-                    print("✅ Firebase Admin initialized from base64 credentials")
+                    print("Firebase Admin initialized from base64 credentials")
                 else:
-                    print("❌ Firebase credentials not found")
+                    print("Firebase credentials not found")
                     return False
         
         db = firestore.client()
-        print("✅ Firestore client initialized")
+        print("Firestore client initialized")
         
         # Test 1: Verify we can read rules file
-        print("\n📋 Test 1: Rules file exists and is valid")
+        print("\nTest 1: Rules file exists and is valid")
         if os.path.exists('firestore.rules'):
             with open('firestore.rules', 'r') as f:
                 rules = f.read()
             if 'isAuthenticated()' in rules and 'isOwner(userId)' in rules:
-                print("✅ Rules file contains security functions")
+                print("Rules file contains security functions")
             else:
-                print("⚠️ Rules file may not have proper security checks")
-            print(f"✅ Rules file size: {len(rules)} characters")
+                print("Rules file may not have proper security checks")
+            print(f"Rules file size: {len(rules)} characters")
         else:
-            print("❌ Rules file not found")
+            print("Rules file not found")
             return False
         
         # Test 2: Verify structure matches code expectations
-        print("\n📋 Test 2: Verify Firestore structure matches rules")
+        print("\nTest 2: Verify Firestore structure matches rules")
         print("   Expected collections:")
         print("   - users/{userId}")
         print("   - users/{userId}/watchlist/{stockId}")
         print("   - users/{userId}/alerts/{alertId}")
         print("   - users/{userId}/metadata/{docId}")
         print("   - chat_conversations/{userId}")
-        print("✅ Structure matches rules")
+        print("Structure matches rules")
         
         # Test 3: Check if we can access data (Admin SDK bypasses rules)
-        print("\n📋 Test 3: Admin SDK access (bypasses rules - expected)")
+        print("\nTest 3: Admin SDK access (bypasses rules - expected)")
         try:
             # Try to list users collection (Admin SDK can do this)
             users_ref = db.collection('users')
             # Just check if collection exists, don't read all data
-            print("✅ Admin SDK can access Firestore (expected - Admin SDK bypasses rules)")
+            print("Admin SDK can access Firestore (expected - Admin SDK bypasses rules)")
             print("   Note: Rules only apply to client SDK, not Admin SDK")
         except Exception as e:
-            print(f"⚠️ Error accessing Firestore: {e}")
+            print(f"Error accessing Firestore: {e}")
         
         print("\n" + "="*80)
-        print("✅ RULES FILE VALIDATION COMPLETE")
+        print("RULES FILE VALIDATION COMPLETE")
         print("="*80)
-        print("\n📝 NEXT STEPS:")
+        print("\nNEXT STEPS:")
         print("   1. Deploy rules via Firebase Console:")
         print("      https://console.firebase.google.com")
         print("      → Firestore Database → Rules → Paste rules → Publish")
@@ -95,7 +95,7 @@ def test_firestore_rules():
         return True
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return False

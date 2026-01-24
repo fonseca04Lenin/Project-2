@@ -13,14 +13,14 @@ def deploy_rules():
         # Initialize Firebase Admin if not already initialized
         try:
             firebase_admin.get_app()
-            print("✅ Firebase Admin already initialized")
+            print("Firebase Admin already initialized")
         except ValueError:
             # Try to initialize
             cred_path = os.environ.get('FIREBASE_CREDENTIALS_PATH', 'firebase-credentials.json')
             if os.path.exists(cred_path):
                 cred = credentials.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
-                print(f"✅ Firebase Admin initialized from {cred_path}")
+                print(f"Firebase Admin initialized from {cred_path}")
             else:
                 # Try base64 encoded credentials
                 import base64
@@ -31,28 +31,28 @@ def deploy_rules():
                     creds_dict = json.loads(creds_json)
                     cred = credentials.Certificate(creds_dict)
                     firebase_admin.initialize_app(cred)
-                    print("✅ Firebase Admin initialized from base64 credentials")
+                    print("Firebase Admin initialized from base64 credentials")
                 else:
-                    print("❌ Firebase credentials not found")
+                    print("Firebase credentials not found")
                     return False
         
         # Read the rules file
         rules_path = 'firestore.rules'
         if not os.path.exists(rules_path):
-            print(f"❌ Rules file not found: {rules_path}")
+            print(f"Rules file not found: {rules_path}")
             return False
         
         with open(rules_path, 'r') as f:
             rules_content = f.read()
         
-        print(f"📋 Read rules from {rules_path}")
+        print(f"Read rules from {rules_path}")
         print(f"📏 Rules file size: {len(rules_content)} characters")
         
         # Note: Firebase Admin SDK doesn't have a direct method to deploy rules
         # Rules must be deployed via Firebase CLI or Console
-        print("\n⚠️  Firebase Admin SDK cannot deploy rules directly.")
-        print("📝 Rules file has been updated and is ready to deploy.")
-        print("\n🔧 To deploy, use one of these methods:")
+        print("\n Firebase Admin SDK cannot deploy rules directly.")
+        print("Rules file has been updated and is ready to deploy.")
+        print("\nTo deploy, use one of these methods:")
         print("   1. Firebase Console: https://console.firebase.google.com")
         print("      → Go to Firestore Database → Rules → Paste rules → Publish")
         print("   2. Firebase CLI: firebase deploy --only firestore:rules")
@@ -61,7 +61,7 @@ def deploy_rules():
         return True
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return False

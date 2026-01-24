@@ -109,7 +109,7 @@ class AIAdvisorChat {
                 }
             });
         } else {
-            console.error('❌ Firebase not available');
+            console.error('Firebase not available');
             this.updateStatus('offline');
         }
     }
@@ -177,11 +177,11 @@ class AIAdvisorChat {
                 }
             } else {
                 const errorMsg = response?.error || response?.response || 'Failed to get response from AI';
-                console.error('❌ API Error:', errorMsg);
+                console.error('API Error:', errorMsg);
                 this.showError(errorMsg);
             }
         } catch (error) {
-            console.error('❌ Chat API error:', error);
+            console.error('Chat API error:', error);
             this.hideTypingIndicator();
             this.showError(`Failed to connect to AI service: ${error.message}`);
         }
@@ -208,14 +208,14 @@ class AIAdvisorChat {
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ HTTP Error Response:', errorText);
+                console.error('HTTP Error Response:', errorText);
                 throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
             }
             
             const data = await response.json();
             return data;
         } catch (error) {
-            console.error('❌ CallChatAPI Error:', error);
+            console.error('CallChatAPI Error:', error);
             throw error;
         }
     }
@@ -227,10 +227,10 @@ class AIAdvisorChat {
                 const token = await firebase.auth().currentUser.getIdToken();
                 return token;
             }
-            console.error('❌ No current user in Firebase auth');
+            console.error('No current user in Firebase auth');
             throw new Error('No authentication token available - user not logged in');
         } catch (error) {
-            console.error('❌ Error getting auth token:', error);
+            console.error('Error getting auth token:', error);
             throw error;
         }
     }
@@ -293,7 +293,7 @@ class AIAdvisorChat {
         
         const avatar = sender === 'user' ? 
             (this.currentUser?.email?.charAt(0).toUpperCase() || 'U') : 
-            '🤖';
+            '';
         
         messageDiv.innerHTML = `
             <div class="ai-chat-message-avatar">${avatar}</div>
@@ -329,7 +329,7 @@ class AIAdvisorChat {
         const indicator = document.createElement('div');
         indicator.className = 'ai-typing-indicator';
         indicator.innerHTML = `
-            <div class="ai-chat-message-avatar">🤖</div>
+            <div class="ai-chat-message-avatar"></div>
             <div class="ai-typing-dots">
                 <div class="ai-typing-dot"></div>
                 <div class="ai-typing-dot"></div>
@@ -456,7 +456,7 @@ class AIAdvisorChat {
             
             if (!statusResponse.ok) {
                 const errorText = await statusResponse.text();
-                console.error('❌ API Status Error:', statusResponse.status, statusResponse.statusText, errorText);
+                console.error('API Status Error:', statusResponse.status, statusResponse.statusText, errorText);
                 this.showError(`API Error: ${statusResponse.status} ${statusResponse.statusText}`);
                 return false;
             }
@@ -474,17 +474,17 @@ class AIAdvisorChat {
             
             if (geminiResponse.ok) {
                 const geminiData = await geminiResponse.json();
-                this.showSuccess('✅ API & Gemini connection successful!');
+                this.showSuccess('API & Gemini connection successful!');
                 return true;
             } else {
                 const errorText = await geminiResponse.text();
-                console.error('❌ Gemini API Test Error:', geminiResponse.status, geminiResponse.statusText, errorText);
+                console.error('Gemini API Test Error:', geminiResponse.status, geminiResponse.statusText, errorText);
                 this.showError(`Gemini API Error: ${geminiResponse.status} ${geminiResponse.statusText}`);
                 return false;
             }
             
         } catch (error) {
-            console.error('❌ API Connection Test Failed:', error);
+            console.error('API Connection Test Failed:', error);
             this.showError(`Connection failed: ${error.message}`);
             return false;
         }

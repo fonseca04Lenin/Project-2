@@ -18,7 +18,7 @@
     <div id="app">
         <!-- Test Header -->
         <div style="padding: 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--card-border);">
-            <h1 style="color: var(--text-primary); margin: 0;">🤖 AI Chatbot Test Page</h1>
+            <h1 style="color: var(--text-primary); margin: 0;">AI Chatbot Test Page</h1>
             <p style="color: var(--text-secondary); margin: 8px 0 0 0;">Test the AI Stock Advisor functionality</p>
         </div>
         
@@ -74,14 +74,14 @@
                 const loginBtn = document.getElementById('loginBtn');
                 
                 if (user) {
-                    authText.textContent = `✅ Logged in as: ${user.email}`;
+                    authText.textContent = `Logged in as: ${user.email}`;
                     authText.style.color = 'var(--success-color)';
                     loginBtn.style.display = 'none';
                     
                     // Update global currentUser for chat
                     window.currentUser = user;
                 } else {
-                    authText.textContent = '❌ Not logged in';
+                    authText.textContent = 'Not logged in';
                     authText.style.color = 'var(--error-color)';
                     loginBtn.style.display = 'block';
                     
@@ -106,14 +106,14 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    statusEl.textContent = '✅ API is responding correctly';
+                    statusEl.textContent = 'API is responding correctly';
                     statusEl.style.color = 'var(--success-color)';
                 } else {
-                    statusEl.textContent = `❌ API Error: ${data.error || 'Unknown error'}`;
+                    statusEl.textContent = `API Error: ${data.error || 'Unknown error'}`;
                     statusEl.style.color = 'var(--error-color)';
                 }
             } catch (error) {
-                statusEl.textContent = `❌ Connection failed: ${error.message}`;
+                statusEl.textContent = `Connection failed: ${error.message}`;
                 statusEl.style.color = 'var(--error-color)';
             }
             
