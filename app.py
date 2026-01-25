@@ -1479,9 +1479,21 @@ def authenticate_request():
         print(f"Traceback: {traceback.format_exc()}")
         return None
 
-@app.route('/api/watchlist', methods=['GET'])
+@app.route('/api/watchlist', methods=['GET', 'OPTIONS'])
 def get_watchlist_route():
     """Lightweight watchlist endpoint with current prices"""
+    # Handle OPTIONS preflight explicitly
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin', '')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, X-Request-Source'
+            response.headers['Access-Control-Max-Age'] = '86400'
+        return response
+
     origin = request.headers.get('Origin', '')
     print(f"📥 GET /api/watchlist request from origin: {origin}")
     print(f"📥 Request headers - Authorization: {bool(request.headers.get('Authorization'))}, X-User-ID: {request.headers.get('X-User-ID')}")
