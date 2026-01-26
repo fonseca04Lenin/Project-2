@@ -317,6 +317,232 @@ class NewsAPI:
             }
         ]
 
+
+# =============================================================================
+# STOCKTWITS API - Free social sentiment for stocks
+# =============================================================================
+
+class StocktwitsAPI:
+    """
+    Stocktwits API integration for fetching social sentiment and messages about stocks.
+    Free API - no authentication required for public streams.
+    """
+
+    def __init__(self):
+        self.base_url = "https://api.stocktwits.com/api/2"
+        self.cache = {}
+        self.cache_ttl = 60  # Cache for 60 seconds to avoid rate limiting
+
+    def get_stock_messages(self, symbol, limit=15):
+        """
+        Get recent Stocktwits messages for a stock symbol.
+
+        Args:
+            symbol: Stock symbol (e.g., 'AAPL')
+            limit: Number of messages to return (max 30)
+
+        Returns:
+            List of message dictionaries with sentiment info
+        """
+        symbol = symbol.upper()
+        cache_key = f"stocktwits:{symbol}"
+
+        # Check cache
+        if cache_key in self.cache:
+            cached_data, cached_time = self.cache[cache_key]
+            if time.time() - cached_time < self.cache_ttl:
+                return cached_data[:limit]
+
+        try:
+            url = f"{self.base_url}/streams/symbol/{symbol}.json"
+            headers = {
+                'User-Agent': 'StockWatchlistApp/1.0'
+            }
+
+            response = requests.get(url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                messages = []
+
+                # Get symbol info
+                symbol_info = data.get('symbol', {})
+
+                for msg in data.get('messages', [])[:30]:  # Get up to 30 for caching
+                    # Parse sentiment
+                    sentiment = None
+                    sentiment_label = 'Neutral'
+                    if msg.get('entities', {}).get('sentiment'):
+                        sentiment = msg['entities']['sentiment'].get('basic')
+                        if sentiment == 'Bullish':
+                            sentiment_label = 'Bullish'
+                        elif sentiment == 'Bearish':
+                            sentiment_label = 'Bearish'
+
+                    # Parse timestamp
+                    created_at = msg.get('created_at', '')
+                    try:
+                        # Stocktwits format: "2024-01-25T12:30:45Z"
+                        dt = datetime.strptime(created_at, '%Y-%m-%dT%H:%M:%SZ')
+                        time_ago = self._get_time_ago(dt)
+                    except:
+                        time_ago = 'recently'
+
+                    # Get user info
+                    user = msg.get('user', {})
+
+                    messages.append({
+                        'id': msg.get('id'),
+                        'body': msg.get('body', ''),
+                        'sentiment': sentiment_label,
+                        'created_at': created_at,
+                        'time_ago': time_ago,
+                        'user': {
+                            'username': user.get('username', 'Anonymous'),
+                            'name': user.get('name', ''),
+                            'avatar_url': user.get('avatar_url', ''),
+                            'followers': user.get('followers', 0),
+                            'official': user.get('official', False)
+                        },
+                        'likes_count': msg.get('likes', {}).get('total', 0),
+                        'replies_count': msg.get('conversation', {}).get('replies', 0) if msg.get('conversation') else 0
+                    })
+
+                # Cache the results
+                self.cache[cache_key] = (messages, time.time())
+
+                return messages[:limit]
+
+            elif response.status_code == 404:
+                print(f"Stocktwits: Symbol {symbol} not found")
+                return []
+            elif response.status_code == 429:
+                print(f"Stocktwits: Rate limited")
+                return self._get_cached_or_empty(cache_key, limit)
+            else:
+                print(f"Stocktwits API error: {response.status_code}")
+                return self._get_cached_or_empty(cache_key, limit)
+
+        except requests.exceptions.Timeout:
+            print(f"Stocktwits: Request timeout for {symbol}")
+            return self._get_cached_or_empty(cache_key, limit)
+        except Exception as e:
+            print(f"Stocktwits error for {symbol}: {e}")
+            return self._get_cached_or_empty(cache_key, limit)
+
+    def get_trending_symbols(self, limit=10):
+        """Get trending stock symbols on Stocktwits"""
+        try:
+            url = f"{self.base_url}/trending/symbols.json"
+            headers = {
+                'User-Agent': 'StockWatchlistApp/1.0'
+            }
+
+            response = requests.get(url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                symbols = []
+
+                for sym in data.get('symbols', [])[:limit]:
+                    symbols.append({
+                        'symbol': sym.get('symbol', ''),
+                        'title': sym.get('title', ''),
+                        'watchlist_count': sym.get('watchlist_count', 0)
+                    })
+
+                return symbols
+            else:
+                return []
+
+        except Exception as e:
+            print(f"Stocktwits trending error: {e}")
+            return []
+
+    def get_symbol_sentiment(self, symbol):
+        """Get overall sentiment summary for a symbol"""
+        symbol = symbol.upper()
+
+        try:
+            url = f"{self.base_url}/streams/symbol/{symbol}.json"
+            headers = {
+                'User-Agent': 'StockWatchlistApp/1.0'
+            }
+
+            response = requests.get(url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                symbol_info = data.get('symbol', {})
+
+                return {
+                    'symbol': symbol,
+                    'watchlist_count': symbol_info.get('watchlist_count', 0),
+                    'message_volume': len(data.get('messages', [])),
+                    'sentiment': self._calculate_sentiment(data.get('messages', []))
+                }
+            else:
+                return None
+
+        except Exception as e:
+            print(f"Stocktwits sentiment error for {symbol}: {e}")
+            return None
+
+    def _calculate_sentiment(self, messages):
+        """Calculate overall sentiment from messages"""
+        bullish = 0
+        bearish = 0
+        neutral = 0
+
+        for msg in messages:
+            sentiment = msg.get('entities', {}).get('sentiment', {}).get('basic')
+            if sentiment == 'Bullish':
+                bullish += 1
+            elif sentiment == 'Bearish':
+                bearish += 1
+            else:
+                neutral += 1
+
+        total = bullish + bearish + neutral
+        if total == 0:
+            return {'bullish_percent': 0, 'bearish_percent': 0, 'neutral_percent': 0}
+
+        return {
+            'bullish_percent': round((bullish / total) * 100, 1),
+            'bearish_percent': round((bearish / total) * 100, 1),
+            'neutral_percent': round((neutral / total) * 100, 1),
+            'total_messages': total
+        }
+
+    def _get_time_ago(self, dt):
+        """Convert datetime to human-readable 'time ago' string"""
+        now = datetime.utcnow()
+        diff = now - dt
+
+        seconds = diff.total_seconds()
+
+        if seconds < 60:
+            return 'just now'
+        elif seconds < 3600:
+            minutes = int(seconds / 60)
+            return f'{minutes}m ago'
+        elif seconds < 86400:
+            hours = int(seconds / 3600)
+            return f'{hours}h ago'
+        elif seconds < 604800:
+            days = int(seconds / 86400)
+            return f'{days}d ago'
+        else:
+            return dt.strftime('%b %d')
+
+    def _get_cached_or_empty(self, cache_key, limit):
+        """Return cached data if available, otherwise empty list"""
+        if cache_key in self.cache:
+            cached_data, _ = self.cache[cache_key]
+            return cached_data[:limit]
+        return []
+
+
 # =============================================================================
 # YAHOO FINANCE API (unchanged core, added caching)
 # =============================================================================
