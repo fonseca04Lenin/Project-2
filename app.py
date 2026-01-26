@@ -12,7 +12,7 @@ except ImportError:
         from backports import zoneinfo
     except ImportError:
         zoneinfo = None
-from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI, AlpacaAPI, CompanyInfoService
+from stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI, AlpacaAPI, CompanyInfoService, StocktwitsAPI
 from firebase_service import FirebaseService, get_firestore_client, FirebaseUser
 from watchlist_service import get_watchlist_service
 from auth import auth, login_manager
@@ -147,6 +147,7 @@ app.register_blueprint(auth)
 # Initialize APIs
 yahoo_finance_api = YahooFinanceAPI()
 news_api = NewsAPI()
+stocktwits_api = StocktwitsAPI()
 finnhub_api = FinnhubAPI()
 company_info_service = CompanyInfoService()  # Multi-API company info service
 
@@ -2231,6 +2232,113 @@ def get_company_news(symbol):
         return jsonify(news)
     except Exception as e:
         return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
+
+
+# =============================================================================
+# STOCKTWITS ENDPOINTS - Social sentiment for stocks
+# =============================================================================
+
+@app.route('/api/stocktwits/<symbol>', methods=['GET', 'OPTIONS'])
+def get_stock_stocktwits(symbol):
+    """Get recent Stocktwits messages for a stock"""
+    # Handle OPTIONS preflight
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin', '')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID'
+        return response
+
+    try:
+        symbol = symbol.upper()
+        limit = request.args.get('limit', 15, type=int)
+
+        # Cap limit at 30
+        if limit > 30:
+            limit = 30
+
+        messages = stocktwits_api.get_stock_messages(symbol, limit=limit)
+
+        return jsonify({
+            'symbol': symbol,
+            'messages': messages,
+            'count': len(messages)
+        })
+    except Exception as e:
+        print(f"Error fetching Stocktwits for {symbol}: {e}")
+        return jsonify({
+            'symbol': symbol,
+            'messages': [],
+            'count': 0,
+            'error': 'Could not fetch social sentiment'
+        }), 200  # Return 200 with empty data instead of error
+
+@app.route('/api/stocktwits/<symbol>/sentiment', methods=['GET', 'OPTIONS'])
+def get_stock_sentiment(symbol):
+    """Get sentiment summary for a stock from Stocktwits"""
+    # Handle OPTIONS preflight
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin', '')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID'
+        return response
+
+    try:
+        symbol = symbol.upper()
+        sentiment = stocktwits_api.get_symbol_sentiment(symbol)
+
+        if sentiment:
+            return jsonify(sentiment)
+        else:
+            return jsonify({
+                'symbol': symbol,
+                'sentiment': None,
+                'error': 'Sentiment data not available'
+            })
+    except Exception as e:
+        print(f"Error fetching sentiment for {symbol}: {e}")
+        return jsonify({
+            'symbol': symbol,
+            'sentiment': None,
+            'error': 'Could not fetch sentiment'
+        })
+
+@app.route('/api/stocktwits/trending', methods=['GET', 'OPTIONS'])
+def get_trending_stocktwits():
+    """Get trending symbols on Stocktwits"""
+    # Handle OPTIONS preflight
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin', '')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID'
+        return response
+
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        trending = stocktwits_api.get_trending_symbols(limit=limit)
+
+        return jsonify({
+            'trending': trending,
+            'count': len(trending)
+        })
+    except Exception as e:
+        print(f"Error fetching trending: {e}")
+        return jsonify({
+            'trending': [],
+            'count': 0,
+            'error': 'Could not fetch trending symbols'
+        })
 
 
 # AI Analysis cache - 4 hour TTL

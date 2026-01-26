@@ -980,6 +980,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [chartData, setChartData] = useState(null);
     const [news, setNews] = useState([]);
     const [newsLoading, setNewsLoading] = useState(false);
+    const [stocktwits, setStocktwits] = useState([]);
+    const [stocktwitsLoading, setStocktwitsLoading] = useState(false);
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const chartRootRef = useRef(null);
@@ -1153,6 +1155,29 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     } finally {
                         setNewsLoading(false);
                         console.timeEnd(`StockDetailsModal-${symbol}-news-api`);
+                    }
+                })();
+
+                // Load Stocktwits social sentiment in background
+                setStocktwitsLoading(true);
+                setStocktwits([]);
+                (async () => {
+                    try {
+                        console.log(`[StockDetailsModal] Fetching Stocktwits for ${symbol}`);
+                        const stocktwitsResp = await fetch(`${API_BASE}/api/stocktwits/${symbol}?limit=10`, {
+                            credentials: 'include'
+                        });
+                        if (stocktwitsResp.ok) {
+                            const stocktwitsData = await stocktwitsResp.json();
+                            console.log(`[StockDetailsModal] Stocktwits received for ${symbol} (${stocktwitsData.count} messages)`);
+                            setStocktwits(stocktwitsData.messages || []);
+                        } else {
+                            console.log(`[StockDetailsModal] Stocktwits API failed for ${symbol}, status: ${stocktwitsResp.status}`);
+                        }
+                    } catch (error) {
+                        console.log(`[StockDetailsModal] Stocktwits API error for ${symbol}:`, error);
+                    } finally {
+                        setStocktwitsLoading(false);
                     }
                 })();
 
@@ -1779,6 +1804,184 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                 ) : null}
                             </div>
                         )}
+
+                        {/* Stocktwits Social Sentiment Section */}
+                        <div className="modal-stocktwits" style={{
+                            marginTop: '1.5rem',
+                            padding: '1.25rem',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <h3 style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                margin: '0 0 1rem 0',
+                                fontSize: '1.1rem',
+                                fontWeight: '600',
+                                color: '#fff'
+                            }}>
+                                <i className="fas fa-comments" style={{ color: '#1DA1F2' }}></i>
+                                Social Sentiment
+                                <span style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: '400',
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    marginLeft: 'auto'
+                                }}>via Stocktwits</span>
+                            </h3>
+
+                            {stocktwitsLoading ? (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.75rem',
+                                    padding: '2rem',
+                                    color: 'rgba(255, 255, 255, 0.6)'
+                                }}>
+                                    <i className="fas fa-spinner fa-spin"></i>
+                                    <span>Loading social sentiment...</span>
+                                </div>
+                            ) : stocktwits.length > 0 ? (
+                                <div className="stocktwits-list" style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.75rem',
+                                    maxHeight: '400px',
+                                    overflowY: 'auto'
+                                }}>
+                                    {stocktwits.map((message, index) => (
+                                        <div
+                                            key={message.id || index}
+                                            className="stocktwits-message"
+                                            style={{
+                                                padding: '1rem',
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                borderRadius: '8px',
+                                                borderLeft: `3px solid ${
+                                                    message.sentiment === 'Bullish' ? '#00D924' :
+                                                    message.sentiment === 'Bearish' ? '#ef4444' :
+                                                    'rgba(255, 255, 255, 0.2)'
+                                                }`
+                                            }}
+                                        >
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                marginBottom: '0.5rem'
+                                            }}>
+                                                {message.user?.avatar_url ? (
+                                                    <img
+                                                        src={message.user.avatar_url}
+                                                        alt=""
+                                                        style={{
+                                                            width: '28px',
+                                                            height: '28px',
+                                                            borderRadius: '50%'
+                                                        }}
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div style={{
+                                                        width: '28px',
+                                                        height: '28px',
+                                                        borderRadius: '50%',
+                                                        background: 'rgba(255, 255, 255, 0.1)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}>
+                                                        <i className="fas fa-user" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}></i>
+                                                    </div>
+                                                )}
+                                                <span style={{
+                                                    fontWeight: '600',
+                                                    color: '#fff',
+                                                    fontSize: '0.9rem'
+                                                }}>
+                                                    @{message.user?.username || 'Anonymous'}
+                                                    {message.user?.official && (
+                                                        <i className="fas fa-check-circle" style={{
+                                                            color: '#1DA1F2',
+                                                            marginLeft: '4px',
+                                                            fontSize: '12px'
+                                                        }}></i>
+                                                    )}
+                                                </span>
+                                                <span style={{
+                                                    color: 'rgba(255, 255, 255, 0.4)',
+                                                    fontSize: '0.8rem'
+                                                }}>
+                                                    {message.time_ago}
+                                                </span>
+                                                {message.sentiment && message.sentiment !== 'Neutral' && (
+                                                    <span style={{
+                                                        marginLeft: 'auto',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: '600',
+                                                        background: message.sentiment === 'Bullish'
+                                                            ? 'rgba(0, 217, 36, 0.2)'
+                                                            : 'rgba(239, 68, 68, 0.2)',
+                                                        color: message.sentiment === 'Bullish'
+                                                            ? '#00D924'
+                                                            : '#ef4444'
+                                                    }}>
+                                                        {message.sentiment === 'Bullish' ? '📈 Bullish' : '📉 Bearish'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p style={{
+                                                margin: 0,
+                                                color: 'rgba(255, 255, 255, 0.85)',
+                                                fontSize: '0.9rem',
+                                                lineHeight: '1.5',
+                                                wordBreak: 'break-word'
+                                            }}>
+                                                {message.body}
+                                            </p>
+                                            {(message.likes_count > 0 || message.replies_count > 0) && (
+                                                <div style={{
+                                                    display: 'flex',
+                                                    gap: '1rem',
+                                                    marginTop: '0.5rem',
+                                                    color: 'rgba(255, 255, 255, 0.4)',
+                                                    fontSize: '0.8rem'
+                                                }}>
+                                                    {message.likes_count > 0 && (
+                                                        <span>
+                                                            <i className="fas fa-heart" style={{ marginRight: '4px' }}></i>
+                                                            {message.likes_count}
+                                                        </span>
+                                                    )}
+                                                    {message.replies_count > 0 && (
+                                                        <span>
+                                                            <i className="fas fa-reply" style={{ marginRight: '4px' }}></i>
+                                                            {message.replies_count}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{
+                                    textAlign: 'center',
+                                    padding: '2rem',
+                                    color: 'rgba(255, 255, 255, 0.5)'
+                                }}>
+                                    <i className="fas fa-comment-slash" style={{ fontSize: '2rem', marginBottom: '0.5rem', display: 'block' }}></i>
+                                    <p style={{ margin: 0 }}>No recent social posts for ${symbol}</p>
+                                </div>
+                            )}
+                        </div>
                     </>
                 )}
             </div>
