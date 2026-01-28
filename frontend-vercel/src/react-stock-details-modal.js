@@ -1235,6 +1235,10 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [chartData, setChartData] = useState(null);
     const [news, setNews] = useState([]);
     const [newsLoading, setNewsLoading] = useState(false);
+    const [newsPage, setNewsPage] = useState(1);
+    const [newsHasMore, setNewsHasMore] = useState(true);
+    const [newsLoadingMore, setNewsLoadingMore] = useState(false);
+    const newsContainerRef = useRef(null);
     const [stocktwits, setStocktwits] = useState([]);
     const [stocktwitsLoading, setStocktwitsLoading] = useState(false);
     const [aiInsight, setAiInsight] = useState(null);
@@ -1356,28 +1360,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     return null;
                 })();
 
-                // News API call
-                console.time(`StockDetailsModal-${symbol}-news-api`);
-                const newsPromise = (async () => {
-                    try {
-                        console.log(`[StockDetailsModal] Fetching news for ${symbol}`);
-                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
-                            credentials: 'include'
-                        });
-                        if (newsResp.ok) {
-                            const newsRespData = await newsResp.json();
-                            const newsData = newsRespData.slice(0, 5);
-                            console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
-                            return newsData;
-                        }
-                        console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
-                    } catch (error) {
-                        console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
-                    }
-                    return [];
-                })();
-
                 // Load details and chart first (critical for modal display)
+                console.time(`StockDetailsModal-${symbol}-news-api`);
                 console.log(`[StockDetailsModal] Loading core data for ${symbol}`);
                 const [details, chartDataResp] = await Promise.all([detailPromise, chartPromise]);
 
@@ -1391,17 +1375,22 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                 // Load news in background after modal is displayed
                 setNewsLoading(true);
+                setNewsPage(1);
+                setNewsHasMore(true);
+                setNews([]);
                 (async () => {
                     try {
                         console.log(`[StockDetailsModal] Fetching news for ${symbol} in background`);
-                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
+                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}?page=1&limit=5`, {
                             credentials: 'include'
                         });
                         if (newsResp.ok) {
                             const newsRespData = await newsResp.json();
-                            const newsData = newsRespData.slice(0, 5);
+                            const newsData = newsRespData.articles || [];
                             console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
                             setNews(newsData);
+                            setNewsHasMore(newsRespData.hasMore);
+                            setNewsPage(1);
                         } else {
                             console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
                         }
@@ -1709,11 +1698,50 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const formatDate = (dateString) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
         });
+    };
+
+    // Load more news for lazy loading
+    const loadMoreNews = async () => {
+        if (newsLoadingMore || !newsHasMore || !symbol) return;
+
+        setNewsLoadingMore(true);
+        const nextPage = newsPage + 1;
+
+        try {
+            console.log(`[StockDetailsModal] Loading more news for ${symbol}, page ${nextPage}`);
+            const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}?page=${nextPage}&limit=5`, {
+                credentials: 'include'
+            });
+            if (newsResp.ok) {
+                const newsRespData = await newsResp.json();
+                const newArticles = newsRespData.articles || [];
+                console.log(`[StockDetailsModal] Loaded ${newArticles.length} more articles for ${symbol}`);
+
+                if (newArticles.length > 0) {
+                    setNews(prev => [...prev, ...newArticles]);
+                    setNewsPage(nextPage);
+                }
+                setNewsHasMore(newsRespData.hasMore && newArticles.length > 0);
+            }
+        } catch (error) {
+            console.log(`[StockDetailsModal] Error loading more news for ${symbol}:`, error);
+        } finally {
+            setNewsLoadingMore(false);
+        }
+    };
+
+    const handleNewsScroll = (e) => {
+        const container = e.target;
+        const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+
+        if (scrollBottom < 50 && newsHasMore && !newsLoadingMore) {
+            loadMoreNews();
+        }
     };
 
     return (
@@ -2034,6 +2062,14 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                 <h3>
                                     <i className="fas fa-newspaper"></i>
                                     Recent News
+                                    {news.length > 0 && (
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            fontWeight: '400',
+                                            color: 'rgba(255, 255, 255, 0.5)',
+                                            marginLeft: 'auto'
+                                        }}>{news.length} articles</span>
+                                    )}
                                 </h3>
                                 {newsLoading ? (
                                     <div className="news-loading">
@@ -2041,10 +2077,18 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         <span>Loading news...</span>
                                     </div>
                                 ) : news.length > 0 ? (
-                                    <div className="news-list">
+                                    <div
+                                        className="news-list"
+                                        ref={newsContainerRef}
+                                        onScroll={handleNewsScroll}
+                                        style={{
+                                            maxHeight: '400px',
+                                            overflowY: 'auto'
+                                        }}
+                                    >
                                         {news.map((article, index) => (
                                             <a
-                                                key={index}
+                                                key={`${article.link}-${index}`}
                                                 href={article.link || article.url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
@@ -2055,6 +2099,29 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                                 <span className="news-date">{formatDate(article.published_at || article.publishedAt)}</span>
                                             </a>
                                         ))}
+                                        {newsLoadingMore && (
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                padding: '1rem',
+                                                color: 'rgba(255, 255, 255, 0.6)'
+                                            }}>
+                                                <i className="fas fa-spinner fa-spin"></i>
+                                                <span>Loading more news...</span>
+                                            </div>
+                                        )}
+                                        {!newsHasMore && news.length > 5 && (
+                                            <div style={{
+                                                textAlign: 'center',
+                                                padding: '1rem',
+                                                color: 'rgba(255, 255, 255, 0.4)',
+                                                fontSize: '0.85rem'
+                                            }}>
+                                                No more news articles
+                                            </div>
+                                        )}
                                     </div>
                                 ) : null}
                             </div>

@@ -49,7 +49,7 @@ allowed_origins = [
 frontend_url = os.environ.get('FRONTEND_URL')
 if frontend_url:
     allowed_origins.append(frontend_url)
-    print(f"🔗 Added FRONTEND_URL to CORS: {frontend_url}")
+    print(f"Added FRONTEND_URL to CORS: {frontend_url}")
 
 # Add additional Vercel domains explicitly
 vercel_domains = [
@@ -59,7 +59,7 @@ vercel_domains = [
 ]
 allowed_origins.extend(vercel_domains)
 
-print(f"🌐 CORS allowed origins: {allowed_origins}")
+print(f" CORS allowed origins: {allowed_origins}")
 print(f"Railway deployment - CORS configured for Vercel frontend")
 
 # Enable CORS with specific auth-friendly settings
@@ -158,7 +158,7 @@ alpaca_api = AlpacaAPI() if USE_ALPACA_API else None
 if USE_ALPACA_API:
     has_keys = alpaca_api and alpaca_api.api_key and alpaca_api.secret_key
     print("=" * 60)
-    print("🔵 ALPACA API CONFIGURATION")
+    print(" ALPACA API CONFIGURATION")
     print("=" * 60)
     print(f"Alpaca API enabled: {USE_ALPACA_API}")
     print(f"API keys configured: {has_keys}")
@@ -170,9 +170,9 @@ if USE_ALPACA_API:
     print("=" * 60)
 else:
     print("=" * 60)
-    print("🟡 YAHOO FINANCE ONLY MODE")
+    print("YAHOO FINANCE ONLY MODE")
     print("=" * 60)
-    print("ℹ️ Alpaca API disabled - using Yahoo Finance only")
+    print(" Alpaca API disabled - using Yahoo Finance only")
     print("To enable Alpaca, set USE_ALPACA_API=true in environment variables")
     print("=" * 60)
 
@@ -190,7 +190,7 @@ def get_stock_with_fallback(symbol):
     # Try Alpaca first if enabled
     if USE_ALPACA_API and alpaca_api:
         try:
-            print(f"🔵 [ALPACA] Attempting to fetch {symbol} from Alpaca API...")
+            print(f" [ALPACA] Attempting to fetch {symbol} from Alpaca API...")
             stock = Stock(symbol, alpaca_api)
             stock.retrieve_data()
             # If we got valid data, return it
@@ -232,7 +232,7 @@ def get_stock_alpaca_only(symbol):
         return None, None
     
     try:
-        print(f"🔵 [WATCHLIST-ALPACA] Fetching {symbol} from Alpaca API only (no Yahoo fallback)...")
+        print(f" [WATCHLIST-ALPACA] Fetching {symbol} from Alpaca API only (no Yahoo fallback)...")
         stock = Stock(symbol, alpaca_api)
         stock.retrieve_data()
         
@@ -261,7 +261,7 @@ def get_watchlist_service_lazy():
     global firestore_client, watchlist_service
     if watchlist_service is None:
         try:
-            print("🔍 Initializing WatchlistService (lazy)...")
+            print(" Initializing WatchlistService (lazy)...")
             firestore_client = get_firestore_client()
             if firestore_client is not None:
                 watchlist_service = get_watchlist_service(firestore_client)
@@ -2186,6 +2186,7 @@ def get_market_analysis():
 3. Economic Indicators: Key economic data releases and their impact
 4. Sector Performance: Which sectors are outperforming/underperforming and why?
 5. What to Watch: Important events or catalysts coming up
+6. Information must be the latest available as of this week.
 
 Keep it informative, data-driven, and professional. Limit to 200-250 words."""
 
@@ -2228,8 +2229,15 @@ def get_market_news():
 def get_company_news(symbol):
     try:
         symbol = symbol.upper()
-        news = news_api.get_company_news(symbol, limit=5)
-        return jsonify(news)
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 5, type=int)
+        news = news_api.get_company_news(symbol, limit=limit, page=page)
+        return jsonify({
+            'articles': news,
+            'page': page,
+            'limit': limit,
+            'hasMore': len(news) == limit
+        })
     except Exception as e:
         return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
 
@@ -2594,7 +2602,7 @@ def get_stock_ai_insight(symbol):
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
         direction = "up" if change_pct >= 0 else "down"
-        prompt = f"""In exactly 2 sentences of plain text (no JSON, no markdown, no formatting), explain why {name} ({symbol}) stock moved {direction} {abs(change_pct):.1f}%.
+        prompt = f"""In exactly 3 sentences of plain text (no JSON, no markdown, no formatting), explain why {name} ({symbol}) stock moved {direction} {abs(change_pct):.1f}%.
 
 Price: ${price:.2f}
 Headlines: {news_context if news_context else "No recent news"}
