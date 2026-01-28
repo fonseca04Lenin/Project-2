@@ -263,8 +263,7 @@ class NewsAPI:
             print(f"Error fetching market news: {e}")
             return self.get_fallback_news()
 
-    def get_company_news(self, symbol, limit=5):
-        """Get news for a specific company"""
+    def get_company_news(self, symbol, limit=5, page=1):
         try:
             stock = yf.Ticker(symbol)
             info = stock.info
@@ -276,6 +275,7 @@ class NewsAPI:
                 'language': 'en',
                 'sortBy': 'publishedAt',
                 'pageSize': limit,
+                'page': page,
                 'apiKey': self.api_key
             }
 
