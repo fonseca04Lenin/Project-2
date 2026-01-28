@@ -2179,7 +2179,8 @@ def get_market_analysis():
         from chat_service import ChatService
 
         # Build comprehensive market analysis prompt
-        prompt = """Generate a concise, professional market analysis for this week covering:
+        current_date = datetime.now().strftime('%B %d, %Y')
+        prompt = f"""Today's date is {current_date}. Generate a concise, professional market analysis for this week covering:
 
 1. Current Market Trends: What's driving the market this week?
 2. Geopolitical Factors: Any major geopolitical events affecting markets?
