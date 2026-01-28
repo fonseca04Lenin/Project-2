@@ -512,7 +512,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
             };
 
             const searchName = getSearchName(ceoName);
-            const searchQuery = `Who is ${searchName}`;
+            const searchQuery = `Who is ${searchName} ${companySymbol} CEO`;    
 
             try {
                 const response = await fetch(`${API_BASE}/api/youtube/search?q=${encodeURIComponent(searchQuery)}&max_results=6`);
