@@ -2180,6 +2180,7 @@ def get_market_analysis():
 
         # Build comprehensive market analysis prompt
         current_date = datetime.now().strftime('%B %d, %Y')
+        current_year = datetime.now().year
         prompt = f"""Today's date is {current_date}. Generate a concise, professional market analysis for this week covering:
 
 1. Current Market Trends: What's driving the market this week?
@@ -2187,7 +2188,11 @@ def get_market_analysis():
 3. Economic Indicators: Key economic data releases and their impact
 4. Sector Performance: Which sectors are outperforming/underperforming and why?
 5. What to Watch: Important events or catalysts coming up
-6. Information must be the latest available as of this week.
+
+IMPORTANT FORMATTING RULES:
+- When referencing dates, always include the full year {current_year}
+- Do NOT use date ranges like "Week of January 2-8" - instead say "the week of {current_date}" or just "this week"
+- Do NOT leave any date incomplete or with missing year
 
 Keep it informative, data-driven, and professional. Limit to 200-250 words."""
 
