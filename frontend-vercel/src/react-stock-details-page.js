@@ -705,6 +705,11 @@ window.navigateToStockPage = (symbol, isFromWatchlist = false) => {
         dashboardContent.style.display = 'none';
     }
 
+    // Show the page container
+    if (pageContainer) {
+        pageContainer.style.display = 'block';
+    }
+
     pageState = { isActive: true, symbol, isFromWatchlist };
     pageRoot.render(React.createElement(StockDetailsPage, {
         symbol,
@@ -725,6 +730,11 @@ window.navigateBackToDashboard = () => {
         pageRoot.render(null);
     }
 
+    // Hide the page container so it doesn't block the dashboard
+    if (pageContainer) {
+        pageContainer.style.display = 'none';
+    }
+
     const dashboardContent = document.querySelector('#dashboard-redesign-root');
     if (dashboardContent) {
         dashboardContent.style.display = '';
@@ -741,6 +751,9 @@ window.addEventListener('popstate', (event) => {
     } else {
         if (pageRoot) {
             pageRoot.render(null);
+        }
+        if (pageContainer) {
+            pageContainer.style.display = 'none';
         }
         const dashboardContent = document.querySelector('#dashboard-redesign-root');
         if (dashboardContent) {
