@@ -2339,18 +2339,48 @@ const initModal = () => {
     }
 };
 
-// Open modal function
+// Open modal function - now redirects to full page
 window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
-    console.time(`StockDetailsModal-${symbol}-modal-open`);
-    console.log(`[StockDetailsModal] Opening modal for ${symbol} (fromWatchlist: ${isFromWatchlist})`);
+    console.log(`[StockDetailsModal] Redirecting to stock page for ${symbol}`);
 
+    // Use the new page navigation instead of modal
+    if (typeof window.navigateToStockPage === 'function') {
+        window.navigateToStockPage(symbol, isFromWatchlist);
+    } else {
+        // Fallback to modal if page is not loaded yet
+        console.log(`[StockDetailsModal] Page not ready, using modal fallback for ${symbol}`);
+        initModal();
+        modalState = { isOpen: true, symbol, isFromWatchlist };
+        modalRoot.render(React.createElement(StockDetailsModal, {
+            ...modalState,
+            onClose: () => {
+                console.log(`[StockDetailsModal] Modal closed for ${symbol}`);
+                modalState.isOpen = false;
+                if (modalRoot) {
+                    modalRoot.render(null);
+                }
+                if (modalContainer) {
+                    modalContainer.remove();
+                    modalContainer = null;
+                    modalRoot = null;
+                }
+            }
+        }));
+
+        // Hide search bar
+        const searchSection = document.querySelector('.search-section');
+        if (searchSection) searchSection.style.display = 'none';
+    }
+};
+
+// Legacy modal open function (for cases where modal is specifically needed)
+window.openStockDetailsModalLegacy = (symbol, isFromWatchlist = false) => {
+    console.log(`[StockDetailsModal] Opening legacy modal for ${symbol}`);
     initModal();
     modalState = { isOpen: true, symbol, isFromWatchlist };
     modalRoot.render(React.createElement(StockDetailsModal, {
         ...modalState,
         onClose: () => {
-            console.timeEnd(`StockDetailsModal-${symbol}-modal-open`);
-            console.log(`[StockDetailsModal] Modal closed for ${symbol}`);
             modalState.isOpen = false;
             if (modalRoot) {
                 modalRoot.render(null);
@@ -2362,10 +2392,6 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
             }
         }
     }));
-
-    // Hide search bar
-    const searchSection = document.querySelector('.search-section');
-    if (searchSection) searchSection.style.display = 'none';
 };
 
 // Close modal function
@@ -2384,3 +2410,10 @@ window.closeStockDetailsModalReact = () => {
     const searchSection = document.querySelector('.search-section');
     if (searchSection) searchSection.style.display = 'block';
 };
+
+// Export components for use in StockDetailsPage
+window.WatchlistNotesSection = WatchlistNotesSection;
+window.CEODetailsModal = CEODetailsModal;
+window.StockDetailsModal = StockDetailsModal;
+
+console.log('[StockDetailsModal] Components loaded and exported');
