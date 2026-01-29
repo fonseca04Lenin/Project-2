@@ -2608,18 +2608,18 @@ def get_stock_ai_insight(symbol):
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
         direction = "up" if change_pct >= 0 else "down"
-        prompt = f"""In exactly 3 sentences of plain text (no JSON, no markdown, no formatting), explain why {name} ({symbol}) stock moved {direction} {abs(change_pct):.1f}%.
+        prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock moved {direction} {abs(change_pct):.1f}% today.
 
-Price: ${price:.2f}
-Headlines: {news_context if news_context else "No recent news"}
+Current price: ${price:.2f}
+Recent headlines: {news_context if news_context else "No recent news available"}
 
-Just provide the explanation directly. No bullet points, no headers, no JSON."""
+Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
 
         print(f"[AI Insight] Calling Gemini for {symbol}")
 
         response = chat_service.gemini_client.generate_content(
             prompt,
-            generation_config={"temperature": 0.5, "max_output_tokens": 300}
+            generation_config={"temperature": 0.5, "max_output_tokens": 500}
         )
 
         # Extract text from response
