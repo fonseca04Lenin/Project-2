@@ -188,13 +188,13 @@ class WatchlistService:
             print(f"🔍 Adding to Firestore - Collection: users/{user_id}/watchlist, Document: {symbol}")
             watchlist_ref = self.db.collection('users').document(user_id).collection('watchlist')
             watchlist_ref.document(symbol).set(item.to_dict())
-            print(f"✅ Successfully added {symbol} to Firestore")
+            print(f"Successfully added {symbol} to Firestore")
 
             # Update user's watchlist metadata
             self._update_watchlist_metadata(user_id)
 
             logger.info(f"Added {symbol} to watchlist for user {user_id}")
-            print(f"✅ WatchlistService.add_stock completed successfully for {symbol}")
+            print(f"WatchlistService.add_stock completed successfully for {symbol}")
             return {
                 'success': True,
                 'message': f'{company_name} added to watchlist',
@@ -203,7 +203,7 @@ class WatchlistService:
 
         except Exception as e:
             logger.error(f"Error adding {symbol} to watchlist for user {user_id}: {e}")
-            print(f"❌ WatchlistService.add_stock failed for {symbol}: {e}")
+            print(f"WatchlistService.add_stock failed for {symbol}: {e}")
             return {
                 'success': False,
                 'message': 'Failed to add stock to watchlist'
@@ -305,15 +305,15 @@ class WatchlistService:
                 future = executor.submit(execute_query)
                 try:
                     docs = future.result(timeout=15)  # 15 second timeout
-                    print(f"✅ Firestore query completed, retrieved {len(docs)} documents")
+                    print(f"Firestore query completed, retrieved {len(docs)} documents")
                 except FutureTimeoutError:
                     logger.error("Firestore query timed out after 15 seconds")
-                    print(f"❌ Firestore query timed out - returning empty list")
+                    print(f"Firestore query timed out - returning empty list")
                     future.cancel()  # Try to cancel the future
                     return []
                 except Exception as future_error:
                     logger.error(f"Error waiting for Firestore query: {future_error}")
-                    print(f"❌ Firestore query future error: {future_error}")
+                    print(f"Firestore query future error: {future_error}")
                     return []
                 
                 # Process documents
@@ -335,10 +335,10 @@ class WatchlistService:
                         
             except Exception as query_error:
                 logger.error(f"Firestore query error: {query_error}")
-                print(f"❌ Firestore query error: {query_error}")
+                print(f"Firestore query error: {query_error}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
-                print(f"❌ Traceback: {traceback.format_exc()}")
+                print(f"Traceback: {traceback.format_exc()}")
                 # Return empty list if query fails
                 return []
 
@@ -357,7 +357,7 @@ class WatchlistService:
             logger.error(f"Error getting watchlist for user {user_id}: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            print(f"❌ Error getting watchlist: {e}")
+            print(f"Error getting watchlist: {e}")
             return []
 
     def get_stock(self, user_id: str, symbol: str) -> Optional[Dict[str, Any]]:

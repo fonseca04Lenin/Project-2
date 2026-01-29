@@ -358,7 +358,7 @@ const DashboardRedesign = () => {
             });
             
             socketRef.current.on('connect', () => {
-                // // console.log('✅ WebSocket connected for real-time updates');
+                // // console.log('WebSocket connected for real-time updates');
                 // // console.log('📡 WebSocket will update ALL stocks in your watchlist automatically');
                 setSocketConnected(true);
                 
@@ -506,22 +506,22 @@ const DashboardRedesign = () => {
             });
             
             socketRef.current.on('disconnect', () => {
-                // // console.log('❌ WebSocket disconnected - falling back to HTTP polling');
+                // // console.log('WebSocket disconnected - falling back to HTTP polling');
                 setSocketConnected(false);
             });
             
             socketRef.current.on('connect_error', (error) => {
-                // // console.log('❌ WebSocket connection error:', error);
+                // // console.log('WebSocket connection error:', error);
                 setSocketConnected(false);
             });
             
             socketRef.current.on('reconnect', (attemptNumber) => {
-                // // console.log(`✅ WebSocket reconnected after ${attemptNumber} attempts`);
+                // // console.log(`WebSocket reconnected after ${attemptNumber} attempts`);
                 setSocketConnected(true);
             });
             
             socketRef.current.on('reconnect_attempt', () => {
-                // // console.log('🔄 Attempting to reconnect WebSocket...');
+                // // console.log('Attempting to reconnect WebSocket...');
             });
         }
         
@@ -763,7 +763,7 @@ const DashboardRedesign = () => {
         // Backend sends updates every 30s via WebSocket
         // This eliminates race conditions and respects rate limits
 
-        // // console.log(`✅ WebSocket-only mode active for ${watchlistData.length} stocks`);
+        // // console.log(`WebSocket-only mode active for ${watchlistData.length} stocks`);
         // // console.log(`   Updates via WebSocket every 30s from backend`);
 
         return () => {
@@ -848,7 +848,7 @@ const DashboardRedesign = () => {
             if (window.firebaseAuth?.currentUser && watchlistData.length > 0) {
                 const timeSinceLastLoad = Date.now() - lastSuccessfulLoadRef.current;
                 if (timeSinceLastLoad > WATCHLIST_REFRESH_INTERVAL) {
-                    // // console.log('🔄 Periodic watchlist refresh triggered');
+                    // // console.log('Periodic watchlist refresh triggered');
                     loadWatchlistData();
                 }
             }
@@ -876,9 +876,9 @@ const DashboardRedesign = () => {
                 userId: window.firebaseAuth?.currentUser?.uid
             };
             localStorage.setItem(WATCHLIST_CACHE_KEY, JSON.stringify(cacheData));
-            // // console.log('💾 Saved watchlist to localStorage cache');
+            // // console.log('Saved watchlist to localStorage cache');
         } catch (error) {
-            // // console.warn('⚠️ Failed to save watchlist to cache:', error);
+            // // console.warn('Failed to save watchlist to cache:', error);
         }
     };
 
@@ -904,7 +904,7 @@ const DashboardRedesign = () => {
 
             // Check if cache is expired
             if (cacheAge > WATCHLIST_CACHE_EXPIRY) {
-                // // console.log('⏰ Watchlist cache expired, removing');
+                // // console.log('Watchlist cache expired, removing');
                 localStorage.removeItem(WATCHLIST_CACHE_KEY);
                 return null;
             }
@@ -912,7 +912,7 @@ const DashboardRedesign = () => {
             // // console.log(`📖 Loaded watchlist from cache (${Math.round(cacheAge / 1000 / 60)} minutes old)`);
             return cache.data;
         } catch (error) {
-            // // console.warn('⚠️ Failed to load watchlist from cache:', error);
+            // // console.warn('Failed to load watchlist from cache:', error);
             return null;
         }
     };
@@ -922,26 +922,26 @@ const DashboardRedesign = () => {
             localStorage.removeItem(WATCHLIST_CACHE_KEY);
             // // console.log('🗑️ Cleared watchlist cache');
         } catch (error) {
-            // // console.warn('⚠️ Failed to clear watchlist cache:', error);
+            // // console.warn('Failed to clear watchlist cache:', error);
         }
     };
 
     const loadWatchlistData = async () => {
         // Prevent multiple simultaneous requests
         if (isLoadingRef.current) {
-            // // console.log('⚠️ Watchlist request already in progress, skipping duplicate request');
+            // // console.log('Watchlist request already in progress, skipping duplicate request');
             return;
         }
 
         try {
             isLoadingRef.current = true;
             // // console.log('\n' + '='.repeat(80));
-            // // console.log('🔑 LOADING WATCHLIST DATA');
+            // // console.log('LOADING WATCHLIST DATA');
             // // console.log('='.repeat(80));
 
             // Check if user is authenticated before making request
             if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-                // // console.log('❌ User not authenticated');
+                // // console.log('User not authenticated');
                 // User not authenticated, cannot load watchlist
                 clearWatchlistCache(); // Clear cache for logged out user
                 setWatchlistData([]);
@@ -949,12 +949,12 @@ const DashboardRedesign = () => {
                 return;
             }
 
-            // // console.log('✅ User authenticated:', window.firebaseAuth.currentUser.uid);
+            // // console.log('User authenticated:', window.firebaseAuth.currentUser.uid);
 
             // Try to load from cache first for immediate display
             const cachedWatchlist = loadWatchlistFromCache();
             if (cachedWatchlist && cachedWatchlist.length > 0) {
-                // // console.log(`📊 Displaying ${cachedWatchlist.length} cached watchlist items immediately`);
+                // // console.log(`Displaying ${cachedWatchlist.length} cached watchlist items immediately`);
                 // Mark cached items to show they need refresh
                 const cachedWithFlag = cachedWatchlist.map(item => ({
                     ...item,
@@ -972,7 +972,7 @@ const DashboardRedesign = () => {
             
             // Verify we have auth headers
             if (!authHeaders || !authHeaders['Authorization']) {
-                console.error('❌ Failed to get authentication headers');
+                console.error('Failed to get authentication headers');
                 setWatchlistData([]);
                 setIsLoading(false);
                 return;
@@ -1002,11 +1002,11 @@ const DashboardRedesign = () => {
                 clearTimeout(timeoutId);
                 // Check if it was a timeout
                 if (fetchError.name === 'AbortError' || fetchError.message.includes('aborted')) {
-                    console.error('❌ Watchlist request timed out after 30 seconds');
+                    console.error('Watchlist request timed out after 30 seconds');
                     throw new Error('Request timed out. Please try again.');
                 }
                 // Other fetch errors
-                console.error('❌ Fetch error:', fetchError);
+                console.error('Fetch error:', fetchError);
                 throw fetchError;
             }
             
@@ -1018,7 +1018,7 @@ const DashboardRedesign = () => {
                 // Log all symbols received
                 if (Array.isArray(data) && data.length > 0) {
                     const symbols = data.map(s => s.symbol || s.id || 'NO_SYMBOL');
-                    // // console.log('📋 STOCKS RECEIVED FROM BACKEND:');
+                    // // console.log('STOCKS RECEIVED FROM BACKEND:');
                     // symbols.forEach((sym, i) => // console.log(`   ${i + 1}. ${sym}`));
                 }
                 
@@ -1103,7 +1103,7 @@ const DashboardRedesign = () => {
                         };
                     });
                     
-                    // // console.log('✅ SET WATCHLIST DATA:', formattedData.length, 'stocks');
+                    // // console.log('SET WATCHLIST DATA:', formattedData.length, 'stocks');
                     // // console.log('   Sample stock:', formattedData[0]);
                     // // console.log('='.repeat(80) + '\n');
 
@@ -1180,11 +1180,11 @@ const DashboardRedesign = () => {
                             });
                     }
                 } else {
-                    // // console.warn('⚠️ Watchlist data is empty or not an array');
+                    // // console.warn('Watchlist data is empty or not an array');
                     // Don't clear watchlist if we have cached data
                     const cachedData = loadWatchlistFromCache();
                     if (cachedData && cachedData.length > 0) {
-                        // // console.log('📋 Using cached watchlist data instead of clearing');
+                        // // console.log('Using cached watchlist data instead of clearing');
                         setWatchlistData(cachedData);
                     } else {
                         setWatchlistData([]);
@@ -1214,7 +1214,7 @@ const DashboardRedesign = () => {
                 // Don't clear watchlist if we have cached data
                 const cachedData = loadWatchlistFromCache();
                 if (cachedData && cachedData.length > 0) {
-                    // // console.log('📋 Keeping cached watchlist data due to API error');
+                    // // console.log('Keeping cached watchlist data due to API error');
                     setWatchlistData(cachedData);
                     // Show a warning but don't clear the data
                     if (window.showNotification) {
@@ -1226,8 +1226,8 @@ const DashboardRedesign = () => {
             }
         } catch (error) {
             // Error loading watchlist
-            console.error('❌ Error loading watchlist:', error);
-            console.error('❌ Error details:', {
+            console.error('Error loading watchlist:', error);
+            console.error('Error details:', {
                 message: error.message,
                 name: error.name,
                 stack: error.stack
@@ -1236,7 +1236,7 @@ const DashboardRedesign = () => {
             // Don't clear watchlist if we have cached data
             const cachedData = loadWatchlistFromCache();
             if (cachedData && cachedData.length > 0) {
-                // // console.log('📋 Using cached watchlist data due to error');
+                // // console.log('Using cached watchlist data due to error');
                 setWatchlistData(cachedData);
                 // Show a warning but don't clear the data
                 if (window.showNotification) {

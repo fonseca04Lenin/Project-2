@@ -43,7 +43,7 @@ def test_endpoint(name, method, endpoint, data=None, headers=None, expected_stat
             return
         
         status_ok = response.status_code == expected_status
-        print(f"Status: {response.status_code} (Expected: {expected_status}) {'✅' if status_ok else '❌'}")
+        print(f"Status: {response.status_code} (Expected: {expected_status}) {'' if status_ok else ''}")
         
         try:
             response_data = response.json()
@@ -53,24 +53,24 @@ def test_endpoint(name, method, endpoint, data=None, headers=None, expected_stat
         
         if status_ok:
             results['passed'].append(name)
-            print(f"✅ PASSED: {name}")
+            print(f"PASSED: {name}")
         else:
             if requires_auth and response.status_code == 401:
                 results['skipped'].append(f"{name} - Requires authentication (expected)")
-                print(f"⚠️ SKIPPED: {name} (requires auth)")
+                print(f"SKIPPED: {name} (requires auth)")
             else:
                 results['failed'].append(f"{name} - Status {response.status_code}")
-                print(f"❌ FAILED: {name}")
+                print(f"FAILED: {name}")
                 
     except requests.exceptions.Timeout:
         results['failed'].append(f"{name} - Timeout")
-        print(f"❌ FAILED: {name} - Request timeout")
+        print(f"FAILED: {name} - Request timeout")
     except requests.exceptions.ConnectionError:
         results['failed'].append(f"{name} - Connection error")
-        print(f"❌ FAILED: {name} - Connection error (service may be down)")
+        print(f"FAILED: {name} - Connection error (service may be down)")
     except Exception as e:
         results['failed'].append(f"{name} - {str(e)}")
-        print(f"❌ FAILED: {name} - {str(e)}")
+        print(f"FAILED: {name} - {str(e)}")
 
 def main():
     print("="*80)
@@ -128,28 +128,28 @@ def main():
     print("\n" + "="*80)
     print("TEST SUMMARY")
     print("="*80)
-    print(f"✅ Passed: {len(results['passed'])}")
-    print(f"❌ Failed: {len(results['failed'])}")
-    print(f"⚠️ Skipped: {len(results['skipped'])}")
+    print(f"Passed: {len(results['passed'])}")
+    print(f"Failed: {len(results['failed'])}")
+    print(f"Skipped: {len(results['skipped'])}")
     print(f"Total: {len(results['passed']) + len(results['failed']) + len(results['skipped'])}")
     print("="*80)
     
     if results['failed']:
         print("\nFAILED TESTS:")
         for failure in results['failed']:
-            print(f"  ❌ {failure}")
+            print(f"  {failure}")
     
     if results['skipped']:
         print("\nSKIPPED TESTS:")
         for skipped in results['skipped']:
-            print(f"  ⚠️ {skipped}")
+            print(f"  {skipped}")
     
     # Exit code
     if results['failed']:
-        print("\n❌ Some tests failed!")
+        print("\nSome tests failed!")
         sys.exit(1)
     else:
-        print("\n✅ All tests passed!")
+        print("\nAll tests passed!")
         sys.exit(0)
 
 if __name__ == '__main__':

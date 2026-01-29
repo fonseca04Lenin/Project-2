@@ -160,9 +160,9 @@ const WatchlistComponent = () => {
                     // Processed stocks
                     setWatchlistData(processedStocks);
                 } else {
-                    console.error('❌ API failed with status:', response.status);
+                    console.error('API failed with status:', response.status);
                     const errorText = await response.text();
-                    console.error('❌ API error:', errorText);
+                    console.error('API error:', errorText);
                     // If API fails, show empty state
                     setWatchlistData([]);
                 }
@@ -207,7 +207,7 @@ const WatchlistComponent = () => {
                 // DELETE API response status
                 
                 if (!response.ok) {
-                    console.error('❌ Failed to remove stock from backend, reverting UI');
+                    console.error('Failed to remove stock from backend, reverting UI');
                     // If API call fails, revert the UI change
                     loadWatchlistFromAPI();
                 } else {
@@ -474,7 +474,7 @@ function initializeReactWatchlist() {
         
         return true;
     } else {
-        // // console.warn('⚠️ React root element not found, React component not loaded');
+        // // console.warn('React root element not found, React component not loaded');
         // Available elements check
         return false;
     }

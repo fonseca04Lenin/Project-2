@@ -61,7 +61,7 @@ const AIAdvisorChat = () => {
             const response = await fetch(`${API_BASE_URL}/api/health`);
             setIsOnline(response.ok);
         } catch (error) {
-            console.error('❌ API connection test failed:', error);
+            console.error('API connection test failed:', error);
             setIsOnline(false);
         }
     };
@@ -140,7 +140,7 @@ const AIAdvisorChat = () => {
                 showError(data.error || data.response || 'Failed to get response from AI');
             }
         } catch (error) {
-            console.error('❌ Chat API error:', error);
+            console.error('Chat API error:', error);
             setIsTyping(false);
             showError(`Failed to connect to AI service: ${error.message}`);
         }
@@ -169,12 +169,12 @@ const AIAdvisorChat = () => {
     };
 
     const quickSuggestions = [
-        { text: "📊 Analyze my portfolio performance", message: "Analyze my watchlist performance and show me which stocks are doing best" },
+        { text: "Analyze my portfolio performance", message: "Analyze my watchlist performance and show me which stocks are doing best" },
         { text: "🔍 Find stocks under $100", message: "What are some good stocks under $100 that I should consider?" },
-        { text: "📈 Compare AAPL vs MSFT vs GOOGL", message: "Compare Apple, Microsoft, and Google - which is the best investment right now?" },
-        { text: "⚠️ Show me stocks with big moves today", message: "Which stocks in my watchlist had the biggest price changes today?" },
-        { text: "💡 Suggest stocks to diversify", message: "What stocks should I add to diversify my portfolio?" },
-        { text: "📰 Latest news on my stocks", message: "Show me the latest news about stocks in my watchlist" }
+        { text: "Compare AAPL vs MSFT vs GOOGL", message: "Compare Apple, Microsoft, and Google - which is the best investment right now?" },
+        { text: "Show me stocks with big moves today", message: "Which stocks in my watchlist had the biggest price changes today?" },
+        { text: "Suggest stocks to diversify", message: "What stocks should I add to diversify my portfolio?" },
+        { text: "Latest news on my stocks", message: "Show me the latest news about stocks in my watchlist" }
     ];
 
     const formatMessage = (content) => {

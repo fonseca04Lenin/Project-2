@@ -14,7 +14,7 @@ def get_encryption_key():
     
     if not key_str:
         # Generate a key if not set (for development only - should be set in production)
-        print("⚠️ ENCRYPTION_KEY not set, generating temporary key (not secure for production)")
+        print("ENCRYPTION_KEY not set, generating temporary key (not secure for production)")
         key = Fernet.generate_key()
         return key
     
@@ -33,7 +33,7 @@ def get_encryption_key():
             )
             return base64.urlsafe_b64encode(kdf.derive(key_str.encode()))
     except Exception as e:
-        print(f"❌ Error processing encryption key: {e}")
+        print(f"Error processing encryption key: {e}")
         return None
 
 def encrypt_data(data: str) -> str:
@@ -47,7 +47,7 @@ def encrypt_data(data: str) -> str:
         encrypted = f.encrypt(data.encode())
         return base64.urlsafe_b64encode(encrypted).decode()
     except Exception as e:
-        print(f"❌ Encryption error: {e}")
+        print(f"Encryption error: {e}")
         raise
 
 def decrypt_data(encrypted_data: str) -> str:
@@ -62,6 +62,6 @@ def decrypt_data(encrypted_data: str) -> str:
         decrypted = f.decrypt(decoded)
         return decrypted.decode()
     except Exception as e:
-        print(f"❌ Decryption error: {e}")
+        print(f"Decryption error: {e}")
         raise
 
