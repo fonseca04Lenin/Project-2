@@ -13,6 +13,7 @@ class Config:
     
     # API Keys
     NEWS_API_KEY = os.environ.get('NEWS_API_KEY', 'your-news-api-key')
+    YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
     
     # App Settings
     DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'

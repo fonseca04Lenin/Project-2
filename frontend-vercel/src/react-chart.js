@@ -140,7 +140,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
 
         const ChartLib = window.Chart || Chart;
         if (typeof ChartLib === 'undefined') {
-            console.error('❌ Chart.js is not available');
+            console.error('Chart.js is not available');
             return;
         }
 
@@ -351,7 +351,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
             React.createElement('div', {
                 key: 'icon',
                 style: { fontSize: '24px', marginBottom: '8px' }
-            }, '📊'),
+            }, ''),
             React.createElement('div', {
                 key: 'text',
                 style: { fontSize: '16px', fontWeight: '600' }
