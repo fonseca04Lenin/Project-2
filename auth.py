@@ -56,9 +56,9 @@ def login():
         is_google_signin = data.get('isGoogleSignIn', False)
         
         if id_token:
-            print(f"🔐 Token-based login attempt with token length: {len(id_token)}")
+            print(f"Token-based login attempt with token length: {len(id_token)}")
             if is_google_signin:
-                print("🔐 Google Sign-In detected")
+                print("Google Sign-In detected")
             
             # Firebase Authentication flow
             user = FirebaseService.authenticate_with_token(id_token)
@@ -77,7 +77,7 @@ def login():
                     })
                 
                 login_user(user)
-                print(f"✅ Login successful for user: {user.email}")
+                print(f"Login successful for user: {user.email}")
                 return jsonify({
                     'message': 'Login successful',
                     'user': {
@@ -88,14 +88,14 @@ def login():
                     }
                 })
             else:
-                print("❌ Token authentication failed")
+                print("Token authentication failed")
                 return jsonify({'error': 'Invalid authentication token. Please try logging in again.'}), 401
         
         # No fallback authentication - Firebase token required
         return jsonify({'error': 'Firebase authentication token required. Please use the frontend login form.'}), 400
         
     except Exception as e:
-        print(f"❌ Login error: {e}")
+        print(f"Login error: {e}")
         return jsonify({'error': 'Login failed. Please try again.'}), 500
 
 @auth.route('/api/auth/logout')
@@ -164,7 +164,7 @@ def set_username():
             return jsonify({'error': 'Failed to set username. Please try again.'}), 500
             
     except Exception as e:
-        print(f"❌ Set username error: {e}")
+        print(f"Set username error: {e}")
         return jsonify({'error': 'Failed to set username. Please try again.'}), 500
 
 @auth.route('/api/auth/user')

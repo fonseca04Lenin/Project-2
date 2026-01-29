@@ -236,7 +236,7 @@ function initializeVanillaSearchBar() {
     
     const searchSection = document.querySelector('.search-section');
     if (!searchSection) {
-        console.error('❌ Search section not found');
+        console.error('Search section not found');
         return false;
     }
     

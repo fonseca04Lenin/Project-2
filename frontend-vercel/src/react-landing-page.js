@@ -116,7 +116,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       // Trigger main app authentication state change
       setTimeout(() => {
         if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-          // // console.log('🔄 Triggering main app auth state change for Google sign-in');
+          // // console.log('Triggering main app auth state change for Google sign-in');
           
           // Method 1: Call function directly if available
           if (typeof window.handleAuthStateChange === 'function') {
@@ -204,7 +204,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       // Trigger main app authentication state change
       setTimeout(() => {
         if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-          // // console.log('🔄 Triggering main app auth state change after username set');
+          // // console.log('Triggering main app auth state change after username set');
           
           // Method 1: Call function directly if available
           if (typeof window.handleAuthStateChange === 'function') {
@@ -294,7 +294,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         // Trigger main app authentication state change
         setTimeout(() => {
           if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            // // console.log('🔄 Triggering main app auth state change for registration');
+            // // console.log('Triggering main app auth state change for registration');
             
             // Method 1: Call function directly if available
             if (typeof window.handleAuthStateChange === 'function') {
@@ -372,7 +372,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         // Trigger main app authentication state change
         setTimeout(() => {
           if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            // // console.log('🔄 Triggering main app auth state change for login');
+            // // console.log('Triggering main app auth state change for login');
             
             // Method 1: Call function directly if available
             if (typeof window.handleAuthStateChange === 'function') {
@@ -604,14 +604,14 @@ function StockWatchlistLandingPage() {
 }
 
 // Render the landing page
-// // console.log('🚀 Starting landing page render...');
+// // console.log('Starting landing page render...');
 const rootElement = document.getElementById('marketpulse-root');
 // // console.log('📦 Root element:', rootElement);
 if (rootElement) {
-  // // console.log('✅ Creating React root and rendering...');
+  // // console.log('Creating React root and rendering...');
   const root = ReactDOM.createRoot(rootElement);
   root.render(<StockWatchlistLandingPage />);
-  // // console.log('✅ Landing page rendered successfully!');
+  // // console.log('Landing page rendered successfully!');
 } else {
-  console.error('❌ Root element not found - marketpulse-root missing');
+  console.error('Root element not found - marketpulse-root missing');
 }

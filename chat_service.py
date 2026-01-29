@@ -88,7 +88,7 @@ class ChatService:
                         matching = [m for m in available_models if preferred.lower() in m.lower() and 'exp' not in m.lower()]
                         if matching:
                             model_name = matching[0]
-                            logger.info(f"✅ Found preferred model for free tier: {model_name}")
+                            logger.info(f"Found preferred model for free tier: {model_name}")
                             break
                     
                     # If no flash/nano found, try 1.0-pro (avoid exp and 2.x)
@@ -96,36 +96,36 @@ class ChatService:
                         matching = [m for m in available_models if '1.0-pro' in m.lower() and 'exp' not in m.lower()]
                         if matching:
                             model_name = matching[0]
-                            logger.info(f"✅ Using 1.0-pro model: {model_name}")
+                            logger.info(f"Using 1.0-pro model: {model_name}")
                     
                     # If still no preferred model, filter out exp models and use first available
                     if not model_name:
                         non_exp_models = [m for m in available_models if 'exp' not in m.lower() and '2.5' not in m.lower()]
                         if non_exp_models:
                             model_name = non_exp_models[0]
-                            logger.info(f"✅ Using non-experimental model: {model_name}")
+                            logger.info(f"Using non-experimental model: {model_name}")
                         else:
                             # Last resort - use first available
                             model_name = available_models[0]
-                            logger.warning(f"⚠️ Using model (may have quota limits): {model_name}")
+                            logger.warning(f"Using model (may have quota limits): {model_name}")
                     
                     # Extract just the model name (remove 'models/' prefix if present)
                     if '/' in model_name:
                         model_name = model_name.split('/')[-1]
                     
                     self.gemini_client = genai.GenerativeModel(model_name)
-                    logger.info(f"✅ Gemini API client initialized with model: {model_name}")
-                    logger.info(f"📋 Available models: {', '.join(available_models[:5])}")
+                    logger.info(f"Gemini API client initialized with model: {model_name}")
+                    logger.info(f"Available models: {', '.join(available_models[:5])}")
                 else:
-                    logger.error("❌ No available models found that support generateContent")
+                    logger.error("No available models found that support generateContent")
                     self.gemini_client = None
             except Exception as e:
-                logger.error(f"❌ Failed to list/initialize Gemini models: {e}")
+                logger.error(f"Failed to list/initialize Gemini models: {e}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 self.gemini_client = None
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Gemini API: {e}")
+            logger.error(f"Failed to initialize Gemini API: {e}")
     
     def _check_rate_limit(self, user_id: str) -> bool:
         """Check if user has exceeded rate limit"""
@@ -168,7 +168,7 @@ class ChatService:
             if watchlist_items:
                 logger.info(f"🔍 Sample watchlist item structure: {watchlist_items[0]}")
             else:
-                logger.warning(f"⚠️ No watchlist items found for user {user_id}")
+                logger.warning(f"No watchlist items found for user {user_id}")
                 # Try alternative user ID formats
                 logger.info(f"🔍 Trying alternative user ID formats...")
                 
@@ -185,7 +185,7 @@ class ChatService:
                             watchlist_items = watchlist_service.get_watchlist(user_id, limit=10)
                             logger.info(f"🔍 Retry retrieved {len(watchlist_items)} items")
                     except Exception as e:
-                        logger.error(f"❌ Error trying alternative user ID: {e}")
+                        logger.error(f"Error trying alternative user ID: {e}")
             
             watchlist_data = []
             
@@ -229,7 +229,7 @@ class ChatService:
             # Get recent conversation history (last 10 messages for better context)
             chat_history = self._get_conversation_history(user_id, limit=10)
             
-            logger.info(f"✅ Retrieved {len(watchlist_data)} watchlist items for user {user_id}")
+            logger.info(f"Retrieved {len(watchlist_data)} watchlist items for user {user_id}")
             logger.info(f"🔍 Watchlist data: {watchlist_data}")
             
             return {
@@ -238,9 +238,9 @@ class ChatService:
                 'user_id': user_id
             }
         except Exception as e:
-            logger.error(f"❌ Failed to get user context: {e}")
+            logger.error(f"Failed to get user context: {e}")
             import traceback
-            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return {'watchlist': [], 'recent_conversation': [], 'user_id': user_id}
     
     def _get_conversation_history(self, user_id: str, limit: int = 3) -> List[Dict]:
@@ -456,10 +456,10 @@ class ChatService:
                 symbol = result.get("data", {}).get("symbol", "")
                 name = result.get("data", {}).get("name", "")
                 price = result.get("data", {}).get("price", 0)
-                return f"SUCCESS: Stock added to watchlist. Respond with ONLY this EXACT message and NOTHING else: '✅ Successfully added {symbol} ({name}) to your watchlist at ${price}. Your watchlist will update automatically.' DO NOT show any JSON or additional data."
+                return f"SUCCESS: Stock added to watchlist. Respond with ONLY this EXACT message and NOTHING else: 'Successfully added {symbol} ({name}) to your watchlist at ${price}. Your watchlist will update automatically.' DO NOT show any JSON or additional data."
             elif function_name and "remove_stock_from_watchlist" in function_name:
                 symbol = result.get("data", {}).get("symbol", "")
-                return f"SUCCESS: Stock removed from watchlist. Respond with ONLY this EXACT message and NOTHING else: '✅ Successfully removed {symbol} from your watchlist.' DO NOT show any JSON or additional data."
+                return f"SUCCESS: Stock removed from watchlist. Respond with ONLY this EXACT message and NOTHING else: 'Successfully removed {symbol} from your watchlist.' DO NOT show any JSON or additional data."
             elif function_name and "analyze_watchlist" in function_name:
                 # Pass full analysis data for detailed response
                 data = result.get("data", {})
@@ -479,7 +479,7 @@ class ChatService:
 
                 return f"""SUCCESS: WATCHLIST ANALYSIS DATA - You MUST present this data in a friendly, personalized way:
 
-📊 PORTFOLIO OVERVIEW:
+PORTFOLIO OVERVIEW:
 - Total stocks owned: {total}
 - Stocks up today: {up} | Down: {down} | Flat: {flat}
 - Average portfolio change: {avg:+.2f}%
@@ -1118,11 +1118,11 @@ CRITICAL RULES:
 9. When you receive "FAILED:" from a function, tell the user exactly what went wrong
 
 10. **ABSOLUTELY CRITICAL**: When adding a stock, respond with EXACTLY this format:
-   "✅ Successfully added AAPL (Apple Inc.) to your watchlist at $150.00. Your watchlist will update automatically."
+   "Successfully added AAPL (Apple Inc.) to your watchlist at $150.00. Your watchlist will update automatically."
    ONE line only. Nothing else.
 
 11. **ABSOLUTELY CRITICAL**: When removing a stock, respond with:
-    "✅ Successfully removed AAPL from your watchlist."
+    "Successfully removed AAPL from your watchlist."
     ONE line only.
 
 12. NEVER show full watchlist JSON to the user - just brief responses
@@ -1143,7 +1143,7 @@ CRITICAL RULES:
 
 20. **WATCHLIST ANALYSIS FORMAT**: When user asks to "analyze my watchlist" or similar, present the analysis in this EXACT format:
 
-📊 **Watchlist Analysis**
+**Watchlist Analysis**
 
 **Overview:**
 - Total stocks: X
@@ -1210,7 +1210,7 @@ NEVER just say "I analyzed your watchlist" without showing the actual data. Alwa
                 
                 # Check if it's a quota error
                 if "429" in error_str or "quota" in error_str.lower() or "Quota exceeded" in error_str:
-                    logger.warning("⚠️ Quota exceeded - user may need to wait or upgrade plan")
+                    logger.warning("Quota exceeded - user may need to wait or upgrade plan")
                     return {
                         "success": False,
                         "error": "I've reached my usage limit for today. Please try again later, or check your Gemini API quota at https://ai.dev/usage?tab=rate-limit",

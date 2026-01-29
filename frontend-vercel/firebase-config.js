@@ -26,7 +26,7 @@ try {
             // Firebase auth persistence set to LOCAL
         })
         .catch((error) => {
-            console.error('❌ Could not set Firebase auth persistence:', error);
+            console.error('Could not set Firebase auth persistence:', error);
         });
 
     // Enhanced auth state listener with better error handling
@@ -37,7 +37,7 @@ try {
             // Firebase auth state: No user
         }
     }, (error) => {
-        console.error('❌ Firebase auth state error:', error);
+        console.error('Firebase auth state error:', error);
     });
 
     // Make auth globally available

@@ -36,7 +36,7 @@ class ImprovedCircuitBreaker:
             if state['state'] == 'OPEN':
                 if time.time() - state['last_failure_time'] > self.recovery_timeout:
                     state['state'] = 'HALF_OPEN'
-                    print(f"🔄 [CIRCUIT:{endpoint_key}] HALF_OPEN - testing service")
+                    print(f"[CIRCUIT:{endpoint_key}] HALF_OPEN - testing service")
                 else:
                     raise Exception(f"Circuit breaker OPEN for {endpoint_key}")
 
@@ -53,7 +53,7 @@ class ImprovedCircuitBreaker:
         with self._lock:
             state = self.endpoint_states[endpoint_key]
             if state['state'] == 'HALF_OPEN':
-                print(f"✅ [CIRCUIT:{endpoint_key}] Service recovered - CLOSED")
+                print(f"[CIRCUIT:{endpoint_key}] Service recovered - CLOSED")
                 state['state'] = 'CLOSED'
                 state['failure_count'] = 0
 
@@ -219,7 +219,7 @@ class SmartCache:
 
 class NewsAPI:
     def __init__(self):
-        self.api_key = '4ba3e56d52e54611b9485cdd2e28e679'
+        self.api_key = os.getenv('NEWS_API_KEY', 'demo')
 
     def get_market_news(self, limit=10, query=None):
         """Get general market news using NewsAPI.org"""
@@ -263,8 +263,7 @@ class NewsAPI:
             print(f"Error fetching market news: {e}")
             return self.get_fallback_news()
 
-    def get_company_news(self, symbol, limit=5):
-        """Get news for a specific company"""
+    def get_company_news(self, symbol, limit=5, page=1):
         try:
             stock = yf.Ticker(symbol)
             info = stock.info
@@ -276,6 +275,7 @@ class NewsAPI:
                 'language': 'en',
                 'sortBy': 'publishedAt',
                 'pageSize': limit,
+                'page': page,
                 'apiKey': self.api_key
             }
 
@@ -316,6 +316,232 @@ class NewsAPI:
                 'source': 'Market Update'
             }
         ]
+
+
+# =============================================================================
+# STOCKTWITS API - Free social sentiment for stocks
+# =============================================================================
+
+class StocktwitsAPI:
+    """
+    Stocktwits API integration for fetching social sentiment and messages about stocks.
+    Free API - no authentication required for public streams.
+    """
+
+    def __init__(self):
+        self.base_url = "https://api.stocktwits.com/api/2"
+        self.cache = {}
+        self.cache_ttl = 60  # Cache for 60 seconds to avoid rate limiting
+
+    def get_stock_messages(self, symbol, limit=15):
+        """
+        Get recent Stocktwits messages for a stock symbol.
+
+        Args:
+            symbol: Stock symbol (e.g., 'AAPL')
+            limit: Number of messages to return (max 30)
+
+        Returns:
+            List of message dictionaries with sentiment info
+        """
+        symbol = symbol.upper()
+        cache_key = f"stocktwits:{symbol}"
+
+        # Check cache
+        if cache_key in self.cache:
+            cached_data, cached_time = self.cache[cache_key]
+            if time.time() - cached_time < self.cache_ttl:
+                return cached_data[:limit]
+
+        try:
+            url = f"{self.base_url}/streams/symbol/{symbol}.json"
+            headers = {
+                'User-Agent': 'StockWatchlistApp/1.0'
+            }
+
+            response = requests.get(url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                messages = []
+
+                # Get symbol info
+                symbol_info = data.get('symbol', {})
+
+                for msg in data.get('messages', [])[:30]:  # Get up to 30 for caching
+                    # Parse sentiment
+                    sentiment = None
+                    sentiment_label = 'Neutral'
+                    if msg.get('entities', {}).get('sentiment'):
+                        sentiment = msg['entities']['sentiment'].get('basic')
+                        if sentiment == 'Bullish':
+                            sentiment_label = 'Bullish'
+                        elif sentiment == 'Bearish':
+                            sentiment_label = 'Bearish'
+
+                    # Parse timestamp
+                    created_at = msg.get('created_at', '')
+                    try:
+                        # Stocktwits format: "2024-01-25T12:30:45Z"
+                        dt = datetime.strptime(created_at, '%Y-%m-%dT%H:%M:%SZ')
+                        time_ago = self._get_time_ago(dt)
+                    except:
+                        time_ago = 'recently'
+
+                    # Get user info
+                    user = msg.get('user', {})
+
+                    messages.append({
+                        'id': msg.get('id'),
+                        'body': msg.get('body', ''),
+                        'sentiment': sentiment_label,
+                        'created_at': created_at,
+                        'time_ago': time_ago,
+                        'user': {
+                            'username': user.get('username', 'Anonymous'),
+                            'name': user.get('name', ''),
+                            'avatar_url': user.get('avatar_url', ''),
+                            'followers': user.get('followers', 0),
+                            'official': user.get('official', False)
+                        },
+                        'likes_count': msg.get('likes', {}).get('total', 0),
+                        'replies_count': msg.get('conversation', {}).get('replies', 0) if msg.get('conversation') else 0
+                    })
+
+                # Cache the results
+                self.cache[cache_key] = (messages, time.time())
+
+                return messages[:limit]
+
+            elif response.status_code == 404:
+                print(f"Stocktwits: Symbol {symbol} not found")
+                return []
+            elif response.status_code == 429:
+                print(f"Stocktwits: Rate limited")
+                return self._get_cached_or_empty(cache_key, limit)
+            else:
+                print(f"Stocktwits API error: {response.status_code}")
+                return self._get_cached_or_empty(cache_key, limit)
+
+        except requests.exceptions.Timeout:
+            print(f"Stocktwits: Request timeout for {symbol}")
+            return self._get_cached_or_empty(cache_key, limit)
+        except Exception as e:
+            print(f"Stocktwits error for {symbol}: {e}")
+            return self._get_cached_or_empty(cache_key, limit)
+
+    def get_trending_symbols(self, limit=10):
+        """Get trending stock symbols on Stocktwits"""
+        try:
+            url = f"{self.base_url}/trending/symbols.json"
+            headers = {
+                'User-Agent': 'StockWatchlistApp/1.0'
+            }
+
+            response = requests.get(url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                symbols = []
+
+                for sym in data.get('symbols', [])[:limit]:
+                    symbols.append({
+                        'symbol': sym.get('symbol', ''),
+                        'title': sym.get('title', ''),
+                        'watchlist_count': sym.get('watchlist_count', 0)
+                    })
+
+                return symbols
+            else:
+                return []
+
+        except Exception as e:
+            print(f"Stocktwits trending error: {e}")
+            return []
+
+    def get_symbol_sentiment(self, symbol):
+        """Get overall sentiment summary for a symbol"""
+        symbol = symbol.upper()
+
+        try:
+            url = f"{self.base_url}/streams/symbol/{symbol}.json"
+            headers = {
+                'User-Agent': 'StockWatchlistApp/1.0'
+            }
+
+            response = requests.get(url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                symbol_info = data.get('symbol', {})
+
+                return {
+                    'symbol': symbol,
+                    'watchlist_count': symbol_info.get('watchlist_count', 0),
+                    'message_volume': len(data.get('messages', [])),
+                    'sentiment': self._calculate_sentiment(data.get('messages', []))
+                }
+            else:
+                return None
+
+        except Exception as e:
+            print(f"Stocktwits sentiment error for {symbol}: {e}")
+            return None
+
+    def _calculate_sentiment(self, messages):
+        """Calculate overall sentiment from messages"""
+        bullish = 0
+        bearish = 0
+        neutral = 0
+
+        for msg in messages:
+            sentiment = msg.get('entities', {}).get('sentiment', {}).get('basic')
+            if sentiment == 'Bullish':
+                bullish += 1
+            elif sentiment == 'Bearish':
+                bearish += 1
+            else:
+                neutral += 1
+
+        total = bullish + bearish + neutral
+        if total == 0:
+            return {'bullish_percent': 0, 'bearish_percent': 0, 'neutral_percent': 0}
+
+        return {
+            'bullish_percent': round((bullish / total) * 100, 1),
+            'bearish_percent': round((bearish / total) * 100, 1),
+            'neutral_percent': round((neutral / total) * 100, 1),
+            'total_messages': total
+        }
+
+    def _get_time_ago(self, dt):
+        """Convert datetime to human-readable 'time ago' string"""
+        now = datetime.utcnow()
+        diff = now - dt
+
+        seconds = diff.total_seconds()
+
+        if seconds < 60:
+            return 'just now'
+        elif seconds < 3600:
+            minutes = int(seconds / 60)
+            return f'{minutes}m ago'
+        elif seconds < 86400:
+            hours = int(seconds / 3600)
+            return f'{hours}h ago'
+        elif seconds < 604800:
+            days = int(seconds / 86400)
+            return f'{days}d ago'
+        else:
+            return dt.strftime('%b %d')
+
+    def _get_cached_or_empty(self, cache_key, limit):
+        """Return cached data if available, otherwise empty list"""
+        if cache_key in self.cache:
+            cached_data, _ = self.cache[cache_key]
+            return cached_data[:limit]
+        return []
+
 
 # =============================================================================
 # YAHOO FINANCE API (unchanged core, added caching)
@@ -571,9 +797,9 @@ class ImprovedAlpacaAPI:
         self._company_name_cache = {}
 
         if not self.api_key or not self.secret_key:
-            print("⚠️ [ALPACA] Warning: API keys not set")
+            print("[ALPACA] Warning: API keys not set")
         else:
-            print(f"✅ [ALPACA] Initialized with improved rate limiting")
+            print(f"[ALPACA] Initialized with improved rate limiting")
             print(f"   Max requests/min: {self.request_queue.max_requests_per_minute}")
 
     def _get_headers(self):
@@ -642,7 +868,7 @@ class ImprovedAlpacaAPI:
                             'name': name or symbol,
                             'price': float(price)
                         }
-                        print(f"✅ [ALPACA] {symbol}: ${float(price):.2f}")
+                        print(f"[ALPACA] {symbol}: ${float(price):.2f}")
 
                         # Cache the result
                         cache_key = f"price:{symbol}"
@@ -650,24 +876,24 @@ class ImprovedAlpacaAPI:
 
                         return result
                     else:
-                        print(f"⚠️ [ALPACA] {symbol}: No price data")
+                        print(f"[ALPACA] {symbol}: No price data")
                         return None
 
                 elif response.status_code == 404:
-                    print(f"⚠️ [ALPACA] {symbol} not found")
+                    print(f"[ALPACA] {symbol} not found")
                     return None
 
                 elif response.status_code == 429:
-                    print(f"⚠️ [ALPACA] Rate limited for {symbol}")
+                    print(f"[ALPACA] Rate limited for {symbol}")
                     self.request_queue.stats['rate_limited'] += 1
                     raise Exception(f"Rate limited: {response.status_code}")
 
                 else:
-                    print(f"❌ [ALPACA] {symbol}: HTTP {response.status_code}")
+                    print(f"[ALPACA] {symbol}: HTTP {response.status_code}")
                     raise Exception(f"API error: {response.status_code}")
 
             except requests.exceptions.Timeout:
-                print(f"⏰ [ALPACA] Timeout for {symbol}")
+                print(f"[ALPACA] Timeout for {symbol}")
                 raise Exception(f"Timeout after {timeout}s")
 
         try:
@@ -754,16 +980,16 @@ class ImprovedAlpacaAPI:
                         cache_key = f"price:{symbol}"
                         self.cache.set(cache_key, result)
 
-                print(f"✅ [ALPACA BATCH] Fetched {len(results)}/{len(symbols_to_fetch)} symbols")
+                print(f"[ALPACA BATCH] Fetched {len(results)}/{len(symbols_to_fetch)} symbols")
                 return results
 
             elif response.status_code == 429:
-                print(f"⚠️ [ALPACA BATCH] Rate limited")
+                print(f"[ALPACA BATCH] Rate limited")
                 self.request_queue.stats['rate_limited'] += 1
                 raise Exception("Rate limited")
 
             else:
-                print(f"❌ [ALPACA BATCH] HTTP {response.status_code}")
+                print(f"[ALPACA BATCH] HTTP {response.status_code}")
                 raise Exception(f"API error: {response.status_code}")
 
         try:
@@ -789,7 +1015,7 @@ class ImprovedAlpacaAPI:
                 self._company_name_cache[symbol] = name
                 return name
         except Exception as e:
-            print(f"⚠️ [ALPACA] Error getting name for {symbol}: {e}")
+            print(f"[ALPACA] Error getting name for {symbol}: {e}")
 
         self._company_name_cache[symbol] = symbol
         return symbol
@@ -851,7 +1077,7 @@ AlpacaAPI = ImprovedAlpacaAPI
 
 class FinnhubAPI:
     def __init__(self, api_key=None):
-        self.api_key = api_key or 'c34391qad3i8edlcgrgg'
+        self.api_key = api_key or os.getenv('FINNHUB_API_KEY', 'demo')
         self.base_url = 'https://finnhub.io/api/v1/'
 
     def get_company_profile(self, symbol):

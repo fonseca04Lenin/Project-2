@@ -167,6 +167,9 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
 const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol }) => {
     const [ceoData, setCeoData] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [youtubeVideos, setYoutubeVideos] = useState([]);
+    const [youtubeLoading, setYoutubeLoading] = useState(false);
+    const [youtubeSearchUrl, setYoutubeSearchUrl] = useState('');
 
     useEffect(() => {
         if (!isOpen || !ceoName || ceoName === '-') return;
@@ -489,6 +492,48 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
 
         fetchCEOData();
     }, [isOpen, ceoName, companyName, companySymbol]);
+
+    useEffect(() => {
+        if (!isOpen || !ceoName || ceoName === '-') return;
+
+        const fetchYoutubeVideos = async () => {
+            setYoutubeLoading(true);
+            setYoutubeVideos([]);
+
+            // Hjelper function to get clean name for search
+            const getSearchName = (name) => {
+                if (!name) return name;
+                let cleanName = name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
+                const parts = cleanName.split(/\s+/).filter(part => part.length > 0);
+                if (parts.length > 2) {
+                    return `${parts[0]} ${parts[parts.length - 1]}`;
+                }
+                return cleanName;
+            };
+
+            const searchName = getSearchName(ceoName);
+            const searchQuery = `Who is ${searchName} ${companySymbol} CEO`;    
+
+            try {
+                const response = await fetch(`${API_BASE}/api/youtube/search?q=${encodeURIComponent(searchQuery)}&max_results=6`);
+                const data = await response.json();
+
+                if (data.videos && data.videos.length > 0) {
+                    setYoutubeVideos(data.videos);
+                }
+                if (data.search_url) {
+                    setYoutubeSearchUrl(data.search_url);
+                }
+            } catch (err) {
+                console.error('Error fetching YouTube videos:', err);
+                setYoutubeSearchUrl(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`);
+            } finally {
+                setYoutubeLoading(false);
+            }
+        };
+
+        fetchYoutubeVideos();
+    }, [isOpen, ceoName]);
 
     // Handle ESC key to close modal
     useEffect(() => {
@@ -903,6 +948,216 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.75rem' } })
                         )
                     ),
+                    // YoukTube Videos Section - "Who is [CEO Name]"
+                    React.createElement('div', {
+                        style: {
+                            marginTop: '2rem',
+                            paddingTop: '1.5rem',
+                            borderTop: `1px solid ${colors.border}`
+                        }
+                    },
+                        React.createElement('div', {
+                            style: {
+                                color: colors.secondary,
+                                fontSize: '0.85rem',
+                                letterSpacing: '0.05em',
+                                marginBottom: '1rem',
+                                paddingBottom: '0.5rem',
+                                borderBottom: `1px solid ${colors.border}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                            }
+                        },
+                            React.createElement('span', null,
+                                React.createElement('i', { className: 'fab fa-youtube', style: { color: '#FF0000', marginRight: '0.75rem' } }),
+                                `WHO IS ${ceoData.name ? ceoData.name.toUpperCase() : 'THIS CEO'}?`
+                            ),
+                            youtubeSearchUrl && React.createElement('a', {
+                                href: youtubeSearchUrl,
+                                target: '_blank',
+                                rel: 'noopener noreferrer',
+                                style: {
+                                    color: colors.text,
+                                    fontSize: '0.75rem',
+                                    textDecoration: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                },
+                                onMouseOver: (e) => e.currentTarget.style.color = colors.primary,
+                                onMouseOut: (e) => e.currentTarget.style.color = colors.text
+                            },
+                                'View all on YouTube',
+                                React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.6rem' } })
+                            )
+                        ),
+                        youtubeLoading ? React.createElement('div', {
+                            style: {
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.75rem',
+                                padding: '2rem',
+                                color: colors.text
+                            }
+                        },
+                            React.createElement('i', { className: 'fas fa-spinner fa-spin' }),
+                            React.createElement('span', { style: { letterSpacing: '0.1em' } }, 'LOADING VIDEOS...')
+                        ) : youtubeVideos.length > 0 ? React.createElement('div', {
+                            style: {
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                                gap: '1rem'
+                            }
+                        },
+                            youtubeVideos.map((video, index) =>
+                                React.createElement('a', {
+                                    key: video.id || index,
+                                    href: video.url,
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    style: {
+                                        display: 'block',
+                                        textDecoration: 'none',
+                                        background: colors.surface,
+                                        border: `1px solid ${colors.border}`,
+                                        borderRadius: '4px',
+                                        overflow: 'hidden',
+                                        transition: 'all 0.2s'
+                                    },
+                                    onMouseOver: (e) => {
+                                        e.currentTarget.style.borderColor = colors.primary;
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                    },
+                                    onMouseOut: (e) => {
+                                        e.currentTarget.style.borderColor = colors.border;
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                    }
+                                },
+                                    // Video Thumbnailss
+                                    React.createElement('div', {
+                                        style: {
+                                            position: 'relative',
+                                            paddingTop: '56.25%', // 16:9 aspect ratio
+                                            background: '#000'
+                                        }
+                                    },
+                                        video.thumbnail && React.createElement('img', {
+                                            src: video.thumbnail,
+                                            alt: video.title,
+                                            style: {
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover'
+                                            }
+                                        }),
+                                        // Play button overlay
+                                        React.createElement('div', {
+                                            style: {
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                width: '48px',
+                                                height: '48px',
+                                                background: 'rgba(255, 0, 0, 0.9)',
+                                                borderRadius: '50%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }
+                                        },
+                                            React.createElement('i', {
+                                                className: 'fas fa-play',
+                                                style: {
+                                                    color: '#fff',
+                                                    fontSize: '1rem',
+                                                    marginLeft: '3px'
+                                                }
+                                            })
+                                        )
+                                    ),
+                                    // Video Info
+                                    React.createElement('div', {
+                                        style: {
+                                            padding: '0.75rem'
+                                        }
+                                    },
+                                        React.createElement('h4', {
+                                            style: {
+                                                margin: '0 0 0.5rem 0',
+                                                fontSize: '0.8rem',
+                                                fontWeight: '600',
+                                                color: colors.textBright,
+                                                lineHeight: '1.3',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                display: '-webkit-box',
+                                                WebkitLineClamp: 2,
+                                                WebkitBoxOrient: 'vertical'
+                                            }
+                                        }, video.title),
+                                        React.createElement('p', {
+                                            style: {
+                                                margin: 0,
+                                                fontSize: '0.7rem',
+                                                color: colors.text,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap'
+                                            }
+                                        }, video.channel)
+                                    )
+                                )
+                            )
+                        ) : React.createElement('div', {
+                            style: {
+                                textAlign: 'center',
+                                padding: '2rem'
+                            }
+                        },
+                            youtubeSearchUrl ? React.createElement('a', {
+                                href: youtubeSearchUrl,
+                                target: '_blank',
+                                rel: 'noopener noreferrer',
+                                style: {
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                    padding: '0.75rem 1.25rem',
+                                    background: 'rgba(255, 0, 0, 0.1)',
+                                    border: '1px solid rgba(255, 0, 0, 0.3)',
+                                    color: '#FF6B6B',
+                                    textDecoration: 'none',
+                                    fontFamily: "'Courier New', Courier, monospace",
+                                    fontSize: '0.9rem',
+                                    letterSpacing: '0.05em',
+                                    transition: 'all 0.2s'
+                                },
+                                onMouseOver: (e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 0, 0, 0.2)';
+                                    e.currentTarget.style.borderColor = '#FF0000';
+                                },
+                                onMouseOut: (e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 0, 0, 0.1)';
+                                    e.currentTarget.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+                                }
+                            },
+                                React.createElement('i', { className: 'fab fa-youtube' }),
+                                `SEARCH "WHO IS ${ceoData.name ? ceoData.name.toUpperCase() : 'CEO'}" ON YOUTUBE`,
+                                React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.75rem' } })
+                            ) : React.createElement('p', {
+                                style: {
+                                    color: colors.text,
+                                    margin: 0
+                                }
+                            }, 'No videos available')
+                        )
+                    ),
                     // Warning for limited info
                     !ceoData.found && React.createElement('div', {
                         style: {
@@ -980,6 +1235,12 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [chartData, setChartData] = useState(null);
     const [news, setNews] = useState([]);
     const [newsLoading, setNewsLoading] = useState(false);
+    const [newsPage, setNewsPage] = useState(1);
+    const [newsHasMore, setNewsHasMore] = useState(true);
+    const [newsLoadingMore, setNewsLoadingMore] = useState(false);
+    const newsContainerRef = useRef(null);
+    const [stocktwits, setStocktwits] = useState([]);
+    const [stocktwitsLoading, setStocktwitsLoading] = useState(false);
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const chartRootRef = useRef(null);
@@ -1099,28 +1360,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     return null;
                 })();
 
-                // News API call
-                console.time(`StockDetailsModal-${symbol}-news-api`);
-                const newsPromise = (async () => {
-                    try {
-                        console.log(`[StockDetailsModal] Fetching news for ${symbol}`);
-                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
-                            credentials: 'include'
-                        });
-                        if (newsResp.ok) {
-                            const newsRespData = await newsResp.json();
-                            const newsData = newsRespData.slice(0, 5);
-                            console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
-                            return newsData;
-                        }
-                        console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
-                    } catch (error) {
-                        console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
-                    }
-                    return [];
-                })();
-
                 // Load details and chart first (critical for modal display)
+                console.time(`StockDetailsModal-${symbol}-news-api`);
                 console.log(`[StockDetailsModal] Loading core data for ${symbol}`);
                 const [details, chartDataResp] = await Promise.all([detailPromise, chartPromise]);
 
@@ -1134,17 +1375,22 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                 // Load news in background after modal is displayed
                 setNewsLoading(true);
+                setNewsPage(1);
+                setNewsHasMore(true);
+                setNews([]);
                 (async () => {
                     try {
                         console.log(`[StockDetailsModal] Fetching news for ${symbol} in background`);
-                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}`, {
+                        const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}?page=1&limit=5`, {
                             credentials: 'include'
                         });
                         if (newsResp.ok) {
                             const newsRespData = await newsResp.json();
-                            const newsData = newsRespData.slice(0, 5);
+                            const newsData = newsRespData.articles || [];
                             console.log(`[StockDetailsModal] News data received for ${symbol} (${newsData.length} articles)`);
                             setNews(newsData);
+                            setNewsHasMore(newsRespData.hasMore);
+                            setNewsPage(1);
                         } else {
                             console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
                         }
@@ -1153,6 +1399,29 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     } finally {
                         setNewsLoading(false);
                         console.timeEnd(`StockDetailsModal-${symbol}-news-api`);
+                    }
+                })();
+
+                // Load Stocktwits social sentiment in background
+                setStocktwitsLoading(true);
+                setStocktwits([]);
+                (async () => {
+                    try {
+                        console.log(`[StockDetailsModal] Fetching Stocktwits for ${symbol}`);
+                        const stocktwitsResp = await fetch(`${API_BASE}/api/stocktwits/${symbol}?limit=10`, {
+                            credentials: 'include'
+                        });
+                        if (stocktwitsResp.ok) {
+                            const stocktwitsData = await stocktwitsResp.json();
+                            console.log(`[StockDetailsModal] Stocktwits received for ${symbol} (${stocktwitsData.count} messages)`);
+                            setStocktwits(stocktwitsData.messages || []);
+                        } else {
+                            console.log(`[StockDetailsModal] Stocktwits API failed for ${symbol}, status: ${stocktwitsResp.status}`);
+                        }
+                    } catch (error) {
+                        console.log(`[StockDetailsModal] Stocktwits API error for ${symbol}:`, error);
+                    } finally {
+                        setStocktwitsLoading(false);
                     }
                 })();
 
@@ -1429,11 +1698,50 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const formatDate = (dateString) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
         });
+    };
+
+    // Load more news for lazy loading
+    const loadMoreNews = async () => {
+        if (newsLoadingMore || !newsHasMore || !symbol) return;
+
+        setNewsLoadingMore(true);
+        const nextPage = newsPage + 1;
+
+        try {
+            console.log(`[StockDetailsModal] Loading more news for ${symbol}, page ${nextPage}`);
+            const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}?page=${nextPage}&limit=5`, {
+                credentials: 'include'
+            });
+            if (newsResp.ok) {
+                const newsRespData = await newsResp.json();
+                const newArticles = newsRespData.articles || [];
+                console.log(`[StockDetailsModal] Loaded ${newArticles.length} more articles for ${symbol}`);
+
+                if (newArticles.length > 0) {
+                    setNews(prev => [...prev, ...newArticles]);
+                    setNewsPage(nextPage);
+                }
+                setNewsHasMore(newsRespData.hasMore && newArticles.length > 0);
+            }
+        } catch (error) {
+            console.log(`[StockDetailsModal] Error loading more news for ${symbol}:`, error);
+        } finally {
+            setNewsLoadingMore(false);
+        }
+    };
+
+    const handleNewsScroll = (e) => {
+        const container = e.target;
+        const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+
+        if (scrollBottom < 50 && newsHasMore && !newsLoadingMore) {
+            loadMoreNews();
+        }
     };
 
     return (
@@ -1754,6 +2062,14 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                 <h3>
                                     <i className="fas fa-newspaper"></i>
                                     Recent News
+                                    {news.length > 0 && (
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            fontWeight: '400',
+                                            color: 'rgba(255, 255, 255, 0.5)',
+                                            marginLeft: 'auto'
+                                        }}>{news.length} articles</span>
+                                    )}
                                 </h3>
                                 {newsLoading ? (
                                     <div className="news-loading">
@@ -1761,10 +2077,18 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         <span>Loading news...</span>
                                     </div>
                                 ) : news.length > 0 ? (
-                                    <div className="news-list">
+                                    <div
+                                        className="news-list"
+                                        ref={newsContainerRef}
+                                        onScroll={handleNewsScroll}
+                                        style={{
+                                            maxHeight: '400px',
+                                            overflowY: 'auto'
+                                        }}
+                                    >
                                         {news.map((article, index) => (
                                             <a
-                                                key={index}
+                                                key={`${article.link}-${index}`}
                                                 href={article.link || article.url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
@@ -1775,10 +2099,211 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                                 <span className="news-date">{formatDate(article.published_at || article.publishedAt)}</span>
                                             </a>
                                         ))}
+                                        {newsLoadingMore && (
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                padding: '1rem',
+                                                color: 'rgba(255, 255, 255, 0.6)'
+                                            }}>
+                                                <i className="fas fa-spinner fa-spin"></i>
+                                                <span>Loading more news...</span>
+                                            </div>
+                                        )}
+                                        {!newsHasMore && news.length > 5 && (
+                                            <div style={{
+                                                textAlign: 'center',
+                                                padding: '1rem',
+                                                color: 'rgba(255, 255, 255, 0.4)',
+                                                fontSize: '0.85rem'
+                                            }}>
+                                                No more news articles
+                                            </div>
+                                        )}
                                     </div>
                                 ) : null}
                             </div>
                         )}
+
+                        {/* Stocktwits Social Sentiment Section */}
+                        <div className="modal-stocktwits" style={{
+                            marginTop: '1.5rem',
+                            padding: '1.25rem',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <h3 style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                margin: '0 0 1rem 0',
+                                fontSize: '1.1rem',
+                                fontWeight: '600',
+                                color: '#fff'
+                            }}>
+                                <i className="fas fa-comments" style={{ color: '#1DA1F2' }}></i>
+                                Social Sentiment
+                                <span style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: '400',
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    marginLeft: 'auto'
+                                }}>via Stocktwits</span>
+                            </h3>
+
+                            {stocktwitsLoading ? (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.75rem',
+                                    padding: '2rem',
+                                    color: 'rgba(255, 255, 255, 0.6)'
+                                }}>
+                                    <i className="fas fa-spinner fa-spin"></i>
+                                    <span>Loading social sentiment...</span>
+                                </div>
+                            ) : stocktwits.length > 0 ? (
+                                <div className="stocktwits-list" style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.75rem',
+                                    maxHeight: '400px',
+                                    overflowY: 'auto'
+                                }}>
+                                    {stocktwits.map((message, index) => (
+                                        <div
+                                            key={message.id || index}
+                                            className="stocktwits-message"
+                                            style={{
+                                                padding: '1rem',
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                borderRadius: '8px',
+                                                borderLeft: `3px solid ${
+                                                    message.sentiment === 'Bullish' ? '#00D924' :
+                                                    message.sentiment === 'Bearish' ? '#ef4444' :
+                                                    'rgba(255, 255, 255, 0.2)'
+                                                }`
+                                            }}
+                                        >
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                marginBottom: '0.5rem'
+                                            }}>
+                                                {message.user?.avatar_url ? (
+                                                    <img
+                                                        src={message.user.avatar_url}
+                                                        alt=""
+                                                        style={{
+                                                            width: '28px',
+                                                            height: '28px',
+                                                            borderRadius: '50%'
+                                                        }}
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div style={{
+                                                        width: '28px',
+                                                        height: '28px',
+                                                        borderRadius: '50%',
+                                                        background: 'rgba(255, 255, 255, 0.1)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}>
+                                                        <i className="fas fa-user" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}></i>
+                                                    </div>
+                                                )}
+                                                <span style={{
+                                                    fontWeight: '600',
+                                                    color: '#fff',
+                                                    fontSize: '0.9rem'
+                                                }}>
+                                                    @{message.user?.username || 'Anonymous'}
+                                                    {message.user?.official && (
+                                                        <i className="fas fa-check-circle" style={{
+                                                            color: '#1DA1F2',
+                                                            marginLeft: '4px',
+                                                            fontSize: '12px'
+                                                        }}></i>
+                                                    )}
+                                                </span>
+                                                <span style={{
+                                                    color: 'rgba(255, 255, 255, 0.4)',
+                                                    fontSize: '0.8rem'
+                                                }}>
+                                                    {message.time_ago}
+                                                </span>
+                                                {message.sentiment && message.sentiment !== 'Neutral' && (
+                                                    <span style={{
+                                                        marginLeft: 'auto',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: '600',
+                                                        background: message.sentiment === 'Bullish'
+                                                            ? 'rgba(0, 217, 36, 0.2)'
+                                                            : 'rgba(239, 68, 68, 0.2)',
+                                                        color: message.sentiment === 'Bullish'
+                                                            ? '#00D924'
+                                                            : '#ef4444'
+                                                    }}>
+                                                        {message.sentiment === 'Bullish' ? '📈 Bullish' : '📉 Bearish'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p style={{
+                                                margin: 0,
+                                                color: 'rgba(255, 255, 255, 0.85)',
+                                                fontSize: '0.9rem',
+                                                lineHeight: '1.5',
+                                                wordBreak: 'break-word'
+                                            }}>
+                                                {message.body}
+                                            </p>
+                                            {(message.likes_count > 0 || message.replies_count > 0) && (
+                                                <div style={{
+                                                    display: 'flex',
+                                                    gap: '1rem',
+                                                    marginTop: '0.5rem',
+                                                    color: 'rgba(255, 255, 255, 0.4)',
+                                                    fontSize: '0.8rem'
+                                                }}>
+                                                    {message.likes_count > 0 && (
+                                                        <span>
+                                                            <i className="fas fa-heart" style={{ marginRight: '4px' }}></i>
+                                                            {message.likes_count}
+                                                        </span>
+                                                    )}
+                                                    {message.replies_count > 0 && (
+                                                        <span>
+                                                            <i className="fas fa-reply" style={{ marginRight: '4px' }}></i>
+                                                            {message.replies_count}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{
+                                    textAlign: 'center',
+                                    padding: '2rem',
+                                    color: 'rgba(255, 255, 255, 0.5)'
+                                }}>
+                                    <i className="fas fa-comment-slash" style={{ fontSize: '2rem', marginBottom: '0.5rem', display: 'block' }}></i>
+                                    <p style={{ margin: 0 }}>No recent social posts for ${symbol}</p>
+                                </div>
+                            )}
+                        </div>
                     </>
                 )}
             </div>
