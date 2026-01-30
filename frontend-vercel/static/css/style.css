@@ -6275,6 +6275,45 @@ body {
     color: #FFD700;
 }
 
+/* Watchlist Button */
+.watchlist-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 217, 36, 0.15);
+    border: 1px solid rgba(0, 217, 36, 0.3);
+    color: #00D924;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.watchlist-btn:hover:not(:disabled) {
+    background: rgba(0, 217, 36, 0.25);
+    border-color: rgba(0, 217, 36, 0.5);
+}
+
+.watchlist-btn:disabled {
+    cursor: default;
+}
+
+.watchlist-btn.in-watchlist {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.watchlist-btn.in-watchlist .fa-check {
+    color: #00D924;
+}
+
+.watchlist-btn .fa-spinner {
+    font-size: 0.85rem;
+}
+
 /* Nav Stock Info */
 .nav-stock-info {
     display: flex;
@@ -6951,6 +6990,14 @@ body {
 
     .back-button span {
         display: none;
+    }
+
+    .watchlist-btn span {
+        display: none;
+    }
+
+    .watchlist-btn {
+        padding: 0.5rem 0.75rem;
     }
 
     .stock-page-main {
