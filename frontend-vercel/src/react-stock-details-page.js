@@ -19,6 +19,8 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const chartRootRef = useRef(null);
+    const [addingToWatchlist, setAddingToWatchlist] = useState(false);
+    const [isInWatchlist, setIsInWatchlist] = useState(false);
 
     // CEO modal
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
@@ -112,6 +114,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 const [details, chartDataResp] = await Promise.all([detailPromise, chartPromise]);
 
                 setStockData(details);
+                setIsInWatchlist(details.isInWatchlist || false);
                 if (chartDataResp) setChartData(chartDataResp);
 
                 // Load news in background
@@ -295,6 +298,47 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         }
     };
 
+    const handleAddToWatchlist = async () => {
+        if (isInWatchlist || addingToWatchlist) return;
+
+        setAddingToWatchlist(true);
+        try {
+            const authHeaders = await window.getAuthHeaders();
+            const response = await fetch(`${API_BASE_PAGE}/api/watchlist`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
+                credentials: 'include',
+                body: JSON.stringify({ symbol })
+            });
+
+            if (response.ok) {
+                setIsInWatchlist(true);
+                if (window.showNotification) {
+                    window.showNotification(`${symbol} added to watchlist`, 'success');
+                }
+                // Notify other components
+                try {
+                    window.dispatchEvent(new CustomEvent('watchlistChanged'));
+                } catch (_) {}
+                if (typeof window.refreshWatchlist === 'function') {
+                    window.refreshWatchlist();
+                }
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                if (window.showNotification) {
+                    window.showNotification(errorData.error || `Failed to add ${symbol}`, 'error');
+                }
+            }
+        } catch (err) {
+            console.error('[StockDetailsPage] Error adding to watchlist:', err);
+            if (window.showNotification) {
+                window.showNotification('Network error adding to watchlist', 'error');
+            }
+        } finally {
+            setAddingToWatchlist(false);
+        }
+    };
+
     // Loading state
     if (loading) {
         return (
@@ -344,7 +388,6 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 </button>
 
                 <div className="nav-stock-info">
-                    <span className="nav-symbol">{symbol}</span>
                     <span className="nav-name">{stockData.name || symbol}</span>
                     <span className="nav-price">${stockData.price?.toFixed(2) || '-'}</span>
                     <span className={`nav-change ${isPositive ? 'positive' : 'negative'}`}>
@@ -354,16 +397,27 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 </div>
 
                 <div className="nav-actions">
-                    <button className="nav-action-btn" title="Add to Watchlist">
-                        <i className={`${stockData.isInWatchlist ? 'fas' : 'far'} fa-star`}></i>
-                    </button>
-                    <button className="nav-action-btn" title="Share" onClick={() => {
-                        navigator.clipboard.writeText(window.location.href);
-                        if (window.showNotification) {
-                            window.showNotification('Link copied to clipboard', 'success');
-                        }
-                    }}>
-                        <i className="fas fa-share-alt"></i>
+                    <button
+                        className={`watchlist-btn ${isInWatchlist ? 'in-watchlist' : ''}`}
+                        onClick={handleAddToWatchlist}
+                        disabled={isInWatchlist || addingToWatchlist}
+                    >
+                        {addingToWatchlist ? (
+                            <>
+                                <i className="fas fa-spinner fa-spin"></i>
+                                <span>Adding...</span>
+                            </>
+                        ) : isInWatchlist ? (
+                            <>
+                                <i className="fas fa-check"></i>
+                                <span>Already in Watchlist</span>
+                            </>
+                        ) : (
+                            <>
+                                <i className="fas fa-plus"></i>
+                                <span>Add to Watchlist</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </nav>
