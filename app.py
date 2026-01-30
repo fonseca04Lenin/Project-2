@@ -2550,6 +2550,11 @@ def get_company_info(symbol):
             'dividendYield': company_info.get('dividendYield', '-'),
             'website': company_info.get('website', '-'),
             'headquarters': company_info.get('headquarters', '-'),
+            'high52Week': info.get('fiftyTwoWeekHigh') if info else None,
+            'low52Week': info.get('fiftyTwoWeekLow') if info else None,
+            'volume': info.get('volume') or info.get('regularMarketVolume') if info else None,
+            'sector': info.get('sector', '-') if info else '-',
+            'industry': info.get('industry', '-') if info else '-',
         })
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -2785,6 +2790,11 @@ def get_watchlist_stock_details(symbol):
             'dividendYield': company_info.get('dividendYield', '-'),
             'website': company_info.get('website', '-'),
             'headquarters': company_info.get('headquarters', '-'),
+            'high52Week': info.get('fiftyTwoWeekHigh') if info else None,
+            'low52Week': info.get('fiftyTwoWeekLow') if info else None,
+            'volume': info.get('volume') or info.get('regularMarketVolume') if info else None,
+            'sector': info.get('sector', '-') if info else '-',
+            'industry': info.get('industry', '-') if info else '-',
             # Watchlist-specific data
             'date_added': date_added_str,
             'original_price': original_price,
