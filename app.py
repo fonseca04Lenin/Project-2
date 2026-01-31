@@ -2533,11 +2533,21 @@ def get_company_info(symbol):
     stock, api_used = get_stock_with_fallback(symbol)
     if not stock:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-    
+
     # Get company information using multi-API service with fallbacks
     info = yahoo_finance_api.get_info(symbol)
     company_info = company_info_service.get_comprehensive_info(symbol, yahoo_info=info)
-    
+
+    # Calculate price change percent
+    price_change_percent = 0
+    price_change = 0
+    if info:
+        current_price = info.get('currentPrice') or info.get('regularMarketPrice') or stock.price
+        prev_close = info.get('regularMarketPreviousClose') or info.get('previousClose')
+        if current_price and prev_close and prev_close != 0:
+            price_change = current_price - prev_close
+            price_change_percent = (price_change / prev_close) * 100
+
     if stock.name and 'not found' not in stock.name.lower():
         return jsonify({
             'symbol': stock.symbol,
@@ -2545,6 +2555,8 @@ def get_company_info(symbol):
             'ceo': company_info.get('ceo', '-'),
             'description': company_info.get('description', '-'),
             'price': stock.price,
+            'priceChange': price_change,
+            'priceChangePercent': price_change_percent,
             'marketCap': company_info.get('marketCap', '-'),
             'peRatio': company_info.get('peRatio', '-'),
             'dividendYield': company_info.get('dividendYield', '-'),
