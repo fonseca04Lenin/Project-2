@@ -333,33 +333,43 @@ class StocktwitsAPI:
         self.cache = {}
         self.cache_ttl = 60  # Cache for 60 seconds to avoid rate limiting
 
-    def get_stock_messages(self, symbol, limit=15):
+    def get_stock_messages(self, symbol, limit=15, max_id=None):
         """
         Get recent Stocktwits messages for a stock symbol.
 
         Args:
             symbol: Stock symbol (e.g., 'AAPL')
             limit: Number of messages to return (max 30)
+            max_id: Message ID cursor for pagination (returns messages older than this ID)
 
         Returns:
-            List of message dictionaries with sentiment info
+            Dictionary with messages list and cursor info for pagination
         """
         symbol = symbol.upper()
         cache_key = f"stocktwits:{symbol}"
 
-        # Check cache
-        if cache_key in self.cache:
+        # Only use cache for initial load (no max_id), not for pagination
+        if max_id is None and cache_key in self.cache:
             cached_data, cached_time = self.cache[cache_key]
             if time.time() - cached_time < self.cache_ttl:
-                return cached_data[:limit]
+                messages = cached_data['messages'][:limit]
+                return {
+                    'messages': messages,
+                    'cursor': messages[-1]['id'] if messages else None,
+                    'has_more': len(cached_data['messages']) > limit
+                }
 
         try:
             url = f"{self.base_url}/streams/symbol/{symbol}.json"
+            params = {}
+            if max_id:
+                params['max'] = max_id
+
             headers = {
                 'User-Agent': 'StockWatchlistApp/1.0'
             }
 
-            response = requests.get(url, headers=headers, timeout=5)
+            response = requests.get(url, headers=headers, params=params, timeout=5)
 
             if response.status_code == 200:
                 data = response.json()
@@ -408,27 +418,36 @@ class StocktwitsAPI:
                         'replies_count': msg.get('conversation', {}).get('replies', 0) if msg.get('conversation') else 0
                     })
 
-                # Cache the results
-                self.cache[cache_key] = (messages, time.time())
+                # Cache the results (only for initial load, not pagination)
+                if max_id is None:
+                    self.cache[cache_key] = ({'messages': messages}, time.time())
 
-                return messages[:limit]
+                # Get cursor for next page (last message ID)
+                result_messages = messages[:limit]
+                cursor = result_messages[-1]['id'] if result_messages else None
+
+                return {
+                    'messages': result_messages,
+                    'cursor': cursor,
+                    'has_more': len(messages) >= limit  # If we got full limit, likely more available
+                }
 
             elif response.status_code == 404:
                 print(f"Stocktwits: Symbol {symbol} not found")
-                return []
+                return {'messages': [], 'cursor': None, 'has_more': False}
             elif response.status_code == 429:
                 print(f"Stocktwits: Rate limited")
-                return self._get_cached_or_empty(cache_key, limit)
+                return self._get_cached_or_empty_dict(cache_key, limit)
             else:
                 print(f"Stocktwits API error: {response.status_code}")
-                return self._get_cached_or_empty(cache_key, limit)
+                return self._get_cached_or_empty_dict(cache_key, limit)
 
         except requests.exceptions.Timeout:
             print(f"Stocktwits: Request timeout for {symbol}")
-            return self._get_cached_or_empty(cache_key, limit)
+            return self._get_cached_or_empty_dict(cache_key, limit)
         except Exception as e:
             print(f"Stocktwits error for {symbol}: {e}")
-            return self._get_cached_or_empty(cache_key, limit)
+            return self._get_cached_or_empty_dict(cache_key, limit)
 
     def get_trending_symbols(self, limit=10):
         """Get trending stock symbols on Stocktwits"""
@@ -541,6 +560,18 @@ class StocktwitsAPI:
             cached_data, _ = self.cache[cache_key]
             return cached_data[:limit]
         return []
+
+    def _get_cached_or_empty_dict(self, cache_key, limit):
+        """Return cached data in dict format if available, otherwise empty dict"""
+        if cache_key in self.cache:
+            cached_data, _ = self.cache[cache_key]
+            messages = cached_data.get('messages', [])[:limit]
+            return {
+                'messages': messages,
+                'cursor': messages[-1]['id'] if messages else None,
+                'has_more': len(cached_data.get('messages', [])) > limit
+            }
+        return {'messages': [], 'cursor': None, 'has_more': False}
 
 
 # =============================================================================

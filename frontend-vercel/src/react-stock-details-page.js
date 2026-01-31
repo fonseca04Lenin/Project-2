@@ -16,6 +16,10 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const newsContainerRef = useRef(null);
     const [stocktwits, setStocktwits] = useState([]);
     const [stocktwitsLoading, setStocktwitsLoading] = useState(false);
+    const [stocktwitsLoadingMore, setStocktwitsLoadingMore] = useState(false);
+    const [stocktwitsCursor, setStocktwitsCursor] = useState(null);
+    const [stocktwitsHasMore, setStocktwitsHasMore] = useState(true);
+    const sentimentContainerRef = useRef(null);
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const chartRootRef = useRef(null);
@@ -166,14 +170,18 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 // Load Stocktwits
                 setStocktwitsLoading(true);
                 setStocktwits([]);
+                setStocktwitsCursor(null);
+                setStocktwitsHasMore(true);
                 (async () => {
                     try {
-                        const stocktwitsResp = await fetch(`${API_BASE_PAGE}/api/stocktwits/${symbol}?limit=10`, {
+                        const stocktwitsResp = await fetch(`${API_BASE_PAGE}/api/stocktwits/${symbol}?limit=15`, {
                             credentials: 'include'
                         });
                         if (stocktwitsResp.ok) {
                             const stocktwitsData = await stocktwitsResp.json();
                             setStocktwits(stocktwitsData.messages || []);
+                            setStocktwitsCursor(stocktwitsData.cursor || null);
+                            setStocktwitsHasMore(stocktwitsData.has_more !== false);
                         }
                     } catch (error) {
                         console.log(`[StockDetailsPage] Stocktwits API error:`, error);
@@ -312,6 +320,43 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
             setNewsLoadingMore(false);
         }
     };
+
+    // Load more Stocktwits messages
+    const loadMoreStocktwits = async () => {
+        if (stocktwitsLoadingMore || !stocktwitsHasMore || !symbol) return;
+        setStocktwitsLoadingMore(true);
+
+        try {
+            let url = `${API_BASE_PAGE}/api/stocktwits/${symbol}?limit=15`;
+            if (stocktwitsCursor) {
+                url += `&max=${stocktwitsCursor}`;
+            }
+
+            const stocktwitsResp = await fetch(url, { credentials: 'include' });
+            if (stocktwitsResp.ok) {
+                const stocktwitsData = await stocktwitsResp.json();
+                const newMessages = stocktwitsData.messages || [];
+                if (newMessages.length > 0) {
+                    setStocktwits(prev => [...prev, ...newMessages]);
+                    setStocktwitsCursor(stocktwitsData.cursor || null);
+                }
+                setStocktwitsHasMore(stocktwitsData.has_more !== false && newMessages.length > 0);
+            }
+        } catch (error) {
+            console.log(`[StockDetailsPage] Error loading more stocktwits:`, error);
+        } finally {
+            setStocktwitsLoadingMore(false);
+        }
+    };
+
+    // Handle scroll for infinite loading in sentiment section
+    const handleSentimentScroll = useCallback((e) => {
+        const container = e.target;
+        const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (scrollBottom < 100 && stocktwitsHasMore && !stocktwitsLoadingMore) {
+            loadMoreStocktwits();
+        }
+    }, [stocktwitsHasMore, stocktwitsLoadingMore, symbol, stocktwitsCursor]);
 
     const handleBack = () => {
         if (onNavigateBack) {
@@ -698,7 +743,12 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             <h3><i className="fas fa-comments"></i> Social Sentiment</h3>
                             <span className="source-badge">Stocktwits</span>
                         </div>
-                        <div className="sentiment-content">
+                        <div
+                            className="sentiment-content"
+                            ref={sentimentContainerRef}
+                            onScroll={handleSentimentScroll}
+                            style={{ maxHeight: '600px', overflowY: 'auto' }}
+                        >
                             {stocktwitsLoading ? (
                                 <div className="loading-state">
                                     <i className="fas fa-spinner fa-spin"></i>
@@ -707,14 +757,18 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             ) : stocktwits.length > 0 ? (
                                 <div className="stocktwits-list">
                                     {stocktwits.map((message, index) => (
-                                        <div
+                                        <a
                                             key={message.id || index}
-                                            className={`tweet-item ${message.sentiment?.toLowerCase() || 'neutral'}`}
+                                            href={`https://stocktwits.com/${message.user?.username || 'symbol'}/${message.id}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={`tweet-item clickable ${message.sentiment?.toLowerCase() || 'neutral'}`}
+                                            style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
                                         >
                                             <div className="tweet-header">
                                                 {message.user?.avatar_url ? (
                                                     <img
-                                                        src={message.user.avatar_url}
+                                                        src={message.user.avatar_url.replace('http://', 'https://')}
                                                         alt=""
                                                         className="avatar"
                                                         onError={(e) => { e.target.style.display = 'none'; }}
@@ -736,23 +790,53 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                                 )}
                                             </div>
                                             <p className="tweet-body">{message.body}</p>
-                                            {(message.likes_count > 0 || message.replies_count > 0) && (
-                                                <div className="tweet-stats">
-                                                    {message.likes_count > 0 && (
-                                                        <span><i className="fas fa-heart"></i> {message.likes_count}</span>
-                                                    )}
-                                                    {message.replies_count > 0 && (
-                                                        <span><i className="fas fa-reply"></i> {message.replies_count}</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
+                                            <div className="tweet-footer">
+                                                {(message.likes_count > 0 || message.replies_count > 0) && (
+                                                    <div className="tweet-stats">
+                                                        {message.likes_count > 0 && (
+                                                            <span><i className="fas fa-heart"></i> {message.likes_count}</span>
+                                                        )}
+                                                        {message.replies_count > 0 && (
+                                                            <span><i className="fas fa-reply"></i> {message.replies_count}</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                <span className="external-link">
+                                                    <i className="fas fa-external-link-alt"></i>
+                                                </span>
+                                            </div>
+                                        </a>
                                     ))}
+                                    {stocktwitsHasMore && (
+                                        <button
+                                            className="load-more-btn"
+                                            onClick={loadMoreStocktwits}
+                                            disabled={stocktwitsLoadingMore}
+                                            style={{
+                                                width: '100%',
+                                                padding: '12px',
+                                                marginTop: '12px',
+                                                background: 'rgba(34, 197, 94, 0.1)',
+                                                border: '1px solid rgba(34, 197, 94, 0.3)',
+                                                borderRadius: '8px',
+                                                color: '#22c55e',
+                                                cursor: stocktwitsLoadingMore ? 'not-allowed' : 'pointer',
+                                                fontSize: '14px',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            {stocktwitsLoadingMore ? (
+                                                <><i className="fas fa-spinner fa-spin"></i> Loading...</>
+                                            ) : (
+                                                <><i className="fas fa-plus"></i> Load More Comments</>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="empty-state">
                                     <i className="fas fa-comment-slash"></i>
-                                    <p>No recent posts for ${symbol}</p>
+                                    <p>No recent posts for {symbol}</p>
                                 </div>
                             )}
                         </div>
@@ -795,7 +879,12 @@ window.navigateToStockPage = (symbol, isFromWatchlist = false) => {
     initPage();
 
     const newUrl = `/stock/${symbol}`;
-    window.history.pushState({ symbol, isFromWatchlist, page: 'stock' }, '', newUrl);
+    // Use replaceState if already on the same URL (e.g., page reload)
+    if (window.location.pathname === newUrl) {
+        window.history.replaceState({ symbol, isFromWatchlist, page: 'stock' }, '', newUrl);
+    } else {
+        window.history.pushState({ symbol, isFromWatchlist, page: 'stock' }, '', newUrl);
+    }
 
     const dashboardContent = document.querySelector('#dashboard-redesign-root');
     if (dashboardContent) {
@@ -867,11 +956,42 @@ window.handleInitialStockUrl = () => {
     if (stockMatch) {
         const symbol = stockMatch[1].toUpperCase();
         console.log(`[StockDetailsPage] Initial load for stock: ${symbol}`);
-        setTimeout(() => {
-            window.navigateToStockPage(symbol, false);
-        }, 100);
+
+        // Wait for page container to be ready
+        const attemptNavigation = (retries = 0) => {
+            if (retries > 20) {
+                console.error('[StockDetailsPage] Failed to initialize page after multiple attempts');
+                return;
+            }
+
+            // Check if React and required functions are ready
+            if (typeof React !== 'undefined' && typeof ReactDOM !== 'undefined' && document.getElementById('dashboard-redesign-root')) {
+                initPage();
+                setTimeout(() => {
+                    window.navigateToStockPage(symbol, false);
+                }, 50);
+            } else {
+                setTimeout(() => attemptNavigation(retries + 1), 100);
+            }
+        };
+
+        attemptNavigation();
     }
 };
+
+// Also handle when scripts load after DOM is ready
+if (document.readyState === 'complete') {
+    // Page already loaded, check URL immediately
+    const path = window.location.pathname;
+    if (path.startsWith('/stock/')) {
+        setTimeout(() => {
+            if (typeof window.handleInitialStockUrl === 'function') {
+                window.handleInitialStockUrl();
+            }
+        }, 100);
+    }
+}
+
 window.StockDetailsPage = StockDetailsPage;
 
 console.log('[StockDetailsPage] Component loaded');
