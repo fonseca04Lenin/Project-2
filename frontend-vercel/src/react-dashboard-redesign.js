@@ -1907,14 +1907,15 @@ const DashboardRedesign = () => {
 };
 
 // Sparkline Component for Mini Charts
-const SparklineChart = ({ symbol, data, isPositive }) => {
+const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }) => {
     const canvasRef = useRef(null);
     const [isLoading, setIsLoading] = useState(true);
     const [chartData, setChartData] = useState(null);
+    const [hasError, setHasError] = useState(false);
 
     useEffect(() => {
         if (!symbol) return;
-        
+
         // Fetch 7-day chart data for sparkline
         const fetchSparklineData = async () => {
             try {
@@ -1922,15 +1923,28 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
                 const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=7d`, {
                     credentials: 'include'
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
-                    if (data && data.length > 0) {
-                        setChartData(data.map(d => d.price));
-                        setIsLoading(false);
+                    if (data && Array.isArray(data) && data.length > 0) {
+                        // Handle both old format (price) and new format (close)
+                        const prices = data.map(d => parseFloat(d.close || d.price)).filter(p => !isNaN(p));
+                        if (prices.length > 0) {
+                            setChartData(prices);
+                            setHasError(false);
+                        } else {
+                            setHasError(true);
+                        }
+                    } else {
+                        setHasError(true);
                     }
+                } else {
+                    setHasError(true);
                 }
             } catch (error) {
+                console.log(`[Sparkline] Error fetching data for ${symbol}:`, error);
+                setHasError(true);
+            } finally {
                 setIsLoading(false);
             }
         };
@@ -1939,79 +1953,142 @@ const SparklineChart = ({ symbol, data, isPositive }) => {
     }, [symbol]);
 
     useEffect(() => {
-        if (!chartData || !canvasRef.current || chartData.length === 0) return;
+        if (!chartData || !canvasRef.current || chartData.length < 2) return;
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        
+
         // Get device pixel ratio for high-DPI displays
         const dpr = window.devicePixelRatio || 1;
-        
+
         // Display size (CSS pixels)
-        const displayWidth = 80;
-        const displayHeight = 30;
-        
+        const displayWidth = width;
+        const displayHeight = height;
+
         // Set actual canvas size in memory (scaled for high-DPI)
         canvas.width = displayWidth * dpr;
         canvas.height = displayHeight * dpr;
-        
+
         // Scale the canvas context to match device pixel ratio
         ctx.scale(dpr, dpr);
-        
+
         // Enable high-quality rendering
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        
+
         // Set CSS size to display size
         canvas.style.width = displayWidth + 'px';
         canvas.style.height = displayHeight + 'px';
-        
+
         // Clear canvas
         ctx.clearRect(0, 0, displayWidth, displayHeight);
-        
-        // Calculate points
+
+        // Calculate points with padding
+        const padding = 2;
         const min = Math.min(...chartData);
         const max = Math.max(...chartData);
         const range = max - min || 1;
-        const stepX = displayWidth / (chartData.length - 1);
-        
-        // Draw line with improved quality
+        const stepX = (displayWidth - padding * 2) / (chartData.length - 1);
+        const effectiveHeight = displayHeight - padding * 2;
+
+        // Determine color based on price trend
+        const startPrice = chartData[0];
+        const endPrice = chartData[chartData.length - 1];
+        const trendPositive = endPrice >= startPrice;
+        const lineColor = trendPositive ? '#00c805' : '#ff5000';
+        const fillColorStart = trendPositive ? 'rgba(0, 200, 5, 0.3)' : 'rgba(255, 80, 0, 0.3)';
+        const fillColorEnd = trendPositive ? 'rgba(0, 200, 5, 0)' : 'rgba(255, 80, 0, 0)';
+
+        // Draw gradient fill first
         ctx.beginPath();
-        ctx.strokeStyle = isPositive ? '#10B981' : '#EF4444';
-        ctx.lineWidth = 2.5; // Slightly thicker for better visibility at high resolution
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        
         chartData.forEach((price, index) => {
-            const x = index * stepX;
-            const y = displayHeight - ((price - min) / range) * displayHeight;
-            
+            const x = padding + index * stepX;
+            const y = padding + effectiveHeight - ((price - min) / range) * effectiveHeight;
+
             if (index === 0) {
                 ctx.moveTo(x, y);
             } else {
                 ctx.lineTo(x, y);
             }
         });
-        
-        ctx.stroke();
-        
-        // Add gradient fill
-        const gradient = ctx.createLinearGradient(0, 0, 0, displayHeight);
-        gradient.addColorStop(0, isPositive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)');
-        gradient.addColorStop(1, isPositive ? 'rgba(16, 185, 129, 0)' : 'rgba(239, 68, 68, 0)');
-        
-        ctx.lineTo(displayWidth, displayHeight);
-        ctx.lineTo(0, displayHeight);
+
+        // Complete the fill path
+        ctx.lineTo(padding + (chartData.length - 1) * stepX, displayHeight);
+        ctx.lineTo(padding, displayHeight);
         ctx.closePath();
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, displayHeight);
+        gradient.addColorStop(0, fillColorStart);
+        gradient.addColorStop(1, fillColorEnd);
         ctx.fillStyle = gradient;
         ctx.fill();
-    }, [chartData, isPositive]);
+
+        // Draw the line on top
+        ctx.beginPath();
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        chartData.forEach((price, index) => {
+            const x = padding + index * stepX;
+            const y = padding + effectiveHeight - ((price - min) / range) * effectiveHeight;
+
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+
+        ctx.stroke();
+
+        // Draw end point dot
+        const lastX = padding + (chartData.length - 1) * stepX;
+        const lastY = padding + effectiveHeight - ((chartData[chartData.length - 1] - min) / range) * effectiveHeight;
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+        ctx.fillStyle = lineColor;
+        ctx.fill();
+
+    }, [chartData, isPositive, width, height]);
 
     if (isLoading) {
-        return <div className="sparkline-loading" style={{ width: '80px', height: '30px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}></div>;
+        return (
+            <div
+                className="sparkline-loading"
+                style={{
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%)',
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 1.5s infinite',
+                    borderRadius: '4px'
+                }}
+            />
+        );
     }
 
-    return <canvas ref={canvasRef} className="sparkline-chart" style={{ width: '80px', height: '30px' }} />;
+    if (hasError || !chartData || chartData.length < 2) {
+        return (
+            <div
+                className="sparkline-error"
+                style={{
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'rgba(255,255,255,0.2)',
+                    fontSize: '10px'
+                }}
+            >
+                <i className="fas fa-chart-line" style={{ opacity: 0.3 }}></i>
+            </div>
+        );
+    }
+
+    return <canvas ref={canvasRef} className="sparkline-chart" style={{ width: `${width}px`, height: `${height}px` }} />;
 };
 
 // Sector Allocation Pie Chart Component
@@ -2446,9 +2523,11 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                     <div className="stock-name-enhanced">{stock.company_name || stock.name || stock.symbol}</div>
                                 </div>
                                 <div className="stock-sparkline">
-                                    <SparklineChart 
-                                        symbol={stock.symbol} 
+                                    <SparklineChart
+                                        symbol={stock.symbol}
                                         isPositive={(stock.change_percent || 0) >= 0}
+                                        width={90}
+                                        height={35}
                                     />
                                 </div>
                                 <div className="stock-price-group">
@@ -2667,6 +2746,14 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                             </button>
                         </div>
                         <div className="stock-name">{stock.name}</div>
+                        <div className="sparkline-container" style={{ margin: '12px 0', display: 'flex', justifyContent: 'center' }}>
+                            <SparklineChart
+                                symbol={stock.symbol}
+                                isPositive={(stock.change_percent || 0) >= 0}
+                                width={140}
+                                height={50}
+                            />
+                        </div>
                         <div className={`stock-price-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                             ${(stock.current_price || stock.price || 0).toFixed(2)}
                         </div>

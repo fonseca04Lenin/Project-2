@@ -1894,16 +1894,18 @@ def get_chart_data(symbol):
     # Calculate date range and interval based on parameter
     now = datetime.now()
     interval = '1d'  # Default daily interval
+    period = None  # For intraday, we use period instead of start/end dates
 
     if time_range == '1D':
-        start_date = now.strftime("%Y-%m-%d")
-        interval = '5m'  # 5-minute intervals for intraday
+        # For intraday, use period='1d' with interval
+        period = '1d'
+        interval = '5m'
     elif time_range == '5D':
-        start_date = (now - timedelta(days=5)).strftime("%Y-%m-%d")
-        interval = '15m'  # 15-minute intervals
-    elif time_range == '1W':
+        period = '5d'
+        interval = '15m'
+    elif time_range == '1W' or time_range == '7d':
         start_date = (now - timedelta(days=7)).strftime("%Y-%m-%d")
-        interval = '30m'  # 30-minute intervals
+        interval = '1d'  # Daily for 1 week (better for sparklines)
     elif time_range == '1M' or time_range == '30d':
         start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
         interval = '1d'
@@ -1921,25 +1923,63 @@ def get_chart_data(symbol):
         interval = '1d'
     elif time_range == '5Y' or time_range == '5y':
         start_date = (now - timedelta(days=1825)).strftime("%Y-%m-%d")
-        interval = '1wk'  # Weekly intervals for 5 years
+        interval = '1wk'
     elif time_range == 'ALL' or time_range == 'all':
         start_date = (now - timedelta(days=3650)).strftime("%Y-%m-%d")
-        interval = '1mo'  # Monthly intervals for all time
+        interval = '1mo'
     else:
         start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
         interval = '1d'
 
     end_date = now.strftime("%Y-%m-%d")
 
-    # Get OHLCV data from Yahoo Finance
-    ohlcv_data = yahoo_finance_api.get_ohlcv_data(symbol, start_date, end_date, interval)
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker(symbol)
 
-    if ohlcv_data and len(ohlcv_data) > 0:
-        return jsonify(ohlcv_data)
-    else:
-        # Fallback to old method if OHLCV fails
+        # Use period for intraday data, otherwise use date range
+        if period:
+            hist = ticker.history(period=period, interval=interval)
+        else:
+            hist = ticker.history(start=start_date, end=end_date, interval=interval)
+
+        if hist.empty:
+            # Fallback to daily data if intraday fails
+            if period:
+                hist = ticker.history(period='5d', interval='1d')
+            if hist.empty:
+                return jsonify({'error': 'No chart data available'}), 404
+
+        ohlcv_data = []
+        for date, row in hist.iterrows():
+            # Format date based on interval
+            if interval in ['5m', '15m', '30m', '1h']:
+                date_str = date.strftime('%Y-%m-%d %H:%M')
+            else:
+                date_str = date.strftime('%Y-%m-%d')
+
+            ohlcv_data.append({
+                'date': date_str,
+                'open': float(row['Open']),
+                'high': float(row['High']),
+                'low': float(row['Low']),
+                'close': float(row['Close']),
+                'volume': int(row['Volume']) if row['Volume'] else 0
+            })
+
+        if ohlcv_data:
+            return jsonify(ohlcv_data)
+        else:
+            return jsonify({'error': 'No chart data available'}), 404
+
+    except Exception as e:
+        print(f"[Chart API] Error fetching data for {symbol}: {e}")
+        # Fallback to old method
         stock = Stock(symbol, yahoo_finance_api)
-        dates, prices = stock.retrieve_historical_data(start_date, end_date)
+        dates, prices = stock.retrieve_historical_data(
+            (now - timedelta(days=30)).strftime("%Y-%m-%d"),
+            end_date
+        )
         if dates and prices:
             chart_data = [{'date': date, 'price': price, 'close': price, 'open': price, 'high': price, 'low': price, 'volume': 0} for date, price in zip(dates, prices)]
             return jsonify(chart_data)
