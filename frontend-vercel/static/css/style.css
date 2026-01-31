@@ -6862,6 +6862,26 @@ body {
     padding: 1rem 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     border-left: 3px solid transparent;
+    transition: background-color 0.2s ease;
+    position: relative;
+}
+
+.tweet-item.clickable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tweet-item .external-link {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.tweet-item.clickable:hover .external-link {
+    opacity: 1;
 }
 
 .tweet-item.bullish {
