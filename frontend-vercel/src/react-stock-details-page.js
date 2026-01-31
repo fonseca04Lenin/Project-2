@@ -114,7 +114,30 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 const [details, chartDataResp] = await Promise.all([detailPromise, chartPromise]);
 
                 setStockData(details);
-                setIsInWatchlist(details.isInWatchlist || false);
+
+                // If not from watchlist, check if stock is in watchlist
+                if (!useWatchlistEndpoint) {
+                    try {
+                        const watchlistResp = await fetch(`${API_BASE_PAGE}/api/watchlist`, {
+                            method: 'GET',
+                            headers: authHeaders,
+                            credentials: 'include'
+                        });
+                        if (watchlistResp.ok) {
+                            const watchlistData = await watchlistResp.json();
+                            const inWatchlist = Array.isArray(watchlistData) && watchlistData.some(item => item.symbol === symbol);
+                            setIsInWatchlist(inWatchlist);
+                        } else {
+                            setIsInWatchlist(false);
+                        }
+                    } catch (watchlistErr) {
+                        console.log('[StockDetailsPage] Could not check watchlist status:', watchlistErr);
+                        setIsInWatchlist(false);
+                    }
+                } else {
+                    setIsInWatchlist(details.isInWatchlist || false);
+                }
+
                 if (chartDataResp) setChartData(chartDataResp);
 
                 // Load news in background
@@ -299,11 +322,19 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     };
 
     const handleAddToWatchlist = async () => {
-        if (isInWatchlist || addingToWatchlist) return;
+        console.log('[StockDetailsPage] Add to watchlist clicked for:', symbol);
+        console.log('[StockDetailsPage] Current state - isInWatchlist:', isInWatchlist, 'addingToWatchlist:', addingToWatchlist);
+
+        if (isInWatchlist || addingToWatchlist) {
+            console.log('[StockDetailsPage] Returning early - already in watchlist or adding');
+            return;
+        }
 
         setAddingToWatchlist(true);
         try {
             const authHeaders = await window.getAuthHeaders();
+            console.log('[StockDetailsPage] Auth headers obtained:', !!authHeaders);
+
             const response = await fetch(`${API_BASE_PAGE}/api/watchlist`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -311,8 +342,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 body: JSON.stringify({ symbol })
             });
 
+            console.log('[StockDetailsPage] Watchlist API response status:', response.status);
+
             if (response.ok) {
                 setIsInWatchlist(true);
+                console.log('[StockDetailsPage] Successfully added to watchlist');
                 if (window.showNotification) {
                     window.showNotification(`${symbol} added to watchlist`, 'success');
                 }
@@ -377,6 +411,15 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 
     const priceChangePercent = stockData.percentageChange || stockData.priceChangePercent || 0;
     const isPositive = priceChangePercent >= 0;
+
+    // Debug logging for price change
+    console.log('[StockDetailsPage] Stock data received:', {
+        symbol: stockData.symbol,
+        price: stockData.price,
+        percentageChange: stockData.percentageChange,
+        priceChangePercent: stockData.priceChangePercent,
+        calculatedPercent: priceChangePercent
+    });
 
     return (
         <div className="stock-page-container">
