@@ -1887,31 +1887,62 @@ def get_migration_status():
 @app.route('/api/chart/<symbol>')
 def get_chart_data(symbol):
     symbol = symbol.upper()
-    
-    # Get time range from query parameter, default to 30d
-    time_range = request.args.get('range', '30d')
-    
-    # Calculate date range based on parameter
+
+    # Get time range from query parameter, default to 1M
+    time_range = request.args.get('range', '1M')
+
+    # Calculate date range and interval based on parameter
     now = datetime.now()
-    if time_range == '1y':
-        start_date = (now - timedelta(days=365)).strftime("%Y-%m-%d")
-    elif time_range == '5y':
-        start_date = (now - timedelta(days=1825)).strftime("%Y-%m-%d")  # 5 years
-    elif time_range == 'all':
-        start_date = (now - timedelta(days=3650)).strftime("%Y-%m-%d")  # 10 years (practical limit)
-    else:  # Default to 30d
+    interval = '1d'  # Default daily interval
+
+    if time_range == '1D':
+        start_date = now.strftime("%Y-%m-%d")
+        interval = '5m'  # 5-minute intervals for intraday
+    elif time_range == '5D':
+        start_date = (now - timedelta(days=5)).strftime("%Y-%m-%d")
+        interval = '15m'  # 15-minute intervals
+    elif time_range == '1W':
+        start_date = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+        interval = '30m'  # 30-minute intervals
+    elif time_range == '1M' or time_range == '30d':
         start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
-    
-    end_date = now.strftime("%Y-%m-%d")
-    
-    # Charts use Yahoo Finance for historical data (as per migration plan)
-    stock = Stock(symbol, yahoo_finance_api)
-    dates, prices = stock.retrieve_historical_data(start_date, end_date)
-    
-    if dates and prices:
-        chart_data = [{'date': date, 'price': price} for date, price in zip(dates, prices)]
-        return jsonify(chart_data)
+        interval = '1d'
+    elif time_range == '3M':
+        start_date = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+        interval = '1d'
+    elif time_range == '6M':
+        start_date = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+        interval = '1d'
+    elif time_range == 'YTD':
+        start_date = f"{now.year}-01-01"
+        interval = '1d'
+    elif time_range == '1Y' or time_range == '1y':
+        start_date = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+        interval = '1d'
+    elif time_range == '5Y' or time_range == '5y':
+        start_date = (now - timedelta(days=1825)).strftime("%Y-%m-%d")
+        interval = '1wk'  # Weekly intervals for 5 years
+    elif time_range == 'ALL' or time_range == 'all':
+        start_date = (now - timedelta(days=3650)).strftime("%Y-%m-%d")
+        interval = '1mo'  # Monthly intervals for all time
     else:
+        start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        interval = '1d'
+
+    end_date = now.strftime("%Y-%m-%d")
+
+    # Get OHLCV data from Yahoo Finance
+    ohlcv_data = yahoo_finance_api.get_ohlcv_data(symbol, start_date, end_date, interval)
+
+    if ohlcv_data and len(ohlcv_data) > 0:
+        return jsonify(ohlcv_data)
+    else:
+        # Fallback to old method if OHLCV fails
+        stock = Stock(symbol, yahoo_finance_api)
+        dates, prices = stock.retrieve_historical_data(start_date, end_date)
+        if dates and prices:
+            chart_data = [{'date': date, 'price': price, 'close': price, 'open': price, 'high': price, 'low': price, 'volume': 0} for date, price in zip(dates, prices)]
+            return jsonify(chart_data)
         return jsonify({'error': 'Could not retrieve chart data'}), 404
 
 @app.route('/api/market-status')
