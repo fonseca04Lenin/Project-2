@@ -2252,20 +2252,21 @@ def get_market_analysis():
         # Build comprehensive market analysis prompt
         current_date = datetime.now().strftime('%B %d, %Y')
         current_year = datetime.now().year
-        prompt = f"""Today's date is {current_date}. Generate a concise, professional market analysis for this week covering:
+        prompt = f"""You are a professional financial analyst. Today is {current_date}.
 
-1. Current Market Trends: What's driving the market this week?
-2. Geopolitical Factors: Any major geopolitical events affecting markets?
-3. Economic Indicators: Key economic data releases and their impact
-4. Sector Performance: Which sectors are outperforming/underperforming and why?
-5. What to Watch: Important events or catalysts coming up
+Write a market analysis covering these topics:
+1. Market Trends - What's driving the market this week
+2. Geopolitical Factors - Major events affecting markets
+3. Economic Indicators - Key data releases and impact
+4. Sector Performance - Which sectors are doing well/poorly
+5. What to Watch - Upcoming events or catalysts
 
-IMPORTANT FORMATTING RULES:
-- When referencing dates, always include the full year {current_year}
-- Do NOT use date ranges like "Week of January 2-8" - instead say "the week of {current_date}" or just "this week"
-- Do NOT leave any date incomplete or with missing year
-
-Keep it informative, data-driven, and professional. Limit to 200-250 words."""
+RULES:
+- Write in plain English paragraphs, no bullet points or headers
+- Say "this week" or "today" instead of specific date ranges
+- Be specific about stocks, sectors, and percentages when relevant
+- Sound professional and informative
+- Write approximately 200 words"""
 
         # Generate AI analysis using Gemini
         chat_service = ChatService()
@@ -2283,7 +2284,8 @@ Keep it informative, data-driven, and professional. Limit to 200-250 words."""
         traceback.print_exc()
 
         # Fallback response if AI fails - but still include market data
-        fallback_analysis = """This week's market is showing mixed signals with technology stocks leading gains while traditional sectors face headwinds. Federal Reserve policy decisions continue to weigh on investor sentiment, with traders closely watching inflation data. Geopolitical tensions in key regions are adding volatility, particularly affecting energy and defense sectors. Tech earnings have been strong, driving optimism, but valuation concerns persist. Economic indicators suggest resilient consumer spending despite higher interest rates. Watch for upcoming Fed commentary and quarterly GDP numbers which could set the tone for next month's trading."""
+        current_date = datetime.now().strftime('%B %d, %Y')
+        fallback_analysis = f"""Markets are showing mixed signals this week as investors digest recent economic data and corporate earnings. Technology stocks continue to drive momentum, while traditional sectors face pressure from interest rate uncertainty. The Federal Reserve's policy stance remains a key focus, with traders closely monitoring inflation indicators and employment data. Geopolitical developments are contributing to volatility, particularly in energy and defense sectors. Consumer spending data suggests resilience despite the higher rate environment, though some analysts express caution about valuations in growth stocks. Looking ahead, watch for upcoming Fed commentary and any surprises in the quarterly earnings reports. Market participants should stay alert to shifts in sector leadership and potential policy changes that could influence near-term direction. As of {current_date}, the overall market sentiment leans cautiously optimistic."""
 
         return jsonify({
             'analysis': fallback_analysis,

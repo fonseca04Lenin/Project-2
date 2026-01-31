@@ -1593,7 +1593,7 @@ Format your response as JSON (and ONLY JSON, no other text):
                 prompt,
                 generation_config={
                     "temperature": 0.5,
-                    "max_output_tokens": 300
+                    "max_output_tokens": 500
                 },
                 safety_settings=[
                     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
