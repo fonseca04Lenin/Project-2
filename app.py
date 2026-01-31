@@ -2249,28 +2249,32 @@ def get_market_analysis():
     try:
         from chat_service import ChatService
 
-        # Build comprehensive market analysis prompt
-        current_date = datetime.now().strftime('%B %d, %Y')
-        current_year = datetime.now().year
-        prompt = f"""You are a professional financial analyst. Today is {current_date}.
+        # Build comprehensive market analysis prompt - keep it simple to avoid AI confusion
+        prompt = """You are a professional financial analyst writing a weekly market update.
 
-Write a market analysis covering these topics:
-1. Market Trends - What's driving the market this week
-2. Geopolitical Factors - Major events affecting markets
-3. Economic Indicators - Key data releases and impact
-4. Sector Performance - Which sectors are doing well/poorly
-5. What to Watch - Upcoming events or catalysts
+Write a market analysis covering:
+- Current market trends and what's driving them
+- Notable sector performance
+- Key economic factors affecting markets
+- What investors should watch for
 
-RULES:
-- Write in plain English paragraphs, no bullet points or headers
-- Say "this week" or "today" instead of specific date ranges
-- Be specific about stocks, sectors, and percentages when relevant
-- Sound professional and informative
-- Write approximately 200 words"""
+IMPORTANT RULES:
+- Do NOT include specific dates, years, or quarters in your response
+- Use phrases like "this week", "recently", "currently" instead of dates
+- Do NOT write things like "Q4 2024" or "January 2025" - avoid all specific dates
+- Write in flowing paragraphs, no bullet points or headers
+- Be specific about sectors and market movements
+- Write approximately 180 words"""
 
         # Generate AI analysis using Gemini
         chat_service = ChatService()
         analysis_text = chat_service.generate_simple_response(prompt)
+
+        # Clean up any "undefined" that AI might generate
+        if analysis_text:
+            analysis_text = analysis_text.replace(' undefined', '')
+            analysis_text = analysis_text.replace('undefined ', '')
+            analysis_text = analysis_text.replace('undefined', '')
 
         return jsonify({
             'analysis': analysis_text,
