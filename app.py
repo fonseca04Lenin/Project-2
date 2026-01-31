@@ -2340,17 +2340,20 @@ def get_stock_stocktwits(symbol):
     try:
         symbol = symbol.upper()
         limit = request.args.get('limit', 15, type=int)
+        max_id = request.args.get('max', None, type=int)
 
         # Cap limit at 30
         if limit > 30:
             limit = 30
 
-        messages = stocktwits_api.get_stock_messages(symbol, limit=limit)
+        result = stocktwits_api.get_stock_messages(symbol, limit=limit, max_id=max_id)
 
         return jsonify({
             'symbol': symbol,
-            'messages': messages,
-            'count': len(messages)
+            'messages': result.get('messages', []),
+            'count': len(result.get('messages', [])),
+            'cursor': result.get('cursor'),
+            'has_more': result.get('has_more', False)
         })
     except Exception as e:
         print(f"Error fetching Stocktwits for {symbol}: {e}")
@@ -2358,6 +2361,8 @@ def get_stock_stocktwits(symbol):
             'symbol': symbol,
             'messages': [],
             'count': 0,
+            'cursor': None,
+            'has_more': False,
             'error': 'Could not fetch social sentiment'
         }), 200  # Return 200 with empty data instead of error
 

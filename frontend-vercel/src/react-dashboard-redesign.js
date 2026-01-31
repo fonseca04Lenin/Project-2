@@ -1916,11 +1916,11 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }) 
     useEffect(() => {
         if (!symbol) return;
 
-        // Fetch 7-day chart data for sparkline
+        // Fetch 30-day chart data for sparkline (more data points = smoother line)
         const fetchSparklineData = async () => {
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=7d`, {
+                const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=1M`, {
                     credentials: 'include'
                 });
 
@@ -1984,37 +1984,56 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }) 
         ctx.clearRect(0, 0, displayWidth, displayHeight);
 
         // Calculate points with padding
-        const padding = 2;
+        const paddingX = 4;
+        const paddingY = 6;
         const min = Math.min(...chartData);
         const max = Math.max(...chartData);
         const range = max - min || 1;
-        const stepX = (displayWidth - padding * 2) / (chartData.length - 1);
-        const effectiveHeight = displayHeight - padding * 2;
+        const stepX = (displayWidth - paddingX * 2) / (chartData.length - 1);
+        const effectiveHeight = displayHeight - paddingY * 2;
 
         // Determine color based on price trend
         const startPrice = chartData[0];
         const endPrice = chartData[chartData.length - 1];
         const trendPositive = endPrice >= startPrice;
         const lineColor = trendPositive ? '#00c805' : '#ff5000';
-        const fillColorStart = trendPositive ? 'rgba(0, 200, 5, 0.3)' : 'rgba(255, 80, 0, 0.3)';
-        const fillColorEnd = trendPositive ? 'rgba(0, 200, 5, 0)' : 'rgba(255, 80, 0, 0)';
+        const fillColorStart = trendPositive ? 'rgba(0, 200, 5, 0.25)' : 'rgba(255, 80, 0, 0.25)';
+        const fillColorEnd = trendPositive ? 'rgba(0, 200, 5, 0.02)' : 'rgba(255, 80, 0, 0.02)';
+
+        // Calculate all points
+        const points = chartData.map((price, index) => ({
+            x: paddingX + index * stepX,
+            y: paddingY + effectiveHeight - ((price - min) / range) * effectiveHeight
+        }));
+
+        // Helper function for smooth curve through points
+        const drawSmoothLine = (ctx, points, tension = 0.3) => {
+            if (points.length < 2) return;
+
+            ctx.moveTo(points[0].x, points[0].y);
+
+            for (let i = 0; i < points.length - 1; i++) {
+                const p0 = points[i === 0 ? i : i - 1];
+                const p1 = points[i];
+                const p2 = points[i + 1];
+                const p3 = points[i + 2 >= points.length ? i + 1 : i + 2];
+
+                const cp1x = p1.x + (p2.x - p0.x) * tension;
+                const cp1y = p1.y + (p2.y - p0.y) * tension;
+                const cp2x = p2.x - (p3.x - p1.x) * tension;
+                const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            }
+        };
 
         // Draw gradient fill first
         ctx.beginPath();
-        chartData.forEach((price, index) => {
-            const x = padding + index * stepX;
-            const y = padding + effectiveHeight - ((price - min) / range) * effectiveHeight;
-
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
+        drawSmoothLine(ctx, points, 0.25);
 
         // Complete the fill path
-        ctx.lineTo(padding + (chartData.length - 1) * stepX, displayHeight);
-        ctx.lineTo(padding, displayHeight);
+        ctx.lineTo(points[points.length - 1].x, displayHeight);
+        ctx.lineTo(points[0].x, displayHeight);
         ctx.closePath();
 
         const gradient = ctx.createLinearGradient(0, 0, 0, displayHeight);
@@ -2023,32 +2042,34 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }) 
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // Draw the line on top
+        // Draw the smooth line on top
         ctx.beginPath();
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-
-        chartData.forEach((price, index) => {
-            const x = padding + index * stepX;
-            const y = padding + effectiveHeight - ((price - min) / range) * effectiveHeight;
-
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
-
+        drawSmoothLine(ctx, points, 0.25);
         ctx.stroke();
 
-        // Draw end point dot
-        const lastX = padding + (chartData.length - 1) * stepX;
-        const lastY = padding + effectiveHeight - ((chartData[chartData.length - 1] - min) / range) * effectiveHeight;
+        // Draw end point dot with glow
+        const lastPoint = points[points.length - 1];
+
+        // Glow effect
         ctx.beginPath();
-        ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+        ctx.arc(lastPoint.x, lastPoint.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = trendPositive ? 'rgba(0, 200, 5, 0.3)' : 'rgba(255, 80, 0, 0.3)';
+        ctx.fill();
+
+        // Main dot
+        ctx.beginPath();
+        ctx.arc(lastPoint.x, lastPoint.y, 3, 0, Math.PI * 2);
         ctx.fillStyle = lineColor;
+        ctx.fill();
+
+        // Inner highlight
+        ctx.beginPath();
+        ctx.arc(lastPoint.x - 0.5, lastPoint.y - 0.5, 1, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.fill();
 
     }, [chartData, isPositive, width, height]);
@@ -2526,8 +2547,8 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                     <SparklineChart
                                         symbol={stock.symbol}
                                         isPositive={(stock.change_percent || 0) >= 0}
-                                        width={90}
-                                        height={35}
+                                        width={120}
+                                        height={45}
                                     />
                                 </div>
                                 <div className="stock-price-group">
@@ -2746,14 +2767,6 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                             </button>
                         </div>
                         <div className="stock-name">{stock.name}</div>
-                        <div className="sparkline-container" style={{ margin: '12px 0', display: 'flex', justifyContent: 'center' }}>
-                            <SparklineChart
-                                symbol={stock.symbol}
-                                isPositive={(stock.change_percent || 0) >= 0}
-                                width={140}
-                                height={50}
-                            />
-                        </div>
                         <div className={`stock-price-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                             ${(stock.current_price || stock.price || 0).toFixed(2)}
                         </div>
