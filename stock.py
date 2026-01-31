@@ -709,6 +709,33 @@ class YahooFinanceAPI:
             print(f"Error retrieving historical data for {symbol}: {e}")
             return None
 
+    def get_ohlcv_data(self, symbol, start_date, end_date, interval='1d'):
+        """Get OHLCV (Open, High, Low, Close, Volume) historical data for charts"""
+        try:
+            stock = yf.Ticker(symbol)
+            hist = stock.history(start=start_date, end=end_date, interval=interval)
+
+            if hist.empty:
+                print(f"No OHLCV data available for {symbol}")
+                return None
+
+            ohlcv_data = []
+            for date, row in hist.iterrows():
+                ohlcv_data.append({
+                    'date': date.strftime('%Y-%m-%d') if interval == '1d' else date.strftime('%Y-%m-%d %H:%M'),
+                    'open': float(row['Open']),
+                    'high': float(row['High']),
+                    'low': float(row['Low']),
+                    'close': float(row['Close']),
+                    'volume': int(row['Volume']) if row['Volume'] else 0
+                })
+
+            return ohlcv_data
+
+        except Exception as e:
+            print(f"Error retrieving OHLCV data for {symbol}: {e}")
+            return None
+
     def get_day_change_percent(self, symbol: str, date_str: str) -> float:
         """Compute close-to-close percent change for a specific trading date"""
         try:
