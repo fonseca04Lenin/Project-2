@@ -10,6 +10,13 @@ const DashboardRedesign = () => {
     const userDropdownRef = useRef(null);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
     const [preferencesOpen, setPreferencesOpen] = useState(false);
+    const [profileSettingsOpen, setProfileSettingsOpen] = useState(false);
+    const [securityOpen, setSecurityOpen] = useState(false);
+    const [termsOpen, setTermsOpen] = useState(false);
+    const [privacyOpen, setPrivacyOpen] = useState(false);
+    const [helpOpen, setHelpOpen] = useState(false);
+    const [profilePicture, setProfilePicture] = useState(null);
+    const [theme, setTheme] = useState('dark');
     const [alpacaStatus, setAlpacaStatus] = useState({ connected: false, loading: true });
     const [alpacaPositions, setAlpacaPositions] = useState([]);
     const [showAlpacaForm, setShowAlpacaForm] = useState(false);
@@ -18,6 +25,7 @@ const DashboardRedesign = () => {
     
     // Preferences state
     const [preferences, setPreferences] = useState({
+        theme: 'dark', // dark, light
         defaultTimeRange: '1M',
         autoRefresh: true,
         refreshInterval: 30, // seconds
@@ -26,11 +34,8 @@ const DashboardRedesign = () => {
         defaultCategory: 'General',
         currency: 'USD',
         dateFormat: 'MM/DD/YYYY',
-        notifications: {
-            priceAlerts: true,
-            emailAlerts: false,
-            soundAlerts: false
-        }
+        compactNumbers: false,
+        showPercentChange: true
     });
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -259,10 +264,16 @@ const DashboardRedesign = () => {
         // Load critical data first (non-blocking)
         loadUserData();
         loadPreferences();
-        
+
+        // Load profile picture from localStorage
+        const savedProfilePic = localStorage.getItem('profilePicture');
+        if (savedProfilePic) {
+            setProfilePicture(savedProfilePic);
+        }
+
         // Defer Alpaca status check - only needed when Preferences opens
         // loadAlpacaStatus() removed from initial load
-        
+
         // Load watchlist data (this is the main data we need)
         loadWatchlistData();
         
@@ -1772,7 +1783,11 @@ const DashboardRedesign = () => {
                                 <div className="user-dropdown-header">
                                     <div className="user-info">
                                         <div className="user-avatar">
-                                            <i className="fas fa-user"></i>
+                                            {profilePicture ? (
+                                                <img src={profilePicture} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                            ) : (
+                                                <i className="fas fa-user"></i>
+                                            )}
                                         </div>
                                         <div>
                                             <div className="user-name">{userData.name}</div>
@@ -1781,12 +1796,20 @@ const DashboardRedesign = () => {
                                     </div>
                                 </div>
                                 <div className="dropdown-divider"></div>
-                                <div className="dropdown-item">
+                                <div
+                                    className="dropdown-item"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setProfileSettingsOpen(true);
+                                        setUserMenuOpen(false);
+                                    }}
+                                >
                                     <i className="fas fa-user"></i>
                                     <span>Profile Settings</span>
                                 </div>
-                                <div 
-                                    className="dropdown-item" 
+                                <div
+                                    className="dropdown-item"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -1797,24 +1820,52 @@ const DashboardRedesign = () => {
                                     <i className="fas fa-cog"></i>
                                     <span>Preferences</span>
                                 </div>
-                                <div className="dropdown-item">
+                                <div
+                                    className="dropdown-item"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setSecurityOpen(true);
+                                        setUserMenuOpen(false);
+                                    }}
+                                >
                                     <i className="fas fa-shield-alt"></i>
                                     <span>Security</span>
                                 </div>
-                                <div className="dropdown-item">
-                                    <i className="fas fa-bell"></i>
-                                    <span>Notifications</span>
-                                </div>
                                 <div className="dropdown-divider"></div>
-                                <div className="dropdown-item">
+                                <div
+                                    className="dropdown-item"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setTermsOpen(true);
+                                        setUserMenuOpen(false);
+                                    }}
+                                >
                                     <i className="fas fa-file-alt"></i>
                                     <span>Terms of Service</span>
                                 </div>
-                                <div className="dropdown-item">
+                                <div
+                                    className="dropdown-item"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setPrivacyOpen(true);
+                                        setUserMenuOpen(false);
+                                    }}
+                                >
                                     <i className="fas fa-lock"></i>
                                     <span>Privacy Policy</span>
                                 </div>
-                                <div className="dropdown-item">
+                                <div
+                                    className="dropdown-item"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setHelpOpen(true);
+                                        setUserMenuOpen(false);
+                                    }}
+                                >
                                     <i className="fas fa-question-circle"></i>
                                     <span>Help & Support</span>
                                 </div>
@@ -1901,6 +1952,479 @@ const DashboardRedesign = () => {
                     <i className="fas fa-comments"></i>
                     <span className="tooltip">Open Assistant</span>
                 </button>
+            )}
+
+            {/* Profile Settings Modal */}
+            {profileSettingsOpen && ReactDOM.createPortal(
+                <div className="modal-overlay" onClick={() => setProfileSettingsOpen(false)}>
+                    <div className="modal-content settings-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2><i className="fas fa-user"></i> Profile Settings</h2>
+                            <button className="modal-close" onClick={() => setProfileSettingsOpen(false)}>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="profile-picture-section">
+                                <div className="profile-picture-preview">
+                                    {profilePicture ? (
+                                        <img src={profilePicture} alt="Profile" />
+                                    ) : (
+                                        <div className="profile-picture-placeholder">
+                                            <i className="fas fa-user"></i>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="profile-picture-actions">
+                                    <label className="upload-btn">
+                                        <i className="fas fa-camera"></i> Change Photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            style={{ display: 'none' }}
+                                            onChange={(e) => {
+                                                const file = e.target.files[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                        setProfilePicture(reader.result);
+                                                        localStorage.setItem('profilePicture', reader.result);
+                                                        if (window.showNotification) {
+                                                            window.showNotification('Profile picture updated!', 'success');
+                                                        }
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                    {profilePicture && (
+                                        <button
+                                            className="remove-photo-btn"
+                                            onClick={() => {
+                                                setProfilePicture(null);
+                                                localStorage.removeItem('profilePicture');
+                                                if (window.showNotification) {
+                                                    window.showNotification('Profile picture removed', 'success');
+                                                }
+                                            }}
+                                        >
+                                            <i className="fas fa-trash"></i> Remove
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="settings-section">
+                                <h3>Account Information</h3>
+                                <div className="settings-item">
+                                    <label>Display Name</label>
+                                    <input type="text" defaultValue={userData.name} placeholder="Your name" />
+                                </div>
+                                <div className="settings-item">
+                                    <label>Email</label>
+                                    <input type="email" value={userData.email} disabled />
+                                    <span className="input-hint">Email cannot be changed</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-secondary" onClick={() => setProfileSettingsOpen(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={() => {
+                                if (window.showNotification) {
+                                    window.showNotification('Profile settings saved!', 'success');
+                                }
+                                setProfileSettingsOpen(false);
+                            }}>Save Changes</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Preferences Modal */}
+            {preferencesOpen && ReactDOM.createPortal(
+                <div className="modal-overlay" onClick={() => setPreferencesOpen(false)}>
+                    <div className="modal-content settings-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2><i className="fas fa-cog"></i> Preferences</h2>
+                            <button className="modal-close" onClick={() => setPreferencesOpen(false)}>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="settings-section">
+                                <h3>Appearance</h3>
+                                <div className="settings-item toggle-item">
+                                    <div>
+                                        <label>Theme</label>
+                                        <span className="setting-description">Choose your preferred color scheme</span>
+                                    </div>
+                                    <div className="theme-toggle">
+                                        <button
+                                            className={`theme-btn ${preferences.theme === 'dark' ? 'active' : ''}`}
+                                            onClick={() => savePreferences({ ...preferences, theme: 'dark' })}
+                                        >
+                                            <i className="fas fa-moon"></i> Dark
+                                        </button>
+                                        <button
+                                            className={`theme-btn ${preferences.theme === 'light' ? 'active' : ''}`}
+                                            onClick={() => savePreferences({ ...preferences, theme: 'light' })}
+                                        >
+                                            <i className="fas fa-sun"></i> Light
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="settings-item toggle-item">
+                                    <div>
+                                        <label>Compact Numbers</label>
+                                        <span className="setting-description">Show 1.5M instead of 1,500,000</span>
+                                    </div>
+                                    <label className="switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={preferences.compactNumbers}
+                                            onChange={(e) => savePreferences({ ...preferences, compactNumbers: e.target.checked })}
+                                        />
+                                        <span className="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="settings-section">
+                                <h3>Display</h3>
+                                <div className="settings-item toggle-item">
+                                    <div>
+                                        <label>Show Sparklines</label>
+                                        <span className="setting-description">Mini charts on stock cards</span>
+                                    </div>
+                                    <label className="switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={preferences.showSparklines}
+                                            onChange={(e) => savePreferences({ ...preferences, showSparklines: e.target.checked })}
+                                        />
+                                        <span className="slider"></span>
+                                    </label>
+                                </div>
+                                <div className="settings-item toggle-item">
+                                    <div>
+                                        <label>Show Percent Change</label>
+                                        <span className="setting-description">Display percentage change on stocks</span>
+                                    </div>
+                                    <label className="switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={preferences.showPercentChange}
+                                            onChange={(e) => savePreferences({ ...preferences, showPercentChange: e.target.checked })}
+                                        />
+                                        <span className="slider"></span>
+                                    </label>
+                                </div>
+                                <div className="settings-item toggle-item">
+                                    <div>
+                                        <label>Auto Refresh Prices</label>
+                                        <span className="setting-description">Automatically update stock prices</span>
+                                    </div>
+                                    <label className="switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={preferences.autoRefresh}
+                                            onChange={(e) => savePreferences({ ...preferences, autoRefresh: e.target.checked })}
+                                        />
+                                        <span className="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="settings-section">
+                                <h3>Default Settings</h3>
+                                <div className="settings-item">
+                                    <label>Default Chart Time Range</label>
+                                    <select
+                                        value={preferences.defaultTimeRange}
+                                        onChange={(e) => savePreferences({ ...preferences, defaultTimeRange: e.target.value })}
+                                    >
+                                        <option value="1D">1 Day</option>
+                                        <option value="1W">1 Week</option>
+                                        <option value="1M">1 Month</option>
+                                        <option value="3M">3 Months</option>
+                                        <option value="1Y">1 Year</option>
+                                        <option value="5Y">5 Years</option>
+                                    </select>
+                                </div>
+                                <div className="settings-item">
+                                    <label>Currency</label>
+                                    <select
+                                        value={preferences.currency}
+                                        onChange={(e) => savePreferences({ ...preferences, currency: e.target.value })}
+                                    >
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                        <option value="JPY">JPY (¥)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-secondary" onClick={() => setPreferencesOpen(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Security Modal */}
+            {securityOpen && ReactDOM.createPortal(
+                <div className="modal-overlay" onClick={() => setSecurityOpen(false)}>
+                    <div className="modal-content settings-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2><i className="fas fa-shield-alt"></i> Security</h2>
+                            <button className="modal-close" onClick={() => setSecurityOpen(false)}>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="settings-section">
+                                <h3>Password</h3>
+                                <div className="settings-item">
+                                    <label>Current Password</label>
+                                    <input type="password" placeholder="Enter current password" />
+                                </div>
+                                <div className="settings-item">
+                                    <label>New Password</label>
+                                    <input type="password" placeholder="Enter new password" />
+                                </div>
+                                <div className="settings-item">
+                                    <label>Confirm New Password</label>
+                                    <input type="password" placeholder="Confirm new password" />
+                                </div>
+                                <button className="btn-primary" style={{ marginTop: '1rem' }}>Update Password</button>
+                            </div>
+                            <div className="settings-section">
+                                <h3>Two-Factor Authentication</h3>
+                                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1rem' }}>
+                                    Add an extra layer of security to your account
+                                </p>
+                                <button className="btn-secondary">
+                                    <i className="fas fa-lock"></i> Enable 2FA
+                                </button>
+                            </div>
+                            <div className="settings-section">
+                                <h3>Active Sessions</h3>
+                                <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '1rem' }}>
+                                    You're currently logged in on this device
+                                </p>
+                                <button className="btn-danger">
+                                    <i className="fas fa-sign-out-alt"></i> Sign Out All Other Devices
+                                </button>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-secondary" onClick={() => setSecurityOpen(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Terms of Service Modal */}
+            {termsOpen && ReactDOM.createPortal(
+                <div className="modal-overlay" onClick={() => setTermsOpen(false)}>
+                    <div className="modal-content legal-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2><i className="fas fa-file-alt"></i> Terms of Service</h2>
+                            <button className="modal-close" onClick={() => setTermsOpen(false)}>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="modal-body legal-content">
+                            <p className="legal-updated">Last Updated: January 2026</p>
+
+                            <h3>1. Acceptance of Terms</h3>
+                            <p>By accessing and using AI Stock Sage ("the Service"), you accept and agree to be bound by the terms and conditions of this agreement. If you do not agree to these terms, please do not use our Service.</p>
+
+                            <h3>2. Description of Service</h3>
+                            <p>AI Stock Sage is a stock watchlist and portfolio tracking application that provides:</p>
+                            <ul>
+                                <li>Real-time and delayed stock price information</li>
+                                <li>AI-powered market analysis and insights</li>
+                                <li>Portfolio tracking and watchlist management</li>
+                                <li>Market news aggregation</li>
+                                <li>Social sentiment analysis from public sources</li>
+                            </ul>
+
+                            <h3>3. Financial Disclaimer</h3>
+                            <p><strong>IMPORTANT:</strong> AI Stock Sage is NOT a registered investment advisor, broker-dealer, or financial planner. The information provided through our Service is for informational and educational purposes only and should not be construed as investment advice.</p>
+                            <ul>
+                                <li>We do not provide personalized investment recommendations</li>
+                                <li>Past performance does not guarantee future results</li>
+                                <li>You should consult with a qualified financial advisor before making investment decisions</li>
+                                <li>All investment decisions are made at your own risk</li>
+                            </ul>
+
+                            <h3>4. Data Accuracy</h3>
+                            <p>While we strive to provide accurate and timely information, we cannot guarantee the accuracy, completeness, or timeliness of the data displayed. Stock prices may be delayed and should not be used for trading decisions without verification from official sources.</p>
+
+                            <h3>5. User Responsibilities</h3>
+                            <p>You agree to:</p>
+                            <ul>
+                                <li>Provide accurate account information</li>
+                                <li>Maintain the security of your account credentials</li>
+                                <li>Use the Service only for lawful purposes</li>
+                                <li>Not attempt to reverse engineer or compromise the Service</li>
+                            </ul>
+
+                            <h3>6. Limitation of Liability</h3>
+                            <p>AI Stock Sage and its affiliates shall not be liable for any direct, indirect, incidental, special, or consequential damages resulting from your use of the Service or any investment decisions made based on information provided through the Service.</p>
+
+                            <h3>7. Changes to Terms</h3>
+                            <p>We reserve the right to modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the new terms.</p>
+
+                            <h3>8. Contact</h3>
+                            <p>For questions about these Terms of Service, please contact us at support@destinyheroe.com</p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-primary" onClick={() => setTermsOpen(false)}>I Understand</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Privacy Policy Modal */}
+            {privacyOpen && ReactDOM.createPortal(
+                <div className="modal-overlay" onClick={() => setPrivacyOpen(false)}>
+                    <div className="modal-content legal-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2><i className="fas fa-lock"></i> Privacy Policy</h2>
+                            <button className="modal-close" onClick={() => setPrivacyOpen(false)}>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="modal-body legal-content">
+                            <p className="legal-updated">Last Updated: January 2026</p>
+
+                            <h3>1. Information We Collect</h3>
+                            <p>We collect information you provide directly to us, including:</p>
+                            <ul>
+                                <li><strong>Account Information:</strong> Email address, display name, and profile picture</li>
+                                <li><strong>Watchlist Data:</strong> Stocks you add to your watchlist and portfolio</li>
+                                <li><strong>Usage Data:</strong> How you interact with our Service</li>
+                                <li><strong>Device Information:</strong> Browser type, operating system, and device identifiers</li>
+                            </ul>
+
+                            <h3>2. How We Use Your Information</h3>
+                            <p>We use the information we collect to:</p>
+                            <ul>
+                                <li>Provide, maintain, and improve our Service</li>
+                                <li>Personalize your experience and deliver relevant content</li>
+                                <li>Send you technical notices and support messages</li>
+                                <li>Respond to your comments and questions</li>
+                                <li>Protect against fraudulent or illegal activity</li>
+                            </ul>
+
+                            <h3>3. Information Sharing</h3>
+                            <p>We do not sell, trade, or otherwise transfer your personal information to third parties except:</p>
+                            <ul>
+                                <li>With your consent</li>
+                                <li>To comply with legal obligations</li>
+                                <li>To protect our rights and safety</li>
+                                <li>With service providers who assist in operating our Service (under strict confidentiality agreements)</li>
+                            </ul>
+
+                            <h3>4. Data Security</h3>
+                            <p>We implement industry-standard security measures to protect your personal information, including:</p>
+                            <ul>
+                                <li>Encryption of data in transit and at rest</li>
+                                <li>Secure authentication through Firebase</li>
+                                <li>Regular security audits and updates</li>
+                            </ul>
+
+                            <h3>5. Data Retention</h3>
+                            <p>We retain your personal information for as long as your account is active or as needed to provide you services. You may request deletion of your account and associated data at any time.</p>
+
+                            <h3>6. Your Rights</h3>
+                            <p>You have the right to:</p>
+                            <ul>
+                                <li>Access your personal information</li>
+                                <li>Correct inaccurate data</li>
+                                <li>Request deletion of your data</li>
+                                <li>Export your data in a portable format</li>
+                                <li>Opt out of marketing communications</li>
+                            </ul>
+
+                            <h3>7. Cookies and Tracking</h3>
+                            <p>We use cookies and similar technologies to enhance your experience, analyze usage, and personalize content. You can control cookies through your browser settings.</p>
+
+                            <h3>8. Third-Party Services</h3>
+                            <p>Our Service integrates with third-party services (Yahoo Finance, Stocktwits, etc.) which have their own privacy policies. We encourage you to review their policies.</p>
+
+                            <h3>9. Children's Privacy</h3>
+                            <p>Our Service is not intended for children under 13. We do not knowingly collect personal information from children under 13.</p>
+
+                            <h3>10. Contact Us</h3>
+                            <p>For privacy-related questions or concerns, please contact us at privacy@destinyheroe.com</p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-primary" onClick={() => setPrivacyOpen(false)}>I Understand</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Help & Support Modal */}
+            {helpOpen && ReactDOM.createPortal(
+                <div className="modal-overlay" onClick={() => setHelpOpen(false)}>
+                    <div className="modal-content help-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2><i className="fas fa-question-circle"></i> Help & Support</h2>
+                            <button className="modal-close" onClick={() => setHelpOpen(false)}>
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="help-section">
+                                <div className="help-icon">
+                                    <i className="fas fa-envelope"></i>
+                                </div>
+                                <div className="help-content">
+                                    <h3>Contact Us</h3>
+                                    <p>In case of questions or feedback, email:</p>
+                                    <a href="mailto:support@destinyheroe.com" className="help-email">
+                                        support@destinyheroe.com
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="help-section">
+                                <div className="help-icon">
+                                    <i className="fas fa-clock"></i>
+                                </div>
+                                <div className="help-content">
+                                    <h3>Response Time</h3>
+                                    <p>We typically respond within 24-48 hours during business days.</p>
+                                </div>
+                            </div>
+                            <div className="help-section">
+                                <div className="help-icon">
+                                    <i className="fas fa-book"></i>
+                                </div>
+                                <div className="help-content">
+                                    <h3>Quick Tips</h3>
+                                    <ul>
+                                        <li>Use the search bar to find any stock by symbol or company name</li>
+                                        <li>Click on any stock to see detailed information and charts</li>
+                                        <li>Use the AI Assistant for market insights and questions</li>
+                                        <li>Set up price alerts to stay informed of market movements</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn-primary" onClick={() => setHelpOpen(false)}>Got It</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );
