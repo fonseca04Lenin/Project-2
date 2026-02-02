@@ -296,6 +296,22 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         });
     };
 
+    const formatTimeAgo = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
     const loadMoreNews = async () => {
         if (newsLoadingMore || !newsHasMore || !symbol) return;
         setNewsLoadingMore(true);
@@ -573,14 +589,25 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                             href={article.link || article.url}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="news-item"
+                                            className="news-item-redesign"
                                         >
-                                            <h4>{article.title}</h4>
-                                            <p>{article.summary || article.description}</p>
-                                            <div className="news-meta">
-                                                <span className="news-source">{article.source}</span>
-                                                <span className="news-date">{formatDate(article.published_at || article.publishedAt)}</span>
+                                            <div className="news-item-content">
+                                                <h4 className="news-item-title">{article.title}</h4>
+                                                <div className="news-item-meta">
+                                                    <span className="news-source">{article.source}</span>
+                                                    <span className="news-meta-separator">•</span>
+                                                    <span className="news-time">{formatTimeAgo(article.published_at || article.publishedAt)}</span>
+                                                </div>
                                             </div>
+                                            {(article.image_url || article.urlToImage) && (
+                                                <div className="news-item-thumbnail">
+                                                    <img
+                                                        src={article.image_url || article.urlToImage}
+                                                        alt=""
+                                                        onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                                                    />
+                                                </div>
+                                            )}
                                         </a>
                                     ))}
                                     {newsHasMore && (
