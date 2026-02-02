@@ -1700,16 +1700,182 @@ i[class*="fal"],
    PORTFOLIO PERFORMANCE DASHBOARD STYLES
    ============================================ */
 
-/* Portfolio Summary Card */
+/* Portfolio Summary Card - DEPRECATED, replaced by Market Overview */
 .portfolio-summary-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 2rem;
+    display: none;
+}
+
+/* Market Overview Card */
+.market-overview-card {
+    background: linear-gradient(145deg, rgba(20, 20, 25, 0.95) 0%, rgba(15, 15, 20, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
     margin-bottom: 2rem;
-    backdrop-filter: blur(10px);
-    animation: fadeInUp 0.6s ease-out;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.market-overview-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.market-overview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.market-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.market-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.market-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+}
+
+.market-status-dot.open {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.market-update-time {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.3);
+    font-variant-numeric: tabular-nums;
+}
+
+.market-indices {
+    display: flex;
+    gap: 1rem;
+}
+
+.market-index-item {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.market-index-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.index-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.index-data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.index-price {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #ffffff;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
+}
+
+.index-change {
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.index-change.up {
+    color: #22c55e;
+}
+
+.index-change.down {
+    color: #ef4444;
+}
+
+.index-skeleton {
+    height: 24px;
+    width: 80px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Market Overview responsive */
+@media (max-width: 640px) {
+    .market-overview-card {
+        padding: 1.25rem;
+    }
+
+    .market-indices {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .market-index-item {
+        flex-direction: row;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.875rem 1rem;
+    }
+
+    .index-name {
+        margin-bottom: 0;
+    }
+
+    .index-data {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.75rem;
+    }
+
+    .index-price {
+        font-size: 1.1rem;
+    }
+
+    .index-change {
+        font-size: 0.85rem;
+    }
 }
 
 @keyframes fadeInUp {

@@ -2799,242 +2799,130 @@ const SectorAllocationChart = ({ watchlistData }) => {
     );
 };
 
-// Performance Timeline Component
-const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) => {
-    
-    const ranges = ['1D', '1W', '1M', '3M', '1Y'];
-    
+// Market Overview Component - Shows major indices
+const MarketOverview = ({ marketStatus }) => {
+    const [indices, setIndices] = useState([
+        { symbol: '^GSPC', name: 'S&P 500', shortName: 'S&P', price: null, change: null, changePercent: null },
+        { symbol: '^IXIC', name: 'NASDAQ', shortName: 'NASDAQ', price: null, change: null, changePercent: null },
+        { symbol: '^DJI', name: 'Dow Jones', shortName: 'DOW', price: null, change: null, changePercent: null }
+    ]);
+    const [loading, setLoading] = useState(true);
+    const [lastUpdate, setLastUpdate] = useState(null);
+
+    useEffect(() => {
+        const fetchIndices = async () => {
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+
+            const fetchIndex = async (symbol, fallbackSymbol) => {
+                try {
+                    // Try the index symbol first, then fallback to ETF
+                    let response = await fetch(`${API_BASE}/api/company/${encodeURIComponent(symbol)}`, {
+                        credentials: 'include'
+                    });
+
+                    if (!response.ok && fallbackSymbol) {
+                        response = await fetch(`${API_BASE}/api/company/${fallbackSymbol}`, {
+                            credentials: 'include'
+                        });
+                    }
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        return {
+                            price: data.price || data.currentPrice || data.regularMarketPrice,
+                            change: data.change || data.priceChange || 0,
+                            changePercent: data.changePercent || data.priceChangePercent || data.percentageChange || 0
+                        };
+                    }
+                } catch (e) {
+                    console.log(`Failed to fetch ${symbol}:`, e);
+                }
+                return null;
+            };
+
+            const [sp500, nasdaq, dow] = await Promise.all([
+                fetchIndex('^GSPC', 'SPY'),
+                fetchIndex('^IXIC', 'QQQ'),
+                fetchIndex('^DJI', 'DIA')
+            ]);
+
+            setIndices(prev => [
+                { ...prev[0], ...(sp500 || {}) },
+                { ...prev[1], ...(nasdaq || {}) },
+                { ...prev[2], ...(dow || {}) }
+            ]);
+            setLastUpdate(new Date());
+            setLoading(false);
+        };
+
+        fetchIndices();
+        const interval = setInterval(fetchIndices, 60000); // Refresh every minute
+        return () => clearInterval(interval);
+    }, []);
+
+    const formatPrice = (price) => {
+        if (!price) return '—';
+        return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const formatChange = (change, percent) => {
+        if (change === null || percent === null) return { text: '—', isPositive: true };
+        const isPositive = percent >= 0;
+        const sign = isPositive ? '+' : '';
+        return {
+            text: `${sign}${percent.toFixed(2)}%`,
+            isPositive
+        };
+    };
+
     return (
-        <div className="performance-timeline">
-            <div className="timeline-header">
-                <h4>Portfolio Performance</h4>
-                <div className="range-selector">
-                    {ranges.map(range => (
-                        <button
-                            key={range}
-                            className={`range-btn ${selectedRange === range ? 'active' : ''}`}
-                            onClick={() => onRangeChange && onRangeChange(range)}
-                        >
-                            {range}
-                        </button>
-                    ))}
-                    </div>
-                    </div>
+        <div className="market-overview-card">
+            <div className="market-overview-header">
+                <div className="market-title">
+                    <span className="market-label">Markets</span>
+                    <span className={`market-status-dot ${marketStatus?.isOpen ? 'open' : 'closed'}`}></span>
+                </div>
+                {lastUpdate && (
+                    <span className="market-update-time">
+                        {lastUpdate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                )}
+            </div>
+
+            <div className="market-indices">
+                {indices.map((index, i) => {
+                    const { text: changeText, isPositive } = formatChange(index.change, index.changePercent);
+                    return (
+                        <div key={index.symbol} className="market-index-item">
+                            <div className="index-name">{index.shortName}</div>
+                            <div className="index-data">
+                                {loading ? (
+                                    <div className="index-skeleton"></div>
+                                ) : (
+                                    <>
+                                        <span className="index-price">{formatPrice(index.price)}</span>
+                                        <span className={`index-change ${isPositive ? 'up' : 'down'}`}>
+                                            {changeText}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 };
 
 // Overview Tab Component
 const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover }) => {
-    const [selectedRange, setSelectedRange] = useState('1M');
     const [sparklineData, setSparklineData] = useState({});
-    const [rangePerformanceData, setRangePerformanceData] = useState(null);
-    const [isLoadingRangeData, setIsLoadingRangeData] = useState(false);
-    
-    // Fetch performance data for selected range
-    useEffect(() => {
-        if (!watchlistData || watchlistData.length === 0) {
-            setRangePerformanceData(null);
-            return;
-        }
-        
-        const fetchRangePerformance = async () => {
-            setIsLoadingRangeData(true);
-            try {
-                const rangeMap = {
-                    '1D': { days: 1, apiRange: '1d' },
-                    '1W': { days: 7, apiRange: '7d' },
-                    '1M': { days: 30, apiRange: '30d' },
-                    '3M': { days: 90, apiRange: '90d' },
-                    '1Y': { days: 365, apiRange: '1y' }
-                };
-                
-                const rangeInfo = rangeMap[selectedRange] || rangeMap['1M'];
-                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                
-                // Fetch historical data for each stock
-                const performancePromises = watchlistData.map(async (stock) => {
-                    try {
-                        const symbol = stock.symbol;
-                        const currentPrice = stock.current_price || stock.price || 0;
-                        
-                        const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=${rangeInfo.apiRange}`, {
-                            credentials: 'include'
-                        });
-                        
-                        if (response.ok) {
-                            const chartData = await response.json();
-                            if (chartData && chartData.length > 0) {
-                                // Chart data is sorted by date (oldest first), so first item is the historical price
-                                // For 1D, use second to last item (yesterday) if available
-                                const historicalPrice = selectedRange === '1D' && chartData.length > 1
-                                    ? chartData[chartData.length - 2].price
-                                    : chartData[0].price;
-                                if (historicalPrice > 0) {
-                                    const priceChange = currentPrice - historicalPrice;
-                                    const priceChangePercent = (priceChange / historicalPrice) * 100;
-                                    
-                                    return {
-                                        ...stock,
-                                        historicalPrice,
-                                        rangeChangePercent: priceChangePercent,
-                                        rangeChange: priceChange
-                                    };
-                                }
-                            }
-                        }
-                        
-                        // Fallback
-                        return {
-                            ...stock,
-                            historicalPrice: stock.current_price || stock.price || 0,
-                            rangeChangePercent: stock.change_percent || 0,
-                            rangeChange: 0
-                        };
-                    } catch (error) {
-                        return {
-                            ...stock,
-                            historicalPrice: stock.current_price || stock.price || 0,
-                            rangeChangePercent: stock.change_percent || 0,
-                            rangeChange: 0
-                        };
-                    }
-                });
-                
-                const stocksWithRangeData = await Promise.all(performancePromises);
-                setRangePerformanceData(stocksWithRangeData);
-            } catch (error) {
-                setRangePerformanceData(null);
-            } finally {
-                setIsLoadingRangeData(false);
-            }
-        };
-        
-        fetchRangePerformance();
-    }, [watchlistData, selectedRange]);
-    
-    // Enhanced portfolio calculations using range data
-    const calculatePortfolioMetrics = () => {
-        if (watchlistData.length === 0) {
-            return {
-                dayChange: 0,
-                dayChangePercent: 0,
-                bestPerformer: null,
-                worstPerformer: null,
-                totalPositions: 0
-            };
-        }
-        
-        // Use range performance data if available, otherwise use current data
-        const dataToUse = rangePerformanceData || watchlistData;
-        const sharesPerStock = 100;
-
-        // Calculate change based on selected range
-        const changePercent = rangePerformanceData 
-            ? dataToUse[0]?.rangeChangePercent || 0
-            : dataToUse.reduce((sum, stock) => sum + (stock.change_percent || 0), 0) / dataToUse.length;
-        
-        const totalChange = dataToUse.reduce((sum, stock) => {
-            const price = stock.current_price || stock.price || 0;
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            return sum + (price * sharesPerStock * change / 100);
-        }, 0);
-
-        const changePercentTotal = dataToUse.reduce((sum, stock) => {
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            return sum + change;
-        }, 0) / dataToUse.length;
-        
-        // Find best and worst performers based on range
-        const bestPerformer = dataToUse.reduce((best, stock) => {
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            const bestChange = rangePerformanceData ? (best.rangeChangePercent || 0) : (best.change_percent || 0);
-            return (change > bestChange) ? stock : best;
-        }, dataToUse[0]);
-        
-        const worstPerformer = dataToUse.reduce((worst, stock) => {
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            const worstChange = rangePerformanceData ? (worst.rangeChangePercent || 0) : (worst.change_percent || 0);
-            return (change < worstChange) ? stock : worst;
-        }, dataToUse[0]);
-        
-        return {
-            dayChange: totalChange,
-            dayChangePercent: changePercentTotal,
-            bestPerformer,
-            worstPerformer,
-            totalPositions: watchlistData.length
-        };
-    };
-    
-    const metrics = calculatePortfolioMetrics();
 
     return (
         <div className="overview-view">
-            {/* Enhanced Portfolio Summary Card */}
-            <div className="portfolio-summary-card">
-                <div className="summary-header">
-                    <h2><i className="fas fa-chart-line"></i> Portfolio Performance</h2>
-                    <PerformanceTimeline 
-                        watchlistData={watchlistData} 
-                        selectedRange={selectedRange}
-                        onRangeChange={setSelectedRange}
-                    />
-                    </div>
-                
-                <div className="summary-metrics">
-                    <div className="metric-group">
-                        <div className={`metric-item ${metrics.dayChangePercent >= 0 ? 'positive' : 'negative'}`}>
-                            <span className="metric-label">
-                                {selectedRange === '1D' ? 'Day' : selectedRange === '1W' ? 'Week' : selectedRange === '1M' ? 'Month' : selectedRange === '3M' ? '3 Months' : 'Year'} Change
-                            </span>
-                            <span className="metric-value">
-                                {metrics.dayChangePercent >= 0 ? '+' : ''}{metrics.dayChangePercent.toFixed(2)}%
-                            </span>
-                            <span className="metric-amount">
-                                {metrics.dayChange >= 0 ? '+' : ''}${Math.abs(metrics.dayChange).toFixed(2)}
-                        </span>
-                    </div>
-                </div>
-
-                    <div className="metric-group">
-                        <div className="metric-item">
-                            <span className="metric-label">Best Performer</span>
-                            <div className="performer-info">
-                                <span className="performer-symbol">{metrics.bestPerformer?.symbol || 'N/A'}</span>
-                                <span className={`performer-change positive`}>
-                                    {(() => {
-                                        const change = rangePerformanceData 
-                                            ? (metrics.bestPerformer?.rangeChangePercent || 0)
-                                            : (metrics.bestPerformer?.change_percent || 0);
-                                        return change >= 0 ? '+' : '';
-                                    })()}
-                                    {(() => {
-                                        const change = rangePerformanceData 
-                                            ? (metrics.bestPerformer?.rangeChangePercent || 0)
-                                            : (metrics.bestPerformer?.change_percent || 0);
-                                        return change.toFixed(2);
-                                    })()}%
-                                </span>
-                    </div>
-                    </div>
-                        <div className="metric-item">
-                            <span className="metric-label">Worst Performer</span>
-                            <div className="performer-info">
-                                <span className="performer-symbol">{metrics.worstPerformer?.symbol || 'N/A'}</span>
-                                <span className={`performer-change negative`}>
-                                    {(() => {
-                                        const change = rangePerformanceData 
-                                            ? (metrics.worstPerformer?.rangeChangePercent || 0)
-                                            : (metrics.worstPerformer?.change_percent || 0);
-                                        return change.toFixed(2);
-                                    })()}%
-                                </span>
-                </div>
-                    </div>
-                    </div>
-                </div>
-            </div>
+            {/* Market Overview */}
+            <MarketOverview marketStatus={marketStatus} />
 
             {/* Three Column Layout */}
             <div className="main-grid-enhanced">
