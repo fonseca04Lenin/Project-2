@@ -1161,19 +1161,14 @@ def search_stock():
     
     symbol = data.get('symbol', '').strip()
     
-    # Validate and sanitize symbol
     if not symbol:
         return jsonify({'error': 'Please enter a stock symbol'}), 400
     
-    # Sanitize the symbol
     symbol = sanitize_stock_symbol(symbol)
     
-    # Additional validation
     if not validate_stock_symbol(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
     
-    print(f"🔍 [API] /api/search called for symbol: {symbol}")
-    print(f"[API] USE_ALPACA_API = {USE_ALPACA_API}, alpaca_api available = {alpaca_api is not None}")
     
     # Check if this is a watchlist request (from frontend dashboard)
     # For watchlist requests, use Alpaca only (no Yahoo fallback)
@@ -1181,7 +1176,6 @@ def search_stock():
                           request.referrer and 'dashboard' in request.referrer.lower()
     
     if is_watchlist_request:
-        print(f"[WATCHLIST] Using Alpaca-only for watchlist request: {symbol}")
         stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
             # If Alpaca fails for watchlist, return error instead of falling back to Yahoo
@@ -1193,9 +1187,6 @@ def search_stock():
     if not stock:
         print(f"[API] Could not retrieve stock data for {symbol}")
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-    
-    print(f"[API] Returning stock data for {symbol}: ${stock.price:.2f} ({stock.name}) - Source: {api_used.upper() if api_used else 'UNKNOWN'}")
-    
     if stock.name and 'not found' not in stock.name.lower():
         #last month's price
         last_month_date = datetime.now() - timedelta(days=30)
@@ -2362,7 +2353,6 @@ def get_stock_stocktwits(symbol):
             'has_more': result.get('has_more', False)
         })
     except Exception as e:
-        print(f"Error fetching Stocktwits for {symbol}: {e}")
         return jsonify({
             'symbol': symbol,
             'messages': [],
