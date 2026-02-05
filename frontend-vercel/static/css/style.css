@@ -6400,6 +6400,15 @@ body {
     gap: 1.5rem;
 }
 
+.stock-page-primary.full-width {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.stock-page-main.index-view {
+    grid-template-columns: 1fr;
+}
+
 /* Stock Header */
 .stock-header {
     display: flex;
