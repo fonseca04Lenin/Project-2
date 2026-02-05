@@ -2893,7 +2893,16 @@ const MarketOverview = ({ marketStatus }) => {
                 {indices.map((index, i) => {
                     const { text: changeText, isPositive } = formatChange(index.change, index.changePercent);
                     return (
-                        <div key={index.symbol} className="market-index-item">
+                        <div
+                            key={index.symbol}
+                            className="market-index-item clickable"
+                            onClick={() => {
+                                if (window.navigateToStockPage) {
+                                    window.navigateToStockPage(index.symbol, false);
+                                }
+                            }}
+                            style={{ cursor: 'pointer' }}
+                        >
                             <div className="index-name">{index.shortName}</div>
                             <div className="index-data">
                                 {loading ? (

@@ -25,6 +25,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const chartRootRef = useRef(null);
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
+    const isIndex = symbol && symbol.startsWith('^');
 
     // CEO modal
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
@@ -167,28 +168,30 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     }
                 })();
 
-                // Load Stocktwits
-                setStocktwitsLoading(true);
-                setStocktwits([]);
-                setStocktwitsCursor(null);
-                setStocktwitsHasMore(true);
-                (async () => {
-                    try {
-                        const stocktwitsResp = await fetch(`${API_BASE_PAGE}/api/stocktwits/${symbol}?limit=15`, {
-                            credentials: 'include'
-                        });
-                        if (stocktwitsResp.ok) {
-                            const stocktwitsData = await stocktwitsResp.json();
-                            setStocktwits(stocktwitsData.messages || []);
-                            setStocktwitsCursor(stocktwitsData.cursor || null);
-                            setStocktwitsHasMore(stocktwitsData.has_more !== false);
+                // Load Stocktwits (skip for indices, they don't have Stocktwits feeds)
+                if (!symbol.startsWith('^')) {
+                    setStocktwitsLoading(true);
+                    setStocktwits([]);
+                    setStocktwitsCursor(null);
+                    setStocktwitsHasMore(true);
+                    (async () => {
+                        try {
+                            const stocktwitsResp = await fetch(`${API_BASE_PAGE}/api/stocktwits/${symbol}?limit=15`, {
+                                credentials: 'include'
+                            });
+                            if (stocktwitsResp.ok) {
+                                const stocktwitsData = await stocktwitsResp.json();
+                                setStocktwits(stocktwitsData.messages || []);
+                                setStocktwitsCursor(stocktwitsData.cursor || null);
+                                setStocktwitsHasMore(stocktwitsData.has_more !== false);
+                            }
+                        } catch (error) {
+                            console.log(`[StockDetailsPage] Stocktwits API error:`, error);
+                        } finally {
+                            setStocktwitsLoading(false);
                         }
-                    } catch (error) {
-                        console.log(`[StockDetailsPage] Stocktwits API error:`, error);
-                    } finally {
-                        setStocktwitsLoading(false);
-                    }
-                })();
+                    })();
+                }
 
                 // Load AI insight
                 setAiInsightLoading(true);
@@ -526,8 +529,8 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 </div>
             </nav>
 
-            <main className="stock-page-main">
-                <div className="stock-page-primary">
+            <main className={`stock-page-main ${isIndex ? 'index-view' : ''}`}>
+                <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}
                     {/* AI Insight */}
                     <section className="ai-insight-card">
                         <div className="card-header">
@@ -674,54 +677,56 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     {/* About */}
                     <section className="about-section">
                         <div className="section-header">
-                            <h3><i className="fas fa-building"></i> About {stockData.name || symbol}</h3>
+                            <h3><i className={isIndex ? "fas fa-chart-line" : "fas fa-building"}></i> About {stockData.name || symbol}</h3>
                         </div>
                         <div className="about-content">
-                            <p className="description">{stockData.description || 'No description available.'}</p>
-                            <div className="company-details">
-                                <div className="detail-item">
-                                    <span className="detail-label">CEO</span>
-                                    <span
-                                        className={`detail-value ${stockData.ceo && stockData.ceo !== '-' ? 'clickable' : ''}`}
-                                        onClick={() => {
-                                            if (stockData.ceo && stockData.ceo !== '-') {
-                                                setSelectedCEO({
-                                                    name: stockData.ceo,
-                                                    company: stockData.name || symbol,
-                                                    symbol: symbol
-                                                });
-                                                setCeoModalOpen(true);
-                                            }
-                                        }}
-                                    >
-                                        {cleanCEOName(stockData.ceo) || '-'}
-                                        {stockData.ceo && stockData.ceo !== '-' && <i className="fas fa-external-link-alt"></i>}
-                                    </span>
+                            <p className="description">{stockData.description || (isIndex ? 'Market index tracking major equities.' : 'No description available.')}</p>
+                            {!isIndex && (
+                                <div className="company-details">
+                                    <div className="detail-item">
+                                        <span className="detail-label">CEO</span>
+                                        <span
+                                            className={`detail-value ${stockData.ceo && stockData.ceo !== '-' ? 'clickable' : ''}`}
+                                            onClick={() => {
+                                                if (stockData.ceo && stockData.ceo !== '-') {
+                                                    setSelectedCEO({
+                                                        name: stockData.ceo,
+                                                        company: stockData.name || symbol,
+                                                        symbol: symbol
+                                                    });
+                                                    setCeoModalOpen(true);
+                                                }
+                                            }}
+                                        >
+                                            {cleanCEOName(stockData.ceo) || '-'}
+                                            {stockData.ceo && stockData.ceo !== '-' && <i className="fas fa-external-link-alt"></i>}
+                                        </span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Headquarters</span>
+                                        <span className="detail-value">{stockData.headquarters || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Website</span>
+                                        <span className="detail-value">
+                                            {stockData.website && stockData.website !== '-' ? (
+                                                <a href={stockData.website} target="_blank" rel="noopener noreferrer">
+                                                    {stockData.website.replace(/^https?:\/\//, '')}
+                                                    <i className="fas fa-external-link-alt"></i>
+                                                </a>
+                                            ) : '-'}
+                                        </span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Sector</span>
+                                        <span className="detail-value">{stockData.sector || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Industry</span>
+                                        <span className="detail-value">{stockData.industry || '-'}</span>
+                                    </div>
                                 </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Headquarters</span>
-                                    <span className="detail-value">{stockData.headquarters || '-'}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Website</span>
-                                    <span className="detail-value">
-                                        {stockData.website && stockData.website !== '-' ? (
-                                            <a href={stockData.website} target="_blank" rel="noopener noreferrer">
-                                                {stockData.website.replace(/^https?:\/\//, '')}
-                                                <i className="fas fa-external-link-alt"></i>
-                                            </a>
-                                        ) : '-'}
-                                    </span>
-                                </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Sector</span>
-                                    <span className="detail-value">{stockData.sector || '-'}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Industry</span>
-                                    <span className="detail-value">{stockData.industry || '-'}</span>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </section>
 
@@ -763,112 +768,114 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     )}
                 </div>
 
-                <div className="stock-page-secondary">
-                    {/* Sentiment */}
-                    <section className="sentiment-section">
-                        <div className="section-header">
-                            <h3><i className="fas fa-comments"></i> Social Sentiment</h3>
-                            <span className="source-badge">Stocktwits</span>
-                        </div>
-                        <div
-                            className="sentiment-content"
-                            ref={sentimentContainerRef}
-                            onScroll={handleSentimentScroll}
-                            style={{ maxHeight: '600px', overflowY: 'auto' }}
-                        >
-                            {stocktwitsLoading ? (
-                                <div className="loading-state">
-                                    <i className="fas fa-spinner fa-spin"></i>
-                                    <span>Loading sentiment...</span>
-                                </div>
-                            ) : stocktwits.length > 0 ? (
-                                <div className="stocktwits-list">
-                                    {stocktwits.map((message, index) => (
-                                        <a
-                                            key={message.id || index}
-                                            href={`https://stocktwits.com/${message.user?.username || 'symbol'}/${message.id}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className={`tweet-item clickable ${message.sentiment?.toLowerCase() || 'neutral'}`}
-                                            style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
-                                        >
-                                            <div className="tweet-header">
-                                                {message.user?.avatar_url ? (
-                                                    <img
-                                                        src={message.user.avatar_url.replace('http://', 'https://')}
-                                                        alt=""
-                                                        className="avatar"
-                                                        onError={(e) => { e.target.style.display = 'none'; }}
-                                                    />
-                                                ) : (
-                                                    <div className="avatar-placeholder">
-                                                        <i className="fas fa-user"></i>
-                                                    </div>
-                                                )}
-                                                <span className="username">
-                                                    @{message.user?.username || 'Anonymous'}
-                                                    {message.user?.official && <i className="fas fa-check-circle verified"></i>}
-                                                </span>
-                                                <span className="time">{message.time_ago}</span>
-                                                {message.sentiment && message.sentiment !== 'Neutral' && (
-                                                    <span className={`sentiment-badge ${message.sentiment.toLowerCase()}`}>
-                                                        {message.sentiment === 'Bullish' ? 'Bullish' : 'Bearish'}
+                {!isIndex && (
+                    <div className="stock-page-secondary">
+                        {/* Sentiment - only shown for individual stocks, not indices */}
+                        <section className="sentiment-section">
+                            <div className="section-header">
+                                <h3><i className="fas fa-comments"></i> Social Sentiment</h3>
+                                <span className="source-badge">Stocktwits</span>
+                            </div>
+                            <div
+                                className="sentiment-content"
+                                ref={sentimentContainerRef}
+                                onScroll={handleSentimentScroll}
+                                style={{ maxHeight: '600px', overflowY: 'auto' }}
+                            >
+                                {stocktwitsLoading ? (
+                                    <div className="loading-state">
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                        <span>Loading sentiment...</span>
+                                    </div>
+                                ) : stocktwits.length > 0 ? (
+                                    <div className="stocktwits-list">
+                                        {stocktwits.map((message, index) => (
+                                            <a
+                                                key={message.id || index}
+                                                href={`https://stocktwits.com/${message.user?.username || 'symbol'}/${message.id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={`tweet-item clickable ${message.sentiment?.toLowerCase() || 'neutral'}`}
+                                                style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                                            >
+                                                <div className="tweet-header">
+                                                    {message.user?.avatar_url ? (
+                                                        <img
+                                                            src={message.user.avatar_url.replace('http://', 'https://')}
+                                                            alt=""
+                                                            className="avatar"
+                                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                                        />
+                                                    ) : (
+                                                        <div className="avatar-placeholder">
+                                                            <i className="fas fa-user"></i>
+                                                        </div>
+                                                    )}
+                                                    <span className="username">
+                                                        @{message.user?.username || 'Anonymous'}
+                                                        {message.user?.official && <i className="fas fa-check-circle verified"></i>}
                                                     </span>
+                                                    <span className="time">{message.time_ago}</span>
+                                                    {message.sentiment && message.sentiment !== 'Neutral' && (
+                                                        <span className={`sentiment-badge ${message.sentiment.toLowerCase()}`}>
+                                                            {message.sentiment === 'Bullish' ? 'Bullish' : 'Bearish'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="tweet-body">{message.body}</p>
+                                                <div className="tweet-footer">
+                                                    {(message.likes_count > 0 || message.replies_count > 0) && (
+                                                        <div className="tweet-stats">
+                                                            {message.likes_count > 0 && (
+                                                                <span><i className="fas fa-heart"></i> {message.likes_count}</span>
+                                                            )}
+                                                            {message.replies_count > 0 && (
+                                                                <span><i className="fas fa-reply"></i> {message.replies_count}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    <span className="external-link">
+                                                        <i className="fas fa-external-link-alt"></i>
+                                                    </span>
+                                                </div>
+                                            </a>
+                                        ))}
+                                        {stocktwitsHasMore && (
+                                            <button
+                                                className="load-more-btn"
+                                                onClick={loadMoreStocktwits}
+                                                disabled={stocktwitsLoadingMore}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '12px',
+                                                    marginTop: '12px',
+                                                    background: 'rgba(34, 197, 94, 0.1)',
+                                                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                                                    borderRadius: '8px',
+                                                    color: '#22c55e',
+                                                    cursor: stocktwitsLoadingMore ? 'not-allowed' : 'pointer',
+                                                    fontSize: '14px',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                {stocktwitsLoadingMore ? (
+                                                    <><i className="fas fa-spinner fa-spin"></i> Loading...</>
+                                                ) : (
+                                                    <><i className="fas fa-plus"></i> Load More Comments</>
                                                 )}
-                                            </div>
-                                            <p className="tweet-body">{message.body}</p>
-                                            <div className="tweet-footer">
-                                                {(message.likes_count > 0 || message.replies_count > 0) && (
-                                                    <div className="tweet-stats">
-                                                        {message.likes_count > 0 && (
-                                                            <span><i className="fas fa-heart"></i> {message.likes_count}</span>
-                                                        )}
-                                                        {message.replies_count > 0 && (
-                                                            <span><i className="fas fa-reply"></i> {message.replies_count}</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <span className="external-link">
-                                                    <i className="fas fa-external-link-alt"></i>
-                                                </span>
-                                            </div>
-                                        </a>
-                                    ))}
-                                    {stocktwitsHasMore && (
-                                        <button
-                                            className="load-more-btn"
-                                            onClick={loadMoreStocktwits}
-                                            disabled={stocktwitsLoadingMore}
-                                            style={{
-                                                width: '100%',
-                                                padding: '12px',
-                                                marginTop: '12px',
-                                                background: 'rgba(34, 197, 94, 0.1)',
-                                                border: '1px solid rgba(34, 197, 94, 0.3)',
-                                                borderRadius: '8px',
-                                                color: '#22c55e',
-                                                cursor: stocktwitsLoadingMore ? 'not-allowed' : 'pointer',
-                                                fontSize: '14px',
-                                                fontWeight: '500'
-                                            }}
-                                        >
-                                            {stocktwitsLoadingMore ? (
-                                                <><i className="fas fa-spinner fa-spin"></i> Loading...</>
-                                            ) : (
-                                                <><i className="fas fa-plus"></i> Load More Comments</>
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="empty-state">
-                                    <i className="fas fa-comment-slash"></i>
-                                    <p>No recent posts for {symbol}</p>
-                                </div>
-                            )}
-                        </div>
-                    </section>
-                </div>
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="empty-state">
+                                        <i className="fas fa-comment-slash"></i>
+                                        <p>No recent posts for {symbol}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                )}
             </main>
 
             {ceoModalOpen && window.CEODetailsModal && React.createElement(window.CEODetailsModal, {
