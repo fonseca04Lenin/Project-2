@@ -530,7 +530,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
             </nav>
 
             <main className={`stock-page-main ${isIndex ? 'index-view' : ''}`}>
-                <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}
+                <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}>
                     {/* AI Insight */}
                     <section className="ai-insight-card">
                         <div className="card-header">
