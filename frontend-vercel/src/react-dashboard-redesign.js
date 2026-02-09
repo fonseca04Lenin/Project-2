@@ -1,5 +1,5 @@
 // Modern Financial Dashboard Redesign - Concept Prototype
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useMemo } = React;
 
 const DashboardRedesign = () => {
     const [activeView, setActiveView] = useState('overview');
@@ -1941,7 +1941,7 @@ const DashboardRedesign = () => {
                 )}
                 {activeView === 'news' && <NewsView />}
                 {activeView === 'whatswhat' && <WhatsWhatView />}
-                {activeView === 'intelligence' && <IntelligenceView />}
+                {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
                 {activeView === 'trading' && <TradingView />}
                 {activeView === 'assistant' && <AIAssistantView />}
             </div>
@@ -4056,7 +4056,7 @@ const WhatsWhatView = () => {
 };
 
 // Intelligence View Component
-const IntelligenceView = () => {
+const IntelligenceView = ({ watchlistData }) => {
     const [activeTab, setActiveTab] = useState('earnings');
     const [symbol, setSymbol] = useState('AAPL');
     const [loading, setLoading] = useState(false);
@@ -4159,6 +4159,7 @@ const IntelligenceView = () => {
                     <button className={`intel-tab ${activeTab==='earnings'?'active':''}`} onClick={()=>setActiveTab('earnings')}>Earnings</button>
                     <button className={`intel-tab ${activeTab==='insider'?'active':''}`} onClick={()=>setActiveTab('insider')}>Insider Trading</button>
                     <button className={`intel-tab ${activeTab==='analyst'?'active':''}`} onClick={()=>setActiveTab('analyst')}>Analyst Ratings</button>
+                    <button className={`intel-tab ${activeTab==='correlation'?'active':''}`} onClick={()=>setActiveTab('correlation')}>Correlation</button>
                 </div>
             </div>
 
@@ -4270,6 +4271,208 @@ const IntelligenceView = () => {
                     <DataSourceLabel source="Finnhub - Wall Street Analyst Recommendations" />
                 </div>
             )}
+
+            {activeTab === 'correlation' && (
+                <CorrelationHeatmap watchlistData={watchlistData} />
+            )}
+        </div>
+    );
+};
+
+// Correlation Heatmap Component
+const CorrelationHeatmap = ({ watchlistData }) => {
+    const canvasRef = useRef(null);
+    const [correlationData, setCorrelationData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [tooltip, setTooltip] = useState(null);
+
+    const symbols = useMemo(() => {
+        if (!watchlistData || watchlistData.length === 0) return [];
+        return watchlistData.map(s => s.symbol).filter(Boolean);
+    }, [watchlistData]);
+
+    useEffect(() => {
+        if (symbols.length < 3) return;
+        const fetchCorrelation = async () => {
+            try {
+                setLoading(true);
+                setError('');
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const authHeaders = await window.getAuthHeaders();
+                const r = await fetch(`${API_BASE}/api/stocks/correlation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders },
+                    credentials: 'include',
+                    body: JSON.stringify({ symbols })
+                });
+                if (!r.ok) throw new Error('Failed to fetch correlation data');
+                const data = await r.json();
+                setCorrelationData(data);
+            } catch (e) {
+                setError('Unable to load correlation data');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCorrelation();
+    }, [symbols]);
+
+    // Draw heatmap on canvas
+    useEffect(() => {
+        if (!correlationData || !canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const { symbols: syms, matrix } = correlationData;
+        const n = syms.length;
+
+        const labelWidth = 60;
+        const cellSize = Math.min(50, Math.floor((canvas.width - labelWidth) / n));
+        const totalGrid = cellSize * n;
+
+        canvas.width = labelWidth + totalGrid + 20;
+        canvas.height = labelWidth + totalGrid + 20;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Color interpolation: blue (-1) -> white (0) -> red (+1)
+        const getColor = (val) => {
+            if (val >= 0) {
+                const t = Math.min(val, 1);
+                const r = 255;
+                const g = Math.round(255 * (1 - t));
+                const b = Math.round(255 * (1 - t));
+                return `rgb(${r},${g},${b})`;
+            } else {
+                const t = Math.min(Math.abs(val), 1);
+                const r = Math.round(255 * (1 - t));
+                const g = Math.round(255 * (1 - t));
+                const b = 255;
+                return `rgb(${r},${g},${b})`;
+            }
+        };
+
+        // Draw cells
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                const x = labelWidth + j * cellSize;
+                const y = labelWidth + i * cellSize;
+                ctx.fillStyle = getColor(matrix[i][j]);
+                ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+            }
+        }
+
+        // Draw labels
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < n; i++) {
+            ctx.fillText(syms[i], labelWidth - 5, labelWidth + i * cellSize + cellSize / 2);
+        }
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let j = 0; j < n; j++) {
+            ctx.save();
+            ctx.translate(labelWidth + j * cellSize + cellSize / 2, labelWidth - 5);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillText(syms[j], 0, 0);
+            ctx.restore();
+        }
+    }, [correlationData]);
+
+    const handleMouseMove = (e) => {
+        if (!correlationData || !canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const { symbols: syms, matrix } = correlationData;
+        const n = syms.length;
+        const labelWidth = 60;
+        const cellSize = Math.min(50, Math.floor((canvasRef.current.width - labelWidth) / n));
+
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const col = Math.floor((mx - labelWidth) / cellSize);
+        const row = Math.floor((my - labelWidth) / cellSize);
+
+        if (row >= 0 && row < n && col >= 0 && col < n) {
+            setTooltip({
+                x: e.clientX,
+                y: e.clientY,
+                text: `${syms[row]} / ${syms[col]}: ${matrix[row][col].toFixed(3)}`
+            });
+        } else {
+            setTooltip(null);
+        }
+    };
+
+    if (symbols.length < 3) {
+        return (
+            <div className="intel-card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <i className="fas fa-th" style={{ fontSize: '2.5rem', color: 'rgba(255,255,255,0.2)', marginBottom: '1rem' }}></i>
+                <h3 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>Add More Stocks</h3>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
+                    Add at least 3 stocks to your watchlist to see the correlation heatmap.
+                </p>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="intel-card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <div className="loading-spinner" style={{ margin: '0 auto 1rem' }}></div>
+                <p style={{ color: 'rgba(255,255,255,0.5)' }}>Calculating correlations...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="intel-card" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                <p style={{ color: '#FF6B35' }}>{error}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="intel-card">
+            <div className="intel-header">
+                <h3><i className="fas fa-th"></i> Portfolio Correlation (90 days)</h3>
+                <span className="intel-count">{correlationData ? correlationData.symbols.length : 0} stocks</span>
+            </div>
+            <div style={{ position: 'relative', overflowX: 'auto', padding: '1rem 0' }}>
+                <canvas
+                    ref={canvasRef}
+                    width={600}
+                    height={600}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={() => setTooltip(null)}
+                    style={{ display: 'block', margin: '0 auto' }}
+                />
+                {tooltip && (
+                    <div style={{
+                        position: 'fixed',
+                        left: tooltip.x + 12,
+                        top: tooltip.y - 30,
+                        background: 'rgba(0,0,0,0.9)',
+                        color: '#fff',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                        pointerEvents: 'none',
+                        zIndex: 1000,
+                        whiteSpace: 'nowrap',
+                        border: '1px solid rgba(255,255,255,0.2)'
+                    }}>
+                        {tooltip.text}
+                    </div>
+                )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem' }}>
+                <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(100,100,255)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>Inverse (-1)</span>
+                <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(255,255,255)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>None (0)</span>
+                <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(255,100,100)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>High (+1)</span>
+            </div>
         </div>
     );
 };

@@ -2799,6 +2799,75 @@ def get_sectors_batch():
     
     return jsonify(sectors)
 
+@app.route('/api/stocks/correlation', methods=['POST'])
+def get_stock_correlation():
+    """Calculate correlation matrix for a set of stocks using 90 days of historical data"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    data = request.get_json()
+    symbols = data.get('symbols', [])
+
+    if not symbols or not isinstance(symbols, list):
+        return jsonify({'error': 'Please provide a list of symbols'}), 400
+
+    if len(symbols) > 20:
+        return jsonify({'error': 'Maximum 20 symbols allowed'}), 400
+
+    if len(symbols) < 2:
+        return jsonify({'error': 'At least 2 symbols required'}), 400
+
+    import re
+    import pandas as pd
+    from datetime import datetime, timedelta
+
+    # Sanitize symbols
+    clean_symbols = []
+    for s in symbols:
+        s = s.upper().strip()
+        if re.match(r'^[A-Z]{1,5}$', s):
+            clean_symbols.append(s)
+
+    if len(clean_symbols) < 2:
+        return jsonify({'error': 'At least 2 valid symbols required'}), 400
+
+    try:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+
+        # Fetch historical close prices for each symbol
+        price_series = {}
+        for sym in clean_symbols:
+            hist = yahoo_finance_api.get_historical_data(sym, start_date, end_date)
+            if hist and len(hist) > 0:
+                price_series[sym] = {entry['date']: entry['close'] for entry in hist}
+
+        if len(price_series) < 2:
+            return jsonify({'error': 'Not enough historical data available'}), 400
+
+        # Build DataFrame with aligned dates
+        df = pd.DataFrame(price_series)
+        df = df.dropna()
+
+        if len(df) < 5:
+            return jsonify({'error': 'Not enough overlapping trading days'}), 400
+
+        # Compute correlation matrix
+        corr = df.corr()
+        result_symbols = list(corr.columns)
+        matrix = corr.values.tolist()
+
+        return jsonify({
+            'symbols': result_symbols,
+            'matrix': matrix,
+            'period': '90d'
+        })
+
+    except Exception as e:
+        print(f"Error calculating correlation: {e}")
+        return jsonify({'error': 'Failed to calculate correlation'}), 500
+
 @app.route('/api/watchlist/<symbol>/details')
 def get_watchlist_stock_details(symbol):
     """Get detailed information for a stock in user's watchlist including watchlist-specific data"""
