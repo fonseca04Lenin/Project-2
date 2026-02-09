@@ -2280,7 +2280,7 @@ const DashboardRedesign = () => {
                             <p>We reserve the right to modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the new terms.</p>
 
                             <h3>8. Contact</h3>
-                            <p>For questions about these Terms of Service, please contact us at support@destinyheroe.com</p>
+                            <p>For questions about these Terms of Service, please contact us at destinyheroev@gmail.com</p>
                         </div>
                         <div className="modal-footer">
                             <button className="btn-primary" onClick={() => setTermsOpen(false)}>I Understand</button>
@@ -2362,7 +2362,7 @@ const DashboardRedesign = () => {
                             <p>Our Service is not intended for children under 13. We do not knowingly collect personal information from children under 13.</p>
 
                             <h3>10. Contact Us</h3>
-                            <p>For privacy-related questions or concerns, please contact us at privacy@destinyheroe.com</p>
+                            <p>For privacy-related questions or concerns, please contact us at destinyheroev@gmail.com</p>
                         </div>
                         <div className="modal-footer">
                             <button className="btn-primary" onClick={() => setPrivacyOpen(false)}>I Understand</button>
@@ -2390,8 +2390,8 @@ const DashboardRedesign = () => {
                                 <div className="help-content">
                                     <h3>Contact Us</h3>
                                     <p>In case of questions or feedback, email:</p>
-                                    <a href="mailto:support@destinyheroe.com" className="help-email">
-                                        support@destinyheroe.com
+                                    <a href="mailto:destinyheroev@gmail.com" className="help-email">
+                                        destinyheroev@gmail.com
                                     </a>
                                 </div>
                             </div>
