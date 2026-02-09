@@ -792,7 +792,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                         {stocktwits.map((message, index) => (
                                             <a
                                                 key={message.id || index}
-                                                href={`https://stocktwits.com/${message.user?.username || 'symbol'}/${message.id}`}
+                                                href={`https://stocktwits.com/${message.user?.username || 'symbol'}/message/${message.id}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className={`tweet-item clickable ${message.sentiment?.toLowerCase() || 'neutral'}`}
