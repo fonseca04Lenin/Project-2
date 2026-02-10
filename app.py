@@ -2238,7 +2238,7 @@ def get_market_analysis():
 
     # Try to generate AI analysis
     try:
-        from chat_service import ChatService
+        import requests as http_requests
 
         # Build comprehensive market analysis prompt - keep it simple to avoid AI confusion
         prompt = """You are a professional financial analyst writing a weekly market update.
@@ -2257,9 +2257,28 @@ IMPORTANT RULES:
 - Be specific about sectors and market movements
 - Write approximately 180 words"""
 
-        # Generate AI analysis using Gemini
-        chat_service = ChatService()
-        analysis_text = chat_service.generate_simple_response(prompt)
+        # Generate AI analysis using Groq
+        groq_api_key = os.environ.get('GROQ_API_KEY')
+        if not groq_api_key:
+            raise Exception("GROQ_API_KEY not configured")
+
+        groq_response = http_requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {groq_api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'llama-3.3-70b-versatile',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'temperature': 0.5,
+                'max_tokens': 500
+            },
+            timeout=30
+        )
+        groq_response.raise_for_status()
+        groq_data = groq_response.json()
+        analysis_text = groq_data['choices'][0]['message']['content'].strip()
 
         # Clean up any "undefined" that AI might generate
         if analysis_text:
