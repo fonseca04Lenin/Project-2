@@ -4326,7 +4326,7 @@ const CorrelationHeatmap = ({ watchlistData }) => {
         const { symbols: syms, matrix } = correlationData;
         const n = syms.length;
 
-        const labelWidth = 60;
+        const labelWidth = 80;
         const cellSize = Math.min(50, Math.floor((canvas.width - labelWidth) / n));
         const totalGrid = cellSize * n;
 
@@ -4386,7 +4386,7 @@ const CorrelationHeatmap = ({ watchlistData }) => {
         const rect = canvasRef.current.getBoundingClientRect();
         const { symbols: syms, matrix } = correlationData;
         const n = syms.length;
-        const labelWidth = 60;
+        const labelWidth = 80;
         const cellSize = Math.min(50, Math.floor((canvasRef.current.width - labelWidth) / n));
 
         const mx = e.clientX - rect.left;
@@ -4472,6 +4472,9 @@ const CorrelationHeatmap = ({ watchlistData }) => {
                 <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(100,100,255)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>Inverse (-1)</span>
                 <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(255,255,255)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>None (0)</span>
                 <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(255,100,100)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>High (+1)</span>
+            </div>
+            <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                <strong style={{ color: 'rgba(255,255,255,0.6)' }}>What does this mean?</strong> This chart shows how your stocks move in relation to each other over the last 90 days. Red means two stocks tend to move in the same direction — when one goes up, the other usually does too. Blue means they tend to move in opposite directions. White means there's little connection between them. A well-diversified portfolio typically has a mix of colors, not all red.
             </div>
         </div>
     );
