@@ -1,4 +1,10 @@
 {
+  "analytics": {
+    "id": true
+  },
+  "speedInsights": {
+    "id": true
+  },
   "rewrites": [
     {
       "source": "/(.*)",
