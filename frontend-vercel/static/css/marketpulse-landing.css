@@ -834,6 +834,127 @@ i[class*="fal"],
   opacity: 0.8;
 }
 
+/* AI Usage Section */
+.ai-usage-section {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url('/static/pexels-rpnickson-2478248.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.ai-usage-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1;
+}
+
+.ai-usage-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  width: 100%;
+  padding: 6rem 2rem;
+  text-align: center;
+}
+
+.ai-usage-title {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 1rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  letter-spacing: -0.02em;
+  animation: fadeInUp 1s ease-out;
+}
+
+.ai-usage-subtitle {
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  color: var(--green-accent);
+  text-transform: uppercase;
+  margin-bottom: 4rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  animation: fadeInUp 1s ease-out 0.2s both;
+}
+
+.ai-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  animation: fadeInUp 1s ease-out 0.4s both;
+}
+
+.ai-usage-card {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 2.5rem 2rem;
+  text-align: left;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.ai-usage-card:hover {
+  border-color: var(--green-accent);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 217, 36, 0.15);
+}
+
+.ai-usage-icon {
+  font-size: 2rem;
+  color: var(--green-accent);
+  margin-bottom: 1.25rem;
+  display: block;
+}
+
+.ai-usage-card h3 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 0.75rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+.ai-usage-card p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--foreground-muted);
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+@media (max-width: 768px) {
+  .ai-usage-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .ai-usage-content {
+    padding: 4rem 1.5rem;
+  }
+
+  .ai-usage-section {
+    background-attachment: scroll;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-usage-card {
+    padding: 2rem 1.5rem;
+  }
+}
+
 /* Notification container */
 .notification-container {
   position: fixed;
