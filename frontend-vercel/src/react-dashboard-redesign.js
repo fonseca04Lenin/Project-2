@@ -2924,6 +2924,115 @@ const MarketOverview = ({ marketStatus }) => {
     );
 };
 
+// Market Intelligence Quick Look Widget
+const MarketIntelligenceWidget = ({ onNavigate }) => {
+    const [earningsCount, setEarningsCount] = useState(null);
+    const [newsData, setNewsData] = useState(null);
+    const [topSector, setTopSector] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchIntelData = async () => {
+            try {
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const authHeaders = await window.getAuthHeaders();
+                const opts = { headers: authHeaders, credentials: 'include' };
+
+                const [earningsRes, newsRes] = await Promise.allSettled([
+                    fetch(`${API_BASE}/api/market/earnings`, opts),
+                    fetch(`${API_BASE}/api/news/market?limit=5`, opts)
+                ]);
+
+                if (earningsRes.status === 'fulfilled' && earningsRes.value.ok) {
+                    const data = await earningsRes.value.json();
+                    const arr = Array.isArray(data) ? data : [];
+                    setEarningsCount(arr.length);
+                }
+
+                if (newsRes.status === 'fulfilled' && newsRes.value.ok) {
+                    const data = await newsRes.value.json();
+                    const articles = Array.isArray(data) ? data : (data.articles || []);
+                    setNewsData({ count: articles.length, headline: articles[0]?.title || articles[0]?.headline || null });
+                }
+
+                // Derive top sector from watchlist market data
+                try {
+                    const sectorRes = await fetch(`${API_BASE}/api/sectors/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...authHeaders },
+                        credentials: 'include',
+                        body: JSON.stringify({ symbols: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'JNJ', 'XOM'] })
+                    });
+                    if (sectorRes.ok) {
+                        const sectors = await sectorRes.json();
+                        const counts = {};
+                        Object.values(sectors).forEach(s => { counts[s] = (counts[s] || 0) + 1; });
+                        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+                        if (top) setTopSector(top[0]);
+                    }
+                } catch (_) {}
+            } catch (_) {}
+            setLoading(false);
+        };
+        fetchIntelData();
+    }, []);
+
+    const handleClick = (tab) => {
+        onNavigate('intelligence');
+        setTimeout(() => {
+            if (window.__setIntelTab) window.__setIntelTab(tab);
+        }, 100);
+    };
+
+    const items = [
+        {
+            icon: 'fa-calendar',
+            title: 'Earnings Calendar',
+            subtitle: loading ? 'Loading...' : (earningsCount !== null ? `${earningsCount} companies reporting soon` : 'View upcoming earnings'),
+            tab: 'earnings'
+        },
+        {
+            icon: 'fa-chart-bar',
+            title: 'Sector Performance',
+            subtitle: loading ? 'Loading...' : (topSector ? `${topSector} leading today` : 'View sector trends'),
+            tab: null // navigates to intelligence overview
+        },
+        {
+            icon: 'fa-file-alt',
+            title: 'Market News',
+            subtitle: loading ? 'Loading...' : (newsData?.headline ? newsData.headline.substring(0, 50) + (newsData.headline.length > 50 ? '...' : '') : 'Latest market updates'),
+            tab: null // navigates to news
+        }
+    ];
+
+    return (
+        <div className="insights-list">
+            {items.map((item, i) => (
+                <div
+                    key={i}
+                    className="insight-item"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence'); }}}
+                    style={{ cursor: 'pointer', transition: 'background 0.2s, transform 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                >
+                    <div className="insight-icon">
+                        <i className={`fas ${item.icon}`}></i>
+                    </div>
+                    <div className="insight-content">
+                        <h4>{item.title}</h4>
+                        <p>{item.subtitle}</p>
+                    </div>
+                    <i className="fas fa-chevron-right" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', marginLeft: 'auto' }}></i>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 // Overview Tab Component
 const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover }) => {
     const [sparklineData, setSparklineData] = useState({});
@@ -3017,35 +3126,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                             Explore <i className="fas fa-arrow-right"></i>
                         </button>
                     </div>
-                    <div className="insights-list">
-                        <div className="insight-item">
-                            <div className="insight-icon">
-                                <i className="fas fa-calendar"></i>
-                            </div>
-                            <div className="insight-content">
-                                <h4>Earnings Calendar</h4>
-                                <p>12 companies reporting this week</p>
-                            </div>
-                        </div>
-                        <div className="insight-item">
-                            <div className="insight-icon">
-                                <i className="fas fa-chart-bar"></i>
-                            </div>
-                            <div className="insight-content">
-                                <h4>Sector Performance</h4>
-                                <p>Technology +2.3% today</p>
-                            </div>
-                        </div>
-                        <div className="insight-item">
-                            <div className="insight-icon">
-                                <i className="fas fa-file-alt"></i>
-                            </div>
-                            <div className="insight-content">
-                                <h4>Market News</h4>
-                                <p>3 key developments today</p>
-                            </div>
-                        </div>
-                    </div>
+                    <MarketIntelligenceWidget onNavigate={onNavigate} />
                 </div>
             </div>
         </div>
