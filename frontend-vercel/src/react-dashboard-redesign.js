@@ -26,7 +26,7 @@ const DashboardRedesign = () => {
     // Preferences state
     const [preferences, setPreferences] = useState({
         theme: 'dark', // dark, light
-        defaultTimeRange: '1M',
+        defaultTimeRange: '1D',
         autoRefresh: true,
         refreshInterval: 30, // seconds
         priceFormat: 'standard', // standard, compact
@@ -259,6 +259,18 @@ const DashboardRedesign = () => {
             loadAlpacaStatus();
         }
     }, [preferencesOpen]);
+
+    // Apply preferences when they change
+    useEffect(() => {
+        // Theme
+        document.body.setAttribute('data-theme', preferences.theme || 'dark');
+
+        // Store defaultTimeRange globally so chart components can read it
+        window.__defaultTimeRange = preferences.defaultTimeRange || '1D';
+
+        // Store preferences globally for child components
+        window.__userPreferences = preferences;
+    }, [preferences]);
 
     useEffect(() => {
         // Load critical data first (non-blocking)
@@ -852,14 +864,15 @@ const DashboardRedesign = () => {
         };
     }, [userMenuOpen]);
 
-    // Periodic watchlist refresh to keep cache updated
+    // Periodic watchlist refresh to keep cache updated (controlled by autoRefresh preference)
     useEffect(() => {
+        if (!preferences.autoRefresh) return;
+
         const refreshWatchlist = () => {
             // Only refresh if user is authenticated and we have data
             if (window.firebaseAuth?.currentUser && watchlistData.length > 0) {
                 const timeSinceLastLoad = Date.now() - lastSuccessfulLoadRef.current;
                 if (timeSinceLastLoad > WATCHLIST_REFRESH_INTERVAL) {
-                    // // console.log('Periodic watchlist refresh triggered');
                     loadWatchlistData();
                 }
             }
@@ -869,7 +882,7 @@ const DashboardRedesign = () => {
         const refreshInterval = setInterval(refreshWatchlist, 2 * 60 * 1000);
 
         return () => clearInterval(refreshInterval);
-    }, [watchlistData.length]);
+    }, [watchlistData.length, preferences.autoRefresh]);
 
     // Watchlist localStorage cache helpers
     const WATCHLIST_CACHE_KEY = 'watchlist_cache';
@@ -1924,9 +1937,9 @@ const DashboardRedesign = () => {
 
             {/* Main Content Area */}
             <div className="dashboard-content">
-                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} />}
+                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} preferences={preferences} />}
                 {activeView === 'watchlist' && (
-                    <WatchlistView 
+                    <WatchlistView
                         watchlistData={watchlistData}
                         onOpenDetails={openDetails}
                         onRemove={removeFromWatchlist}
@@ -1937,6 +1950,7 @@ const DashboardRedesign = () => {
                         categories={categories}
                         onStockHover={handleStockHover}
                         updatingStocks={updatingStocks}
+                        preferences={preferences}
                     />
                 )}
                 {activeView === 'news' && <NewsView />}
@@ -3034,8 +3048,22 @@ const MarketIntelligenceWidget = ({ onNavigate }) => {
 };
 
 // Overview Tab Component
-const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover }) => {
+const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover, preferences = {} }) => {
     const [sparklineData, setSparklineData] = useState({});
+    const showSparklines = preferences.showSparklines !== false;
+    const showPercentChange = preferences.showPercentChange !== false;
+    const compactNumbers = preferences.compactNumbers || false;
+    const currencySymbol = { USD: '$', EUR: '\u20AC', GBP: '\u00A3', JPY: '\u00A5' }[preferences.currency] || '$';
+
+    const formatStockPrice = (price) => {
+        if (!price) return `${currencySymbol}0.00`;
+        if (compactNumbers && price >= 1000) {
+            if (price >= 1e9) return `${currencySymbol}${(price / 1e9).toFixed(2)}B`;
+            if (price >= 1e6) return `${currencySymbol}${(price / 1e6).toFixed(2)}M`;
+            if (price >= 1e3) return `${currencySymbol}${(price / 1e3).toFixed(2)}K`;
+        }
+        return `${currencySymbol}${price.toFixed(2)}`;
+    };
 
     return (
         <div className="overview-view">
@@ -3073,6 +3101,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                     <div className="stock-symbol-enhanced">{stock.symbol}</div>
                                     <div className="stock-name-enhanced">{stock.company_name || stock.name || stock.symbol}</div>
                                 </div>
+                                {showSparklines && (
                                 <div className="stock-sparkline">
                                     <SparklineChart
                                         symbol={stock.symbol}
@@ -3081,13 +3110,16 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                         height={45}
                                     />
                                 </div>
+                                )}
                                 <div className="stock-price-group">
                                     <div className={`stock-price-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                    ${(stock.current_price || stock.price || 0).toFixed(2)}
+                                    {formatStockPrice(stock.current_price || stock.price || 0)}
                                 </div>
+                                    {showPercentChange && (
                                     <div className={`stock-change-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                                     {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                                     </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -3134,7 +3166,20 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
 };
 
 // Watchlist View Component
-const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover, updatingStocks = new Set() }) => {
+const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover, updatingStocks = new Set(), preferences = {} }) => {
+    const showPercentChange = preferences.showPercentChange !== false;
+    const compactNumbers = preferences.compactNumbers || false;
+    const currencySymbol = { USD: '$', EUR: '\u20AC', GBP: '\u00A3', JPY: '\u00A5' }[preferences.currency] || '$';
+
+    const formatStockPrice = (price) => {
+        if (!price) return `${currencySymbol}0.00`;
+        if (compactNumbers && price >= 1000) {
+            if (price >= 1e9) return `${currencySymbol}${(price / 1e9).toFixed(2)}B`;
+            if (price >= 1e6) return `${currencySymbol}${(price / 1e6).toFixed(2)}M`;
+            if (price >= 1e3) return `${currencySymbol}${(price / 1e3).toFixed(2)}K`;
+        }
+        return `${currencySymbol}${price.toFixed(2)}`;
+    };
     // Count stocks per category from unfiltered data
     const categoryCounts = {};
     watchlistData.forEach(stock => {
@@ -3270,18 +3315,19 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                         </div>
                         <div className="stock-name">{stock.name}</div>
                         <div className={`stock-price-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            ${(stock.current_price || stock.price || 0).toFixed(2)}
+                            {formatStockPrice(stock.current_price || stock.price || 0)}
                         </div>
+                        {showPercentChange && (
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            <i 
+                            <i
                                 className={stock.change_percent >= 0 ? 'fas fa-arrow-trend-up' : 'fas fa-arrow-trend-down'}
-                                style={{ 
-                                    marginRight: '8px', 
+                                style={{
+                                    marginRight: '8px',
                                     fontSize: '18px',
                                     fontWeight: '700',
                                     color: stock.change_percent >= 0 ? '#00D924' : '#ef4444',
-                                    textShadow: stock.change_percent >= 0 
-                                        ? '0 0 10px rgba(0, 217, 36, 0.7), 0 0 15px rgba(0, 217, 36, 0.5)' 
+                                    textShadow: stock.change_percent >= 0
+                                        ? '0 0 10px rgba(0, 217, 36, 0.7), 0 0 15px rgba(0, 217, 36, 0.5)'
                                         : '0 0 10px rgba(239, 68, 68, 0.7), 0 0 15px rgba(239, 68, 68, 0.5)',
                                     display: 'inline-block',
                                     lineHeight: '1'
@@ -3289,6 +3335,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                             />
                             {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                         </div>
+                        )}
                         <div className="card-actions">
                             <button className="card-action-btn" onClick={() => onOpenDetails && onOpenDetails(stock.symbol)}>
                                 <i className="fas fa-info-circle"></i> Details

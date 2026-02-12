@@ -83,7 +83,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [priceChange, setPriceChange] = useState({ value: 0, percentage: 0 });
-    const [timeRange, setTimeRange] = useState('1M');
+    const [timeRange, setTimeRange] = useState(window.__defaultTimeRange || '1D');
     const [chartType, setChartType] = useState('line'); // 'line' | 'candle'
     const [isLoadingNewData, setIsLoadingNewData] = useState(false);
     const [showVolume, setShowVolume] = useState(true);
