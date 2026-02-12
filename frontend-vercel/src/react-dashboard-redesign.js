@@ -2462,11 +2462,11 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }) 
     useEffect(() => {
         if (!symbol) return;
 
-        // Fetch 30-day chart data for sparkline (more data points = smoother line)
+        // Fetch 1-day chart data for sparkline (real-time/daily view)
         const fetchSparklineData = async () => {
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=1M`, {
+                const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=1D`, {
                     credentials: 'include'
                 });
 
