@@ -3347,110 +3347,500 @@ input:checked + .slider:before {
 /* ========================================================================
    LIGHT THEME OVERRIDES
    ======================================================================== */
+
+/* --- Base & Layout --- */
 [data-theme="light"] .dashboard-redesign {
-    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 50%, #ffffff 100%);
-    color: #1a1a1a;
+    background: linear-gradient(135deg, #f0f2f5 0%, #e4e7ec 50%, #f8f9fa 100%);
+    color: #1a1a2e;
 }
 
-[data-theme="light"] .sidebar {
-    background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
+/* --- Top Header / Navigation Bar --- */
+[data-theme="light"] .dashboard-header {
+    background: rgba(255, 255, 255, 0.85);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(20px);
 }
 
-[data-theme="light"] .sidebar .nav-item {
+[data-theme="light"] .logo {
+    color: #00A81E;
+}
+
+[data-theme="light"] .nav-tab {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     color: #555;
 }
 
-[data-theme="light"] .sidebar .nav-item.active,
-[data-theme="light"] .sidebar .nav-item:hover {
-    color: #1a1a1a;
-    background: rgba(0, 0, 0, 0.05);
+[data-theme="light"] .nav-tab:hover {
+    background: rgba(0, 0, 0, 0.07);
+    color: #1a1a2e;
 }
 
-[data-theme="light"] .main-card,
-[data-theme="light"] .main-card.enhanced {
-    background: #ffffff;
+[data-theme="light"] .nav-tab.active {
+    background: #00A81E;
+    border-color: transparent;
+    color: #ffffff;
+}
+
+/* --- Header Right (Account, Refresh, Status) --- */
+[data-theme="light"] .refresh-btn {
+    background: rgba(0, 0, 0, 0.04);
     border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: #555;
 }
 
-[data-theme="light"] .card-header h3 {
-    color: #1a1a1a;
+[data-theme="light"] .refresh-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.15);
 }
 
-[data-theme="light"] .stock-row-enhanced {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+[data-theme="light"] .realtime-status-indicator {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #555;
 }
 
-[data-theme="light"] .stock-row-enhanced:hover {
-    background: rgba(0, 0, 0, 0.03);
+[data-theme="light"] .realtime-status-indicator.connected {
+    background: rgba(0, 168, 30, 0.08);
+    border-color: rgba(0, 168, 30, 0.25);
 }
 
-[data-theme="light"] .stock-symbol-enhanced {
-    color: #1a1a1a;
+[data-theme="light"] .status-text {
+    color: #555;
 }
 
-[data-theme="light"] .stock-name-enhanced {
-    color: #666;
+[data-theme="light"] .user-menu-btn {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #333;
 }
 
-[data-theme="light"] .top-bar {
-    background: rgba(255, 255, 255, 0.95);
+[data-theme="light"] .user-menu-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .user-menu-btn .fa-chevron-down {
+    color: #888;
+}
+
+/* --- User Dropdown --- */
+[data-theme="light"] .user-dropdown {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] .dropdown-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .user-name {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .user-email {
+    color: #888;
+}
+
+[data-theme="light"] .user-avatar {
+    background: rgba(0, 168, 30, 0.08);
+}
+
+[data-theme="light"] .dropdown-divider {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .dropdown-item {
+    color: #555;
+}
+
+[data-theme="light"] .dropdown-item i {
+    color: #888;
+}
+
+[data-theme="light"] .dropdown-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .dropdown-item:hover i {
+    color: #00A81E;
+}
+
+[data-theme="light"] .dropdown-item.logout {
+    color: #dc3545;
+}
+
+[data-theme="light"] .dropdown-item.logout:hover {
+    background: rgba(220, 53, 69, 0.06);
+}
+
+/* --- Quick Search Bar --- */
+[data-theme="light"] .quick-search-bar {
+    background: rgba(255, 255, 255, 0.6);
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .search-input {
-    background: rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .search-input:focus {
+    background: #ffffff;
+    border-color: #00A81E;
+    box-shadow: 0 0 0 3px rgba(0, 168, 30, 0.1);
+}
+
+[data-theme="light"] .search-input::placeholder {
+    color: #aaa;
+}
+
+[data-theme="light"] .quick-search-bar .fa-search {
+    color: #888;
+}
+
+[data-theme="light"] .search-btn {
+    background: #00A81E;
+    color: #ffffff;
+}
+
+[data-theme="light"] .search-btn:hover {
+    background: #008F19;
+}
+
+/* --- Search Suggestions --- */
+[data-theme="light"] .search-suggestions {
+    background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.1);
-    color: #1a1a1a;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .suggestion-item {
+    color: #333;
+}
+
+[data-theme="light"] .suggestion-item .s-symbol {
+    color: #00A81E;
+}
+
+[data-theme="light"] .suggestion-item .s-name {
+    color: #888;
+}
+
+[data-theme="light"] .suggestion-item:hover,
+[data-theme="light"] .suggestion-item.active {
+    background: rgba(0, 168, 30, 0.06);
+    border-left: 3px solid #00A81E;
+}
+
+[data-theme="light"] .suggestion-item:hover .s-name,
+[data-theme="light"] .suggestion-item.active .s-name {
+    color: #555;
+}
+
+/* --- KPI Cards --- */
+[data-theme="light"] .kpi-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .kpi-card:hover {
+    background: #ffffff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .kpi-icon.portfolio,
+[data-theme="light"] .kpi-icon.positions,
+[data-theme="light"] .kpi-icon.performance,
+[data-theme="light"] .kpi-icon.market {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .kpi-label {
+    color: #888;
+}
+
+[data-theme="light"] .kpi-value {
+    color: #1a1a2e;
+}
+
+/* --- Main Content Cards --- */
+[data-theme="light"] .main-card,
+[data-theme="light"] .main-card.enhanced {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .main-card:hover,
+[data-theme="light"] .main-card.enhanced:hover {
+    background: #ffffff;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .card-header h3 {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .view-all-btn {
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    color: #555;
+}
+
+[data-theme="light"] .view-all-btn:hover {
+    border-color: #00A81E;
+    color: #00A81E;
+}
+
+/* --- Stock Rows (Overview Watchlist) --- */
+[data-theme="light"] .stock-row,
+[data-theme="light"] .stock-row-enhanced {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .stock-row:hover,
+[data-theme="light"] .stock-row-enhanced:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .stock-row:focus,
+[data-theme="light"] .stock-row-enhanced:focus {
+    box-shadow: 0 0 0 2px rgba(0, 168, 30, 0.25);
+}
+
+[data-theme="light"] .stock-symbol,
+[data-theme="light"] .stock-symbol-enhanced {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .stock-name,
+[data-theme="light"] .stock-name-enhanced {
+    color: #888;
+}
+
+/* --- Market Overview --- */
+[data-theme="light"] .market-overview-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .market-overview-card::before {
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06), transparent);
+}
+
+[data-theme="light"] .market-label {
+    color: #888;
+}
+
+[data-theme="light"] .market-update-time {
+    color: #aaa;
+}
+
+[data-theme="light"] .market-index-item {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .market-index-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 168, 30, 0.3);
+}
+
+[data-theme="light"] .index-name {
+    color: #888;
+}
+
+[data-theme="light"] .index-price {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .index-skeleton {
+    background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 75%);
+    background-size: 200% 100%;
+}
+
+/* --- Watchlist View --- */
+[data-theme="light"] .view-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .view-header h2 {
-    color: #1a1a1a;
+    color: #1a1a2e;
 }
 
+[data-theme="light"] .action-btn {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #555;
+}
+
+[data-theme="light"] .action-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+/* --- Watchlist Cards --- */
 [data-theme="light"] .watchlist-card {
     background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 [data-theme="light"] .watchlist-card:hover {
-    border-color: rgba(0, 0, 0, 0.15);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
 }
 
-[data-theme="light"] .stock-symbol {
-    color: #1a1a1a;
+[data-theme="light"] .more-btn {
+    color: #aaa;
 }
 
-[data-theme="light"] .stock-name {
-    color: #666;
+[data-theme="light"] .card-actions {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .card-action-btn {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.06);
     color: #666;
-    background: rgba(0, 0, 0, 0.04);
 }
 
 [data-theme="light"] .card-action-btn:hover {
-    background: rgba(0, 0, 0, 0.08);
-    color: #1a1a1a;
+    background: rgba(0, 0, 0, 0.06);
+    color: #1a1a2e;
 }
 
-[data-theme="light"] .modal-content,
-[data-theme="light"] .settings-modal {
+/* --- Category Filters --- */
+[data-theme="light"] .filter-btn:not(.active) {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border-color: rgba(0, 0, 0, 0.1) !important;
+    color: #555 !important;
+}
+
+[data-theme="light"] .category-filters button {
+    color: #555 !important;
+}
+
+/* --- Empty States --- */
+[data-theme="light"] .empty-state i,
+[data-theme="light"] .empty-watchlist i {
+    color: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .empty-state p,
+[data-theme="light"] .empty-watchlist p {
+    color: #888;
+}
+
+[data-theme="light"] .empty-watchlist h3 {
+    color: #1a1a2e;
+}
+
+/* --- Insight Items --- */
+[data-theme="light"] .insight-item {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .insight-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .insight-icon {
+    background: rgba(0, 168, 30, 0.08);
+}
+
+[data-theme="light"] .insight-content h4 {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .insight-content p {
+    color: #888;
+}
+
+/* --- News View --- */
+[data-theme="light"] .news-card {
     background: #ffffff;
-    color: #1a1a1a;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .news-card:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .news-title {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .news-summary {
+    color: #666;
+}
+
+[data-theme="light"] .news-meta {
+    color: #aaa;
+}
+
+[data-theme="light"] .news-source {
+    color: #888;
+}
+
+[data-theme="light"] .news-badge {
+    background: rgba(0, 168, 30, 0.1);
+    color: #00A81E;
+}
+
+/* --- Modals --- */
+[data-theme="light"] .modal-overlay {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .modal-content {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    color: #1a1a2e;
 }
 
 [data-theme="light"] .modal-header {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    color: #1a1a1a;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 168, 30, 0.04);
+}
+
+[data-theme="light"] .modal-header h2 {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .modal-close {
+    background: rgba(0, 0, 0, 0.06);
+    color: #888;
+}
+
+[data-theme="light"] .modal-close:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+[data-theme="light"] .modal-footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* --- Settings / Preferences Modal --- */
+[data-theme="light"] .settings-section {
+    border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="light"] .settings-section h3 {
-    color: #1a1a1a;
+    color: #1a1a2e;
 }
 
 [data-theme="light"] .settings-item label {
@@ -3458,54 +3848,203 @@ input:checked + .slider:before {
 }
 
 [data-theme="light"] .setting-description {
-    color: #888;
+    color: #999;
 }
 
-[data-theme="light"] .news-card {
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+[data-theme="light"] .settings-item select {
+    background: #f5f5f5;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    color: #333;
 }
 
-[data-theme="light"] .news-card:hover {
-    border-color: rgba(0, 0, 0, 0.15);
+[data-theme="light"] .theme-btn {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #555;
 }
 
-[data-theme="light"] .news-title {
-    color: #1a1a1a;
+[data-theme="light"] .theme-btn.active {
+    background: #00A81E;
+    border-color: #00A81E;
+    color: #ffffff;
 }
 
-[data-theme="light"] .news-summary {
-    color: #666;
+[data-theme="light"] .btn-secondary {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #555;
 }
 
-[data-theme="light"] .category-filters button {
-    color: #555 !important;
+[data-theme="light"] .btn-secondary:hover {
+    background: rgba(0, 0, 0, 0.06);
 }
 
-[data-theme="light"] .filter-btn:not(.active) {
-    background: rgba(0, 0, 0, 0.04) !important;
-    border-color: rgba(0, 0, 0, 0.1) !important;
-    color: #555 !important;
-}
-
-[data-theme="light"] .market-index-card {
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="light"] .index-name {
-    color: #1a1a1a;
-}
-
+/* --- Trading View --- */
 [data-theme="light"] .trading-coming-soon {
-    color: #1a1a1a;
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .trading-hero {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .trading-icon-wrapper {
+    background: rgba(0, 168, 30, 0.08);
+}
+
+[data-theme="light"] .trading-subtitle {
+    color: #888;
 }
 
 [data-theme="light"] .trading-feature-card {
     background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .trading-feature-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .trading-feature-card h3 {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .trading-feature-card p {
+    color: #666;
+}
+
+[data-theme="light"] .trading-feature-icon {
+    background: rgba(0, 168, 30, 0.08);
+}
+
+[data-theme="light"] .trading-section h2 {
+    color: #1a1a2e;
 }
 
 [data-theme="light"] .trading-benefit-item {
+    color: #333;
+}
+
+[data-theme="light"] .trading-benefit-item p {
+    color: #666;
+}
+
+[data-theme="light"] .trading-benefit-item strong {
+    color: #1a1a2e;
+}
+
+/* --- Sector Allocation --- */
+[data-theme="light"] .sector-legend .legend-item {
+    color: #555;
+}
+
+[data-theme="light"] .legend-percentage {
+    color: #888;
+}
+
+/* --- Sparkline --- */
+[data-theme="light"] .sparkline-loading,
+[data-theme="light"] .sparkline-error {
+    color: #aaa;
+}
+
+/* --- Scrollbar --- */
+[data-theme="light"] .dashboard-redesign ::-webkit-scrollbar-track {
+    background: #f0f0f0;
+}
+
+[data-theme="light"] .dashboard-redesign ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+[data-theme="light"] .dashboard-redesign ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* --- Notifications --- */
+[data-theme="light"] .notification {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+/* --- AI Assistant / Chat --- */
+[data-theme="light"] .ai-assistant-container,
+[data-theme="light"] .chat-container {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .chat-message {
+    color: #333;
+}
+
+[data-theme="light"] .chat-input {
+    background: #f5f5f5;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #1a1a2e;
+}
+
+/* --- Floating Assistant Button --- */
+[data-theme="light"] .floating-assistant-btn {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* --- Overview Grid Text Colors --- */
+[data-theme="light"] .overview-view {
+    color: #1a1a2e;
+}
+
+/* --- Misc elements that use white rgba backgrounds --- */
+[data-theme="light"] .dashboard-content {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .loading-state {
+    color: #888;
+}
+
+[data-theme="light"] .loading-state i {
+    color: #aaa;
+}
+
+/* --- Intelligence View --- */
+[data-theme="light"] .intelligence-view .view-header h2 {
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .intel-tab {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #555;
+}
+
+[data-theme="light"] .intel-tab:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .intel-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* --- What's What View --- */
+[data-theme="light"] .whatswhat-card,
+[data-theme="light"] .ww-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    color: #333;
+}
+
+/* --- Generic dark-bg overrides for any remaining elements --- */
+[data-theme="light"] [style*="rgba(255, 255, 255, 0.05)"],
+[data-theme="light"] [style*="rgba(255, 255, 255, 0.02)"],
+[data-theme="light"] [style*="rgba(255, 255, 255, 0.03)"] {
     color: #333;
 }

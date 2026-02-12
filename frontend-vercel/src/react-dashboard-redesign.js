@@ -79,12 +79,12 @@ const DashboardRedesign = () => {
     const updateStatsRef = useRef({ updates: [], lastMinute: [] });
     const isLoadingRef = useRef(false); // Prevent duplicate watchlist requests
 
-    // Load preferences from localStorage
+    // Load preferences from localStorage (merge with defaults so new keys are always present)
     const loadPreferences = () => {
         try {
             const saved = localStorage.getItem('userPreferences');
             if (saved) {
-                setPreferences(JSON.parse(saved));
+                setPreferences(prev => ({ ...prev, ...JSON.parse(saved) }));
             }
         } catch (e) {
             // Use defaults if loading fails
