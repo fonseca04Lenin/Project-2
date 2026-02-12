@@ -234,10 +234,14 @@ function displaySearchSuggestions(container, suggestions, inputElement) {
     suggestions.slice(0, 5).forEach(suggestion => {
         const suggestionItem = document.createElement('div');
         suggestionItem.className = 'suggestion-item';
-        suggestionItem.innerHTML = `
-            <div class="suggestion-symbol">${suggestion.symbol}</div>
-            <div class="suggestion-name">${suggestion.name}</div>
-        `;
+        const symbolDiv = document.createElement('div');
+        symbolDiv.className = 'suggestion-symbol';
+        symbolDiv.textContent = suggestion.symbol;
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'suggestion-name';
+        nameDiv.textContent = suggestion.name;
+        suggestionItem.appendChild(symbolDiv);
+        suggestionItem.appendChild(nameDiv);
         
         suggestionItem.addEventListener('click', function() {
             inputElement.value = suggestion.symbol;

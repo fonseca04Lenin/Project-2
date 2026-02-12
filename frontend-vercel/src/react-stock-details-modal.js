@@ -1643,7 +1643,15 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
             } catch (error) {
                 console.error(`[StockDetailsModal] Chart render error for ${symbol}:`, error);
-                chartContainer.innerHTML = `<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Error rendering chart: ${error.message}</p></div>`;
+                const errorText = document.createTextNode('Error rendering chart: ' + error.message);
+                const errorP = document.createElement('p');
+                errorP.appendChild(errorText);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'loading-state';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+                errorDiv.appendChild(errorP);
+                chartContainer.innerHTML = '';
+                chartContainer.appendChild(errorDiv);
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
             }
         };

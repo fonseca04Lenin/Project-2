@@ -62,7 +62,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         if (!symbol) return;
 
         const fetchData = async () => {
-            console.log(`[StockDetailsPage] Loading data for ${symbol}`);
+            // console.log(`[StockDetailsPage] Loading data for ${symbol}`);
             setLoading(true);
             setError(null);
             setStockData(null);
@@ -111,7 +111,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             return await chartResp.json();
                         }
                     } catch (error) {
-                        console.log(`[StockDetailsPage] Chart API error:`, error);
+                        // console.log(`[StockDetailsPage] Chart API error:`, error);
                     }
                     return null;
                 })();
@@ -136,7 +136,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             setIsInWatchlist(false);
                         }
                     } catch (watchlistErr) {
-                        console.log('[StockDetailsPage] Could not check watchlist status:', watchlistErr);
+                        // console.log('[StockDetailsPage] Could not check watchlist status:', watchlistErr);
                         setIsInWatchlist(false);
                     }
                 } else {
@@ -162,7 +162,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             setNewsHasMore(newsRespData.hasMore);
                         }
                     } catch (error) {
-                        console.log(`[StockDetailsPage] News API error:`, error);
+                        // console.log(`[StockDetailsPage] News API error:`, error);
                     } finally {
                         setNewsLoading(false);
                     }
@@ -186,7 +186,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                 setStocktwitsHasMore(stocktwitsData.has_more !== false);
                             }
                         } catch (error) {
-                            console.log(`[StockDetailsPage] Stocktwits API error:`, error);
+                            // console.log(`[StockDetailsPage] Stocktwits API error:`, error);
                         } finally {
                             setStocktwitsLoading(false);
                         }
@@ -206,7 +206,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             setAiInsight(insightData);
                         }
                     } catch (error) {
-                        console.log(`[StockDetailsPage] AI insight API error:`, error);
+                        // console.log(`[StockDetailsPage] AI insight API error:`, error);
                     } finally {
                         setAiInsightLoading(false);
                     }
@@ -334,7 +334,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 setNewsHasMore(newsRespData.hasMore && newArticles.length > 0);
             }
         } catch (error) {
-            console.log(`[StockDetailsPage] Error loading more news:`, error);
+            // console.log(`[StockDetailsPage] Error loading more news:`, error);
         } finally {
             setNewsLoadingMore(false);
         }
@@ -362,7 +362,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 setStocktwitsHasMore(stocktwitsData.has_more !== false && newMessages.length > 0);
             }
         } catch (error) {
-            console.log(`[StockDetailsPage] Error loading more stocktwits:`, error);
+            // console.log(`[StockDetailsPage] Error loading more stocktwits:`, error);
         } finally {
             setStocktwitsLoadingMore(false);
         }
@@ -386,18 +386,18 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     };
 
     const handleAddToWatchlist = async () => {
-        console.log('[StockDetailsPage] Add to watchlist clicked for:', symbol);
-        console.log('[StockDetailsPage] Current state - isInWatchlist:', isInWatchlist, 'addingToWatchlist:', addingToWatchlist);
+        // console.log('[StockDetailsPage] Add to watchlist clicked for:', symbol);
+        // console.log('[StockDetailsPage] Current state - isInWatchlist:', isInWatchlist, 'addingToWatchlist:', addingToWatchlist);
 
         if (isInWatchlist || addingToWatchlist) {
-            console.log('[StockDetailsPage] Returning early - already in watchlist or adding');
+            // console.log('[StockDetailsPage] Returning early - already in watchlist or adding');
             return;
         }
 
         setAddingToWatchlist(true);
         try {
             const authHeaders = await window.getAuthHeaders();
-            console.log('[StockDetailsPage] Auth headers obtained:', !!authHeaders);
+            // console.log('[StockDetailsPage] Auth headers obtained:', !!authHeaders);
 
             const response = await fetch(`${API_BASE_PAGE}/api/watchlist`, {
                 method: 'POST',
@@ -406,11 +406,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 body: JSON.stringify({ symbol })
             });
 
-            console.log('[StockDetailsPage] Watchlist API response status:', response.status);
+            // console.log('[StockDetailsPage] Watchlist API response status:', response.status);
 
             if (response.ok) {
                 setIsInWatchlist(true);
-                console.log('[StockDetailsPage] Successfully added to watchlist');
+                // console.log('[StockDetailsPage] Successfully added to watchlist');
                 if (window.showNotification) {
                     window.showNotification(`${symbol} added to watchlist`, 'success');
                 }
@@ -477,13 +477,13 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const isPositive = priceChangePercent >= 0;
 
     // Debug logging for price change
-    console.log('[StockDetailsPage] Stock data received:', {
-        symbol: stockData.symbol,
-        price: stockData.price,
-        percentageChange: stockData.percentageChange,
-        priceChangePercent: stockData.priceChangePercent,
-        calculatedPercent: priceChangePercent
-    });
+    // console.log('[StockDetailsPage] Stock data received:', {
+    //     symbol: stockData.symbol,
+    //     price: stockData.price,
+    //     percentageChange: stockData.percentageChange,
+    //     priceChangePercent: stockData.priceChangePercent,
+    //     calculatedPercent: priceChangePercent
+    // });
 
     return (
         <div className="stock-page-container">
@@ -909,7 +909,7 @@ const initPage = () => {
 };
 
 window.navigateToStockPage = (symbol, isFromWatchlist = false) => {
-    console.log(`[StockDetailsPage] Navigating to ${symbol}`);
+    // console.log(`[StockDetailsPage] Navigating to ${symbol}`);
     initPage();
 
     const newUrl = `/stock/${symbol}`;
@@ -943,7 +943,7 @@ window.navigateToStockPage = (symbol, isFromWatchlist = false) => {
 };
 
 window.navigateBackToDashboard = () => {
-    console.log('[StockDetailsPage] Navigating back to dashboard');
+    // console.log('[StockDetailsPage] Navigating back to dashboard');
     window.history.pushState({ page: 'dashboard' }, '', '/');
 
     if (pageRoot) {
@@ -964,7 +964,7 @@ window.navigateBackToDashboard = () => {
 };
 
 window.addEventListener('popstate', (event) => {
-    console.log('[StockDetailsPage] Popstate event:', event.state);
+    // console.log('[StockDetailsPage] Popstate event:', event.state);
 
     if (event.state?.page === 'stock' && event.state?.symbol) {
         window.navigateToStockPage(event.state.symbol, event.state.isFromWatchlist || false);
@@ -989,7 +989,7 @@ window.handleInitialStockUrl = () => {
 
     if (stockMatch) {
         const symbol = stockMatch[1].toUpperCase();
-        console.log(`[StockDetailsPage] Initial load for stock: ${symbol}`);
+        // console.log(`[StockDetailsPage] Initial load for stock: ${symbol}`);
 
         // Wait for page container to be ready
         const attemptNavigation = (retries = 0) => {
@@ -1028,4 +1028,4 @@ if (document.readyState === 'complete') {
 
 window.StockDetailsPage = StockDetailsPage;
 
-console.log('[StockDetailsPage] Component loaded');
+// console.log('[StockDetailsPage] Component loaded');

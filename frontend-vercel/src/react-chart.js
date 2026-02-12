@@ -961,4 +961,4 @@ if (typeof document !== 'undefined' && !document.getElementById('chart-spin-styl
     document.head.appendChild(style);
 }
 
-console.log('[StockChart] Enhanced chart component loaded with candlestick, volume, and indicators');
+// console.log('[StockChart] Enhanced chart component loaded with candlestick, volume, and indicators');

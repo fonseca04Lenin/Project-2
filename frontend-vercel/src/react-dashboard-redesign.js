@@ -1583,7 +1583,15 @@ const DashboardRedesign = () => {
                 chartContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ef4444;"><i class="fas fa-exclamation-circle"></i><p>Failed to load chart data</p></div>';
             }
         } catch (error) {
-            chartContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #ef4444;"><i class="fas fa-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+            const errorText = document.createTextNode(error.message);
+            const errorP = document.createElement('p');
+            errorP.appendChild(errorText);
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'padding: 2rem; text-align: center; color: #ef4444;';
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+            errorDiv.appendChild(errorP);
+            chartContainer.innerHTML = '';
+            chartContainer.appendChild(errorDiv);
         }
         
         // Close on escape key
