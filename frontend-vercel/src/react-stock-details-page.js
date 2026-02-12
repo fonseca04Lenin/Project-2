@@ -104,7 +104,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 // Chart API call
                 const chartPromise = (async () => {
                     try {
-                        const chartResp = await fetch(`${API_BASE_PAGE}/api/chart/${symbol}`, {
+                        const chartResp = await fetch(`${API_BASE_PAGE}/api/chart/${symbol}?range=1D`, {
                             credentials: 'include'
                         });
                         if (chartResp.ok) {

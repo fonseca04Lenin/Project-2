@@ -1174,19 +1174,22 @@ def search_stock():
         logger.warning("[API] Could not retrieve stock data for %s", symbol)
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
     if stock.name and 'not found' not in stock.name.lower():
-        #last month's price
-        last_month_date = datetime.now() - timedelta(days=30)
-        start_date = last_month_date.strftime("%Y-%m-%d")
+        # Get previous day's close for daily change calculation
+        yesterday_date = datetime.now() - timedelta(days=5)  # Look back 5 days to handle weekends/holidays
+        start_date = yesterday_date.strftime("%Y-%m-%d")
         end_date = datetime.now().strftime("%Y-%m-%d")
         historical_data = yahoo_finance_api.get_historical_data(symbol, start_date, end_date)
-        
-        last_month_price = 0.0
-        if historical_data and len(historical_data) > 0:
-            last_month_price = historical_data[0]['close']
-        
-        price_change = stock.price - last_month_price if last_month_price > 0 else 0
-        price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
-        
+
+        prev_close = 0.0
+        if historical_data and len(historical_data) >= 2:
+            # Second-to-last entry is previous day's close
+            prev_close = historical_data[-2]['close']
+        elif historical_data and len(historical_data) == 1:
+            prev_close = historical_data[0]['close']
+
+        price_change = stock.price - prev_close if prev_close > 0 else 0
+        price_change_percent = (price_change / prev_close * 100) if prev_close > 0 else 0
+
         # Check for triggered alerts (only if user is logged in)
         alerts_data = []
         if current_user.is_authenticated:
@@ -1195,12 +1198,12 @@ def search_stock():
                 'target_price': float(alert['target_price']),
                 'alert_type': alert['alert_type']
             } for alert in triggered_alerts]
-        
+
         response_data = {
             'symbol': stock.symbol,
             'name': stock.name,
             'price': stock.price,
-            'lastMonthPrice': last_month_price,
+            'previousClose': prev_close,
             'priceChange': price_change,
             'priceChangePercent': price_change_percent,
             'triggeredAlerts': alerts_data,
@@ -1243,18 +1246,20 @@ def get_stock_data(symbol):
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
 
         if stock.name and 'not found' not in stock.name.lower():
-            # Get last month's price for change calculation
-            last_month_date = datetime.now() - timedelta(days=30)
-            start_date = last_month_date.strftime("%Y-%m-%d")
+            # Get previous day's close for daily change calculation
+            yesterday_date = datetime.now() - timedelta(days=5)  # Look back 5 days to handle weekends/holidays
+            start_date = yesterday_date.strftime("%Y-%m-%d")
             end_date = datetime.now().strftime("%Y-%m-%d")
             historical_data = yahoo_finance_api.get_historical_data(symbol, start_date, end_date)
 
-            last_month_price = 0.0
-            if historical_data and len(historical_data) > 0:
-                last_month_price = historical_data[0]['close']
+            prev_close = 0.0
+            if historical_data and len(historical_data) >= 2:
+                prev_close = historical_data[-2]['close']
+            elif historical_data and len(historical_data) == 1:
+                prev_close = historical_data[0]['close']
 
-            price_change = stock.price - last_month_price if last_month_price > 0 else 0
-            price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
+            price_change = stock.price - prev_close if prev_close > 0 else 0
+            price_change_percent = (price_change / prev_close * 100) if prev_close > 0 else 0
 
             # Check for triggered alerts
             alerts_data = []
@@ -1269,7 +1274,7 @@ def get_stock_data(symbol):
                 'symbol': stock.symbol,
                 'name': stock.name,
                 'price': stock.price,
-                'lastMonthPrice': last_month_price,
+                'previousClose': prev_close,
                 'priceChange': price_change,
                 'priceChangePercent': price_change_percent,
                 'triggeredAlerts': alerts_data,
