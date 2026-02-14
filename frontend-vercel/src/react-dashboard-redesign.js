@@ -1,6 +1,5 @@
 // Modern Financial Dashboard Redesign - Concept Prototype
-const { useState, useEffect, useRef, useCallback } = React;
-const { useState, useEffect, useRef, useMemo } = React;
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 const DashboardRedesign = () => {
     const [activeView, setActiveView] = useState('overview');
