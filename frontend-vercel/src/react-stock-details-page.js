@@ -25,6 +25,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const chartRootRef = useRef(null);
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
+    const isIndex = symbol && symbol.startsWith('^');
 
     // CEO modal
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
@@ -61,7 +62,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         if (!symbol) return;
 
         const fetchData = async () => {
-            console.log(`[StockDetailsPage] Loading data for ${symbol}`);
+            // console.log(`[StockDetailsPage] Loading data for ${symbol}`);
             setLoading(true);
             setError(null);
             setStockData(null);
@@ -103,14 +104,14 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 // Chart API call
                 const chartPromise = (async () => {
                     try {
-                        const chartResp = await fetch(`${API_BASE_PAGE}/api/chart/${symbol}`, {
+                        const chartResp = await fetch(`${API_BASE_PAGE}/api/chart/${symbol}?range=1D`, {
                             credentials: 'include'
                         });
                         if (chartResp.ok) {
                             return await chartResp.json();
                         }
                     } catch (error) {
-                        console.log(`[StockDetailsPage] Chart API error:`, error);
+                        // console.log(`[StockDetailsPage] Chart API error:`, error);
                     }
                     return null;
                 })();
@@ -135,7 +136,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             setIsInWatchlist(false);
                         }
                     } catch (watchlistErr) {
-                        console.log('[StockDetailsPage] Could not check watchlist status:', watchlistErr);
+                        // console.log('[StockDetailsPage] Could not check watchlist status:', watchlistErr);
                         setIsInWatchlist(false);
                     }
                 } else {
@@ -161,34 +162,36 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             setNewsHasMore(newsRespData.hasMore);
                         }
                     } catch (error) {
-                        console.log(`[StockDetailsPage] News API error:`, error);
+                        // console.log(`[StockDetailsPage] News API error:`, error);
                     } finally {
                         setNewsLoading(false);
                     }
                 })();
 
-                // Load Stocktwits
-                setStocktwitsLoading(true);
-                setStocktwits([]);
-                setStocktwitsCursor(null);
-                setStocktwitsHasMore(true);
-                (async () => {
-                    try {
-                        const stocktwitsResp = await fetch(`${API_BASE_PAGE}/api/stocktwits/${symbol}?limit=15`, {
-                            credentials: 'include'
-                        });
-                        if (stocktwitsResp.ok) {
-                            const stocktwitsData = await stocktwitsResp.json();
-                            setStocktwits(stocktwitsData.messages || []);
-                            setStocktwitsCursor(stocktwitsData.cursor || null);
-                            setStocktwitsHasMore(stocktwitsData.has_more !== false);
+                // Load Stocktwits (skip for indices, they don't have Stocktwits feeds)
+                if (!symbol.startsWith('^')) {
+                    setStocktwitsLoading(true);
+                    setStocktwits([]);
+                    setStocktwitsCursor(null);
+                    setStocktwitsHasMore(true);
+                    (async () => {
+                        try {
+                            const stocktwitsResp = await fetch(`${API_BASE_PAGE}/api/stocktwits/${symbol}?limit=15`, {
+                                credentials: 'include'
+                            });
+                            if (stocktwitsResp.ok) {
+                                const stocktwitsData = await stocktwitsResp.json();
+                                setStocktwits(stocktwitsData.messages || []);
+                                setStocktwitsCursor(stocktwitsData.cursor || null);
+                                setStocktwitsHasMore(stocktwitsData.has_more !== false);
+                            }
+                        } catch (error) {
+                            // console.log(`[StockDetailsPage] Stocktwits API error:`, error);
+                        } finally {
+                            setStocktwitsLoading(false);
                         }
-                    } catch (error) {
-                        console.log(`[StockDetailsPage] Stocktwits API error:`, error);
-                    } finally {
-                        setStocktwitsLoading(false);
-                    }
-                })();
+                    })();
+                }
 
                 // Load AI insight
                 setAiInsightLoading(true);
@@ -203,7 +206,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             setAiInsight(insightData);
                         }
                     } catch (error) {
-                        console.log(`[StockDetailsPage] AI insight API error:`, error);
+                        // console.log(`[StockDetailsPage] AI insight API error:`, error);
                     } finally {
                         setAiInsightLoading(false);
                     }
@@ -296,6 +299,22 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         });
     };
 
+    const formatTimeAgo = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
     const loadMoreNews = async () => {
         if (newsLoadingMore || !newsHasMore || !symbol) return;
         setNewsLoadingMore(true);
@@ -315,7 +334,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 setNewsHasMore(newsRespData.hasMore && newArticles.length > 0);
             }
         } catch (error) {
-            console.log(`[StockDetailsPage] Error loading more news:`, error);
+            // console.log(`[StockDetailsPage] Error loading more news:`, error);
         } finally {
             setNewsLoadingMore(false);
         }
@@ -343,7 +362,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 setStocktwitsHasMore(stocktwitsData.has_more !== false && newMessages.length > 0);
             }
         } catch (error) {
-            console.log(`[StockDetailsPage] Error loading more stocktwits:`, error);
+            // console.log(`[StockDetailsPage] Error loading more stocktwits:`, error);
         } finally {
             setStocktwitsLoadingMore(false);
         }
@@ -367,18 +386,18 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     };
 
     const handleAddToWatchlist = async () => {
-        console.log('[StockDetailsPage] Add to watchlist clicked for:', symbol);
-        console.log('[StockDetailsPage] Current state - isInWatchlist:', isInWatchlist, 'addingToWatchlist:', addingToWatchlist);
+        // console.log('[StockDetailsPage] Add to watchlist clicked for:', symbol);
+        // console.log('[StockDetailsPage] Current state - isInWatchlist:', isInWatchlist, 'addingToWatchlist:', addingToWatchlist);
 
         if (isInWatchlist || addingToWatchlist) {
-            console.log('[StockDetailsPage] Returning early - already in watchlist or adding');
+            // console.log('[StockDetailsPage] Returning early - already in watchlist or adding');
             return;
         }
 
         setAddingToWatchlist(true);
         try {
             const authHeaders = await window.getAuthHeaders();
-            console.log('[StockDetailsPage] Auth headers obtained:', !!authHeaders);
+            // console.log('[StockDetailsPage] Auth headers obtained:', !!authHeaders);
 
             const response = await fetch(`${API_BASE_PAGE}/api/watchlist`, {
                 method: 'POST',
@@ -387,11 +406,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 body: JSON.stringify({ symbol })
             });
 
-            console.log('[StockDetailsPage] Watchlist API response status:', response.status);
+            // console.log('[StockDetailsPage] Watchlist API response status:', response.status);
 
             if (response.ok) {
                 setIsInWatchlist(true);
-                console.log('[StockDetailsPage] Successfully added to watchlist');
+                // console.log('[StockDetailsPage] Successfully added to watchlist');
                 if (window.showNotification) {
                     window.showNotification(`${symbol} added to watchlist`, 'success');
                 }
@@ -458,13 +477,13 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const isPositive = priceChangePercent >= 0;
 
     // Debug logging for price change
-    console.log('[StockDetailsPage] Stock data received:', {
-        symbol: stockData.symbol,
-        price: stockData.price,
-        percentageChange: stockData.percentageChange,
-        priceChangePercent: stockData.priceChangePercent,
-        calculatedPercent: priceChangePercent
-    });
+    // console.log('[StockDetailsPage] Stock data received:', {
+    //     symbol: stockData.symbol,
+    //     price: stockData.price,
+    //     percentageChange: stockData.percentageChange,
+    //     priceChangePercent: stockData.priceChangePercent,
+    //     calculatedPercent: priceChangePercent
+    // });
 
     return (
         <div className="stock-page-container">
@@ -510,8 +529,8 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 </div>
             </nav>
 
-            <main className="stock-page-main">
-                <div className="stock-page-primary">
+            <main className={`stock-page-main ${isIndex ? 'index-view' : ''}`}>
+                <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}>
                     {/* AI Insight */}
                     <section className="ai-insight-card">
                         <div className="card-header">
@@ -573,14 +592,25 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                             href={article.link || article.url}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="news-item"
+                                            className="news-item-redesign"
                                         >
-                                            <h4>{article.title}</h4>
-                                            <p>{article.summary || article.description}</p>
-                                            <div className="news-meta">
-                                                <span className="news-source">{article.source}</span>
-                                                <span className="news-date">{formatDate(article.published_at || article.publishedAt)}</span>
+                                            <div className="news-item-content">
+                                                <h4 className="news-item-title">{article.title}</h4>
+                                                <div className="news-item-meta">
+                                                    <span className="news-source">{article.source}</span>
+                                                    <span className="news-meta-separator">•</span>
+                                                    <span className="news-time">{formatTimeAgo(article.published_at || article.publishedAt)}</span>
+                                                </div>
                                             </div>
+                                            {(article.image_url || article.urlToImage) && (
+                                                <div className="news-item-thumbnail">
+                                                    <img
+                                                        src={article.image_url || article.urlToImage}
+                                                        alt=""
+                                                        onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                                                    />
+                                                </div>
+                                            )}
                                         </a>
                                     ))}
                                     {newsHasMore && (
@@ -647,54 +677,56 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     {/* About */}
                     <section className="about-section">
                         <div className="section-header">
-                            <h3><i className="fas fa-building"></i> About {stockData.name || symbol}</h3>
+                            <h3><i className={isIndex ? "fas fa-chart-line" : "fas fa-building"}></i> About {stockData.name || symbol}</h3>
                         </div>
                         <div className="about-content">
-                            <p className="description">{stockData.description || 'No description available.'}</p>
-                            <div className="company-details">
-                                <div className="detail-item">
-                                    <span className="detail-label">CEO</span>
-                                    <span
-                                        className={`detail-value ${stockData.ceo && stockData.ceo !== '-' ? 'clickable' : ''}`}
-                                        onClick={() => {
-                                            if (stockData.ceo && stockData.ceo !== '-') {
-                                                setSelectedCEO({
-                                                    name: stockData.ceo,
-                                                    company: stockData.name || symbol,
-                                                    symbol: symbol
-                                                });
-                                                setCeoModalOpen(true);
-                                            }
-                                        }}
-                                    >
-                                        {cleanCEOName(stockData.ceo) || '-'}
-                                        {stockData.ceo && stockData.ceo !== '-' && <i className="fas fa-external-link-alt"></i>}
-                                    </span>
+                            <p className="description">{stockData.description || (isIndex ? 'Market index tracking major equities.' : 'No description available.')}</p>
+                            {!isIndex && (
+                                <div className="company-details">
+                                    <div className="detail-item">
+                                        <span className="detail-label">CEO</span>
+                                        <span
+                                            className={`detail-value ${stockData.ceo && stockData.ceo !== '-' ? 'clickable' : ''}`}
+                                            onClick={() => {
+                                                if (stockData.ceo && stockData.ceo !== '-') {
+                                                    setSelectedCEO({
+                                                        name: stockData.ceo,
+                                                        company: stockData.name || symbol,
+                                                        symbol: symbol
+                                                    });
+                                                    setCeoModalOpen(true);
+                                                }
+                                            }}
+                                        >
+                                            {cleanCEOName(stockData.ceo) || '-'}
+                                            {stockData.ceo && stockData.ceo !== '-' && <i className="fas fa-external-link-alt"></i>}
+                                        </span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Headquarters</span>
+                                        <span className="detail-value">{stockData.headquarters || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Website</span>
+                                        <span className="detail-value">
+                                            {stockData.website && stockData.website !== '-' ? (
+                                                <a href={stockData.website} target="_blank" rel="noopener noreferrer">
+                                                    {stockData.website.replace(/^https?:\/\//, '')}
+                                                    <i className="fas fa-external-link-alt"></i>
+                                                </a>
+                                            ) : '-'}
+                                        </span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Sector</span>
+                                        <span className="detail-value">{stockData.sector || '-'}</span>
+                                    </div>
+                                    <div className="detail-item">
+                                        <span className="detail-label">Industry</span>
+                                        <span className="detail-value">{stockData.industry || '-'}</span>
+                                    </div>
                                 </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Headquarters</span>
-                                    <span className="detail-value">{stockData.headquarters || '-'}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Website</span>
-                                    <span className="detail-value">
-                                        {stockData.website && stockData.website !== '-' ? (
-                                            <a href={stockData.website} target="_blank" rel="noopener noreferrer">
-                                                {stockData.website.replace(/^https?:\/\//, '')}
-                                                <i className="fas fa-external-link-alt"></i>
-                                            </a>
-                                        ) : '-'}
-                                    </span>
-                                </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Sector</span>
-                                    <span className="detail-value">{stockData.sector || '-'}</span>
-                                </div>
-                                <div className="detail-item">
-                                    <span className="detail-label">Industry</span>
-                                    <span className="detail-value">{stockData.industry || '-'}</span>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </section>
 
@@ -736,112 +768,114 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     )}
                 </div>
 
-                <div className="stock-page-secondary">
-                    {/* Sentiment */}
-                    <section className="sentiment-section">
-                        <div className="section-header">
-                            <h3><i className="fas fa-comments"></i> Social Sentiment</h3>
-                            <span className="source-badge">Stocktwits</span>
-                        </div>
-                        <div
-                            className="sentiment-content"
-                            ref={sentimentContainerRef}
-                            onScroll={handleSentimentScroll}
-                            style={{ maxHeight: '600px', overflowY: 'auto' }}
-                        >
-                            {stocktwitsLoading ? (
-                                <div className="loading-state">
-                                    <i className="fas fa-spinner fa-spin"></i>
-                                    <span>Loading sentiment...</span>
-                                </div>
-                            ) : stocktwits.length > 0 ? (
-                                <div className="stocktwits-list">
-                                    {stocktwits.map((message, index) => (
-                                        <a
-                                            key={message.id || index}
-                                            href={`https://stocktwits.com/${message.user?.username || 'symbol'}/${message.id}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className={`tweet-item clickable ${message.sentiment?.toLowerCase() || 'neutral'}`}
-                                            style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
-                                        >
-                                            <div className="tweet-header">
-                                                {message.user?.avatar_url ? (
-                                                    <img
-                                                        src={message.user.avatar_url.replace('http://', 'https://')}
-                                                        alt=""
-                                                        className="avatar"
-                                                        onError={(e) => { e.target.style.display = 'none'; }}
-                                                    />
-                                                ) : (
-                                                    <div className="avatar-placeholder">
-                                                        <i className="fas fa-user"></i>
-                                                    </div>
-                                                )}
-                                                <span className="username">
-                                                    @{message.user?.username || 'Anonymous'}
-                                                    {message.user?.official && <i className="fas fa-check-circle verified"></i>}
-                                                </span>
-                                                <span className="time">{message.time_ago}</span>
-                                                {message.sentiment && message.sentiment !== 'Neutral' && (
-                                                    <span className={`sentiment-badge ${message.sentiment.toLowerCase()}`}>
-                                                        {message.sentiment === 'Bullish' ? 'Bullish' : 'Bearish'}
+                {!isIndex && (
+                    <div className="stock-page-secondary">
+                        {/* Sentiment - only shown for individual stocks, not indices */}
+                        <section className="sentiment-section">
+                            <div className="section-header">
+                                <h3><i className="fas fa-comments"></i> Social Sentiment</h3>
+                                <span className="source-badge">Stocktwits</span>
+                            </div>
+                            <div
+                                className="sentiment-content"
+                                ref={sentimentContainerRef}
+                                onScroll={handleSentimentScroll}
+                                style={{ maxHeight: '600px', overflowY: 'auto' }}
+                            >
+                                {stocktwitsLoading ? (
+                                    <div className="loading-state">
+                                        <i className="fas fa-spinner fa-spin"></i>
+                                        <span>Loading sentiment...</span>
+                                    </div>
+                                ) : stocktwits.length > 0 ? (
+                                    <div className="stocktwits-list">
+                                        {stocktwits.map((message, index) => (
+                                            <a
+                                                key={message.id || index}
+                                                href={`https://stocktwits.com/${message.user?.username || 'symbol'}/message/${message.id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={`tweet-item clickable ${message.sentiment?.toLowerCase() || 'neutral'}`}
+                                                style={{ textDecoration: 'none', color: 'inherit', display: 'block', cursor: 'pointer' }}
+                                            >
+                                                <div className="tweet-header">
+                                                    {message.user?.avatar_url ? (
+                                                        <img
+                                                            src={message.user.avatar_url.replace('http://', 'https://')}
+                                                            alt=""
+                                                            className="avatar"
+                                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                                        />
+                                                    ) : (
+                                                        <div className="avatar-placeholder">
+                                                            <i className="fas fa-user"></i>
+                                                        </div>
+                                                    )}
+                                                    <span className="username">
+                                                        @{message.user?.username || 'Anonymous'}
+                                                        {message.user?.official && <i className="fas fa-check-circle verified"></i>}
                                                     </span>
+                                                    <span className="time">{message.time_ago}</span>
+                                                    {message.sentiment && message.sentiment !== 'Neutral' && (
+                                                        <span className={`sentiment-badge ${message.sentiment.toLowerCase()}`}>
+                                                            {message.sentiment === 'Bullish' ? 'Bullish' : 'Bearish'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="tweet-body">{message.body}</p>
+                                                <div className="tweet-footer">
+                                                    {(message.likes_count > 0 || message.replies_count > 0) && (
+                                                        <div className="tweet-stats">
+                                                            {message.likes_count > 0 && (
+                                                                <span><i className="fas fa-heart"></i> {message.likes_count}</span>
+                                                            )}
+                                                            {message.replies_count > 0 && (
+                                                                <span><i className="fas fa-reply"></i> {message.replies_count}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    <span className="external-link">
+                                                        <i className="fas fa-external-link-alt"></i>
+                                                    </span>
+                                                </div>
+                                            </a>
+                                        ))}
+                                        {stocktwitsHasMore && (
+                                            <button
+                                                className="load-more-btn"
+                                                onClick={loadMoreStocktwits}
+                                                disabled={stocktwitsLoadingMore}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '12px',
+                                                    marginTop: '12px',
+                                                    background: 'rgba(34, 197, 94, 0.1)',
+                                                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                                                    borderRadius: '8px',
+                                                    color: '#22c55e',
+                                                    cursor: stocktwitsLoadingMore ? 'not-allowed' : 'pointer',
+                                                    fontSize: '14px',
+                                                    fontWeight: '500'
+                                                }}
+                                            >
+                                                {stocktwitsLoadingMore ? (
+                                                    <><i className="fas fa-spinner fa-spin"></i> Loading...</>
+                                                ) : (
+                                                    <><i className="fas fa-plus"></i> Load More Comments</>
                                                 )}
-                                            </div>
-                                            <p className="tweet-body">{message.body}</p>
-                                            <div className="tweet-footer">
-                                                {(message.likes_count > 0 || message.replies_count > 0) && (
-                                                    <div className="tweet-stats">
-                                                        {message.likes_count > 0 && (
-                                                            <span><i className="fas fa-heart"></i> {message.likes_count}</span>
-                                                        )}
-                                                        {message.replies_count > 0 && (
-                                                            <span><i className="fas fa-reply"></i> {message.replies_count}</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <span className="external-link">
-                                                    <i className="fas fa-external-link-alt"></i>
-                                                </span>
-                                            </div>
-                                        </a>
-                                    ))}
-                                    {stocktwitsHasMore && (
-                                        <button
-                                            className="load-more-btn"
-                                            onClick={loadMoreStocktwits}
-                                            disabled={stocktwitsLoadingMore}
-                                            style={{
-                                                width: '100%',
-                                                padding: '12px',
-                                                marginTop: '12px',
-                                                background: 'rgba(34, 197, 94, 0.1)',
-                                                border: '1px solid rgba(34, 197, 94, 0.3)',
-                                                borderRadius: '8px',
-                                                color: '#22c55e',
-                                                cursor: stocktwitsLoadingMore ? 'not-allowed' : 'pointer',
-                                                fontSize: '14px',
-                                                fontWeight: '500'
-                                            }}
-                                        >
-                                            {stocktwitsLoadingMore ? (
-                                                <><i className="fas fa-spinner fa-spin"></i> Loading...</>
-                                            ) : (
-                                                <><i className="fas fa-plus"></i> Load More Comments</>
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="empty-state">
-                                    <i className="fas fa-comment-slash"></i>
-                                    <p>No recent posts for {symbol}</p>
-                                </div>
-                            )}
-                        </div>
-                    </section>
-                </div>
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="empty-state">
+                                        <i className="fas fa-comment-slash"></i>
+                                        <p>No recent posts for {symbol}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                )}
             </main>
 
             {ceoModalOpen && window.CEODetailsModal && React.createElement(window.CEODetailsModal, {
@@ -875,7 +909,7 @@ const initPage = () => {
 };
 
 window.navigateToStockPage = (symbol, isFromWatchlist = false) => {
-    console.log(`[StockDetailsPage] Navigating to ${symbol}`);
+    // console.log(`[StockDetailsPage] Navigating to ${symbol}`);
     initPage();
 
     const newUrl = `/stock/${symbol}`;
@@ -909,7 +943,7 @@ window.navigateToStockPage = (symbol, isFromWatchlist = false) => {
 };
 
 window.navigateBackToDashboard = () => {
-    console.log('[StockDetailsPage] Navigating back to dashboard');
+    // console.log('[StockDetailsPage] Navigating back to dashboard');
     window.history.pushState({ page: 'dashboard' }, '', '/');
 
     if (pageRoot) {
@@ -930,7 +964,7 @@ window.navigateBackToDashboard = () => {
 };
 
 window.addEventListener('popstate', (event) => {
-    console.log('[StockDetailsPage] Popstate event:', event.state);
+    // console.log('[StockDetailsPage] Popstate event:', event.state);
 
     if (event.state?.page === 'stock' && event.state?.symbol) {
         window.navigateToStockPage(event.state.symbol, event.state.isFromWatchlist || false);
@@ -955,7 +989,7 @@ window.handleInitialStockUrl = () => {
 
     if (stockMatch) {
         const symbol = stockMatch[1].toUpperCase();
-        console.log(`[StockDetailsPage] Initial load for stock: ${symbol}`);
+        // console.log(`[StockDetailsPage] Initial load for stock: ${symbol}`);
 
         // Wait for page container to be ready
         const attemptNavigation = (retries = 0) => {
@@ -994,4 +1028,4 @@ if (document.readyState === 'complete') {
 
 window.StockDetailsPage = StockDetailsPage;
 
-console.log('[StockDetailsPage] Component loaded');
+// console.log('[StockDetailsPage] Component loaded');

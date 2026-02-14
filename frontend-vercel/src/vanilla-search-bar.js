@@ -17,8 +17,29 @@ const VANILLA_POPULAR_STOCKS = [
     { symbol: 'NVDA', name: 'NVIDIA Corporation' },
     { symbol: 'NFLX', name: 'Netflix Inc.' },
     { symbol: 'AMD', name: 'Advanced Micro Devices Inc.' },
-    { symbol: 'CRM', name: 'Salesforce Inc.' }
+    { symbol: 'CRM', name: 'Salesforce Inc.' },
+    { symbol: 'INTC', name: 'Intel Corporation' },
+    { symbol: 'IBM', name: 'International Business Machines Corporation' },
+    { symbol: 'ORCL', name: 'Oracle Corporation' },
+    { symbol: 'CSCO', name: 'Cisco Systems Inc.' },
+    { symbol: 'ADBE', name: 'Adobe Inc.' },
+    { symbol: 'SAP', name: 'SAP SE' },
+    { symbol: 'UBER', name: 'Uber Technologies Inc.' },
+    { symbol: 'LYFT', name: 'Lyft Inc.' },
+    { symbol: 'TWTR', name: 'Twitter Inc.' },
+    { symbol: 'SNAP', name: 'Snap Inc.' },
+    { symbol: 'SQ', name: 'Block Inc.' },
+    { symbol: 'PYPL', name: 'PayPal Holdings Inc.' },
+    { symbol: 'SHOP', name: 'Shopify Inc.' },
+    { symbol: 'ZM', name: 'Zoom Video Communications Inc.' },
+    { symbol: 'DOCU', name: 'DocuSign Inc.' },
+    { symbol: 'PINS', name: 'Pinterest Inc.' },
+    { symbol: 'INTU', name: 'Intuit Inc.' },
+    { symbol: 'ATVI', name: 'Activision Blizzard Inc.' },
+    { symbol: 'EA', name: 'Electronic Arts Inc.' },
+    { symbol: 'ROKU', name: 'Roku Inc.' }
 ];
+
 
 // Wake up backend function
 async function wakeUpBackend() {
@@ -213,10 +234,14 @@ function displaySearchSuggestions(container, suggestions, inputElement) {
     suggestions.slice(0, 5).forEach(suggestion => {
         const suggestionItem = document.createElement('div');
         suggestionItem.className = 'suggestion-item';
-        suggestionItem.innerHTML = `
-            <div class="suggestion-symbol">${suggestion.symbol}</div>
-            <div class="suggestion-name">${suggestion.name}</div>
-        `;
+        const symbolDiv = document.createElement('div');
+        symbolDiv.className = 'suggestion-symbol';
+        symbolDiv.textContent = suggestion.symbol;
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'suggestion-name';
+        nameDiv.textContent = suggestion.name;
+        suggestionItem.appendChild(symbolDiv);
+        suggestionItem.appendChild(nameDiv);
         
         suggestionItem.addEventListener('click', function() {
             inputElement.value = suggestion.symbol;
@@ -284,4 +309,4 @@ if (document.readyState === 'loading') {
     initializeVanillaSearchBar();
 }
 
-// Vanilla Search Bar script loaded
+

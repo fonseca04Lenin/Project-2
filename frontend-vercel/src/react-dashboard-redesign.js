@@ -1,5 +1,6 @@
 // Modern Financial Dashboard Redesign - Concept Prototype
 const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef, useMemo } = React;
 
 const DashboardRedesign = () => {
     const [activeView, setActiveView] = useState('overview');
@@ -26,7 +27,7 @@ const DashboardRedesign = () => {
     // Preferences state
     const [preferences, setPreferences] = useState({
         theme: 'dark', // dark, light
-        defaultTimeRange: '1M',
+        defaultTimeRange: '1D',
         autoRefresh: true,
         refreshInterval: 30, // seconds
         priceFormat: 'standard', // standard, compact
@@ -79,12 +80,12 @@ const DashboardRedesign = () => {
     const updateStatsRef = useRef({ updates: [], lastMinute: [] });
     const isLoadingRef = useRef(false); // Prevent duplicate watchlist requests
 
-    // Load preferences from localStorage
+    // Load preferences from localStorage (merge with defaults so new keys are always present)
     const loadPreferences = () => {
         try {
             const saved = localStorage.getItem('userPreferences');
             if (saved) {
-                setPreferences(JSON.parse(saved));
+                setPreferences(prev => ({ ...prev, ...JSON.parse(saved) }));
             }
         } catch (e) {
             // Use defaults if loading fails
@@ -259,6 +260,18 @@ const DashboardRedesign = () => {
             loadAlpacaStatus();
         }
     }, [preferencesOpen]);
+
+    // Apply preferences when they change
+    useEffect(() => {
+        // Theme
+        document.body.setAttribute('data-theme', preferences.theme || 'dark');
+
+        // Store defaultTimeRange globally so chart components can read it
+        window.__defaultTimeRange = preferences.defaultTimeRange || '1D';
+
+        // Store preferences globally for child components
+        window.__userPreferences = preferences;
+    }, [preferences]);
 
     useEffect(() => {
         // Load critical data first (non-blocking)
@@ -852,14 +865,15 @@ const DashboardRedesign = () => {
         };
     }, [userMenuOpen]);
 
-    // Periodic watchlist refresh to keep cache updated
+    // Periodic watchlist refresh to keep cache updated (controlled by autoRefresh preference)
     useEffect(() => {
+        if (!preferences.autoRefresh) return;
+
         const refreshWatchlist = () => {
             // Only refresh if user is authenticated and we have data
             if (window.firebaseAuth?.currentUser && watchlistData.length > 0) {
                 const timeSinceLastLoad = Date.now() - lastSuccessfulLoadRef.current;
                 if (timeSinceLastLoad > WATCHLIST_REFRESH_INTERVAL) {
-                    // // console.log('Periodic watchlist refresh triggered');
                     loadWatchlistData();
                 }
             }
@@ -869,7 +883,7 @@ const DashboardRedesign = () => {
         const refreshInterval = setInterval(refreshWatchlist, 2 * 60 * 1000);
 
         return () => clearInterval(refreshInterval);
-    }, [watchlistData.length]);
+    }, [watchlistData.length, preferences.autoRefresh]);
 
     // Watchlist localStorage cache helpers
     const WATCHLIST_CACHE_KEY = 'watchlist_cache';
@@ -1570,7 +1584,15 @@ const DashboardRedesign = () => {
                 chartContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ef4444;"><i class="fas fa-exclamation-circle"></i><p>Failed to load chart data</p></div>';
             }
         } catch (error) {
-            chartContainer.innerHTML = `<div style="padding: 2rem; text-align: center; color: #ef4444;"><i class="fas fa-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+            const errorText = document.createTextNode(error.message);
+            const errorP = document.createElement('p');
+            errorP.appendChild(errorText);
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'padding: 2rem; text-align: center; color: #ef4444;';
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+            errorDiv.appendChild(errorP);
+            chartContainer.innerHTML = '';
+            chartContainer.appendChild(errorDiv);
         }
         
         // Close on escape key
@@ -1931,9 +1953,9 @@ const DashboardRedesign = () => {
 
             {/* Main Content Area */}
             <div className="dashboard-content">
-                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} />}
+                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} preferences={preferences} />}
                 {activeView === 'watchlist' && (
-                    <WatchlistView 
+                    <WatchlistView
                         watchlistData={watchlistData}
                         onOpenDetails={openDetails}
                         onRemove={removeFromWatchlist}
@@ -1944,12 +1966,14 @@ const DashboardRedesign = () => {
                         categories={categories}
                         onStockHover={handleStockHover}
                         updatingStocks={updatingStocks}
+                        preferences={preferences}
                     />
                 )}
                 {activeView === 'news' && <NewsView />}
                 {activeView === 'whatswhat' && <WhatsWhatView />}
                 {activeView === 'intelligence' && <IntelligenceView />}
                 {activeView === 'map' && <MapView />}
+                {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
                 {activeView === 'trading' && <TradingView />}
                 {activeView === 'assistant' && <AIAssistantView />}
             </div>
@@ -2288,7 +2312,7 @@ const DashboardRedesign = () => {
                             <p>We reserve the right to modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the new terms.</p>
 
                             <h3>8. Contact</h3>
-                            <p>For questions about these Terms of Service, please contact us at support@destinyheroe.com</p>
+                            <p>For questions about these Terms of Service, please contact us at destinyheroev@gmail.com</p>
                         </div>
                         <div className="modal-footer">
                             <button className="btn-primary" onClick={() => setTermsOpen(false)}>I Understand</button>
@@ -2370,7 +2394,7 @@ const DashboardRedesign = () => {
                             <p>Our Service is not intended for children under 13. We do not knowingly collect personal information from children under 13.</p>
 
                             <h3>10. Contact Us</h3>
-                            <p>For privacy-related questions or concerns, please contact us at privacy@destinyheroe.com</p>
+                            <p>For privacy-related questions or concerns, please contact us at destinyheroev@gmail.com</p>
                         </div>
                         <div className="modal-footer">
                             <button className="btn-primary" onClick={() => setPrivacyOpen(false)}>I Understand</button>
@@ -2398,8 +2422,8 @@ const DashboardRedesign = () => {
                                 <div className="help-content">
                                     <h3>Contact Us</h3>
                                     <p>In case of questions or feedback, email:</p>
-                                    <a href="mailto:support@destinyheroe.com" className="help-email">
-                                        support@destinyheroe.com
+                                    <a href="mailto:destinyheroev@gmail.com" className="help-email">
+                                        destinyheroev@gmail.com
                                     </a>
                                 </div>
                             </div>
@@ -2448,11 +2472,11 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }) 
     useEffect(() => {
         if (!symbol) return;
 
-        // Fetch 30-day chart data for sparkline (more data points = smoother line)
+        // Fetch 1-day chart data for sparkline (real-time/daily view)
         const fetchSparklineData = async () => {
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=1M`, {
+                const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=1D`, {
                     credentials: 'include'
                 });
 
@@ -2807,242 +2831,262 @@ const SectorAllocationChart = ({ watchlistData }) => {
     );
 };
 
-// Performance Timeline Component
-const PerformanceTimeline = ({ watchlistData, selectedRange, onRangeChange }) => {
-    
-    const ranges = ['1D', '1W', '1M', '3M', '1Y'];
-    
+// Market Overview Component - Shows major indices
+const MarketOverview = ({ marketStatus }) => {
+    const [indices, setIndices] = useState([
+        { symbol: '^GSPC', name: 'S&P 500', shortName: 'S&P', price: null, change: null, changePercent: null },
+        { symbol: '^IXIC', name: 'NASDAQ', shortName: 'NASDAQ', price: null, change: null, changePercent: null },
+        { symbol: '^DJI', name: 'Dow Jones', shortName: 'DOW', price: null, change: null, changePercent: null }
+    ]);
+    const [loading, setLoading] = useState(true);
+    const [lastUpdate, setLastUpdate] = useState(null);
+
+    useEffect(() => {
+        const fetchIndices = async () => {
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+
+            const fetchIndex = async (symbol, fallbackSymbol) => {
+                try {
+                    // Try the index symbol first, then fallback to ETF
+                    let response = await fetch(`${API_BASE}/api/company/${encodeURIComponent(symbol)}`, {
+                        credentials: 'include'
+                    });
+
+                    if (!response.ok && fallbackSymbol) {
+                        response = await fetch(`${API_BASE}/api/company/${fallbackSymbol}`, {
+                            credentials: 'include'
+                        });
+                    }
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        return {
+                            price: data.price || data.currentPrice || data.regularMarketPrice,
+                            change: data.change || data.priceChange || 0,
+                            changePercent: data.changePercent || data.priceChangePercent || data.percentageChange || 0
+                        };
+                    }
+                } catch (e) {
+                    console.log(`Failed to fetch ${symbol}:`, e);
+                }
+                return null;
+            };
+
+            const [sp500, nasdaq, dow] = await Promise.all([
+                fetchIndex('^GSPC', 'SPY'),
+                fetchIndex('^IXIC', 'QQQ'),
+                fetchIndex('^DJI', 'DIA')
+            ]);
+
+            setIndices(prev => [
+                { ...prev[0], ...(sp500 || {}) },
+                { ...prev[1], ...(nasdaq || {}) },
+                { ...prev[2], ...(dow || {}) }
+            ]);
+            setLastUpdate(new Date());
+            setLoading(false);
+        };
+
+        fetchIndices();
+        const interval = setInterval(fetchIndices, 60000); // Refresh every minute
+        return () => clearInterval(interval);
+    }, []);
+
+    const formatPrice = (price) => {
+        if (!price) return '—';
+        return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const formatChange = (change, percent) => {
+        if (change === null || percent === null) return { text: '—', isPositive: true };
+        const isPositive = percent >= 0;
+        const sign = isPositive ? '+' : '';
+        return {
+            text: `${sign}${percent.toFixed(2)}%`,
+            isPositive
+        };
+    };
+
     return (
-        <div className="performance-timeline">
-            <div className="timeline-header">
-                <h4>Portfolio Performance</h4>
-                <div className="range-selector">
-                    {ranges.map(range => (
-                        <button
-                            key={range}
-                            className={`range-btn ${selectedRange === range ? 'active' : ''}`}
-                            onClick={() => onRangeChange && onRangeChange(range)}
+        <div className="market-overview-card">
+            <div className="market-overview-header">
+                <div className="market-title">
+                    <span className="market-label">Markets</span>
+                    <span className={`market-status-dot ${marketStatus?.isOpen ? 'open' : 'closed'}`}></span>
+                </div>
+                {lastUpdate && (
+                    <span className="market-update-time">
+                        {lastUpdate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                )}
+            </div>
+
+            <div className="market-indices">
+                {indices.map((index, i) => {
+                    const { text: changeText, isPositive } = formatChange(index.change, index.changePercent);
+                    return (
+                        <div
+                            key={index.symbol}
+                            className="market-index-item clickable"
+                            onClick={() => {
+                                if (window.navigateToStockPage) {
+                                    window.navigateToStockPage(index.symbol, false);
+                                }
+                            }}
+                            style={{ cursor: 'pointer' }}
                         >
-                            {range}
-                        </button>
-                    ))}
+                            <div className="index-name">{index.shortName}</div>
+                            <div className="index-data">
+                                {loading ? (
+                                    <div className="index-skeleton"></div>
+                                ) : (
+                                    <>
+                                        <span className="index-price">{formatPrice(index.price)}</span>
+                                        <span className={`index-change ${isPositive ? 'up' : 'down'}`}>
+                                            {changeText}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// Market Intelligence Quick Look Widget
+const MarketIntelligenceWidget = ({ onNavigate }) => {
+    const [earningsCount, setEarningsCount] = useState(null);
+    const [newsData, setNewsData] = useState(null);
+    const [topSector, setTopSector] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchIntelData = async () => {
+            try {
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const authHeaders = await window.getAuthHeaders();
+                const opts = { headers: authHeaders, credentials: 'include' };
+
+                const [earningsRes, newsRes] = await Promise.allSettled([
+                    fetch(`${API_BASE}/api/market/earnings`, opts),
+                    fetch(`${API_BASE}/api/news/market?limit=5`, opts)
+                ]);
+
+                if (earningsRes.status === 'fulfilled' && earningsRes.value.ok) {
+                    const data = await earningsRes.value.json();
+                    const arr = Array.isArray(data) ? data : [];
+                    setEarningsCount(arr.length);
+                }
+
+                if (newsRes.status === 'fulfilled' && newsRes.value.ok) {
+                    const data = await newsRes.value.json();
+                    const articles = Array.isArray(data) ? data : (data.articles || []);
+                    setNewsData({ count: articles.length, headline: articles[0]?.title || articles[0]?.headline || null });
+                }
+
+                // Derive top sector from watchlist market data
+                try {
+                    const sectorRes = await fetch(`${API_BASE}/api/sectors/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...authHeaders },
+                        credentials: 'include',
+                        body: JSON.stringify({ symbols: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'JNJ', 'XOM'] })
+                    });
+                    if (sectorRes.ok) {
+                        const sectors = await sectorRes.json();
+                        const counts = {};
+                        Object.values(sectors).forEach(s => { counts[s] = (counts[s] || 0) + 1; });
+                        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+                        if (top) setTopSector(top[0]);
+                    }
+                } catch (_) {}
+            } catch (_) {}
+            setLoading(false);
+        };
+        fetchIntelData();
+    }, []);
+
+    const handleClick = (tab) => {
+        onNavigate('intelligence');
+        setTimeout(() => {
+            if (window.__setIntelTab) window.__setIntelTab(tab);
+        }, 100);
+    };
+
+    const items = [
+        {
+            icon: 'fa-calendar',
+            title: 'Earnings Calendar',
+            subtitle: loading ? 'Loading...' : (earningsCount !== null ? `${earningsCount} companies reporting soon` : 'View upcoming earnings'),
+            tab: 'earnings'
+        },
+        {
+            icon: 'fa-chart-bar',
+            title: 'Sector Performance',
+            subtitle: loading ? 'Loading...' : (topSector ? `${topSector} leading today` : 'View sector trends'),
+            tab: null // navigates to intelligence overview
+        },
+        {
+            icon: 'fa-file-alt',
+            title: 'Market News',
+            subtitle: loading ? 'Loading...' : (newsData?.headline ? newsData.headline.substring(0, 50) + (newsData.headline.length > 50 ? '...' : '') : 'Latest market updates'),
+            tab: null // navigates to news
+        }
+    ];
+
+    return (
+        <div className="insights-list">
+            {items.map((item, i) => (
+                <div
+                    key={i}
+                    className="insight-item"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence'); }}}
+                    style={{ cursor: 'pointer', transition: 'background 0.2s, transform 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                >
+                    <div className="insight-icon">
+                        <i className={`fas ${item.icon}`}></i>
                     </div>
+                    <div className="insight-content">
+                        <h4>{item.title}</h4>
+                        <p>{item.subtitle}</p>
                     </div>
+                    <i className="fas fa-chevron-right" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', marginLeft: 'auto' }}></i>
+                </div>
+            ))}
         </div>
     );
 };
 
 // Overview Tab Component
-const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover }) => {
-    const [selectedRange, setSelectedRange] = useState('1M');
+const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover, preferences = {} }) => {
     const [sparklineData, setSparklineData] = useState({});
-    const [rangePerformanceData, setRangePerformanceData] = useState(null);
-    const [isLoadingRangeData, setIsLoadingRangeData] = useState(false);
-    
-    // Fetch performance data for selected range
-    useEffect(() => {
-        if (!watchlistData || watchlistData.length === 0) {
-            setRangePerformanceData(null);
-            return;
-        }
-        
-        const fetchRangePerformance = async () => {
-            setIsLoadingRangeData(true);
-            try {
-                const rangeMap = {
-                    '1D': { days: 1, apiRange: '1d' },
-                    '1W': { days: 7, apiRange: '7d' },
-                    '1M': { days: 30, apiRange: '30d' },
-                    '3M': { days: 90, apiRange: '90d' },
-                    '1Y': { days: 365, apiRange: '1y' }
-                };
-                
-                const rangeInfo = rangeMap[selectedRange] || rangeMap['1M'];
-                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                
-                // Fetch historical data for each stock
-                const performancePromises = watchlistData.map(async (stock) => {
-                    try {
-                        const symbol = stock.symbol;
-                        const currentPrice = stock.current_price || stock.price || 0;
-                        
-                        const response = await fetch(`${API_BASE}/api/chart/${symbol}?range=${rangeInfo.apiRange}`, {
-                            credentials: 'include'
-                        });
-                        
-                        if (response.ok) {
-                            const chartData = await response.json();
-                            if (chartData && chartData.length > 0) {
-                                // Chart data is sorted by date (oldest first), so first item is the historical price
-                                // For 1D, use second to last item (yesterday) if available
-                                const historicalPrice = selectedRange === '1D' && chartData.length > 1
-                                    ? chartData[chartData.length - 2].price
-                                    : chartData[0].price;
-                                if (historicalPrice > 0) {
-                                    const priceChange = currentPrice - historicalPrice;
-                                    const priceChangePercent = (priceChange / historicalPrice) * 100;
-                                    
-                                    return {
-                                        ...stock,
-                                        historicalPrice,
-                                        rangeChangePercent: priceChangePercent,
-                                        rangeChange: priceChange
-                                    };
-                                }
-                            }
-                        }
-                        
-                        // Fallback
-                        return {
-                            ...stock,
-                            historicalPrice: stock.current_price || stock.price || 0,
-                            rangeChangePercent: stock.change_percent || 0,
-                            rangeChange: 0
-                        };
-                    } catch (error) {
-                        return {
-                            ...stock,
-                            historicalPrice: stock.current_price || stock.price || 0,
-                            rangeChangePercent: stock.change_percent || 0,
-                            rangeChange: 0
-                        };
-                    }
-                });
-                
-                const stocksWithRangeData = await Promise.all(performancePromises);
-                setRangePerformanceData(stocksWithRangeData);
-            } catch (error) {
-                setRangePerformanceData(null);
-            } finally {
-                setIsLoadingRangeData(false);
-            }
-        };
-        
-        fetchRangePerformance();
-    }, [watchlistData, selectedRange]);
-    
-    // Enhanced portfolio calculations using range data
-    const calculatePortfolioMetrics = () => {
-        if (watchlistData.length === 0) {
-            return {
-                dayChange: 0,
-                dayChangePercent: 0,
-                bestPerformer: null,
-                worstPerformer: null,
-                totalPositions: 0
-            };
-        }
-        
-        // Use range performance data if available, otherwise use current data
-        const dataToUse = rangePerformanceData || watchlistData;
-        const sharesPerStock = 100;
+    const showSparklines = preferences.showSparklines !== false;
+    const showPercentChange = preferences.showPercentChange !== false;
+    const compactNumbers = preferences.compactNumbers || false;
+    const currencySymbol = { USD: '$', EUR: '\u20AC', GBP: '\u00A3', JPY: '\u00A5' }[preferences.currency] || '$';
 
-        // Calculate change based on selected range
-        const changePercent = rangePerformanceData 
-            ? dataToUse[0]?.rangeChangePercent || 0
-            : dataToUse.reduce((sum, stock) => sum + (stock.change_percent || 0), 0) / dataToUse.length;
-        
-        const totalChange = dataToUse.reduce((sum, stock) => {
-            const price = stock.current_price || stock.price || 0;
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            return sum + (price * sharesPerStock * change / 100);
-        }, 0);
-
-        const changePercentTotal = dataToUse.reduce((sum, stock) => {
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            return sum + change;
-        }, 0) / dataToUse.length;
-        
-        // Find best and worst performers based on range
-        const bestPerformer = dataToUse.reduce((best, stock) => {
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            const bestChange = rangePerformanceData ? (best.rangeChangePercent || 0) : (best.change_percent || 0);
-            return (change > bestChange) ? stock : best;
-        }, dataToUse[0]);
-        
-        const worstPerformer = dataToUse.reduce((worst, stock) => {
-            const change = rangePerformanceData ? (stock.rangeChangePercent || 0) : (stock.change_percent || 0);
-            const worstChange = rangePerformanceData ? (worst.rangeChangePercent || 0) : (worst.change_percent || 0);
-            return (change < worstChange) ? stock : worst;
-        }, dataToUse[0]);
-        
-        return {
-            dayChange: totalChange,
-            dayChangePercent: changePercentTotal,
-            bestPerformer,
-            worstPerformer,
-            totalPositions: watchlistData.length
-        };
+    const formatStockPrice = (price) => {
+        if (!price) return `${currencySymbol}0.00`;
+        if (compactNumbers && price >= 1000) {
+            if (price >= 1e9) return `${currencySymbol}${(price / 1e9).toFixed(2)}B`;
+            if (price >= 1e6) return `${currencySymbol}${(price / 1e6).toFixed(2)}M`;
+            if (price >= 1e3) return `${currencySymbol}${(price / 1e3).toFixed(2)}K`;
+        }
+        return `${currencySymbol}${price.toFixed(2)}`;
     };
-    
-    const metrics = calculatePortfolioMetrics();
 
     return (
         <div className="overview-view">
-            {/* Enhanced Portfolio Summary Card */}
-            <div className="portfolio-summary-card">
-                <div className="summary-header">
-                    <h2><i className="fas fa-chart-line"></i> Portfolio Performance</h2>
-                    <PerformanceTimeline 
-                        watchlistData={watchlistData} 
-                        selectedRange={selectedRange}
-                        onRangeChange={setSelectedRange}
-                    />
-                    </div>
-                
-                <div className="summary-metrics">
-                    <div className="metric-group">
-                        <div className={`metric-item ${metrics.dayChangePercent >= 0 ? 'positive' : 'negative'}`}>
-                            <span className="metric-label">
-                                {selectedRange === '1D' ? 'Day' : selectedRange === '1W' ? 'Week' : selectedRange === '1M' ? 'Month' : selectedRange === '3M' ? '3 Months' : 'Year'} Change
-                            </span>
-                            <span className="metric-value">
-                                {metrics.dayChangePercent >= 0 ? '+' : ''}{metrics.dayChangePercent.toFixed(2)}%
-                            </span>
-                            <span className="metric-amount">
-                                {metrics.dayChange >= 0 ? '+' : ''}${Math.abs(metrics.dayChange).toFixed(2)}
-                        </span>
-                    </div>
-                </div>
-
-                    <div className="metric-group">
-                        <div className="metric-item">
-                            <span className="metric-label">Best Performer</span>
-                            <div className="performer-info">
-                                <span className="performer-symbol">{metrics.bestPerformer?.symbol || 'N/A'}</span>
-                                <span className={`performer-change positive`}>
-                                    {(() => {
-                                        const change = rangePerformanceData 
-                                            ? (metrics.bestPerformer?.rangeChangePercent || 0)
-                                            : (metrics.bestPerformer?.change_percent || 0);
-                                        return change >= 0 ? '+' : '';
-                                    })()}
-                                    {(() => {
-                                        const change = rangePerformanceData 
-                                            ? (metrics.bestPerformer?.rangeChangePercent || 0)
-                                            : (metrics.bestPerformer?.change_percent || 0);
-                                        return change.toFixed(2);
-                                    })()}%
-                                </span>
-                    </div>
-                    </div>
-                        <div className="metric-item">
-                            <span className="metric-label">Worst Performer</span>
-                            <div className="performer-info">
-                                <span className="performer-symbol">{metrics.worstPerformer?.symbol || 'N/A'}</span>
-                                <span className={`performer-change negative`}>
-                                    {(() => {
-                                        const change = rangePerformanceData 
-                                            ? (metrics.worstPerformer?.rangeChangePercent || 0)
-                                            : (metrics.worstPerformer?.change_percent || 0);
-                                        return change.toFixed(2);
-                                    })()}%
-                                </span>
-                </div>
-                    </div>
-                    </div>
-                </div>
-            </div>
+            {/* Market Overview */}
+            <MarketOverview marketStatus={marketStatus} />
 
             {/* Three Column Layout */}
             <div className="main-grid-enhanced">
@@ -3075,6 +3119,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                     <div className="stock-symbol-enhanced">{stock.symbol}</div>
                                     <div className="stock-name-enhanced">{stock.company_name || stock.name || stock.symbol}</div>
                                 </div>
+                                {showSparklines && (
                                 <div className="stock-sparkline">
                                     <SparklineChart
                                         symbol={stock.symbol}
@@ -3083,13 +3128,16 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                                         height={45}
                                     />
                                 </div>
+                                )}
                                 <div className="stock-price-group">
                                     <div className={`stock-price-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                                    ${(stock.current_price || stock.price || 0).toFixed(2)}
+                                    {formatStockPrice(stock.current_price || stock.price || 0)}
                                 </div>
+                                    {showPercentChange && (
                                     <div className={`stock-change-enhanced ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
                                     {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                                     </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -3128,35 +3176,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
                             Explore <i className="fas fa-arrow-right"></i>
                         </button>
                     </div>
-                    <div className="insights-list">
-                        <div className="insight-item">
-                            <div className="insight-icon">
-                                <i className="fas fa-calendar"></i>
-                            </div>
-                            <div className="insight-content">
-                                <h4>Earnings Calendar</h4>
-                                <p>12 companies reporting this week</p>
-                            </div>
-                        </div>
-                        <div className="insight-item">
-                            <div className="insight-icon">
-                                <i className="fas fa-chart-bar"></i>
-                            </div>
-                            <div className="insight-content">
-                                <h4>Sector Performance</h4>
-                                <p>Technology +2.3% today</p>
-                            </div>
-                        </div>
-                        <div className="insight-item">
-                            <div className="insight-icon">
-                                <i className="fas fa-file-alt"></i>
-                            </div>
-                            <div className="insight-content">
-                                <h4>Market News</h4>
-                                <p>3 key developments today</p>
-                            </div>
-                        </div>
-                    </div>
+                    <MarketIntelligenceWidget onNavigate={onNavigate} />
                 </div>
             </div>
         </div>
@@ -3164,7 +3184,20 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover })
 };
 
 // Watchlist View Component
-const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover, updatingStocks = new Set() }) => {
+const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover, updatingStocks = new Set(), preferences = {} }) => {
+    const showPercentChange = preferences.showPercentChange !== false;
+    const compactNumbers = preferences.compactNumbers || false;
+    const currencySymbol = { USD: '$', EUR: '\u20AC', GBP: '\u00A3', JPY: '\u00A5' }[preferences.currency] || '$';
+
+    const formatStockPrice = (price) => {
+        if (!price) return `${currencySymbol}0.00`;
+        if (compactNumbers && price >= 1000) {
+            if (price >= 1e9) return `${currencySymbol}${(price / 1e9).toFixed(2)}B`;
+            if (price >= 1e6) return `${currencySymbol}${(price / 1e6).toFixed(2)}M`;
+            if (price >= 1e3) return `${currencySymbol}${(price / 1e3).toFixed(2)}K`;
+        }
+        return `${currencySymbol}${price.toFixed(2)}`;
+    };
     // Count stocks per category from unfiltered data
     const categoryCounts = {};
     watchlistData.forEach(stock => {
@@ -3300,18 +3333,19 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                         </div>
                         <div className="stock-name">{stock.name}</div>
                         <div className={`stock-price-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            ${(stock.current_price || stock.price || 0).toFixed(2)}
+                            {formatStockPrice(stock.current_price || stock.price || 0)}
                         </div>
+                        {showPercentChange && (
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            <i 
+                            <i
                                 className={stock.change_percent >= 0 ? 'fas fa-arrow-trend-up' : 'fas fa-arrow-trend-down'}
-                                style={{ 
-                                    marginRight: '8px', 
+                                style={{
+                                    marginRight: '8px',
                                     fontSize: '18px',
                                     fontWeight: '700',
                                     color: stock.change_percent >= 0 ? '#00D924' : '#ef4444',
-                                    textShadow: stock.change_percent >= 0 
-                                        ? '0 0 10px rgba(0, 217, 36, 0.7), 0 0 15px rgba(0, 217, 36, 0.5)' 
+                                    textShadow: stock.change_percent >= 0
+                                        ? '0 0 10px rgba(0, 217, 36, 0.7), 0 0 15px rgba(0, 217, 36, 0.5)'
                                         : '0 0 10px rgba(239, 68, 68, 0.7), 0 0 15px rgba(239, 68, 68, 0.5)',
                                     display: 'inline-block',
                                     lineHeight: '1'
@@ -3319,6 +3353,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                             />
                             {stock.change_percent >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
                         </div>
+                        )}
                         <div className="card-actions">
                             <button className="card-action-btn" onClick={() => onOpenDetails && onOpenDetails(stock.symbol)}>
                                 <i className="fas fa-info-circle"></i> Details
@@ -4167,7 +4202,7 @@ const WhatsWhatView = () => {
 };
 
 // Intelligence View Component
-const IntelligenceView = () => {
+const IntelligenceView = ({ watchlistData }) => {
     const [activeTab, setActiveTab] = useState('earnings');
     const [symbol, setSymbol] = useState('AAPL');
     const [loading, setLoading] = useState(false);
@@ -4270,6 +4305,7 @@ const IntelligenceView = () => {
                     <button className={`intel-tab ${activeTab==='earnings'?'active':''}`} onClick={()=>setActiveTab('earnings')}>Earnings</button>
                     <button className={`intel-tab ${activeTab==='insider'?'active':''}`} onClick={()=>setActiveTab('insider')}>Insider Trading</button>
                     <button className={`intel-tab ${activeTab==='analyst'?'active':''}`} onClick={()=>setActiveTab('analyst')}>Analyst Ratings</button>
+                    <button className={`intel-tab ${activeTab==='correlation'?'active':''}`} onClick={()=>setActiveTab('correlation')}>Correlation</button>
                 </div>
             </div>
 
@@ -4381,6 +4417,211 @@ const IntelligenceView = () => {
                     <DataSourceLabel source="Finnhub - Wall Street Analyst Recommendations" />
                 </div>
             )}
+
+            {activeTab === 'correlation' && (
+                <CorrelationHeatmap watchlistData={watchlistData} />
+            )}
+        </div>
+    );
+};
+
+// Correlation Heatmap Component
+const CorrelationHeatmap = ({ watchlistData }) => {
+    const canvasRef = useRef(null);
+    const [correlationData, setCorrelationData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [tooltip, setTooltip] = useState(null);
+
+    const symbols = useMemo(() => {
+        if (!watchlistData || watchlistData.length === 0) return [];
+        return watchlistData.map(s => s.symbol).filter(Boolean);
+    }, [watchlistData]);
+
+    useEffect(() => {
+        if (symbols.length < 3) return;
+        const fetchCorrelation = async () => {
+            try {
+                setLoading(true);
+                setError('');
+                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                const authHeaders = await window.getAuthHeaders();
+                const r = await fetch(`${API_BASE}/api/stocks/correlation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders },
+                    credentials: 'include',
+                    body: JSON.stringify({ symbols })
+                });
+                if (!r.ok) throw new Error('Failed to fetch correlation data');
+                const data = await r.json();
+                setCorrelationData(data);
+            } catch (e) {
+                setError('Unable to load correlation data');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCorrelation();
+    }, [symbols]);
+
+    // Draw heatmap on canvas
+    useEffect(() => {
+        if (!correlationData || !canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const { symbols: syms, matrix } = correlationData;
+        const n = syms.length;
+
+        const labelWidth = 80;
+        const cellSize = Math.min(50, Math.floor((canvas.width - labelWidth) / n));
+        const totalGrid = cellSize * n;
+
+        canvas.width = labelWidth + totalGrid + 20;
+        canvas.height = labelWidth + totalGrid + 20;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Color interpolation: blue (-1) -> white (0) -> red (+1)
+        const getColor = (val) => {
+            if (val >= 0) {
+                const t = Math.min(val, 1);
+                const r = 255;
+                const g = Math.round(255 * (1 - t));
+                const b = Math.round(255 * (1 - t));
+                return `rgb(${r},${g},${b})`;
+            } else {
+                const t = Math.min(Math.abs(val), 1);
+                const r = Math.round(255 * (1 - t));
+                const g = Math.round(255 * (1 - t));
+                const b = 255;
+                return `rgb(${r},${g},${b})`;
+            }
+        };
+
+        // Draw cells
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                const x = labelWidth + j * cellSize;
+                const y = labelWidth + i * cellSize;
+                ctx.fillStyle = getColor(matrix[i][j]);
+                ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+            }
+        }
+
+        // Draw labels
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < n; i++) {
+            ctx.fillText(syms[i], labelWidth - 5, labelWidth + i * cellSize + cellSize / 2);
+        }
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let j = 0; j < n; j++) {
+            ctx.save();
+            ctx.translate(labelWidth + j * cellSize + cellSize / 2, labelWidth - 5);
+            ctx.rotate(-Math.PI / 4);
+            ctx.fillText(syms[j], 0, 0);
+            ctx.restore();
+        }
+    }, [correlationData]);
+
+    const handleMouseMove = (e) => {
+        if (!correlationData || !canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const { symbols: syms, matrix } = correlationData;
+        const n = syms.length;
+        const labelWidth = 80;
+        const cellSize = Math.min(50, Math.floor((canvasRef.current.width - labelWidth) / n));
+
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const col = Math.floor((mx - labelWidth) / cellSize);
+        const row = Math.floor((my - labelWidth) / cellSize);
+
+        if (row >= 0 && row < n && col >= 0 && col < n) {
+            setTooltip({
+                x: e.clientX,
+                y: e.clientY,
+                text: `${syms[row]} / ${syms[col]}: ${matrix[row][col].toFixed(3)}`
+            });
+        } else {
+            setTooltip(null);
+        }
+    };
+
+    if (symbols.length < 3) {
+        return (
+            <div className="intel-card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <i className="fas fa-th" style={{ fontSize: '2.5rem', color: 'rgba(255,255,255,0.2)', marginBottom: '1rem' }}></i>
+                <h3 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>Add More Stocks</h3>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
+                    Add at least 3 stocks to your watchlist to see the correlation heatmap.
+                </p>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="intel-card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <div className="loading-spinner" style={{ margin: '0 auto 1rem' }}></div>
+                <p style={{ color: 'rgba(255,255,255,0.5)' }}>Calculating correlations...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="intel-card" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                <p style={{ color: '#FF6B35' }}>{error}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="intel-card">
+            <div className="intel-header">
+                <h3><i className="fas fa-th"></i> Portfolio Correlation (90 days)</h3>
+                <span className="intel-count">{correlationData ? correlationData.symbols.length : 0} stocks</span>
+            </div>
+            <div style={{ position: 'relative', overflowX: 'auto', padding: '1rem 0' }}>
+                <canvas
+                    ref={canvasRef}
+                    width={600}
+                    height={600}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={() => setTooltip(null)}
+                    style={{ display: 'block', margin: '0 auto' }}
+                />
+                {tooltip && (
+                    <div style={{
+                        position: 'fixed',
+                        left: tooltip.x + 12,
+                        top: tooltip.y - 30,
+                        background: 'rgba(0,0,0,0.9)',
+                        color: '#fff',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                        pointerEvents: 'none',
+                        zIndex: 1000,
+                        whiteSpace: 'nowrap',
+                        border: '1px solid rgba(255,255,255,0.2)'
+                    }}>
+                        {tooltip.text}
+                    </div>
+                )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem' }}>
+                <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(100,100,255)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>Inverse (-1)</span>
+                <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(255,255,255)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>None (0)</span>
+                <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgb(255,100,100)', borderRadius: 2, verticalAlign: 'middle', marginRight: 4 }}></span>High (+1)</span>
+            </div>
+            <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                <strong style={{ color: 'rgba(255,255,255,0.6)' }}>What does this mean?</strong> This chart shows how your stocks move in relation to each other over the last 90 days. Red means two stocks tend to move in the same direction — when one goes up, the other usually does too. Blue means they tend to move in opposite directions. White means there's little connection between them. A well-diversified portfolio typically has a mix of colors, not all red.
+            </div>
         </div>
     );
 };

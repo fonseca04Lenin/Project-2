@@ -18,6 +18,7 @@ from watchlist_service import get_watchlist_service
 from auth import auth, login_manager
 from config import Config
 from crypto_utils import encrypt_data, decrypt_data
+import logging
 import os
 import threading
 import time
@@ -26,41 +27,36 @@ from functools import wraps
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 
-# Enable CORS for frontend (local development and Vercel)
+# Enable CORS for frontend
+is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RAILWAY_ENVIRONMENT') is not None
+
 allowed_origins = [
-    "http://localhost:3000",  # Local development
-    "http://127.0.0.1:3000",  # Local development alternative
-    "http://localhost:5000",  # Local Flask dev
-    "http://localhost:8000",  # Local Flask dev on port 8000
-    "http://localhost:8080",  # Local frontend server
-    "http://127.0.0.1:8080",  # Local frontend server alternative
-    "http://localhost:8081",  # Local frontend server (current)
-    "http://127.0.0.1:8081",  # Local frontend server alternative (current)
-    "file://",  # Local file serving
-    "null",  # For local file origins
-    "https://stock-watchlist-frontend.vercel.app",  # Main Vercel deployment
-    "https://aistocksage.com",  # Custom domain
-    "https://www.aistocksage.com",  # Custom domain with www
+    "https://aistocksage.com",
+    "https://www.aistocksage.com",
+    "https://stock-watchlist-frontend.vercel.app",
 ]
+
+# Add localhost origins only in development
+if not is_production:
+    allowed_origins.extend([
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5000",
+        "http://localhost:8000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
+    ])
 
 # Add specific frontend URL from environment if available
 frontend_url = os.environ.get('FRONTEND_URL')
 if frontend_url:
     allowed_origins.append(frontend_url)
-    print(f"Added FRONTEND_URL to CORS: {frontend_url}")
-
-# Add additional Vercel domains explicitly
-vercel_domains = [
-    "https://stock-watchlist-frontend-ql5o74lkh-lenny-s-projects-87605fc1.vercel.app",
-    "https://stock-watchlist-frontend-git-main-lenny-s-projects-87605fc1.vercel.app",
-    "https://stock-watchlist-frontend-lennys-projects-87605fc1.vercel.app"
-]
-allowed_origins.extend(vercel_domains)
-
-print(f" CORS allowed origins: {allowed_origins}")
-print(f"Railway deployment - CORS configured for Vercel frontend")
 
 # Enable CORS with specific auth-friendly settings
 CORS(app,
@@ -77,11 +73,7 @@ def handle_preflight():
     """Handle CORS preflight OPTIONS requests"""
     if request.method == 'OPTIONS':
         origin = request.headers.get('Origin', '')
-        is_allowed = (
-            origin in allowed_origins or
-            (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin or 'aistocksage.com' in origin))
-        )
-        if is_allowed and origin:
+        if origin and origin in allowed_origins:
             response = app.make_default_options_response()
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
@@ -96,13 +88,7 @@ def after_request(response):
     """Ensure CORS headers are set for all allowed origins"""
     origin = request.headers.get('Origin', '')
 
-    # Check if origin is in allowed list or is a known deployment domain
-    is_allowed = (
-        origin in allowed_origins or
-        (origin and ('localhost' in origin or '127.0.0.1' in origin or 'vercel.app' in origin or 'aistocksage.com' in origin))
-    )
-
-    if is_allowed and origin:
+    if origin and origin in allowed_origins:
         # Set all necessary CORS headers for preflight and actual requests
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
@@ -116,7 +102,6 @@ app.config['SECRET_KEY'] = Config.SECRET_KEY
 
 # NOTE: Session-based auth removed - app uses Firebase token authentication only
 # Cross-origin sessions (Vercel<->Railway) don't work reliably with cookies
-is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RAILWAY_ENVIRONMENT') is not None
 
 # Initialize extensions
 # Use threading async mode to avoid eventlet blocking Firestore calls
@@ -139,7 +124,7 @@ def unauthorized():
     return redirect('/')
 
 # Debug configuration
-print(f"App Config - Production: {is_production}, Token Auth: Enabled")
+logger.info("App Config - Production: %s, Token Auth: Enabled", is_production)
 
 # Register blueprints
 app.register_blueprint(auth)
@@ -157,24 +142,24 @@ alpaca_api = AlpacaAPI() if USE_ALPACA_API else None
 
 if USE_ALPACA_API:
     has_keys = alpaca_api and alpaca_api.api_key and alpaca_api.secret_key
-    print("=" * 60)
-    print(" ALPACA API CONFIGURATION")
-    print("=" * 60)
-    print(f"Alpaca API enabled: {USE_ALPACA_API}")
-    print(f"API keys configured: {has_keys}")
+    logger.info("=" * 60)
+    logger.info("ALPACA API CONFIGURATION")
+    logger.info("=" * 60)
+    logger.info("Alpaca API enabled: %s", USE_ALPACA_API)
+    logger.info("API keys configured: %s", has_keys)
     if alpaca_api:
-        print(f"🌐 Base URL: {alpaca_api.base_url}")
+        logger.info("Base URL: %s", alpaca_api.base_url)
         if has_keys:
-            print(f"API Key: {alpaca_api.api_key[:8]}...{alpaca_api.api_key[-4:] if len(alpaca_api.api_key) > 12 else '***'}")
-    print("Will use Alpaca for price data with Yahoo fallback")
-    print("=" * 60)
+            logger.info("API Key: %s...%s", alpaca_api.api_key[:8], alpaca_api.api_key[-4:] if len(alpaca_api.api_key) > 12 else '***')
+    logger.info("Will use Alpaca for price data with Yahoo fallback")
+    logger.info("=" * 60)
 else:
-    print("=" * 60)
-    print("YAHOO FINANCE ONLY MODE")
-    print("=" * 60)
-    print(" Alpaca API disabled - using Yahoo Finance only")
-    print("To enable Alpaca, set USE_ALPACA_API=true in environment variables")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("YAHOO FINANCE ONLY MODE")
+    logger.info("=" * 60)
+    logger.info("Alpaca API disabled - using Yahoo Finance only")
+    logger.info("To enable Alpaca, set USE_ALPACA_API=true in environment variables")
+    logger.info("=" * 60)
 
 def get_price_api():
     """Get the appropriate API for price lookups. Returns Alpaca if enabled, otherwise Yahoo."""
@@ -190,36 +175,36 @@ def get_stock_with_fallback(symbol):
     # Try Alpaca first if enabled
     if USE_ALPACA_API and alpaca_api:
         try:
-            print(f" [ALPACA] Attempting to fetch {symbol} from Alpaca API...")
+            logger.debug("[ALPACA] Attempting to fetch %s from Alpaca API...", symbol)
             stock = Stock(symbol, alpaca_api)
             stock.retrieve_data()
             # If we got valid data, return it
             if stock.name and stock.price and 'not found' not in stock.name.lower():
-                print(f"[ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
+                logger.info("[ALPACA] Successfully fetched %s from Alpaca: $%.2f (%s)", symbol, stock.price, stock.name)
                 api_used = 'alpaca'
                 # Add metadata to stock object
                 if not hasattr(stock, '_api_source'):
                     stock._api_source = 'alpaca'
                 return stock, api_used
             else:
-                print(f"[ALPACA] Got data for {symbol} but it's invalid, falling back to Yahoo")
+                logger.warning("[ALPACA] Got data for %s but it's invalid, falling back to Yahoo", symbol)
         except Exception as e:
-            print(f"[ALPACA] Failed for {symbol}, falling back to Yahoo: {e}")
+            logger.error("[ALPACA] Failed for %s, falling back to Yahoo: %s", symbol, e)
     
     # Fallback to Yahoo Finance
     try:
-        print(f"🟡 [YAHOO] Fetching {symbol} from Yahoo Finance (fallback)...")
+        logger.debug("[YAHOO] Fetching %s from Yahoo Finance (fallback)...", symbol)
         stock = Stock(symbol, yahoo_finance_api)
         stock.retrieve_data()
         if stock.name and stock.price:
-            print(f"[YAHOO] Successfully fetched {symbol} from Yahoo: ${stock.price:.2f} ({stock.name})")
+            logger.info("[YAHOO] Successfully fetched %s from Yahoo: $%.2f (%s)", symbol, stock.price, stock.name)
         api_used = 'yahoo'
         # Add metadata to stock object
         if not hasattr(stock, '_api_source'):
             stock._api_source = 'yahoo'
         return stock, api_used
     except Exception as e:
-        print(f"[YAHOO] Also failed for {symbol}: {e}")
+        logger.error("[YAHOO] Also failed for %s: %s", symbol, e)
         return None, 'none'  # Return 'none' instead of None to avoid issues
 
 def get_stock_alpaca_only(symbol):
@@ -228,31 +213,31 @@ def get_stock_alpaca_only(symbol):
     Returns tuple: (stock, api_used) where api_used is 'alpaca' or None if failed
     """
     if not USE_ALPACA_API or not alpaca_api:
-        print(f"[WATCHLIST] Alpaca API not enabled or not available for {symbol}")
+        logger.warning("[WATCHLIST] Alpaca API not enabled or not available for %s", symbol)
         return None, None
     
     try:
-        print(f" [WATCHLIST-ALPACA] Fetching {symbol} from Alpaca API only (no Yahoo fallback)...")
+        logger.debug("[WATCHLIST-ALPACA] Fetching %s from Alpaca API only (no Yahoo fallback)...", symbol)
         stock = Stock(symbol, alpaca_api)
         stock.retrieve_data()
         
         # If we got valid data, return it
         if stock.name and stock.price and 'not found' not in stock.name.lower():
-            print(f"[WATCHLIST-ALPACA] Successfully fetched {symbol} from Alpaca: ${stock.price:.2f} ({stock.name})")
+            logger.info("[WATCHLIST-ALPACA] Successfully fetched %s from Alpaca: $%.2f (%s)", symbol, stock.price, stock.name)
             api_used = 'alpaca'
             if not hasattr(stock, '_api_source'):
                 stock._api_source = 'alpaca'
             return stock, api_used
         else:
-            print(f"[WATCHLIST-ALPACA] Got invalid data for {symbol}, returning None")
+            logger.warning("[WATCHLIST-ALPACA] Got invalid data for %s, returning None", symbol)
             return None, None
     except Exception as e:
-        print(f"[WATCHLIST-ALPACA] Failed for {symbol}: {e}")
+        logger.error("[WATCHLIST-ALPACA] Failed for %s: %s", symbol, e)
         return None, None
 
 # Initialize Watchlist Service lazily - don't block app startup
 # Services will be initialized on first use
-print("ℹ️ WatchlistService initialization deferred - will initialize on first use")
+logger.info("WatchlistService initialization deferred - will initialize on first use")
 firestore_client = None
 watchlist_service = None
 
@@ -261,17 +246,17 @@ def get_watchlist_service_lazy():
     global firestore_client, watchlist_service
     if watchlist_service is None:
         try:
-            print(" Initializing WatchlistService (lazy)...")
+            logger.info("Initializing WatchlistService (lazy)...")
             firestore_client = get_firestore_client()
             if firestore_client is not None:
                 watchlist_service = get_watchlist_service(firestore_client)
-                print("WatchlistService initialized successfully")
+                logger.info("WatchlistService initialized successfully")
             else:
-                print("Firestore client not available - WatchlistService unavailable")
+                logger.warning("Firestore client not available - WatchlistService unavailable")
         except Exception as e:
-            print(f"Failed to initialize WatchlistService: {e}")
+            logger.error("Failed to initialize WatchlistService: %s", e)
             import traceback
-            print(f"WatchlistService traceback: {traceback.format_exc()}")
+            logger.error("WatchlistService traceback: %s", traceback.format_exc())
             firestore_client = None
             watchlist_service = None
     return watchlist_service
@@ -324,7 +309,7 @@ def cleanup_inactive_connections():
                 del active_stocks_timestamps[user_id]
 
     if to_remove:
-        print(f"🧹 Cleaned up {len(to_remove)} inactive WebSocket connections")
+        logger.info("Cleaned up %s inactive WebSocket connections", len(to_remove))
 
 def limit_connections():
     """Ensure we don't exceed max connections"""
@@ -349,7 +334,7 @@ def limit_connections():
                 if user_id in active_stocks_timestamps:
                     del active_stocks_timestamps[user_id]
 
-        print(f"🧹 Removed {len(to_remove)} old connections to stay under limit")
+        logger.info("Removed %s old connections to stay under limit", len(to_remove))
 
 # Improved request tracking with automatic cleanup
 from collections import OrderedDict
@@ -396,7 +381,7 @@ class RateLimiter:
             del self.requests[user_id]
         
         self.last_cleanup = now
-        print(f"🧹 Cleaned up {len(users_to_remove)} inactive rate limit entries")
+        logger.info("Cleaned up %s inactive rate limit entries", len(users_to_remove))
     
     def is_allowed(self, user_id):
         with self.lock:
@@ -437,7 +422,7 @@ def with_timeout(seconds=25):
                 result = func(*args, **kwargs)
                 return result
             except TimeoutError:
-                print(f"Function {func.__name__} timed out after {seconds} seconds")
+                logger.warning("Function %s timed out after %s seconds", func.__name__, seconds)
                 return jsonify({'error': 'Request timed out'}), 408
             finally:
                 # Cancel timeout and restore old handler
@@ -454,7 +439,7 @@ def index():
 def test_watchlist_service():
     """Test endpoint to verify watchlist service is working"""
     try:
-        print("Testing watchlist service...")
+        logger.info("Testing watchlist service...")
         # Test if service is initialized (lazy)
         service = get_watchlist_service_lazy()
         if service is None:
@@ -473,7 +458,7 @@ def test_watchlist_service():
             'firestore_available': db_available
         })
     except Exception as e:
-        print(f"WatchlistService test failed: {e}")
+        logger.error("WatchlistService test failed: %s", e)
         return jsonify({'error': f'WatchlistService test failed: {str(e)}'}), 500
 
 # Debug endpoints - only enabled in development
@@ -648,22 +633,22 @@ if Config.DEBUG:
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
-    print(f"Client connected: {request.sid}")
+    logger.info("Client connected: %s", request.sid)
     try:
         # Clean up and limit connections
         cleanup_inactive_connections()
         limit_connections()
-        
+
         # Track this connection
         connection_timestamps[request.sid] = time.time()
-        
+
         emit('connected', {'message': 'Connected to server'})
     except Exception as e:
-        print(f"Error in connect handler: {e}")
+        logger.error("Error in connect handler: %s", e)
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f"Client disconnected: {request.sid}")
+    logger.info("Client disconnected: %s", request.sid)
     # Clean up connection tracking
     user_id = connected_users.get(request.sid)
 
@@ -678,7 +663,7 @@ def handle_disconnect():
             del active_stocks[user_id]
         if user_id in active_stocks_timestamps:
             del active_stocks_timestamps[user_id]
-        print(f"🧹 Cleaned up active stocks for user {user_id}")
+        logger.info("Cleaned up active stocks for user %s", user_id)
 
 @socketio.on('join_user_room')
 def handle_join_user_room(data):
@@ -688,9 +673,9 @@ def handle_join_user_room(data):
         if user_id:
             join_room(f"user_{user_id}")
             connected_users[request.sid] = user_id
-            print(f"User {user_id} joined room: user_{user_id}")
+            logger.info("User %s joined room: user_%s", user_id, user_id)
     except Exception as e:
-        print(f"Error joining user room: {e}")
+        logger.error("Error joining user room: %s", e)
 
 @socketio.on('join_watchlist_updates')
 def handle_join_watchlist_updates(data):
@@ -699,27 +684,27 @@ def handle_join_watchlist_updates(data):
         user_id = data.get('user_id')
         if user_id:
             join_room(f"watchlist_{user_id}")
-            print(f"User {user_id} joined watchlist updates")
+            logger.info("User %s joined watchlist updates", user_id)
     except Exception as e:
-        print(f"Error joining watchlist updates: {e}")
+        logger.error("Error joining watchlist updates: %s", e)
 
 @socketio.on('join_market_updates')
 def handle_join_market_updates():
     """Join user to market updates room"""
     try:
         join_room("market_updates")
-        print(f"Client {request.sid} joined market updates")
+        logger.info("Client %s joined market updates", request.sid)
     except Exception as e:
-        print(f"Error joining market updates: {e}")
+        logger.error("Error joining market updates: %s", e)
 
 @socketio.on('join_news_updates')
 def handle_join_news_updates():
     """Join user to news updates room"""
     try:
         join_room("news_updates")
-        print(f"Client {request.sid} joined news updates")
+        logger.info("Client %s joined news updates", request.sid)
     except Exception as e:
-        print(f"Error joining news updates: {e}")
+        logger.error("Error joining news updates: %s", e)
 
 @socketio.on('track_stock_view')
 def handle_track_stock_view(data):
@@ -732,11 +717,11 @@ def handle_track_stock_view(data):
         if user_id and symbol and validate_stock_symbol(symbol):
             active_stocks[user_id].add(symbol)
             active_stocks_timestamps[user_id][symbol] = time.time()
-            print(f"👁️ User {user_id} is viewing {symbol} - adding to priority queue")
+            logger.debug("User %s is viewing %s - adding to priority queue", user_id, symbol)
         elif symbol and not validate_stock_symbol(symbol):
-            print(f"Invalid symbol rejected in track_stock_view: {symbol}")
+            logger.warning("Invalid symbol rejected in track_stock_view: %s", symbol)
     except Exception as e:
-        print(f"Error tracking stock view: {e}")
+        logger.error("Error tracking stock view: %s", e)
 
 @socketio.on('untrack_stock_view')
 def handle_untrack_stock_view(data):
@@ -749,9 +734,9 @@ def handle_untrack_stock_view(data):
         if user_id and symbol and validate_stock_symbol(symbol):
             active_stocks[user_id].discard(symbol)
             active_stocks_timestamps[user_id].pop(symbol, None)
-            print(f"👁️ User {user_id} stopped viewing {symbol}")
+            logger.debug("User %s stopped viewing %s", user_id, symbol)
     except Exception as e:
-        print(f"Error untracking stock view: {e}")
+        logger.error("Error untracking stock view: %s", e)
 
 @socketio.on('track_search_stock')
 def handle_track_search_stock(data):
@@ -765,14 +750,14 @@ def handle_track_search_stock(data):
                 symbol = symbol.upper()
                 active_stocks[user_id].add(symbol)
                 active_stocks_timestamps[user_id][symbol] = time.time()
-            print(f"🔍 User {user_id} searching {len(symbols)} stocks - adding to priority queue")
+            logger.debug("User %s searching %s stocks - adding to priority queue", user_id, len(symbols))
     except Exception as e:
-        print(f"Error tracking search stocks: {e}")
+        logger.error("Error tracking search stocks: %s", e)
 
 # Optimized real-time stock price updates with memory management
 def update_stock_prices():
     """Memory-optimized background task to update stock prices"""
-    print("Starting memory-optimized price update task...")
+    logger.info("Starting memory-optimized price update task...")
     
     # NO CACHING - Always fetch fresh prices for real-time updates
     update_cycle_count = 0
@@ -785,14 +770,14 @@ def update_stock_prices():
             
             # Only run if there are connected users
             if not connected_users:
-                print("⏸️ No connected users, skipping price updates")
+                logger.info("No connected users, skipping price updates")
                 time.sleep(60)
                 continue
             
-            print(f"\n{'='*80}")
-            print(f"[REALTIME UPDATE CYCLE #{update_cycle_count}] - {datetime.now().strftime('%H:%M:%S')}")
-            print(f"Updating prices for {len(connected_users)} connected users...")
-            print(f"{'='*80}")
+            logger.info("=" * 80)
+            logger.info("[REALTIME UPDATE CYCLE #%s] - %s", update_cycle_count, datetime.now().strftime('%H:%M:%S'))
+            logger.info("Updating prices for %s connected users...", len(connected_users))
+            logger.info("=" * 80)
             
             # Collect unique symbols across all users to batch API calls
             all_symbols = set()
@@ -820,18 +805,18 @@ def update_stock_prices():
                             continue  # Skip if service not available
                         watchlist = service.get_watchlist(user_id, limit=None)
                         if watchlist:
-                            print(f"[REALTIME] Loaded {len(watchlist)} stocks for user {user_id}")
+                            logger.info("[REALTIME] Loaded %s stocks for user %s", len(watchlist), user_id)
                             user_watchlists[user_id] = watchlist
                             for item in watchlist:
                                 # Use .get() to safely access symbol field
                                 symbol = item.get('symbol') or item.get('id')
                                 if symbol:
                                     all_symbols.add(symbol)
-                                    print(f"  ✓ Added {symbol} to update queue")
+                                    logger.debug("  Added %s to update queue", symbol)
                                 else:
-                                    print(f"  Skipping item without symbol: {item.keys()}")
+                                    logger.debug("  Skipping item without symbol: %s", item.keys())
                         else:
-                            print(f"[REALTIME] No watchlist found for user {user_id}")
+                            logger.debug("[REALTIME] No watchlist found for user %s", user_id)
                         
                         # Add actively viewed/searched stocks to priority queue
                         if user_id in active_stocks:
@@ -839,7 +824,7 @@ def update_stock_prices():
                                 priority_symbols.add(symbol)
                                 all_symbols.add(symbol)  # Also add to regular update queue
                     except Exception as e:
-                        print(f"Error getting watchlist for user {user_id}: {e}")
+                        logger.error("Error getting watchlist for user %s: %s", user_id, e)
                         import traceback
                         traceback.print_exc()
                         continue
@@ -854,16 +839,16 @@ def update_stock_prices():
             regular_to_fetch = [s for s in all_symbols if s not in priority_symbols]
             all_symbols_to_fetch = priority_to_fetch + regular_to_fetch
             
-            print(f"[REALTIME] Total symbols to update: {len(all_symbols_to_fetch)}")
-            print(f"   Priority: {len(priority_to_fetch)}, Regular: {len(regular_to_fetch)}")
+            logger.info("[REALTIME] Total symbols to update: %s", len(all_symbols_to_fetch))
+            logger.info("   Priority: %s, Regular: %s", len(priority_to_fetch), len(regular_to_fetch))
             if all_symbols_to_fetch:
-                print(f"   Symbols: {', '.join(list(all_symbols_to_fetch)[:20])}{'...' if len(all_symbols_to_fetch) > 20 else ''}")
+                logger.debug("   Symbols: %s%s", ', '.join(list(all_symbols_to_fetch)[:20]), '...' if len(all_symbols_to_fetch) > 20 else '')
             
             # Use batch API call if Alpaca is enabled (much more efficient!)
             batch_failed_symbols = set()  # Track symbols that failed in batch
             if all_symbols_to_fetch and USE_ALPACA_API and alpaca_api:
                 try:
-                    print(f"[REALTIME] Batch updating {len(all_symbols_to_fetch)} symbols ({len(priority_to_fetch)} priority) via Alpaca batch API...")
+                    logger.info("[REALTIME] Batch updating %s symbols (%s priority) via Alpaca batch API...", len(all_symbols_to_fetch), len(priority_to_fetch))
                     # Fetch in batches of 50 (Alpaca supports up to 100, but 50 is safer)
                     batch_size = 50
                     for i in range(0, len(all_symbols_to_fetch), batch_size):
@@ -897,14 +882,14 @@ def update_stock_prices():
                         if i + batch_size < len(all_symbols_to_fetch):
                             time.sleep(0.1)  # Reduced delay for real-time (was 0.5s)
                     
-                    print(f"[REALTIME] Batch updated {len(updated_symbols)} symbols ({len(priority_to_fetch)} priority)")
+                    logger.info("[REALTIME] Batch updated %s symbols (%s priority)", len(updated_symbols), len(priority_to_fetch))
                     if batch_failed_symbols:
-                        print(f"[REALTIME] {len(batch_failed_symbols)} symbols failed in batch, will retry individually: {list(batch_failed_symbols)[:10]}")
+                        logger.warning("[REALTIME] %s symbols failed in batch, will retry individually: %s", len(batch_failed_symbols), list(batch_failed_symbols)[:10])
                     
                 except Exception as e:
-                    print(f"[REALTIME] Batch update failed, falling back to individual calls: {e}")
+                    logger.error("[REALTIME] Batch update failed, falling back to individual calls: %s", e)
                     import traceback
-                    print(f"[REALTIME] Batch error traceback: {traceback.format_exc()}")
+                    logger.error("[REALTIME] Batch error traceback: %s", traceback.format_exc())
                     # If batch completely failed, mark all symbols as failed
                     batch_failed_symbols = set(all_symbols_to_fetch)
             
@@ -928,7 +913,7 @@ def update_stock_prices():
                 regular_failed = [s for s in symbols_needing_individual_fetch if s not in priority_symbols]
                 symbols_to_process = priority_failed + regular_failed
                 
-                print(f"[REALTIME] Fetching {len(symbols_to_process)} symbols individually ({len(priority_failed)} priority)...")
+                logger.info("[REALTIME] Fetching %s symbols individually (%s priority)...", len(symbols_to_process), len(priority_failed))
                 
                 for symbol in symbols_to_process[:50]:  # Increased limit for real-time
                     try:
@@ -937,26 +922,26 @@ def update_stock_prices():
                         time.sleep(delay)
                         
                         # Get fresh data for watchlist - try Alpaca first, then Yahoo fallback
-                        print(f"[REALTIME] Updating price for {symbol} {'(PRIORITY)' if symbol in priority_symbols else ''}...")
+                        logger.debug("[REALTIME] Updating price for %s %s...", symbol, '(PRIORITY)' if symbol in priority_symbols else '')
                         stock, api_used = get_stock_alpaca_only(symbol)
                         
                         # Fallback to Yahoo if Alpaca fails - NEVER skip stocks, always get fresh price
                         if not stock or not stock.price or stock.price == 0:
-                            print(f"[REALTIME] Alpaca failed for {symbol}, trying Yahoo fallback...")
+                            logger.warning("[REALTIME] Alpaca failed for %s, trying Yahoo fallback...", symbol)
                             try:
                                 stock = Stock(symbol, yahoo_finance_api)
                                 stock.retrieve_data()
                                 api_used = 'yahoo'
                                 if stock and stock.price:
-                                    print(f"[REALTIME] Yahoo fallback successful for {symbol}: ${stock.price:.2f}")
+                                    logger.info("[REALTIME] Yahoo fallback successful for %s: $%.2f", symbol, stock.price)
                                 else:
-                                    print(f"[REALTIME] Yahoo fallback also failed for {symbol}")
+                                    logger.warning("[REALTIME] Yahoo fallback also failed for %s", symbol)
                                     continue
                             except Exception as yahoo_error:
-                                print(f"[REALTIME] Yahoo fallback failed for {symbol}: {yahoo_error}")
+                                logger.error("[REALTIME] Yahoo fallback failed for %s: %s", symbol, yahoo_error)
                                 continue
                         
-                        print(f"[REALTIME] Updated {symbol}: ${stock.price:.2f} (Source: {api_used.upper() if api_used else 'ALPACA'})")
+                        logger.info("[REALTIME] Updated %s: $%.2f (Source: %s)", symbol, stock.price, api_used.upper() if api_used else 'ALPACA')
                         
                         if stock.name and 'not found' not in stock.name.lower():
                             stock_data = {
@@ -971,7 +956,7 @@ def update_stock_prices():
                             updated_symbols[symbol] = stock_data
                         
                     except Exception as e:
-                        print(f"Error updating {symbol}: {e}")
+                        logger.error("Error updating %s: %s", symbol, e)
                         continue
             
             # Send updates to users - ensure ALL watchlist stocks get updates
@@ -1008,7 +993,7 @@ def update_stock_prices():
                         else:
                             # If stock wasn't updated in this cycle, still send current data
                             # This ensures frontend knows the stock exists even if update failed
-                            print(f"[REALTIME] Symbol {symbol} not in updated_symbols for user {user_id}, may need fallback fetch")
+                            logger.debug("[REALTIME] Symbol %s not in updated_symbols for user %s, may need fallback fetch", symbol, user_id)
                     
                     if user_updates:
                         room_name = f"watchlist_{user_id}"
@@ -1017,12 +1002,12 @@ def update_stock_prices():
                             'timestamp': datetime.now().isoformat(),
                             'cycle': update_cycle_count
                         }, room=room_name)
-                        print(f"[REALTIME] Sent {len(user_updates)} stock updates to user {user_id} (Cycle #{update_cycle_count})")
+                        logger.info("[REALTIME] Sent %s stock updates to user %s (Cycle #%s)", len(user_updates), user_id, update_cycle_count)
                     else:
-                        print(f"[REALTIME] No updates to send for user {user_id} (watchlist has {len(watchlist)} stocks, updated_symbols has {len(updated_symbols)} symbols)")
+                        logger.debug("[REALTIME] No updates to send for user %s (watchlist has %s stocks, updated_symbols has %s symbols)", user_id, len(watchlist), len(updated_symbols))
                         
                 except Exception as e:
-                    print(f"Error sending updates to user {user_id}: {e}")
+                    logger.error("Error sending updates to user %s: %s", user_id, e)
                     continue
             
             # No cache cleanup needed - we don't cache anymore
@@ -1032,39 +1017,40 @@ def update_stock_prices():
                 market_status = get_market_status()
                 socketio.emit('market_status_updated', market_status, room="market_updates")
             except Exception as market_error:
-                print(f"Error updating market status: {market_error}")
+                logger.error("Error updating market status: %s", market_error)
             
             # Sleep before next update
             # OPTIMIZED: 30 seconds to respect Alpaca rate limits (200 req/min)
             # At 30s intervals: 2 updates/min = safe for free tier
             cycle_end_time = time.time()
             cycle_duration = cycle_end_time - current_time
-            print(f"⏱️ Update cycle completed in {cycle_duration:.2f} seconds")
+            logger.info("Update cycle completed in %.2f seconds", cycle_duration)
 
             # Display API stats if available
             if USE_ALPACA_API and alpaca_api and hasattr(alpaca_api, 'get_queue_stats'):
                 try:
                     stats = alpaca_api.get_queue_stats()
-                    print(f"API Stats: {stats['requests_last_minute']}/{stats.get('can_request', 'N/A')} req/min | "
-                          f"Total: {stats['total_requests']} | Rate limited: {stats['rate_limited']}")
+                    logger.info("API Stats: %s/%s req/min | Total: %s | Rate limited: %s",
+                               stats['requests_last_minute'], stats.get('can_request', 'N/A'),
+                               stats['total_requests'], stats['rate_limited'])
                 except:
                     pass
 
-            print(f"😴 Sleeping for 30 seconds before next update...")
-            print(f"📅 Next update at: {datetime.fromtimestamp(time.time() + 30).strftime('%H:%M:%S')}\n")
+            logger.info("Sleeping for 30 seconds before next update...")
+            logger.info("Next update at: %s", datetime.fromtimestamp(time.time() + 30).strftime('%H:%M:%S'))
             time.sleep(30)  # OPTIMIZED: 30s intervals for rate limit compliance
             
         except Exception as e:
-            print(f"Error in price update loop: {e}")
+            logger.error("Error in price update loop: %s", e)
             import gc
             gc.collect()  # Force garbage collection on error
-            print("😴 Sleeping for 3 minutes after error...")
+            logger.info("Sleeping for 3 minutes after error...")
             time.sleep(180)  # Reduced error sleep time
 
 # Start background task for price updates
 def start_price_updates():
     """Start the background price update task with proper memory management"""
-    print("Starting memory-optimized price update background task...")
+    logger.info("Starting memory-optimized price update background task...")
     
     # Add enhanced memory cleanup
     import gc
@@ -1078,29 +1064,29 @@ def start_price_updates():
                 
                 # Force garbage collection
                 collected = gc.collect()
-                print(f"🧹 Memory cleanup completed, collected {collected} objects")
+                logger.info("Memory cleanup completed, collected %s objects", collected)
                 
                 # Optional: Print memory stats if available
                 try:
                     import psutil
                     process = psutil.Process()
                     memory_mb = process.memory_info().rss / 1024 / 1024
-                    print(f"Current memory usage: {memory_mb:.1f} MB")
+                    logger.info("Current memory usage: %.1f MB", memory_mb)
                 except ImportError:
                     pass  # psutil not available
                     
             except Exception as e:
-                print(f"Memory cleanup error: {e}")
+                logger.error("Memory cleanup error: %s", e)
     
     # Start memory cleanup thread
     cleanup_thread = threading.Thread(target=cleanup_memory, daemon=True, name="MemoryCleanupThread")
     cleanup_thread.start()
-    print("🧹 Memory cleanup thread started")
+    logger.info("Memory cleanup thread started")
     
     # Start price update thread (now re-enabled with memory optimizations)
     price_thread = threading.Thread(target=update_stock_prices, daemon=True, name="PriceUpdateThread")
     price_thread.start()
-    print("Memory-optimized price update background thread started")
+    logger.info("Memory-optimized price update background thread started")
 
 # Market status function
 def get_market_status():
@@ -1144,7 +1130,7 @@ def get_market_status():
                 'last_updated': now_et.isoformat()
             }
     except Exception as e:
-        print(f"Error getting market status: {e}")
+        logger.error("Error getting market status: %s", e)
         return {
             'isOpen': False,
             'status': 'Market status unknown',
@@ -1161,19 +1147,14 @@ def search_stock():
     
     symbol = data.get('symbol', '').strip()
     
-    # Validate and sanitize symbol
     if not symbol:
         return jsonify({'error': 'Please enter a stock symbol'}), 400
     
-    # Sanitize the symbol
     symbol = sanitize_stock_symbol(symbol)
     
-    # Additional validation
     if not validate_stock_symbol(symbol):
         return jsonify({'error': 'Invalid stock symbol format'}), 400
     
-    print(f"🔍 [API] /api/search called for symbol: {symbol}")
-    print(f"[API] USE_ALPACA_API = {USE_ALPACA_API}, alpaca_api available = {alpaca_api is not None}")
     
     # Check if this is a watchlist request (from frontend dashboard)
     # For watchlist requests, use Alpaca only (no Yahoo fallback)
@@ -1181,35 +1162,34 @@ def search_stock():
                           request.referrer and 'dashboard' in request.referrer.lower()
     
     if is_watchlist_request:
-        print(f"[WATCHLIST] Using Alpaca-only for watchlist request: {symbol}")
         stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
             # If Alpaca fails for watchlist, return error instead of falling back to Yahoo
-            print(f"[WATCHLIST] Alpaca failed for {symbol}, returning error (no Yahoo fallback)")
+            logger.warning("[WATCHLIST] Alpaca failed for %s, returning error (no Yahoo fallback)", symbol)
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
     else:
         # For non-watchlist requests, use fallback
         stock, api_used = get_stock_with_fallback(symbol)
     if not stock:
-        print(f"[API] Could not retrieve stock data for {symbol}")
+        logger.warning("[API] Could not retrieve stock data for %s", symbol)
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
-    
-    print(f"[API] Returning stock data for {symbol}: ${stock.price:.2f} ({stock.name}) - Source: {api_used.upper() if api_used else 'UNKNOWN'}")
-    
     if stock.name and 'not found' not in stock.name.lower():
-        #last month's price
-        last_month_date = datetime.now() - timedelta(days=30)
-        start_date = last_month_date.strftime("%Y-%m-%d")
+        # Get previous day's close for daily change calculation
+        yesterday_date = datetime.now() - timedelta(days=5)  # Look back 5 days to handle weekends/holidays
+        start_date = yesterday_date.strftime("%Y-%m-%d")
         end_date = datetime.now().strftime("%Y-%m-%d")
         historical_data = yahoo_finance_api.get_historical_data(symbol, start_date, end_date)
-        
-        last_month_price = 0.0
-        if historical_data and len(historical_data) > 0:
-            last_month_price = historical_data[0]['close']
-        
-        price_change = stock.price - last_month_price if last_month_price > 0 else 0
-        price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
-        
+
+        prev_close = 0.0
+        if historical_data and len(historical_data) >= 2:
+            # Second-to-last entry is previous day's close
+            prev_close = historical_data[-2]['close']
+        elif historical_data and len(historical_data) == 1:
+            prev_close = historical_data[0]['close']
+
+        price_change = stock.price - prev_close if prev_close > 0 else 0
+        price_change_percent = (price_change / prev_close * 100) if prev_close > 0 else 0
+
         # Check for triggered alerts (only if user is logged in)
         alerts_data = []
         if current_user.is_authenticated:
@@ -1218,12 +1198,12 @@ def search_stock():
                 'target_price': float(alert['target_price']),
                 'alert_type': alert['alert_type']
             } for alert in triggered_alerts]
-        
+
         response_data = {
             'symbol': stock.symbol,
             'name': stock.name,
             'price': stock.price,
-            'lastMonthPrice': last_month_price,
+            'previousClose': prev_close,
             'priceChange': price_change,
             'priceChangePercent': price_change_percent,
             'triggeredAlerts': alerts_data,
@@ -1234,7 +1214,7 @@ def search_stock():
         # Add custom header to show which API was used
         api_source_header = api_used.upper() if api_used else 'YAHOO'
         response.headers['X-API-Source'] = api_source_header
-        print(f"[API] Sending response for {symbol} with apiSource: {response_data['apiSource']}, header: {api_source_header}")
+        logger.debug("[API] Sending response for %s with apiSource: %s, header: %s", symbol, response_data['apiSource'], api_source_header)
         return response
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
@@ -1260,24 +1240,26 @@ def get_stock_data(symbol):
 
     try:
         # This endpoint is used for watchlist price updates, so use Alpaca only
-        print(f"[WATCHLIST] /api/stock/{symbol} - Using Alpaca-only for watchlist price update")
+        logger.debug("[WATCHLIST] /api/stock/%s - Using Alpaca-only for watchlist price update", symbol)
         stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
 
         if stock.name and 'not found' not in stock.name.lower():
-            # Get last month's price for change calculation
-            last_month_date = datetime.now() - timedelta(days=30)
-            start_date = last_month_date.strftime("%Y-%m-%d")
+            # Get previous day's close for daily change calculation
+            yesterday_date = datetime.now() - timedelta(days=5)  # Look back 5 days to handle weekends/holidays
+            start_date = yesterday_date.strftime("%Y-%m-%d")
             end_date = datetime.now().strftime("%Y-%m-%d")
             historical_data = yahoo_finance_api.get_historical_data(symbol, start_date, end_date)
 
-            last_month_price = 0.0
-            if historical_data and len(historical_data) > 0:
-                last_month_price = historical_data[0]['close']
+            prev_close = 0.0
+            if historical_data and len(historical_data) >= 2:
+                prev_close = historical_data[-2]['close']
+            elif historical_data and len(historical_data) == 1:
+                prev_close = historical_data[0]['close']
 
-            price_change = stock.price - last_month_price if last_month_price > 0 else 0
-            price_change_percent = (price_change / last_month_price * 100) if last_month_price > 0 else 0
+            price_change = stock.price - prev_close if prev_close > 0 else 0
+            price_change_percent = (price_change / prev_close * 100) if prev_close > 0 else 0
 
             # Check for triggered alerts
             alerts_data = []
@@ -1292,7 +1274,7 @@ def get_stock_data(symbol):
                 'symbol': stock.symbol,
                 'name': stock.name,
                 'price': stock.price,
-                'lastMonthPrice': last_month_price,
+                'previousClose': prev_close,
                 'priceChange': price_change,
                 'priceChangePercent': price_change_percent,
                 'triggeredAlerts': alerts_data,
@@ -1302,7 +1284,7 @@ def get_stock_data(symbol):
             return jsonify({'error': f'Stock "{symbol}" not found'}), 404
 
     except Exception as e:
-        print(f"Error fetching stock data for {symbol}: {e}")
+        logger.error("Error fetching stock data for %s: %s", symbol, e)
         return jsonify({'error': 'Failed to fetch stock data'}), 500
 
 @app.route('/api/search/stocks', methods=['GET'])
@@ -1343,7 +1325,7 @@ def search_stocks():
             })
             
     except Exception as e:
-        print(f"Error searching stocks for '{query}': {e}")
+        logger.error("Error searching stocks for '%s': %s", query, e)
         # Return a fallback response instead of 500 error
         return jsonify({
             'results': [],
@@ -1396,7 +1378,7 @@ def search_companies():
         })
             
     except Exception as e:
-        print(f"Error searching companies for '{query}': {e}")
+        logger.error("Error searching companies for '%s': %s", query, e)
         # Return a fallback response instead of 500 error
         return jsonify({
             'results': [],
@@ -1424,60 +1406,37 @@ def authenticate_request():
 
         # Try token-based auth - LIGHTWEIGHT VERSION (no Firestore calls)
         auth_header = request.headers.get('Authorization')
-        user_id_header = request.headers.get('X-User-ID')
-
-        print(f"Token auth attempt - Header: {auth_header[:20] if auth_header else 'None'}, UserID: {user_id_header}")
 
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.replace('Bearer ', '')
-            print(f"Token received, length: {len(token)}")
-            
-            # Check if user ID header is provided
-            if not user_id_header:
-                print("Missing X-User-ID header")
-                return None
-            
+
             try:
                 # Verify Firebase token
                 decoded_token = FirebaseService.verify_token(token)
-                print(f"🔍 Token decoded: {decoded_token is not None}")
-                
+
                 if not decoded_token:
-                    print("Token verification failed - invalid token")
                     return None
-                
-                token_uid = decoded_token.get('uid')
-                print(f"Token UID: {token_uid}, Header UID: {user_id_header}")
-                
-                if token_uid != user_id_header:
-                    print(f"UID mismatch - Token: {token_uid}, Header: {user_id_header}")
+
+                uid = decoded_token.get('uid')
+                if not uid:
                     return None
-                
-                if decoded_token and token_uid == user_id_header:
-                    uid = token_uid
-                    # Create lightweight user object from token data (no Firestore call)
-                    user_profile = {
-                        'uid': uid,
-                        'name': decoded_token.get('name', 'User'),
-                        'email': decoded_token.get('email', ''),
-                        'id': uid  # Ensure id field exists for compatibility
-                    }
-                    firebase_user = FirebaseUser(user_profile)
-                    print(f"User authenticated from token: {firebase_user.email}")
-                    # Don't cache - always verify fresh to prevent stale failures
-                    return firebase_user
+
+                # Create lightweight user object from token data (no Firestore call)
+                user_profile = {
+                    'uid': uid,
+                    'name': decoded_token.get('name', 'User'),
+                    'email': decoded_token.get('email', ''),
+                    'id': uid  # Ensure id field exists for compatibility
+                }
+                firebase_user = FirebaseUser(user_profile)
+                return firebase_user
             except Exception as e:
-                print(f"Token authentication failed: {e}")
-                import traceback
-                print(f"Traceback: {traceback.format_exc()}")
+                logger.error("Token authentication failed: %s", e)
                 return None
 
-        print("No valid authentication method found")
         return None
     except Exception as e:
-        print(f"Authentication error: {e}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
+        logger.error("Authentication error: %s", e)
         return None
 
 @app.route('/api/watchlist', methods=['GET', 'OPTIONS'])
@@ -1496,35 +1455,35 @@ def get_watchlist_route():
         return response
 
     origin = request.headers.get('Origin', '')
-    print(f"📥 GET /api/watchlist request from origin: {origin}")
-    print(f"📥 Request headers - Authorization: {bool(request.headers.get('Authorization'))}, X-User-ID: {request.headers.get('X-User-ID')}")
+    logger.info("GET /api/watchlist request from origin: %s", origin)
+    logger.debug("Request headers - Authorization: %s, X-User-ID: %s", bool(request.headers.get('Authorization')), request.headers.get('X-User-ID'))
     
     user = authenticate_request()
     if not user:
-        print(f"Authentication failed for /api/watchlist")
+        logger.warning("Authentication failed for /api/watchlist")
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check rate limit
     if not rate_limiter.is_allowed(user.id):
-        print(f"Rate limit exceeded for user: {user.id}")
+        logger.warning("Rate limit exceeded for user: %s", user.id)
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     try:
-        print(f"\n{'='*80}")
-        print(f"🔍 GET WATCHLIST REQUEST for user: {user.id}")
-        print(f"{'='*80}")
+        logger.info("=" * 80)
+        logger.info("GET WATCHLIST REQUEST for user: %s", user.id)
+        logger.info("=" * 80)
         
         # Ensure watchlist service is initialized
         try:
             service = ensure_watchlist_service()
         except Exception as service_error:
-            print(f"Failed to initialize watchlist service: {service_error}")
+            logger.error("Failed to initialize watchlist service: %s", service_error)
             import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            logger.error("Traceback: %s", traceback.format_exc())
             return jsonify({'error': 'Service unavailable'}), 503
         
         # Get watchlist items from Firestore with timeout protection
-        print(f"Fetching watchlist from Firestore...")
+        logger.info("Fetching watchlist from Firestore...")
         watchlist = []
         
         # Try to fetch with timeout protection
@@ -1533,28 +1492,28 @@ def get_watchlist_route():
             # Use a reasonable limit (100 items) to prevent timeouts
             # The service will default to 100 if limit is None
             watchlist = service.get_watchlist(user.id, limit=100)
-            print(f"Retrieved {len(watchlist)} items from Firebase")
+            logger.info("Retrieved %s items from Firebase", len(watchlist))
         except Exception as firestore_error:
-            print(f"Firestore query error: {firestore_error}")
+            logger.error("Firestore query error: %s", firestore_error)
             import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            logger.error("Traceback: %s", traceback.format_exc())
             # Return empty list if Firestore fails - don't block the request
             watchlist = []
-            print(f"Returning empty watchlist due to Firestore error")
+            logger.warning("Returning empty watchlist due to Firestore error")
         
         # Log all symbols from Firebase
         if watchlist:
             try:
                 firebase_symbols = [item.get('symbol') or item.get('id') or 'NO_SYMBOL' for item in watchlist]
-                print(f"📦 STOCKS FROM FIREBASE:")
+                logger.info("STOCKS FROM FIREBASE:")
                 for i, symbol in enumerate(firebase_symbols[:10], 1):  # Limit to first 10 for logging
-                    print(f"   {i}. {symbol}")
+                    logger.info("   %s. %s", i, symbol)
                 if len(firebase_symbols) > 10:
-                    print(f"   ... and {len(firebase_symbols) - 10} more")
+                    logger.info("   ... and %s more", len(firebase_symbols) - 10)
             except Exception as log_error:
-                print(f"Error logging symbols: {log_error}")
+                logger.error("Error logging symbols: %s", log_error)
         else:
-            print(f"NO STOCKS IN FIREBASE WATCHLIST")
+            logger.info("NO STOCKS IN FIREBASE WATCHLIST")
         
         # For now, return watchlist without prices to prevent hanging
         # Prices can be fetched on-demand by the frontend
@@ -1586,34 +1545,34 @@ def get_watchlist_route():
                             continue
                     cleaned_watchlist.append(cleaned_item)
                 except Exception as item_error:
-                    print(f"Error cleaning item: {item_error}")
+                    logger.error("Error cleaning item: %s", item_error)
                     # Skip problematic items
                     continue
             
             watchlist_with_prices = cleaned_watchlist
         except Exception as clean_error:
-            print(f"Error cleaning watchlist: {clean_error}")
+            logger.error("Error cleaning watchlist: %s", clean_error)
             # Return original watchlist if cleaning fails
             pass
         
-        print(f"\nRETURNING {len(watchlist_with_prices)} items")
-        print(f"{'='*80}\n")
+        logger.info("RETURNING %s items", len(watchlist_with_prices))
+        logger.info("=" * 80)
         
         # Return response with proper error handling
         try:
             response = jsonify(watchlist_with_prices)
             return response
         except Exception as json_error:
-            print(f"Error serializing watchlist to JSON: {json_error}")
+            logger.error("Error serializing watchlist to JSON: %s", json_error)
             import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            logger.error("Traceback: %s", traceback.format_exc())
             # Return empty list if JSON serialization fails
             return jsonify([]), 500
             
     except Exception as e:
-        print(f"Error in get_watchlist_route: {e}")
+        logger.error("Error in get_watchlist_route: %s", e)
         import traceback
-        print(f"Traceback: {traceback.format_exc()}")
+        logger.error("Traceback: %s", traceback.format_exc())
         # Fallback to empty list on error - ensure CORS headers are set
         try:
             return jsonify({'error': 'Internal server error', 'items': []}), 500
@@ -1631,7 +1590,7 @@ def add_to_watchlist():
     
     # Check rate limit
     if not rate_limiter.is_allowed(user.id):
-        print(f"Rate limit exceeded for user: {user.id}")
+        logger.warning("Rate limit exceeded for user: %s", user.id)
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     data = request.get_json()
@@ -1657,21 +1616,21 @@ def add_to_watchlist():
     company_name = data.get('company_name', symbol)  # Use provided name or fallback to symbol
 
     try:
-        print(f"🔍 POST watchlist request - User: {user.id}, Symbol: {symbol}, Company: {company_name}")
+        logger.info("POST watchlist request - User: %s, Symbol: %s, Company: %s", user.id, symbol, company_name)
         
         # Get current stock price to store as original price (Alpaca only for watchlist)
         current_price = None
         try:
-            print(f"[WATCHLIST] Using Alpaca-only for adding stock to watchlist: {symbol}")
+            logger.debug("[WATCHLIST] Using Alpaca-only for adding stock to watchlist: %s", symbol)
             stock, api_used = get_stock_alpaca_only(symbol)
             if stock and stock.price and stock.price > 0:
                 current_price = stock.price
-                print(f"💰 Current price for {symbol} from Alpaca: ${current_price}")
+                logger.info("Current price for %s from Alpaca: $%s", symbol, current_price)
             else:
-                print(f"Could not get current price for {symbol} from Alpaca (no Yahoo fallback)")
+                logger.warning("Could not get current price for %s from Alpaca (no Yahoo fallback)", symbol)
                 return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
         except Exception as price_error:
-            print(f"Error getting current price for {symbol} from Alpaca: {price_error}")
+            logger.error("Error getting current price for %s from Alpaca: %s", symbol, price_error)
             return jsonify({'error': f'Failed to fetch stock data from Alpaca API: {str(price_error)}'}), 500
         
         # Ensure watchlist service is initialized
@@ -1692,14 +1651,14 @@ def add_to_watchlist():
         )
         
         if result['success']:
-            print(f"Successfully added {symbol} to watchlist")
+            logger.info("Successfully added %s to watchlist", symbol)
             return jsonify(result)
         else:
-            print(f"Failed to add {symbol}: {result['message']}")
+            logger.warning("Failed to add %s: %s", symbol, result['message'])
             return jsonify({'error': result['message']}), 400
     
     except Exception as e:
-        print(f"Error adding stock to watchlist: {e}")
+        logger.error("Error adding stock to watchlist: %s", e)
         return jsonify({'error': f'Failed to add {symbol} to watchlist'}), 500
 
 @app.route('/api/watchlist/<symbol>', methods=['DELETE'])
@@ -1973,7 +1932,7 @@ def get_chart_data(symbol):
             return jsonify({'error': 'No chart data available'}), 404
 
     except Exception as e:
-        print(f"[Chart API] Error fetching data for {symbol}: {e}")
+        logger.error("[Chart API] Error fetching data for %s: %s", symbol, e)
         # Fallback to old method
         stock = Stock(symbol, yahoo_finance_api)
         dates, prices = stock.retrieve_historical_data(
@@ -1989,7 +1948,7 @@ def get_chart_data(symbol):
 def market_status():
     """Get market status using Eastern Time"""
     origin = request.headers.get('Origin', '')
-    print(f"📥 GET /api/market-status request from origin: {origin}")
+    logger.debug("GET /api/market-status request from origin: %s", origin)
     
     try:
         # Get current time in Eastern Time (handles EST/EDT automatically)
@@ -2020,7 +1979,7 @@ def market_status():
             'status': 'Market is Open' if is_open else 'Market is Closed'
         })
     except Exception as e:
-        print(f"Error in market_status endpoint: {e}")
+        logger.error("Error in market_status endpoint: %s", e)
         return jsonify({
             'isOpen': False,
             'is_open': False,
@@ -2077,11 +2036,11 @@ SYMBOL: reason
         for mover in movers:
             mover['ai_reason'] = reasons.get(mover['symbol'], '')
 
-        print(f"Generated AI reasons for {len(reasons)} movers")
+        logger.info("Generated AI reasons for %s movers", len(reasons))
         return movers
 
     except Exception as e:
-        print(f"Failed to generate AI reasons: {e}")
+        logger.error("Failed to generate AI reasons: %s", e)
         # Return movers without AI reasons
         return movers
 
@@ -2089,7 +2048,7 @@ def get_real_top_movers():
     """Fetch real top movers using batch download (FAST)"""
     # Check cache first
     if _is_cache_valid('top_movers'):
-        print("Using cached top movers data")
+        logger.debug("Using cached top movers data")
         return _market_data_cache['top_movers']['data']
 
     try:
@@ -2112,7 +2071,7 @@ def get_real_top_movers():
         }
 
         # BATCH DOWNLOAD - One request for all symbols!
-        print(f"Fetching top movers for {len(stock_universe)} stocks (batch)...")
+        logger.info("Fetching top movers for %s stocks (batch)...", len(stock_universe))
         data = yf.download(stock_universe, period='5d', progress=False, threads=True)
 
         top_movers = []
@@ -2143,12 +2102,12 @@ def get_real_top_movers():
 
         # Cache the result
         _market_data_cache['top_movers'] = {'data': result, 'timestamp': datetime.now()}
-        print(f"Cached top movers: {[m['symbol'] for m in result]}")
+        logger.info("Cached top movers: %s", [m['symbol'] for m in result])
 
         return result
 
     except Exception as e:
-        print(f"Error fetching top movers: {e}")
+        logger.error("Error fetching top movers: %s", e)
         return [
             {'symbol': 'NVDA', 'change': 8.5, 'sector': 'Technology', 'price': 950.00, 'ai_reason': 'Strong AI chip demand and data center growth driving momentum.'},
             {'symbol': 'TSLA', 'change': 5.2, 'sector': 'Consumer Cyclical', 'price': 250.00, 'ai_reason': 'EV delivery numbers exceeded expectations this quarter.'},
@@ -2161,7 +2120,7 @@ def get_real_sector_performance():
     """Fetch real sector performance using batch download (FAST)"""
     # Check cache first
     if _is_cache_valid('sector_performance'):
-        print("Using cached sector performance data")
+        logger.debug("Using cached sector performance data")
         return _market_data_cache['sector_performance']['data']
 
     try:
@@ -2185,7 +2144,7 @@ def get_real_sector_performance():
         symbols = list(sector_etfs.keys())
 
         # BATCH DOWNLOAD - One request for all ETFs!
-        print(f"Fetching sector performance for {len(symbols)} ETFs (batch)...")
+        logger.info("Fetching sector performance for %s ETFs (batch)...", len(symbols))
         data = yf.download(symbols, period='5d', progress=False, threads=True)
 
         sector_performance = []
@@ -2211,12 +2170,12 @@ def get_real_sector_performance():
 
         # Cache the result
         _market_data_cache['sector_performance'] = {'data': sector_performance, 'timestamp': datetime.now()}
-        print(f"Cached sector performance: {len(sector_performance)} sectors")
+        logger.info("Cached sector performance: %s sectors", len(sector_performance))
 
         return sector_performance
 
     except Exception as e:
-        print(f"Error fetching sector performance: {e}")
+        logger.error("Error fetching sector performance: %s", e)
         return [
             {'name': 'Technology', 'change': 3.5, 'symbol': 'XLK'},
             {'name': 'Energy', 'change': 2.8, 'symbol': 'XLE'},
@@ -2247,7 +2206,7 @@ def get_market_analysis():
 
     # Try to generate AI analysis
     try:
-        from chat_service import ChatService
+        import requests as http_requests
 
         # Build comprehensive market analysis prompt - keep it simple to avoid AI confusion
         prompt = """You are a professional financial analyst writing a weekly market update.
@@ -2266,9 +2225,28 @@ IMPORTANT RULES:
 - Be specific about sectors and market movements
 - Write approximately 180 words"""
 
-        # Generate AI analysis using Gemini
-        chat_service = ChatService()
-        analysis_text = chat_service.generate_simple_response(prompt)
+        # Generate AI analysis using Groq
+        groq_api_key = os.environ.get('GROQ_API_KEY')
+        if not groq_api_key:
+            raise Exception("GROQ_API_KEY not configured")
+
+        groq_response = http_requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {groq_api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'llama-3.3-70b-versatile',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'temperature': 0.5,
+                'max_tokens': 500
+            },
+            timeout=30
+        )
+        groq_response.raise_for_status()
+        groq_data = groq_response.json()
+        analysis_text = groq_data['choices'][0]['message']['content'].strip()
 
         # Clean up any "undefined" that AI might generate
         if analysis_text:
@@ -2283,7 +2261,7 @@ IMPORTANT RULES:
         })
 
     except Exception as e:
-        print(f"Error generating AI market analysis: {e}")
+        logger.error("Error generating AI market analysis: %s", e)
         import traceback
         traceback.print_exc()
 
@@ -2362,7 +2340,6 @@ def get_stock_stocktwits(symbol):
             'has_more': result.get('has_more', False)
         })
     except Exception as e:
-        print(f"Error fetching Stocktwits for {symbol}: {e}")
         return jsonify({
             'symbol': symbol,
             'messages': [],
@@ -2399,7 +2376,7 @@ def get_stock_sentiment(symbol):
                 'error': 'Sentiment data not available'
             })
     except Exception as e:
-        print(f"Error fetching sentiment for {symbol}: {e}")
+        logger.error("Error fetching sentiment for %s: %s", symbol, e)
         return jsonify({
             'symbol': symbol,
             'sentiment': None,
@@ -2429,7 +2406,7 @@ def get_trending_stocktwits():
             'count': len(trending)
         })
     except Exception as e:
-        print(f"Error fetching trending: {e}")
+        logger.error("Error fetching trending: %s", e)
         return jsonify({
             'trending': [],
             'count': 0,
@@ -2477,7 +2454,7 @@ def get_stock_ai_analysis(symbol):
         try:
             news = news_api.get_company_news(symbol, limit=5)
         except Exception as e:
-            print(f"Warning: Could not fetch news for AI analysis of {symbol}: {e}")
+            logger.warning("Could not fetch news for AI analysis of %s: %s", symbol, e)
             news = []
 
         # Generate AI analysis
@@ -2520,7 +2497,7 @@ def get_stock_ai_analysis(symbol):
         return jsonify(response_data)
 
     except Exception as e:
-        print(f"Error in AI analysis for {symbol}: {e}")
+        logger.error("Error in AI analysis for %s: %s", symbol, e)
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -2662,7 +2639,7 @@ def get_stock_ai_insight(symbol):
         from chat_service import chat_service
         import yfinance as yf
 
-        print(f"[AI Insight] Starting for {symbol}")
+        logger.info("[AI Insight] Starting for %s", symbol)
 
         # Get stock data directly from yfinance for price change info
         try:
@@ -2680,16 +2657,16 @@ def get_stock_ai_insight(symbol):
                 change = 0
                 change_pct = 0
 
-            print(f"[AI Insight] {symbol}: ${price:.2f} ({change_pct:+.2f}%)")
+            logger.info("[AI Insight] %s: $%.2f (%+.2f%%)", symbol, price, change_pct)
 
         except Exception as e:
             import traceback
-            print(f"[AI Insight] yfinance error for {symbol}: {e}")
+            logger.error("[AI Insight] yfinance error for %s: %s", symbol, e)
             traceback.print_exc()
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
         if not price:
-            print(f"[AI Insight] No price data for {symbol}")
+            logger.warning("[AI Insight] No price data for %s", symbol)
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
         # Get news headlines for context
@@ -2703,7 +2680,7 @@ def get_stock_ai_insight(symbol):
 
         # Direct Gemini call with simple text response (no JSON parsing)
         if not chat_service.gemini_client:
-            print(f"[AI Insight] Gemini client not available")
+            logger.warning("[AI Insight] Gemini client not available")
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
         direction = "up" if change_pct >= 0 else "down"
@@ -2714,7 +2691,7 @@ Recent headlines: {news_context if news_context else "No recent news available"}
 
 Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
 
-        print(f"[AI Insight] Calling Gemini for {symbol}")
+        logger.debug("[AI Insight] Calling Gemini for %s", symbol)
 
         response = chat_service.gemini_client.generate_content(
             prompt,
@@ -2752,20 +2729,20 @@ Write plain text only. No formatting, no bullet points, no JSON. Complete your s
                 except:
                     pass  # Keep original if JSON parsing fails
 
-            print(f"[AI Insight] Generated for {symbol}: {insight_text[:80]}...")
+            logger.info("[AI Insight] Generated for %s: %s...", symbol, insight_text[:80])
             return jsonify({
                 'symbol': symbol,
                 'change_percent': round(change_pct, 2),
                 'ai_insight': insight_text
             })
         else:
-            print(f"[AI Insight] No text in response for {symbol}")
+            logger.warning("[AI Insight] No text in response for %s", symbol)
             return jsonify({'symbol': symbol, 'ai_insight': 'Unable to generate insight.'}), 200
 
     except Exception as e:
         import traceback
         error_msg = str(e)
-        print(f"[AI Insight] Error for {symbol}: {error_msg}")
+        logger.error("[AI Insight] Error for %s: %s", symbol, error_msg)
         traceback.print_exc()
 
         # Return the actual error for debugging
@@ -2804,10 +2781,79 @@ def get_sectors_batch():
             else:
                 sectors[symbol] = 'Other'
         except Exception as e:
-            print(f"Error getting sector for {symbol}: {e}")
+            logger.error("Error getting sector for %s: %s", symbol, e)
             sectors[symbol] = 'Other'
     
     return jsonify(sectors)
+
+@app.route('/api/stocks/correlation', methods=['POST'])
+def get_stock_correlation():
+    """Calculate correlation matrix for a set of stocks using 90 days of historical data"""
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    data = request.get_json()
+    symbols = data.get('symbols', [])
+
+    if not symbols or not isinstance(symbols, list):
+        return jsonify({'error': 'Please provide a list of symbols'}), 400
+
+    if len(symbols) > 20:
+        return jsonify({'error': 'Maximum 20 symbols allowed'}), 400
+
+    if len(symbols) < 2:
+        return jsonify({'error': 'At least 2 symbols required'}), 400
+
+    import re
+    import pandas as pd
+    from datetime import datetime, timedelta
+
+    # Sanitize symbols
+    clean_symbols = []
+    for s in symbols:
+        s = s.upper().strip()
+        if re.match(r'^[A-Z]{1,5}$', s):
+            clean_symbols.append(s)
+
+    if len(clean_symbols) < 2:
+        return jsonify({'error': 'At least 2 valid symbols required'}), 400
+
+    try:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+
+        # Fetch historical close prices for each symbol
+        price_series = {}
+        for sym in clean_symbols:
+            hist = yahoo_finance_api.get_historical_data(sym, start_date, end_date)
+            if hist and len(hist) > 0:
+                price_series[sym] = {entry['date']: entry['close'] for entry in hist}
+
+        if len(price_series) < 2:
+            return jsonify({'error': 'Not enough historical data available'}), 400
+
+        # Build DataFrame with aligned dates
+        df = pd.DataFrame(price_series)
+        df = df.dropna()
+
+        if len(df) < 5:
+            return jsonify({'error': 'Not enough overlapping trading days'}), 400
+
+        # Compute correlation matrix
+        corr = df.corr()
+        result_symbols = list(corr.columns)
+        matrix = corr.values.tolist()
+
+        return jsonify({
+            'symbols': result_symbols,
+            'matrix': matrix,
+            'period': '90d'
+        })
+
+    except Exception as e:
+        logger.error("Error calculating correlation: %s", e)
+        return jsonify({'error': 'Failed to calculate correlation'}), 500
 
 @app.route('/api/watchlist/<symbol>/details')
 def get_watchlist_stock_details(symbol):
@@ -2819,7 +2865,7 @@ def get_watchlist_stock_details(symbol):
     symbol = symbol.upper()
     
     try:
-        print(f"🔍 Getting watchlist details for symbol: {symbol}, user: {user.id}")
+        logger.info("Getting watchlist details for symbol: %s, user: %s", symbol, user.id)
         
         # Get watchlist item data
         try:
@@ -2828,13 +2874,13 @@ def get_watchlist_stock_details(symbol):
         except RuntimeError as e:
             return jsonify({'error': str(e)}), 503
         if not watchlist_item:
-            print(f"Stock {symbol} not found in watchlist for user {user.id}")
+            logger.warning("Stock %s not found in watchlist for user %s", symbol, user.id)
             return jsonify({'error': f'Stock "{symbol}" not found in watchlist'}), 404
         
-        print(f"Found watchlist item for {symbol}")
+        logger.info("Found watchlist item for %s", symbol)
         
         # Get current stock data (Alpaca only for watchlist)
-        print(f"[WATCHLIST] Using Alpaca-only for watchlist details: {symbol}")
+        logger.debug("[WATCHLIST] Using Alpaca-only for watchlist details: %s", symbol)
         stock, api_used = get_stock_alpaca_only(symbol)
         if not stock:
             return jsonify({'error': f'Stock "{symbol}" not available via Alpaca API. Please check the symbol or try again later.'}), 404
@@ -2854,13 +2900,13 @@ def get_watchlist_stock_details(symbol):
         
         # Handle legacy data: if no original price, set current price as original
         if not original_price and current_price:
-            print(f"Setting current price as original price for legacy stock {symbol}")
+            logger.info("Setting current price as original price for legacy stock %s", symbol)
             try:
                 service = ensure_watchlist_service()
                 service.update_stock(user.id, symbol, original_price=current_price)
                 original_price = current_price
             except RuntimeError:
-                print("Could not update original price - service unavailable")
+                logger.warning("Could not update original price - service unavailable")
         
         if original_price and current_price and original_price > 0:
             price_change = current_price - original_price
@@ -2902,7 +2948,7 @@ def get_watchlist_stock_details(symbol):
         })
         
     except Exception as e:
-        print(f"Error getting watchlist stock details for {symbol}: {e}")
+        logger.error("Error getting watchlist stock details for %s: %s", symbol, e)
         return jsonify({'error': f'Failed to get stock details for {symbol}'}), 500
 
 @app.route('/api/alpaca/connect', methods=['POST'])
@@ -2939,7 +2985,7 @@ def connect_alpaca_account():
             
             account_data = response.json()
         except Exception as e:
-            print(f"Error verifying Alpaca credentials: {e}")
+            logger.error("Error verifying Alpaca credentials: %s", e)
             return jsonify({'error': 'Failed to verify Alpaca credentials. Please check your keys.'}), 401
         
         # Encrypt and store credentials
@@ -2962,7 +3008,7 @@ def connect_alpaca_account():
             'alpaca_account_status': account_data.get('status', '')
         }, merge=True)
         
-        print(f"Alpaca account connected for user {user.id}")
+        logger.info("Alpaca account connected for user %s", user.id)
         return jsonify({
             'success': True,
             'message': 'Alpaca account connected successfully',
@@ -2972,9 +3018,9 @@ def connect_alpaca_account():
         })
         
     except Exception as e:
-        print(f"Error connecting Alpaca account: {e}")
+        logger.error("Error connecting Alpaca account: %s", e)
         import traceback
-        print(traceback.format_exc())
+        logger.error("Traceback: %s", traceback.format_exc())
         return jsonify({'error': f'Failed to connect Alpaca account: {str(e)}'}), 500
 
 @app.route('/api/alpaca/disconnect', methods=['POST'])
@@ -2997,11 +3043,11 @@ def disconnect_alpaca_account():
             'alpaca_disconnected_at': datetime.utcnow()
         })
         
-        print(f"Alpaca account disconnected for user {user.id}")
+        logger.info("Alpaca account disconnected for user %s", user.id)
         return jsonify({'success': True, 'message': 'Alpaca account disconnected successfully'})
         
     except Exception as e:
-        print(f"Error disconnecting Alpaca account: {e}")
+        logger.error("Error disconnecting Alpaca account: %s", e)
         return jsonify({'error': f'Failed to disconnect Alpaca account: {str(e)}'}), 500
 
 @app.route('/api/alpaca/status', methods=['GET'])
@@ -3035,7 +3081,7 @@ def get_alpaca_status():
             return jsonify({'connected': False})
             
     except Exception as e:
-        print(f"Error getting Alpaca status: {e}")
+        logger.error("Error getting Alpaca status: %s", e)
         return jsonify({'error': f'Failed to get Alpaca status: {str(e)}'}), 500
 
 @app.route('/api/alpaca/positions', methods=['GET'])
@@ -3106,9 +3152,9 @@ def get_alpaca_positions():
         })
         
     except Exception as e:
-        print(f"Error fetching Alpaca positions: {e}")
+        logger.error("Error fetching Alpaca positions: %s", e)
         import traceback
-        print(traceback.format_exc())
+        logger.error("Traceback: %s", traceback.format_exc())
         return jsonify({'error': f'Failed to fetch positions: {str(e)}'}), 500
 
 @app.route('/api/alpaca/sync-positions', methods=['POST'])
@@ -3193,7 +3239,7 @@ def sync_alpaca_positions():
                 added_count += 1
                 
             except Exception as e:
-                print(f"Error adding {symbol} to watchlist: {e}")
+                logger.error("Error adding %s to watchlist: %s", symbol, e)
                 continue
         
         return jsonify({
@@ -3204,9 +3250,9 @@ def sync_alpaca_positions():
         })
         
     except Exception as e:
-        print(f"Error syncing Alpaca positions: {e}")
+        logger.error("Error syncing Alpaca positions: %s", e)
         import traceback
-        print(traceback.format_exc())
+        logger.error("Traceback: %s", traceback.format_exc())
         return jsonify({'error': f'Failed to sync positions: {str(e)}'}), 500
 
 @app.route('/api/alerts', methods=['GET'])
@@ -3296,7 +3342,7 @@ def get_earnings_calendar():
 
         return jsonify(earnings_data if earnings_data else _get_fallback_earnings())
     except Exception as e:
-        print(f"Error fetching earnings calendar: {e}")
+        logger.error("Error fetching earnings calendar: %s", e)
         return jsonify(_get_fallback_earnings())
 
 
@@ -3347,7 +3393,7 @@ def get_insider_trading(symbol):
 
         return jsonify(insider_data if insider_data else _get_fallback_insider(symbol))
     except Exception as e:
-        print(f"Error fetching insider trading for {symbol}: {e}")
+        logger.error("Error fetching insider trading for %s: %s", symbol, e)
         return jsonify(_get_fallback_insider(symbol))
 
 
@@ -3427,7 +3473,7 @@ def get_analyst_ratings(symbol):
 
         return jsonify(ratings_data)
     except Exception as e:
-        print(f"Error fetching analyst ratings for {symbol}: {e}")
+        logger.error("Error fetching analyst ratings for %s: %s", symbol, e)
         return jsonify(_get_fallback_analyst(symbol))
 
 
@@ -3771,9 +3817,9 @@ def chat_endpoint():
             }), 500
             
     except Exception as e:
-        print(f"Chat endpoint error: {e}")
+        logger.error("Chat endpoint error: %s", e)
         import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
+        logger.error("Full traceback: %s", traceback.format_exc())
         return jsonify({
             'success': False,
             'error': f'Internal server error: {str(e)}',
@@ -3801,7 +3847,7 @@ def get_chat_history():
         })
         
     except Exception as e:
-        print(f"Chat history error: {e}")
+        logger.error("Chat history error: %s", e)
         return jsonify({
             'success': False,
             'error': 'Could not retrieve chat history'
@@ -3827,7 +3873,7 @@ def clear_chat_history():
         })
         
     except Exception as e:
-        print(f"Clear chat history error: {e}")
+        logger.error("Clear chat history error: %s", e)
         return jsonify({
             'success': False,
             'error': 'Could not clear chat history'
@@ -3858,7 +3904,7 @@ def chat_status():
         })
         
     except Exception as e:
-        print(f"Chat status error: {e}")
+        logger.error("Chat status error: %s", e)
         return jsonify({
             'success': False,
             'error': 'Could not get chat status'
@@ -3899,9 +3945,9 @@ def test_gemini_api():
         })
         
     except Exception as e:
-        print(f"Gemini test error: {e}")
+        logger.error("Gemini test error: %s", e)
         import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
+        logger.error("Full traceback: %s", traceback.format_exc())
         return jsonify({
             'success': False,
             'error': str(e),
@@ -3941,7 +3987,7 @@ def handle_chat_message(data):
             })
             
     except Exception as e:
-        print(f"WebSocket chat error: {e}")
+        logger.error("WebSocket chat error: %s", e)
         emit('chat_error', {
             'error': 'Internal server error',
             'response': 'I\'m sorry, I encountered an error. Please try again.'
@@ -4032,7 +4078,7 @@ def youtube_search():
         response = http_requests.get(youtube_url, params=params, timeout=10)
 
         if response.status_code != 200:
-            print(f"YouTube API error: {response.status_code} - {response.text}")
+            logger.error("YouTube API error: %s - %s", response.status_code, response.text)
             search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
             return jsonify({
                 'videos': [],
@@ -4068,7 +4114,7 @@ def youtube_search():
         })
 
     except Exception as e:
-        print(f"YouTube search error: {e}")
+        logger.error("YouTube search error: %s", e)
         search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
         return jsonify({
             'videos': [],
@@ -4078,40 +4124,40 @@ def youtube_search():
 
         
 # Add startup message that runs when module is imported (for gunicorn)
-print("\n" + "="*80)
-print("Stock Watchlist App - Initializing...")
-print("="*80)
-print(f"Debug mode: {Config.DEBUG}")
-print(f"Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}")
-print(f"Firebase credentials: {'configured' if os.path.exists(Config.FIREBASE_CREDENTIALS_PATH) or os.environ.get('FIREBASE_CREDENTIALS_BASE64') else 'not found (will initialize on demand)'}")
-print("App module loaded successfully - services will initialize on demand")
-print("="*80 + "\n")
+logger.info("=" * 80)
+logger.info("Stock Watchlist App - Initializing...")
+logger.info("=" * 80)
+logger.info("Debug mode: %s", Config.DEBUG)
+logger.info("Environment: %s", 'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development')
+logger.info("Firebase credentials: %s", 'configured' if os.path.exists(Config.FIREBASE_CREDENTIALS_PATH) or os.environ.get('FIREBASE_CREDENTIALS_BASE64') else 'not found (will initialize on demand)')
+logger.info("App module loaded successfully - services will initialize on demand")
+logger.info("=" * 80)
 
 if __name__ == '__main__':
     port = Config.PORT
-    print("\nStarting Stock Watchlist App...")
-    print("Using Firebase for authentication and data storage")
-    print("Starting real-time price updates...")
-    print(f"🌐 Server running on port: {port}")
-    print(f"Debug mode: {Config.DEBUG}")
-    print(f"Firebase project: {Config.FIREBASE_PROJECT_ID}")
-    print(f"Environment: {'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development'}\n")
+    logger.info("Starting Stock Watchlist App...")
+    logger.info("Using Firebase for authentication and data storage")
+    logger.info("Starting real-time price updates...")
+    logger.info("Server running on port: %s", port)
+    logger.info("Debug mode: %s", Config.DEBUG)
+    logger.info("Firebase project: %s", Config.FIREBASE_PROJECT_ID)
+    logger.info("Environment: %s", 'production' if os.environ.get('RAILWAY_ENVIRONMENT') else 'development')
     
     try:
         # Skip background tasks for Railway deployment initially
         if os.environ.get('RAILWAY_ENVIRONMENT'):
-            print("🚂 Railway environment detected - skipping background tasks")
+            logger.info("Railway environment detected - skipping background tasks")
         else:
             # Start the background price update task
-            print("Starting price update task...")
+            logger.info("Starting price update task...")
             start_price_updates()
-            print("Price update task started")
+            logger.info("Price update task started")
         
-        print("🌐 Starting Flask server...")
+        logger.info("Starting Flask server...")
         socketio.run(app, debug=Config.DEBUG, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
         
     except Exception as e:
-        print(f"Failed to start server: {e}")
+        logger.error("Failed to start server: %s", e)
         import traceback
-        print(f"Startup traceback: {traceback.format_exc()}")
+        logger.error("Startup traceback: %s", traceback.format_exc())
         raise 

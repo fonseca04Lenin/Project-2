@@ -6400,6 +6400,15 @@ body {
     gap: 1.5rem;
 }
 
+.stock-page-primary.full-width {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.stock-page-main.index-view {
+    grid-template-columns: 1fr;
+}
+
 /* Stock Header */
 .stock-header {
     display: flex;
@@ -6779,6 +6788,106 @@ body {
     gap: 1rem;
     font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.4);
+}
+
+/* Redesigned News Item - Yahoo Finance Style */
+.news-item-redesign {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.2s ease;
+}
+
+.news-item-redesign:last-child {
+    border-bottom: none;
+}
+
+.news-item-redesign:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.news-item-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.news-item-redesign .news-item-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.news-item-redesign .news-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 0.25rem;
+}
+
+.news-item-redesign .news-source {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.news-item-redesign .news-meta-separator {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.news-item-redesign .news-time {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.news-item-thumbnail {
+    flex-shrink: 0;
+    width: 120px;
+    height: 80px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.news-item-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Mobile responsive for news items */
+@media (max-width: 480px) {
+    .news-item-redesign {
+        padding: 1rem;
+        gap: 0.75rem;
+    }
+
+    .news-item-thumbnail {
+        width: 90px;
+        height: 60px;
+        border-radius: 6px;
+    }
+
+    .news-item-redesign .news-item-title {
+        font-size: 0.9rem;
+        -webkit-line-clamp: 2;
+    }
+
+    .news-item-redesign .news-item-meta {
+        font-size: 0.75rem;
+    }
 }
 
 .load-more-btn {
