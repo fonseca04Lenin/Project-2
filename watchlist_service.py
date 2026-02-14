@@ -116,7 +116,7 @@ class WatchlistService:
             count = len(list(watchlist_ref.limit(self.MAX_WATCHLIST_SIZE + 1).stream()))
             return count < self.MAX_WATCHLIST_SIZE
         except Exception as e:
-            logger.error(f"Error checking watchlist limit for user {user_id}: {e}")
+            logger.error("Error checking watchlist limit: %s", e)
             return False
 
     def _validate_watchlist_item(self, item: WatchlistItem) -> List[str]:
@@ -156,8 +156,8 @@ class WatchlistService:
             Dict with success status and message
         """
         try:
-            print(f"🔍 WatchlistService.add_stock called - User: {user_id}, Symbol: {symbol}, Company: {company_name}")
-            print(f"🔍 Firestore client available: {self.db is not None}")
+            logger.debug("WatchlistService.add_stock called - Symbol: %s, Company: %s", symbol, company_name)
+            logger.debug("Firestore client available: %s", self.db is not None)
             # Check if user has reached limit
             if not self._validate_user_watchlist_limit(user_id):
                 return {
@@ -185,16 +185,15 @@ class WatchlistService:
                 }
 
             # Add to Firestore
-            print(f"🔍 Adding to Firestore - Collection: users/{user_id}/watchlist, Document: {symbol}")
+            logger.debug("Adding to Firestore watchlist - Document: %s", symbol)
             watchlist_ref = self.db.collection('users').document(user_id).collection('watchlist')
             watchlist_ref.document(symbol).set(item.to_dict())
-            print(f"Successfully added {symbol} to Firestore")
+            logger.info("Successfully added %s to Firestore", symbol)
 
             # Update user's watchlist metadata
             self._update_watchlist_metadata(user_id)
 
-            logger.info(f"Added {symbol} to watchlist for user {user_id}")
-            print(f"WatchlistService.add_stock completed successfully for {symbol}")
+            logger.info("Added %s to watchlist", symbol)
             return {
                 'success': True,
                 'message': f'{company_name} added to watchlist',
@@ -202,8 +201,7 @@ class WatchlistService:
             }
 
         except Exception as e:
-            logger.error(f"Error adding {symbol} to watchlist for user {user_id}: {e}")
-            print(f"WatchlistService.add_stock failed for {symbol}: {e}")
+            logger.error("Error adding %s to watchlist: %s", symbol, e)
             return {
                 'success': False,
                 'message': 'Failed to add stock to watchlist'
@@ -247,7 +245,7 @@ class WatchlistService:
             # Update metadata
             self._update_watchlist_metadata(user_id)
 
-            logger.info(f"Removed {normalized_symbol} from watchlist for user {user_id}")
+            logger.info("Removed %s from watchlist", normalized_symbol)
             return {
                 'success': True,
                 'message': f'{normalized_symbol} removed from watchlist'

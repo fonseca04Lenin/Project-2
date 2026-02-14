@@ -164,8 +164,58 @@
             }]
           };
 
+          // SiteNavigationElement Schema (helps Google generate sitelinks)
+          var siteNavSchema = {
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            itemListElement: [
+              {
+                '@type': 'SiteNavigationElement',
+                position: 1,
+                name: 'Stock Watchlist',
+                description: 'Track your favorite stocks with real-time prices and alerts',
+                url: origin + '/#watchlist'
+              },
+              {
+                '@type': 'SiteNavigationElement',
+                position: 2,
+                name: 'AI Stock Advisor',
+                description: 'Chat with our AI-powered stock advisor for market insights',
+                url: origin + '/#assistant'
+              },
+              {
+                '@type': 'SiteNavigationElement',
+                position: 3,
+                name: 'Market News',
+                description: 'Latest market news and financial headlines',
+                url: origin + '/#news'
+              },
+              {
+                '@type': 'SiteNavigationElement',
+                position: 4,
+                name: 'Portfolio Tracker',
+                description: 'Monitor your stock portfolio performance and analytics',
+                url: origin + '/#portfolio'
+              },
+              {
+                '@type': 'SiteNavigationElement',
+                position: 5,
+                name: 'Market Heat Map',
+                description: 'Visual market heat map showing stock performance at a glance',
+                url: origin + '/#heatmap'
+              },
+              {
+                '@type': 'SiteNavigationElement',
+                position: 6,
+                name: 'Price Alerts',
+                description: 'Set custom price alerts for stocks in your watchlist',
+                url: origin + '/#alerts'
+              }
+            ]
+          };
+
           // Inject all schemas
-          [websiteSchema, orgSchema, appSchema, softwareSchema, breadcrumbSchema].forEach(function(schema) {
+          [websiteSchema, orgSchema, appSchema, softwareSchema, breadcrumbSchema, siteNavSchema].forEach(function(schema) {
             var script = document.createElement('script');
             script.type = 'application/ld+json';
             script.text = JSON.stringify(schema);
@@ -178,9 +228,11 @@
     </script>
     <title>AI Stock Sage - Free AI-Powered Stock Watchlist & Portfolio Tracker | Real-Time Market Data</title>
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
-    <link rel="apple-touch-icon" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
+    <!-- Favicon - SVG for modern browsers, PNG fallback -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="48x48" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#22c55e">
     
@@ -542,5 +594,10 @@
             }
         }, 500);
     </script>
+
+    <!-- Vercel Analytics -->
+    <script defer src="/_vercel/insights/script.js"></script>
+    <!-- Vercel Speed Insights -->
+    <script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
-</html> 
+</html>

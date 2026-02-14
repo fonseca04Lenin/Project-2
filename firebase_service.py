@@ -8,6 +8,9 @@ import os
 import base64
 import json
 import warnings
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Initialize Firebase with connection pooling
 firebase_initialized = False
@@ -25,42 +28,42 @@ def initialize_firebase():
         # Try to use base64 encoded credentials first (for production deployment)
         credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
         if credentials_base64:
-            print("Loading Firebase credentials from base64 environment variable")
+            logger.info("Loading Firebase credentials from base64 environment variable")
             try:
                 credentials_json = base64.b64decode(credentials_base64).decode('utf-8')
                 credentials_dict = json.loads(credentials_json)
                 cred = credentials.Certificate(credentials_dict)
                 firebase_admin.initialize_app(cred)
                 firebase_initialized = True
-                print("Firebase initialized successfully with base64 credentials")
+                logger.info("Firebase initialized successfully with base64 credentials")
             except Exception as e:
-                print(f"Failed to initialize Firebase with base64 credentials: {e}")
+                logger.error("Failed to initialize Firebase with base64 credentials: %s", e)
                 return False
                 
         elif os.path.exists(Config.FIREBASE_CREDENTIALS_PATH):
-            print(f"Loading Firebase credentials from: {Config.FIREBASE_CREDENTIALS_PATH}")
+            logger.info("Loading Firebase credentials from file path")
             try:
                 cred = credentials.Certificate(Config.FIREBASE_CREDENTIALS_PATH)
                 firebase_admin.initialize_app(cred)
                 firebase_initialized = True
-                print("Firebase initialized successfully with file credentials")
+                logger.info("Firebase initialized successfully with file credentials")
             except Exception as e:
-                print(f"Failed to initialize Firebase with file credentials: {e}")
+                logger.error("Failed to initialize Firebase with file credentials: %s", e)
                 return False
         else:
-            print(f"Firebase credentials not found - FIREBASE_CREDENTIALS_BASE64 env var missing and {Config.FIREBASE_CREDENTIALS_PATH} file not found")
-            print("Firebase authentication is required for this application to function")
+            logger.error("Firebase credentials not found - FIREBASE_CREDENTIALS_BASE64 env var missing and credentials file not found")
+            logger.error("Firebase authentication is required for this application to function")
             firebase_initialized = False
             return False
             
         # Initialize Firestore client only if Firebase is properly initialized
         if firebase_initialized:
             db = firestore.client()
-            print("Firestore client initialized successfully")
+            logger.info("Firestore client initialized successfully")
             return True
             
     except Exception as e:
-        print(f"Critical Firebase initialization error: {e}")
+        logger.error("Critical Firebase initialization error: %s", e)
         firebase_initialized = False
         return False
     
@@ -68,18 +71,15 @@ def initialize_firebase():
 
 # Initialize Firebase immediately on module load - fail fast if credentials are missing
 # The app requires Firebase for auth and watchlist functionality
-print("Attempting Firebase initialization...")
+logger.info("Attempting Firebase initialization...")
 if not initialize_firebase():
-    print("=" * 80)
-    print("CRITICAL: Firebase initialization failed!")
-    print("This app requires Firebase credentials to function.")
-    print("Please configure FIREBASE_CREDENTIALS_BASE64 environment variable")
-    print("or provide firebase-credentials.json file")
-    print("=" * 80)
+    logger.error("CRITICAL: Firebase initialization failed!")
+    logger.error("This app requires Firebase credentials to function.")
+    logger.error("Please configure FIREBASE_CREDENTIALS_BASE64 environment variable or provide firebase-credentials.json file")
     # Allow app to start but Firebase features will not work
-    print(" App will start but Firebase-dependent features will fail")
+    logger.warning("App will start but Firebase-dependent features will fail")
 else:
-    print("Firebase initialized successfully on module load")
+    logger.info("Firebase initialized successfully on module load")
 
 def get_firestore_client():
     """Get the Firestore client instance with connection pooling"""

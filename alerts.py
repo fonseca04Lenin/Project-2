@@ -1,6 +1,9 @@
 from datetime import datetime
-import pickle
+import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PriceAlert:
     def __init__(self, symbol, target_price, alert_type='above'):
@@ -19,6 +22,22 @@ class PriceAlert:
             return True
         return False
 
+    def to_dict(self):
+        return {
+            'symbol': self.symbol,
+            'target_price': self.target_price,
+            'alert_type': self.alert_type,
+            'created_at': self.created_at.isoformat(),
+            'triggered': self.triggered
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        alert = cls(data['symbol'], data['target_price'], data.get('alert_type', 'above'))
+        alert.created_at = datetime.fromisoformat(data['created_at'])
+        alert.triggered = data.get('triggered', False)
+        return alert
+
 class AlertManager:
     def __init__(self, session_id):
         self.session_id = session_id
@@ -29,12 +48,12 @@ class AlertManager:
         # Store alerts in a sessions directory
         if not os.path.exists('sessions'):
             os.makedirs('sessions')
-        return f'sessions/alerts_{self.session_id}.pkl'
+        return f'sessions/alerts_{self.session_id}.json'
 
     def add_alert(self, symbol, target_price, alert_type='above'):
         if symbol not in self.alerts:
             self.alerts[symbol] = []
-        
+
         alert = PriceAlert(symbol, target_price, alert_type)
         self.alerts[symbol].append(alert)
         self.save_alerts()
@@ -64,14 +83,23 @@ class AlertManager:
 
     def save_alerts(self):
         try:
-            with open(self.get_alerts_file(), 'wb') as f:
-                pickle.dump(self.alerts, f)
+            serializable = {}
+            for symbol, alert_list in self.alerts.items():
+                serializable[symbol] = [alert.to_dict() for alert in alert_list]
+            with open(self.get_alerts_file(), 'w') as f:
+                json.dump(serializable, f, indent=2)
         except Exception as e:
-            print(f"Error saving alerts: {e}")
+            logger.error("Error saving alerts: %s", e)
 
     def load_alerts(self):
         try:
-            with open(self.get_alerts_file(), 'rb') as f:
-                self.alerts = pickle.load(f)
-        except:
-            self.alerts = {} 
+            with open(self.get_alerts_file(), 'r') as f:
+                data = json.load(f)
+            self.alerts = {}
+            for symbol, alert_list in data.items():
+                self.alerts[symbol] = [PriceAlert.from_dict(a) for a in alert_list]
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.alerts = {}
+        except Exception as e:
+            logger.error("Error loading alerts: %s", e)
+            self.alerts = {}

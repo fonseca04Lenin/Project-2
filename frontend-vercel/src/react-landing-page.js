@@ -593,12 +593,48 @@ function HeroSection() {
   );
 }
 
+// AI Usage Section Component
+function AIUsageSection() {
+  return (
+    <section className="ai-usage-section">
+      <div className="ai-usage-overlay"></div>
+      <div className="ai-usage-content">
+        <h2 className="ai-usage-title">Powered by Artificial Intelligence</h2>
+        <p className="ai-usage-subtitle">SMART TECHNOLOGY. SMARTER DECISIONS.</p>
+        <div className="ai-usage-grid">
+          <div className="ai-usage-card">
+            <i className="fas fa-brain ai-usage-icon"></i>
+            <h3>AI Market Analysis</h3>
+            <p>Our AI engine processes thousands of data points in real-time, analyzing market trends, sentiment, and patterns to deliver actionable insights you can trust.</p>
+          </div>
+          <div className="ai-usage-card">
+            <i className="fas fa-robot ai-usage-icon"></i>
+            <h3>AI Chat Assistant</h3>
+            <p>Ask our intelligent chatbot anything about the market. Powered by advanced language models, it provides instant answers, stock summaries, and personalized recommendations.</p>
+          </div>
+          <div className="ai-usage-card">
+            <i className="fas fa-chart-bar ai-usage-icon"></i>
+            <h3>Predictive Analytics</h3>
+            <p>Leverage machine learning models that identify emerging trends and forecast potential market movements, helping you stay ahead of the curve.</p>
+          </div>
+          <div className="ai-usage-card">
+            <i className="fas fa-shield-alt ai-usage-icon"></i>
+            <h3>Smart Risk Assessment</h3>
+            <p>AI-driven risk analysis evaluates your portfolio exposure and alerts you to potential risks before they impact your investments.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // Main Landing Page Component
 function StockWatchlistLandingPage() {
   return (
     <div className="stock-watchlist-landing">
       <LandingHeader />
       <HeroSection />
+      <AIUsageSection />
     </div>
   );
 }

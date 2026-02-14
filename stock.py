@@ -7,6 +7,9 @@ import time
 import threading
 from collections import deque, defaultdict
 from typing import Dict, List, Optional, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # IMPROVED CIRCUIT BREAKER - Per-Endpoint Tracking
@@ -36,7 +39,7 @@ class ImprovedCircuitBreaker:
             if state['state'] == 'OPEN':
                 if time.time() - state['last_failure_time'] > self.recovery_timeout:
                     state['state'] = 'HALF_OPEN'
-                    print(f"[CIRCUIT:{endpoint_key}] HALF_OPEN - testing service")
+                    logger.info("[CIRCUIT:%s] HALF_OPEN - testing service", endpoint_key)
                 else:
                     raise Exception(f"Circuit breaker OPEN for {endpoint_key}")
 
@@ -53,7 +56,7 @@ class ImprovedCircuitBreaker:
         with self._lock:
             state = self.endpoint_states[endpoint_key]
             if state['state'] == 'HALF_OPEN':
-                print(f"[CIRCUIT:{endpoint_key}] Service recovered - CLOSED")
+                logger.info("[CIRCUIT:%s] Service recovered - CLOSED", endpoint_key)
                 state['state'] = 'CLOSED'
                 state['failure_count'] = 0
 
@@ -66,7 +69,7 @@ class ImprovedCircuitBreaker:
 
             if state['failure_count'] >= self.failure_threshold:
                 state['state'] = 'OPEN'
-                print(f"🚫 [CIRCUIT:{endpoint_key}] OPEN after {state['failure_count']} failures")
+                logger.warning("[CIRCUIT:%s] OPEN after %s failures", endpoint_key, state['failure_count'])
 
     def get_state(self, endpoint_key='default'):
         """Get current state for debugging"""
@@ -257,10 +260,10 @@ class NewsAPI:
                     })
                 return news_items
             else:
-                print(f"NewsAPI.org error: {response.status_code}")
+                logger.error("NewsAPI.org error: %s", response.status_code)
                 return self.get_fallback_news()
         except Exception as e:
-            print(f"Error fetching market news: {e}")
+            logger.error("Error fetching market news: %s", e)
             return self.get_fallback_news()
 
     def get_company_news(self, symbol, limit=5, page=1):
@@ -294,10 +297,10 @@ class NewsAPI:
                     })
                 return news_items
             else:
-                print(f"NewsAPI.org error for {symbol}: {response.status_code}")
+                logger.error("NewsAPI.org error for %s: %s", symbol, response.status_code)
                 return []
         except Exception as e:
-            print(f"Error fetching company news for {symbol}: {e}")
+            logger.error("Error fetching company news for %s: %s", symbol, e)
             return []
 
     def get_fallback_news(self):
@@ -433,10 +436,10 @@ class StocktwitsAPI:
                 }
 
             elif response.status_code == 404:
-                print(f"Stocktwits: Symbol {symbol} not found")
+                logger.error("Stocktwits: Symbol %s not found", symbol)
                 return {'messages': [], 'cursor': None, 'has_more': False}
             elif response.status_code == 429:
-                print(f"Stocktwits: Rate limited")
+                logger.warning("Stocktwits: Rate limited")
                 return self._get_cached_or_empty_dict(cache_key, limit)
             else:
                 print(f"Stocktwits API error: {response.status_code}")
