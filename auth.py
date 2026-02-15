@@ -1,14 +1,14 @@
 import logging
 
 from flask import Blueprint, request, jsonify, session
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_login import login_user, logout_user, login_required, current_user
 from firebase_service import FirebaseService, FirebaseUser
+from extensions import login_manager
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 auth = Blueprint('auth', __name__)
-login_manager = LoginManager()
 
 @login_manager.user_loader
 def load_user(user_id):
