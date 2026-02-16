@@ -4,69 +4,72 @@ A real-time stock tracking application with user authentication, watchlists, and
 
 ## Features
 
-- 🔐 User authentication (login/register)
-- 📊 Real-time stock data from Yahoo Finance
-- 📈 Historical price charts
-- 🔔 Price alerts (above/below target)
-- 📰 Market and company news
-- 💾 Persistent user data with Firebase Firestore
+- User authentication (login/register)
+- Real-time stock data from Yahoo Finance & Alpaca
+- Historical price charts
+- Price alerts (above/below target)
+- Market and company news
+- AI-powered stock advisor (Gemini)
+- Persistent user data with Firebase Firestore
 
 ## Quick Start
-
-### Option 1: Automatic Setup (Recommended)
-```bash
-python setup.py
-python app.py
-```
-
-### Option 2: Manual Setup
 
 1. **Install Python dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-2. **Run the application:**
+2. **Configure environment variables:**
 ```bash
-python app.py
+cp env.example .env
+# Edit .env with your actual values
 ```
 
-3. **Open your browser:**
+3. **Run the application:**
+```bash
+python wsgi.py
+```
+
+4. **Open your browser:**
 Navigate to `http://localhost:5000`
-
-4. **Create an account:**
-- Click "Register" to create a new account
-- Or use the demo login if available
-
-## Usage
-
-1. **Search Stocks:** Enter a stock symbol (e.g., AAPL, GOOGL, TSLA)
-2. **Add to Watchlist:** Click "Add to Watchlist" for stocks you want to track
-3. **Set Alerts:** Create price alerts to get notified when stocks hit target prices
-4. **View News:** Check market and company-specific news
-5. **Monitor:** Your watchlist and alerts are saved and persist between sessions
-
-## Requirements
-
-- Python 3.7 or higher
-- Internet connection (for stock data and news)
 
 ## Project Structure
 
 ```
 Project-2/
-├── app.py                    # Main Flask application
-├── auth.py                   # Authentication handlers
-├── firebase_service.py       # Firebase Firestore integration
-├── stock.py                  # Stock data API
-├── requirements.txt          # Python dependencies
-├── firebase-credentials.json # Firebase service account credentials
-├── frontend-vercel/          # Frontend application (Vercel)
-│   ├── index.html           # Main HTML page
-│   ├── static/css/style.css # Application styles
-│   └── static/js/app.js     # Application logic
-├── firestore.rules          # Firestore security rules
-└── firestore.indexes.json   # Firestore database indexes
+├── wsgi.py                        # Entry point (gunicorn wsgi:app)
+├── app/
+│   ├── __init__.py                # create_app() factory
+│   ├── config.py                  # App configuration
+│   ├── extensions.py              # Flask extensions (SocketIO, LoginManager)
+│   ├── auth.py                    # Authentication blueprint
+│   ├── socketio_events.py         # WebSocket event handlers
+│   ├── services/
+│   │   ├── firebase_service.py    # Firebase/Firestore integration
+│   │   ├── watchlist_service.py   # Watchlist CRUD operations
+│   │   ├── chat_service.py        # AI chat (Gemini) integration
+│   │   ├── stock.py               # Stock data APIs (Yahoo, Alpaca, etc.)
+│   │   └── services.py            # Shared service instances & helpers
+│   ├── routes/
+│   │   ├── core.py                # Health check, debug endpoints
+│   │   ├── watchlist.py           # Watchlist API
+│   │   ├── stock_data.py          # Stock search & data API
+│   │   ├── market.py              # Market overview & movers
+│   │   ├── news_social.py         # News & Stocktwits
+│   │   ├── chat.py                # AI chat API
+│   │   ├── alpaca.py              # Alpaca brokerage integration
+│   │   ├── alerts_routes.py       # Price alerts API
+│   │   ├── map_companies.py       # Company location map
+│   │   └── youtube.py             # YouTube search API
+│   └── utils/
+│       ├── validation.py          # Input sanitization & validation
+│       └── crypto.py              # Encryption utilities
+├── frontend-vercel/               # Frontend application (Vercel)
+├── requirements.txt               # Python dependencies
+├── railway.toml                   # Railway deployment config
+├── nixpacks.toml                  # Nixpacks build config
+├── firestore.rules                # Firestore security rules
+└── firestore.indexes.json         # Firestore database indexes
 ```
 
 ## API Endpoints
@@ -84,8 +87,8 @@ Project-2/
 
 ## Troubleshooting
 
-1. **Port already in use:** Change the port in `app.py` or kill the process using the port
-2. **Firebase errors:** Check your `firebase-credentials.json` file and Firebase project settings
+1. **Port already in use:** Change the port in `.env` or kill the process using the port
+2. **Firebase errors:** Check your Firebase credentials configuration
 3. **Import errors:** Make sure all requirements are installed with `pip install -r requirements.txt`
 4. **Authentication issues:** Verify Firebase Authentication is enabled in your Firebase console
 
@@ -96,5 +99,4 @@ Project-2/
 - User-specific data isolation in Firestore
 - Protected API endpoints with login requirements
 - Firestore security rules for data access control
-
-Happy trading! 📈
+- Input sanitization on all user-facing endpoints
