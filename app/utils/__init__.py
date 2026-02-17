@@ -3,4 +3,3 @@ from app.utils.validation import (
     sanitize_email, sanitize_username,
     validate_stock_symbol, validate_search_length,
 )
-from app.utils.crypto import encrypt_data, decrypt_data
