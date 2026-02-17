@@ -17,12 +17,6 @@ const DashboardRedesign = () => {
     const [helpOpen, setHelpOpen] = useState(false);
     const [profilePicture, setProfilePicture] = useState(null);
     const [theme, setTheme] = useState('dark');
-    const [alpacaStatus, setAlpacaStatus] = useState({ connected: false, loading: true });
-    const [alpacaPositions, setAlpacaPositions] = useState([]);
-    const [showAlpacaForm, setShowAlpacaForm] = useState(false);
-    const [alpacaFormData, setAlpacaFormData] = useState({ api_key: '', secret_key: '', use_paper: true });
-    const [syncingPositions, setSyncingPositions] = useState(false);
-    
     // Preferences state
     const [preferences, setPreferences] = useState({
         theme: 'dark', // dark, light
@@ -105,160 +99,6 @@ const DashboardRedesign = () => {
             }
         }
     };
-
-    // Load Alpaca connection status
-    const loadAlpacaStatus = async () => {
-        try {
-            const authHeaders = await window.getAuthHeaders();
-            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            const response = await fetch(`${API_BASE}/api/alpaca/status`, {
-                headers: authHeaders,
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                const newStatus = { ...data, loading: false };
-                setAlpacaStatus(newStatus);
-                // If connected, load positions
-                if (data.connected) {
-                    await loadAlpacaPositions();
-                }
-                return newStatus;
-            } else {
-                setAlpacaStatus({ connected: false, loading: false });
-                return { connected: false, loading: false };
-            }
-        } catch (e) {
-            setAlpacaStatus({ connected: false, loading: false });
-            return { connected: false, loading: false };
-        }
-    };
-
-    // Connect Alpaca account
-    const connectAlpaca = async () => {
-        try {
-            const authHeaders = await window.getAuthHeaders();
-            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            const response = await fetch(`${API_BASE}/api/alpaca/connect`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...authHeaders
-                },
-                credentials: 'include',
-                body: JSON.stringify(alpacaFormData)
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (window.showNotification) {
-                    window.showNotification('Alpaca account connected successfully!', 'success');
-                }
-                setAlpacaStatus({ ...data, connected: true });
-                setShowAlpacaForm(false);
-                setAlpacaFormData({ api_key: '', secret_key: '', use_paper: true });
-                await loadAlpacaStatus();
-            } else {
-                const error = await response.json();
-                if (window.showNotification) {
-                    window.showNotification(error.error || 'Failed to connect Alpaca account', 'error');
-                }
-            }
-        } catch (e) {
-            if (window.showNotification) {
-                window.showNotification('Error connecting Alpaca account', 'error');
-            }
-        }
-    };
-
-    // Disconnect Alpaca account
-    const disconnectAlpaca = async () => {
-        if (!confirm('Are you sure you want to disconnect your Alpaca account?')) {
-            return;
-        }
-        
-        try {
-            const authHeaders = await window.getAuthHeaders();
-            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            const response = await fetch(`${API_BASE}/api/alpaca/disconnect`, {
-                method: 'POST',
-                headers: authHeaders,
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                if (window.showNotification) {
-                    window.showNotification('Alpaca account disconnected', 'success');
-                }
-                setAlpacaStatus({ connected: false });
-                setAlpacaPositions([]);
-            }
-        } catch (e) {
-            if (window.showNotification) {
-                window.showNotification('Error disconnecting Alpaca account', 'error');
-            }
-        }
-    };
-
-    // Load Alpaca positions
-    const loadAlpacaPositions = async () => {
-        try {
-            const authHeaders = await window.getAuthHeaders();
-            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            const response = await fetch(`${API_BASE}/api/alpaca/positions`, {
-                headers: authHeaders,
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                setAlpacaPositions(data.positions || []);
-            }
-        } catch (e) {
-            // Error loading Alpaca positions
-        }
-    };
-
-    // Sync positions to watchlist
-    const syncPositionsToWatchlist = async () => {
-        setSyncingPositions(true);
-        try {
-            const authHeaders = await window.getAuthHeaders();
-            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            const response = await fetch(`${API_BASE}/api/alpaca/sync-positions`, {
-                method: 'POST',
-                headers: authHeaders,
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (window.showNotification) {
-                    window.showNotification(data.message || `Synced ${data.added} positions to watchlist`, 'success');
-                }
-                await loadWatchlistData();
-            } else {
-                const error = await response.json();
-                if (window.showNotification) {
-                    window.showNotification(error.error || 'Failed to sync positions', 'error');
-                }
-            }
-        } catch (e) {
-            if (window.showNotification) {
-                window.showNotification('Error syncing positions', 'error');
-            }
-        } finally {
-            setSyncingPositions(false);
-        }
-    };
-
-    // Load Alpaca status when preferences modal opens
-    useEffect(() => {
-        if (preferencesOpen) {
-            loadAlpacaStatus();
-        }
-    }, [preferencesOpen]);
 
     // Apply preferences when they change
     useEffect(() => {
@@ -1754,13 +1594,6 @@ const DashboardRedesign = () => {
                             <span>Map</span>
                         </button>
                         <button
-                            className={`nav-tab ${activeView === 'trading' ? 'active' : ''}`}
-                            onClick={() => setActiveView('trading')}
-                        >
-                            <i className="fas fa-exchange-alt"></i>
-                            <span>Trading</span>
-                        </button>
-                        <button 
                             className={`nav-tab ${activeView === 'assistant' ? 'active' : ''}`}
                             onClick={() => setActiveView('assistant')}
                         >
@@ -1973,7 +1806,6 @@ const DashboardRedesign = () => {
                 {activeView === 'intelligence' && <IntelligenceView />}
                 {activeView === 'map' && <MapView />}
                 {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
-                {activeView === 'trading' && <TradingView />}
                 {activeView === 'assistant' && <AIAssistantView />}
             </div>
 
@@ -5873,102 +5705,6 @@ const MapView = () => {
                     }
                 }
             `}</style>
-        </div>
-    );
-};
-
-// Trading View Component
-const TradingView = () => {
-    return (
-        <div className="trading-coming-soon">
-            <div className="trading-hero">
-                <div className="trading-icon-wrapper">
-                    <i className="fas fa-exchange-alt"></i>
-                </div>
-                <h1>Trading</h1>
-                <p className="trading-subtitle">
-                    Coming soon: Trade directly from your watchlist
-                </p>
-            </div>
-
-            <div className="trading-content">
-                <div className="trading-section">
-                    <h2>What's Coming</h2>
-                    <div className="trading-features">
-                        <div className="trading-feature-card">
-                            <div className="trading-feature-icon">
-                                <i className="fas fa-link"></i>
-                            </div>
-                            <h3>Alpaca Integration</h3>
-                            <p>Link your Alpaca account to import positions and execute trades. Your API keys stay encrypted and secure.</p>
-                        </div>
-
-                        <div className="trading-feature-card">
-                            <div className="trading-feature-icon">
-                                <i className="fas fa-chart-line"></i>
-                            </div>
-                            <h3>Trade from Watchlist</h3>
-                            <p>Buy and sell stocks directly from your watchlist without leaving the app.</p>
-                        </div>
-
-                        <div className="trading-feature-card">
-                            <div className="trading-feature-icon">
-                                <i className="fas fa-sync-alt"></i>
-                            </div>
-                            <h3>Position Syncing</h3>
-                            <p>Your Alpaca positions automatically appear in your watchlist for easy tracking.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="trading-section">
-                    <h2>Why Trade Here</h2>
-                    <div className="trading-benefits-list">
-                        <div className="trading-benefit-item">
-                            <i className="fas fa-check"></i>
-                            <div>
-                                <strong>Everything in One Place</strong>
-                                <p>Research, analyze, and trade without switching apps.</p>
-                            </div>
-                        </div>
-                        <div className="trading-benefit-item">
-                            <i className="fas fa-check"></i>
-                            <div>
-                                <strong>Live Market Data</strong>
-                                <p>Real-time prices and instant updates for better decisions.</p>
-                            </div>
-                        </div>
-                        <div className="trading-benefit-item">
-                            <i className="fas fa-check"></i>
-                            <div>
-                                <strong>Market Intelligence</strong>
-                                <p>Insider trades, analyst ratings, and options flow at your fingertips.</p>
-                            </div>
-                        </div>
-                        <div className="trading-benefit-item">
-                            <i className="fas fa-check"></i>
-                            <div>
-                                <strong>AI Trading Assistant</strong>
-                                <p>Get personalized recommendations and market insights.</p>
-                            </div>
-                        </div>
-                        <div className="trading-benefit-item">
-                            <i className="fas fa-check"></i>
-                            <div>
-                                <strong>Portfolio Overview</strong>
-                                <p>Track positions and watchlist stocks together in one view.</p>
-                            </div>
-                        </div>
-                        <div className="trading-benefit-item">
-                            <i className="fas fa-check"></i>
-                            <div>
-                                <strong>Bank-Level Security</strong>
-                                <p>Your credentials are encrypted. We never see your API keys.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

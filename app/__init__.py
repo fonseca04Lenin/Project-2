@@ -108,7 +108,6 @@ def create_app():
     from app.routes.market import market_bp
     from app.routes.news_social import news_social_bp
     from app.routes.chat import chat_bp, register_chat_socketio_events
-    from app.routes.alpaca import alpaca_bp
     from app.routes.alerts_routes import alerts_bp
     from app.routes.map_companies import map_companies_bp
     from app.routes.youtube import youtube_bp
@@ -120,7 +119,6 @@ def create_app():
     app.register_blueprint(market_bp)
     app.register_blueprint(news_social_bp)
     app.register_blueprint(chat_bp)
-    app.register_blueprint(alpaca_bp)
     app.register_blueprint(alerts_bp)
     app.register_blueprint(map_companies_bp)
     app.register_blueprint(youtube_bp)
