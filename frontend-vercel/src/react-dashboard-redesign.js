@@ -1508,8 +1508,10 @@ const DashboardRedesign = () => {
             if (response.ok) {
                 const added = await response.json().catch(() => null);
                 window.showNotification && window.showNotification(`${symbol} added to watchlist`, 'success');
-                // Refresh list
-                await loadWatchlistData();
+                // Optimistic UI: immediately show placeholder card
+                setWatchlistData(prev => [...prev, { symbol, name: symbol, current_price: null, change_percent: 0, category: 'General', _priceLoading: true }]);
+                // Refresh list with full data in background
+                loadWatchlistData();
                 try { window.dispatchEvent(new CustomEvent('watchlistChanged')); } catch (_) {}
                 if (typeof window.refreshWatchlist === 'function') window.refreshWatchlist();
             } else {
@@ -1803,7 +1805,6 @@ const DashboardRedesign = () => {
                 )}
                 {activeView === 'news' && <NewsView />}
                 {activeView === 'whatswhat' && <WhatsWhatView />}
-                {activeView === 'intelligence' && <IntelligenceView />}
                 {activeView === 'map' && <MapView />}
                 {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
                 {activeView === 'assistant' && <AIAssistantView />}
@@ -3016,6 +3017,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover, p
 
 // Watchlist View Component
 const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover, updatingStocks = new Set(), preferences = {} }) => {
+    const [displayCount, setDisplayCount] = useState(12);
     const showPercentChange = preferences.showPercentChange !== false;
     const compactNumbers = preferences.compactNumbers || false;
     const currencySymbol = { USD: '$', EUR: '\u20AC', GBP: '\u00A3', JPY: '\u00A5' }[preferences.currency] || '$';
@@ -3029,6 +3031,9 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
         }
         return `${currencySymbol}${price.toFixed(2)}`;
     };
+    // Reset display count when category changes
+    useEffect(() => { setDisplayCount(12); }, [selectedCategory]);
+
     // Count stocks per category from unfiltered data
     const categoryCounts = {};
     watchlistData.forEach(stock => {
@@ -3147,7 +3152,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
             )}
             
             <div className="watchlist-grid">
-                {filteredWatchlist.map((stock, index) => (
+                {filteredWatchlist.slice(0, displayCount).map((stock, index) => (
                     <div 
                         key={index} 
                         className="watchlist-card" 
@@ -3164,7 +3169,11 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                         </div>
                         <div className="stock-name">{stock.name}</div>
                         <div className={`stock-price-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            {formatStockPrice(stock.current_price || stock.price || 0)}
+                            {stock._priceLoading ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5 }}>
+                                    <i className="fas fa-spinner fa-spin" style={{ fontSize: '0.875rem' }}></i> Loading...
+                                </span>
+                            ) : formatStockPrice(stock.current_price || stock.price || 0)}
                         </div>
                         {showPercentChange && (
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
@@ -3209,6 +3218,51 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                     </div>
                 )}
             </div>
+
+            {/* Show More Button */}
+            {filteredWatchlist.length > displayCount && (
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '2rem',
+                    gap: '0.75rem',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.875rem' }}>
+                        Showing {Math.min(displayCount, filteredWatchlist.length)} of {filteredWatchlist.length} stocks
+                    </span>
+                    <button
+                        onClick={() => setDisplayCount(prev => prev + 12)}
+                        className="load-more-btn"
+                        style={{
+                            padding: '0.875rem 2rem',
+                            background: 'linear-gradient(135deg, #00D924, #FF6B35)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            color: '#ffffff',
+                            fontWeight: '600',
+                            fontSize: '0.9375rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                        }}
+                        onMouseOver={(e) => {
+                            e.target.style.transform = 'translateY(-2px)';
+                            e.target.style.boxShadow = '0 8px 20px rgba(0, 217, 36, 0.3)';
+                        }}
+                        onMouseOut={(e) => {
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = 'none';
+                        }}
+                    >
+                        <i className="fas fa-arrow-down"></i>
+                        Show More ({filteredWatchlist.length - displayCount} remaining)
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -5285,17 +5339,6 @@ const MapView = () => {
                 )}
             </div>
 
-            <div className="map-legend">
-                <h4>Sectors</h4>
-                <div className="legend-items">
-                    {['Technology', 'Finance', 'Healthcare', 'Consumer', 'Retail', 'Energy', 'Industrial', 'Telecom', 'Entertainment', 'Automotive'].map(sector => (
-                        <div key={sector} className="legend-item">
-                            <span className="legend-color" style={{ background: getSectorColor(sector) }}></span>
-                            {sector}
-                        </div>
-                    ))}
-                </div>
-            </div>
 
             <style>{`
                 .map-view {
