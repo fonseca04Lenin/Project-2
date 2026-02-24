@@ -262,20 +262,42 @@ def get_market_analysis():
     try:
         import requests as http_requests
 
-        prompt = """You are a professional financial analyst writing a weekly market update.
+        today_str = datetime.now().strftime('%B %d, %Y')
 
-Write a market analysis covering:
-- Current market trends and what's driving them
-- Notable sector performance
-- Key economic factors affecting markets
-- What investors should watch for
+        movers_lines = []
+        for m in top_movers:
+            direction = 'up' if m.get('change', 0) >= 0 else 'down'
+            movers_lines.append(
+                f"  - {m['symbol']} ({m.get('sector','')}) {direction} {abs(m.get('change',0)):.1f}% at ${m.get('price',0):.2f}"
+            )
+        movers_text = '\n'.join(movers_lines) if movers_lines else '  - No mover data available'
 
-IMPORTANT RULES:
-- Do NOT include specific dates, years, or quarters in your response
-- Use phrases like "this week", "recently", "currently" instead of dates
-- Do NOT write things like "Q4 2024" or "January 2025" - avoid all specific dates
-- Write in flowing paragraphs, no bullet points or headers
-- Be specific about sectors and market movements
+        for s in (sector_performance or [])[:6]:
+            direction = '+' if s.get('change', 0) >= 0 else ''
+            sector_lines.append(f"  - {s['name']}: {direction}{s.get('change',0):.1f}%")
+        sector_text = '\n'.join(sector_lines) if sector_lines else '  - No sector data available'
+
+        prompt = f"""You are a professional financial analyst writing a market update for {today_str}.
+
+Here is REAL market data from today — you MUST reference these specific stocks and sectors:
+
+TOP MOVERS THIS WEEK:
+{movers_text}
+
+SECTOR PERFORMANCE (week-to-date):
+{sector_text}
+
+Using only the data above, write a 180-word market analysis that:
+- Names the specific top-moving stocks and explains likely drivers
+- Calls out which sectors are leading or lagging based on the data
+- Mentions relevant macro factors (Fed policy, inflation, earnings, geopolitics) that could be influencing these moves
+- Gives investors one key thing to watch going forward
+
+RULES:
+- Write in flowing paragraphs, NO bullet points or headers
+- Reference the actual symbols and % changes from the data provided
+- Today's date is {today_str} — you may reference "this week" or "as of {today_str}"
+- Do NOT make up stocks or numbers not in the data above
 - Write approximately 180 words"""
 
         groq_api_key = os.environ.get('GROQ_API_KEY')
@@ -291,7 +313,7 @@ IMPORTANT RULES:
             json={
                 'model': 'llama-3.3-70b-versatile',
                 'messages': [{'role': 'user', 'content': prompt}],
-                'temperature': 0.5,
+                'temperature': 0.8,
                 'max_tokens': 500
             },
             timeout=30
