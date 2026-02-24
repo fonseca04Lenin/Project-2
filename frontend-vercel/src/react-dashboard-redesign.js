@@ -4089,7 +4089,7 @@ const WhatsWhatView = () => {
 // Intelligence View Component
 const IntelligenceView = ({ watchlistData }) => {
     const [activeTab, setActiveTab] = useState('earnings');
-    const [symbol, setSymbol] = useState('AAPL');
+    const [symbol, setSymbol] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [earnings, setEarnings] = useState([]);
