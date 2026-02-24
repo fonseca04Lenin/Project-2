@@ -272,6 +272,7 @@ def get_market_analysis():
             )
         movers_text = '\n'.join(movers_lines) if movers_lines else '  - No mover data available'
 
+        sector_lines = []
         for s in (sector_performance or [])[:6]:
             direction = '+' if s.get('change', 0) >= 0 else ''
             sector_lines.append(f"  - {s['name']}: {direction}{s.get('change',0):.1f}%")
@@ -323,9 +324,7 @@ RULES:
         analysis_text = groq_data['choices'][0]['message']['content'].strip()
 
         if analysis_text:
-            analysis_text = analysis_text.replace(' undefined', '')
-            analysis_text = analysis_text.replace('undefined ', '')
-            analysis_text = analysis_text.replace('undefined', '')
+            analysis_text = re.sub(r'\bundefined\b', '', analysis_text).strip()
 
         return jsonify({
             'analysis': analysis_text,
