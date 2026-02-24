@@ -286,13 +286,19 @@ def get_stock_ai_insight(symbol):
             name = info.get('shortName') or info.get('longName') or symbol
 
             if price and prev_close and prev_close != 0:
-                change = price - prev_close
-                change_pct = (change / prev_close) * 100
+                daily_change_pct = ((price - prev_close) / prev_close) * 100
             else:
-                change = 0
-                change_pct = 0
+                daily_change_pct = 0
 
-            logger.info("[AI Insight] %s: $%.2f (%+.2f%%)", symbol, price, change_pct)
+            # Fetch 5-day history for weekly change
+            hist = ticker.history(period='5d')
+            if len(hist) >= 2:
+                week_start_price = float(hist['Close'].iloc[0])
+                weekly_change_pct = ((price - week_start_price) / week_start_price) * 100 if week_start_price else daily_change_pct
+            else:
+                weekly_change_pct = daily_change_pct
+
+            logger.info("[AI Insight] %s: $%.2f daily=%+.2f%% weekly=%+.2f%%", symbol, price, daily_change_pct, weekly_change_pct)
 
         except Exception as e:
             import traceback
@@ -305,9 +311,11 @@ def get_stock_ai_insight(symbol):
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
         news_context = ""
+        has_news = False
         try:
             news = news_api.get_company_news(symbol, limit=3)
             if news:
+                has_news = True
                 news_context = "\n".join([f"- {n.get('title', '')}" for n in news[:3]])
         except:
             pass
@@ -316,8 +324,25 @@ def get_stock_ai_insight(symbol):
             logger.warning("[AI Insight] Gemini client not available")
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
-        direction = "up" if change_pct >= 0 else "down"
-        prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock moved {direction} {abs(change_pct):.1f}% today.
+        # Use daily if there's a major single-day move (>=3%) or breaking news with a notable daily move (>=1.5%)
+        MAJOR_DAILY_THRESHOLD = 3.0
+        use_daily = abs(daily_change_pct) >= MAJOR_DAILY_THRESHOLD or (has_news and abs(daily_change_pct) >= 1.5)
+
+        if use_daily:
+            display_pct = daily_change_pct
+            period = "today"
+            direction = "up" if daily_change_pct >= 0 else "down"
+            prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock moved {direction} {abs(daily_change_pct):.1f}% today. This is a notable single-day move so focus on today's specific catalyst.
+
+Current price: ${price:.2f}
+Recent headlines: {news_context if news_context else "No recent news available"}
+
+Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
+        else:
+            display_pct = weekly_change_pct
+            period = "this week"
+            direction = "up" if weekly_change_pct >= 0 else "down"
+            prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock has moved {direction} {abs(weekly_change_pct):.1f}% this week. Focus on the broader weekly trend, sector dynamics, or macro factors rather than a single day's move.
 
 Current price: ${price:.2f}
 Recent headlines: {news_context if news_context else "No recent news available"}
@@ -357,7 +382,8 @@ Write plain text only. No formatting, no bullet points, no JSON. Complete your s
             logger.info("[AI Insight] Generated for %s: %s...", symbol, insight_text[:80])
             return jsonify({
                 'symbol': symbol,
-                'change_percent': round(change_pct, 2),
+                'change_percent': round(display_pct, 2),
+                'period': period,
                 'ai_insight': insight_text
             })
         else:

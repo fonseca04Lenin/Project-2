@@ -546,7 +546,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                     {aiInsight.change_percent !== undefined && (
                                         <div className={`insight-badge ${aiInsight.change_percent >= 0 ? 'positive' : 'negative'}`}>
                                             <i className={`fas fa-arrow-${aiInsight.change_percent >= 0 ? 'up' : 'down'}`}></i>
-                                            <span>{aiInsight.change_percent >= 0 ? '+' : ''}{aiInsight.change_percent}% (5 days)</span>
+                                            <span>{aiInsight.change_percent >= 0 ? '+' : ''}{aiInsight.change_percent}% ({aiInsight.period || '5 days'})</span>
                                         </div>
                                     )}
                                     <p className="insight-text">{aiInsight.ai_insight}</p>
