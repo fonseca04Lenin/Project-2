@@ -581,10 +581,17 @@
                 firebase.auth().onAuthStateChanged((user) => {
                     if (user) {
                         window.showNewDashboard();
-                        // Handle initial stock URL after dashboard is shown
-                        setTimeout(() => {
+                        // Handle initial stock URL after dashboard is shown.
+                        // Poll until handleInitialStockUrl is defined (Babel scripts compile async).
+                        if (window.location.pathname.startsWith('/stock/')) {
+                            const waitForStockHandler = (retries) => {
                             if (typeof window.handleInitialStockUrl === 'function') {
                                 window.handleInitialStockUrl();
+                                } else if (retries < 50) {
+                                    setTimeout(() => waitForStockHandler(retries + 1), 200);
+                                }
+                            };
+                            waitForStockHandler(0);
                             }
                         }, 300);
                     } else {
