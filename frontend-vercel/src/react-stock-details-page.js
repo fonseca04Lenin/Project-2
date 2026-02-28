@@ -903,6 +903,7 @@ const initPage = () => {
     if (!pageContainer) {
         pageContainer = document.createElement('div');
         pageContainer.id = 'react-stock-details-page-container';
+        pageContainer.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; z-index: 10000; background: #000;';
         document.body.appendChild(pageContainer);
         pageRoot = ReactDOM.createRoot(pageContainer);
     }
