@@ -436,6 +436,33 @@
             }
         };
 
+        // Map 402 response data + context to window.showPaywall
+        window.handle402 = function(data, context) {
+            if (!window.showPaywall) return;
+            if (data && data.feature === 'ai_suite') {
+                window.showPaywall({ reason: 'ai_suite' });
+                return;
+            }
+            if (context === 'chat') {
+                window.showPaywall({
+                    reason: 'chat_limit',
+                    chat_count: data && data.chat_count,
+                    chat_limit: data && data.chat_limit,
+                });
+                return;
+            }
+            if (context === 'overview') {
+                window.showPaywall({
+                    reason: 'overview_limit',
+                    overview_count: data && data.overview_count,
+                    overview_limit: data && data.overview_limit,
+                });
+                return;
+            }
+            // fallback
+            window.showPaywall({ reason: 'ai_suite' });
+        };
+
         // Show notification/toast
         window.showNotification = function(message, type = 'info') {
             const notificationContainer = document.getElementById('notificationContainer');
@@ -466,6 +493,25 @@
         }, 100);
         
         function setupShowMainContent() {
+            // Detect ?checkout=success in URL and show a success notification
+            (function detectCheckoutSuccess() {
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('checkout') === 'success') {
+                    // Clean the URL without reloading
+                    const clean = window.location.pathname;
+                    window.history.replaceState({}, document.title, clean);
+                    // Show notification once the dashboard is ready
+                    const waitForNotif = setInterval(() => {
+                        if (window.showNotification) {
+                            clearInterval(waitForNotif);
+                            window.showNotification('Welcome to Pro! Your subscription is now active.', 'success');
+                            // Reload subscription info if available
+                            if (window.__reloadSubscriptionInfo) window.__reloadSubscriptionInfo();
+                        }
+                    }, 200);
+                }
+            })();
+
             // Override showMainContent to use new React dashboard
             window.showMainContent = function(user) {
                 // Hide loading screen immediately
@@ -520,6 +566,9 @@
         }
     </script>
     
+    <!-- Paywall Modal -->
+    <script type="text/babel" src="src/react-paywall-modal.js"></script>
+
     <!-- Old UI removed - using new React dashboard only -->
     <script type="text/babel" src="src/react-landing-page.js"></script>
     <script type="text/babel" src="src/react-ai-chat.js?v=1.0"></script>
@@ -575,31 +624,27 @@
             }
         };
         
-        // Listen for Firebase auth state changes (fallback in case showMainContent wasn't called)
-        setTimeout(() => {
-            if (typeof firebase !== 'undefined' && firebase.auth) {
-                firebase.auth().onAuthStateChanged((user) => {
-                    if (user) {
-                        window.showNewDashboard();
-                        // Handle initial stock URL after dashboard is shown.
-                        // Poll until handleInitialStockUrl is defined (Babel scripts compile async).
-                        if (window.location.pathname.startsWith('/stock/')) {
-                            const waitForStockHandler = (retries) => {
+        // Fallback auth listener (primary one is in firebase-config.js which runs faster without Babel delay)
+        // This handles edge cases like userAuthenticated events from the landing page
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    window.showNewDashboard();
+                    if (window.location.pathname.startsWith('/stock/')) {
+                        const waitForStockHandler = (retries) => {
                             if (typeof window.handleInitialStockUrl === 'function') {
                                 window.handleInitialStockUrl();
-                                } else if (retries < 50) {
-                                    setTimeout(() => waitForStockHandler(retries + 1), 200);
-                                }
-                            };
-                            waitForStockHandler(0);
+                            } else if (retries < 50) {
+                                setTimeout(() => waitForStockHandler(retries + 1), 200);
                             }
-                        }, 300);
-                    } else {
-                        window.hideNewDashboard();
+                        };
+                        waitForStockHandler(0);
                     }
-                });
-            }
-        }, 500);
+                } else {
+                    window.hideNewDashboard();
+                }
+            });
+        }
     </script>
 
     <!-- Vercel Analytics -->
