@@ -4918,7 +4918,7 @@ const IntelligenceView = ({ watchlistData }) => {
                                 const priceStr = t.price ? ` @ $${t.price.toFixed(2)}` : '';
                                 formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()}${priceStr}`;
                             }
-                            const secUrl = !loading && (t?.source_url || (symbol ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${symbol}&type=4&dateb=&owner=include&count=40` : null));
+                            const secUrl = !loading && (t?.source_url || (symbol ? `https://openinsider.com/search?q=${symbol}` : null));
 
                             return (
                             <div
@@ -4941,7 +4941,7 @@ const IntelligenceView = ({ watchlistData }) => {
                             );
                         })}
                     </div>
-                    <DataSourceLabel source="SEC Form 4 via Finnhub" url={symbol ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${symbol}&type=4&dateb=&owner=include&count=40` : null} />
+                    <DataSourceLabel source="SEC Form 4 via Finnhub" url={symbol ? `https://openinsider.com/search?q=${symbol}` : null} />
                 </div>
             )}
 
