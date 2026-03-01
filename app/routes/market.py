@@ -474,7 +474,7 @@ def get_insider_trading(symbol):
             return jsonify(_get_fallback_insider(symbol))
 
         insider_data = []
-        sec_url = f'https://openinsider.com/search?q={symbol}'
+        sec_url = 'https://finnhub.io/docs/api/insider-transactions'
         for item in transactions_raw:
             change = item.get('change', 0)
             transaction_type = 'BUY' if change > 0 else 'SELL'

@@ -196,7 +196,7 @@ const MarketIntelligence = () => {
                 {data && !loading && (
                     <div className="insider-list">
                         {data.map((trade, index) => {
-                            const secUrl = trade.source_url || (searchQuery ? `https://openinsider.com/search?q=${searchQuery.toUpperCase()}` : null);
+                            const secUrl = trade.source_url || (searchQuery ? `https://finnhub.io/docs/api/insider-transactions` : null);
                             return (
                             <div
                                 key={index}
