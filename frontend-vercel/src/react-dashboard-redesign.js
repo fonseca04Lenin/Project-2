@@ -4819,22 +4819,31 @@ const IntelligenceView = ({ watchlistData }) => {
     };
 
     // Data source label component
-    const DataSourceLabel = ({ source }) => (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 0.75rem',
-            background: 'rgba(0, 217, 36, 0.1)',
-            borderRadius: '4px',
-            fontSize: '0.75rem',
-            color: 'rgba(255, 255, 255, 0.6)',
-            marginTop: '1rem'
-        }}>
-            <i className="fas fa-database" style={{ color: '#00D924' }}></i>
-            <span>Data provided by <strong style={{ color: '#fff' }}>{source}</strong></span>
-        </div>
-    );
+    const DataSourceLabel = ({ source, url }) => {
+        const inner = (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 0.75rem',
+                background: url ? 'rgba(0, 217, 36, 0.12)' : 'rgba(0, 217, 36, 0.1)',
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+                color: 'rgba(255, 255, 255, 0.6)',
+                marginTop: '1rem',
+                cursor: url ? 'pointer' : 'default',
+                transition: 'background 0.2s'
+            }}>
+                <i className="fas fa-database" style={{ color: '#00D924' }}></i>
+                <span>Data provided by <strong style={{ color: '#fff' }}>{source}</strong></span>
+                {url && <i className="fas fa-external-link-alt" style={{ marginLeft: 'auto', color: '#00D924', fontSize: '0.7rem' }}></i>}
+            </div>
+        );
+        if (url) {
+            return <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>{inner}</a>;
+        }
+        return inner;
+    };
 
     return (
         <div className="intelligence-view">
@@ -4909,20 +4918,30 @@ const IntelligenceView = ({ watchlistData }) => {
                                 const priceStr = t.price ? ` @ $${t.price.toFixed(2)}` : '';
                                 formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()}${priceStr}`;
                             }
+                            const secUrl = t.source_url || (symbol ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${symbol}&type=4&dateb=&owner=include&count=40` : null);
 
                             return (
-                            <div key={i} className="intel-item">
+                            <div
+                                key={i}
+                                className="intel-item"
+                                style={{ cursor: !loading && secUrl ? 'pointer' : 'default' }}
+                                onClick={() => !loading && secUrl && window.open(secUrl, '_blank', 'noopener,noreferrer')}
+                                title={!loading && secUrl ? 'View SEC Form 4 filing' : undefined}
+                            >
                                 <div className="intel-symbol">{symbol}</div>
                                 <div className="intel-details">
                                     <div className="intel-company">{loading ? 'Loading…' : (t.filer_name || t.insider || t.name || '—')}</div>
-                                    <div className="intel-date">{loading ? '' : formattedDate}</div>
+                                    <div className="intel-date" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        {loading ? '' : formattedDate}
+                                        {!loading && secUrl && <i className="fas fa-external-link-alt" style={{ fontSize: '0.6rem', color: 'rgba(0,217,36,0.7)' }}></i>}
+                                    </div>
                                 </div>
                                 <div className="intel-estimate">{loading ? '' : formattedTransaction}</div>
                             </div>
                             );
                         })}
                     </div>
-                    <DataSourceLabel source="Finnhub - SEC Insider Transactions" />
+                    <DataSourceLabel source="SEC Form 4 via Finnhub" url={symbol ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${symbol}&type=4&dateb=&owner=include&count=40` : null} />
                 </div>
             )}
 

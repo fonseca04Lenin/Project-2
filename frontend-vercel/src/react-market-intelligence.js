@@ -195,18 +195,33 @@ const MarketIntelligence = () => {
 
                 {data && !loading && (
                     <div className="insider-list">
-                        {data.map((trade, index) => (
-                            <div key={index} className="insider-item">
+                        {data.map((trade, index) => {
+                            const secUrl = trade.source_url || (searchQuery ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${searchQuery.toUpperCase()}&type=4&dateb=&owner=include&count=40` : null);
+                            return (
+                            <div
+                                key={index}
+                                className="insider-item"
+                                style={{ cursor: secUrl ? 'pointer' : 'default' }}
+                                onClick={() => secUrl && window.open(secUrl, '_blank', 'noopener,noreferrer')}
+                                title={secUrl ? 'View SEC Form 4 filing' : undefined}
+                            >
                                 <div className="insider-header">
-                                    <strong>{trade.executive}</strong>
-                                    <span>{formatDate(trade.transaction_date)}</span>
+                                    <strong>{trade.filer_name || trade.executive}</strong>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        {formatDate(trade.date || trade.transaction_date)}
+                                        {secUrl && <i className="fas fa-external-link-alt" style={{ fontSize: '0.6rem', color: 'rgba(0,217,36,0.7)' }}></i>}
+                                    </span>
                                 </div>
                                 <div className="insider-details">
                                     <span>{trade.transaction_type}</span>
-                                    <strong>{trade.shares}</strong>
+                                    <strong>{trade.shares ? trade.shares.toLocaleString() : trade.shares}</strong>
+                                </div>
+                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.25rem' }}>
+                                    {trade.source || 'SEC Form 4 via Finnhub'}
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
