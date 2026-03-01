@@ -474,7 +474,7 @@ def get_insider_trading(symbol):
             return jsonify(_get_fallback_insider(symbol))
 
         insider_data = []
-        sec_url = f'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={symbol}&type=4&dateb=&owner=include&count=40'
+        sec_url = f'https://openinsider.com/search?q={symbol}'
         for item in transactions_raw:
             change = item.get('change', 0)
             transaction_type = 'BUY' if change > 0 else 'SELL'

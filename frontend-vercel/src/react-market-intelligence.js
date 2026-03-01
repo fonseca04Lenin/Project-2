@@ -196,7 +196,7 @@ const MarketIntelligence = () => {
                 {data && !loading && (
                     <div className="insider-list">
                         {data.map((trade, index) => {
-                            const secUrl = trade.source_url || (searchQuery ? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${searchQuery.toUpperCase()}&type=4&dateb=&owner=include&count=40` : null);
+                            const secUrl = trade.source_url || (searchQuery ? `https://openinsider.com/search?q=${searchQuery.toUpperCase()}` : null);
                             return (
                             <div
                                 key={index}
