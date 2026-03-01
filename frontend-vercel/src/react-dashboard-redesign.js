@@ -4918,7 +4918,7 @@ const IntelligenceView = ({ watchlistData }) => {
                                 const priceStr = t.price ? ` @ $${t.price.toFixed(2)}` : '';
                                 formattedTransaction = `${t.transaction_type} ${t.shares.toLocaleString()}${priceStr}`;
                             }
-                            const secUrl = !loading && (t?.source_url || (symbol ? `https://openinsider.com/search?q=${symbol}` : null));
+                            const secUrl = !loading && (t?.source_url || (symbol ? `https://finnhub.io/docs/api/insider-transactions` : null));
 
                             return (
                             <div
@@ -4941,7 +4941,7 @@ const IntelligenceView = ({ watchlistData }) => {
                             );
                         })}
                     </div>
-                    <DataSourceLabel source="SEC Form 4 via Finnhub" url={symbol ? `https://openinsider.com/search?q=${symbol}` : null} />
+                    <DataSourceLabel source="SEC Form 4 via Finnhub" url={symbol ? `https://finnhub.io/docs/api/insider-transactions` : null} />
                 </div>
             )}
 
