@@ -474,6 +474,7 @@ def get_insider_trading(symbol):
             return jsonify(_get_fallback_insider(symbol))
 
         insider_data = []
+        sec_url = f'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={symbol}&type=4&dateb=&owner=include&count=40'
         for item in transactions_raw:
             change = item.get('change', 0)
             transaction_type = 'BUY' if change > 0 else 'SELL'
@@ -486,7 +487,9 @@ def get_insider_trading(symbol):
                 'price': item.get('transactionPrice', 0),
                 'date': item.get('transactionDate', ''),
                 'value': abs(change * item.get('transactionPrice', 0)) if change and item.get('transactionPrice') else 0,
-                'filing_date': item.get('filingDate', '')
+                'filing_date': item.get('filingDate', ''),
+                'source': 'SEC Form 4 via Finnhub',
+                'source_url': sec_url
             })
 
         insider_data.sort(key=lambda x: x['date'], reverse=True)
