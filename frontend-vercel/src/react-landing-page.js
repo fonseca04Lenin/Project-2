@@ -595,33 +595,51 @@ function HeroSection() {
 
 // AI Usage Section Component
 function AIUsageSection() {
+  const features = [
+    {
+      number: "01",
+      title: "Real-Time Data",
+      desc: "Every price, every tick. Zero lag between the market and your screen."
+    },
+    {
+      number: "02",
+      title: "AI Analysis",
+      desc: "Pattern recognition trained on decades of market behavior — delivered in seconds."
+    },
+    {
+      number: "03",
+      title: "Direct AI Advisor",
+      desc: "Ask anything. Get a straight answer. No fluff, no filler, no delay."
+    },
+    {
+      number: "04",
+      title: "Risk Intelligence",
+      desc: "Know your exposure before the market moves against you."
+    }
+  ];
+
   return (
-    <section className="ai-usage-section">
-      <div className="ai-usage-overlay"></div>
-      <div className="ai-usage-content">
-        <h2 className="ai-usage-title">Powered by Artificial Intelligence</h2>
-        <p className="ai-usage-subtitle">SMART TECHNOLOGY. SMARTER DECISIONS.</p>
-        <div className="ai-usage-grid">
-          <div className="ai-usage-card">
-            <i className="fas fa-brain ai-usage-icon"></i>
-            <h3>AI Market Analysis</h3>
-            <p>Our AI engine processes thousands of data points in real-time, analyzing market trends, sentiment, and patterns to deliver actionable insights you can trust.</p>
-          </div>
-          <div className="ai-usage-card">
-            <i className="fas fa-robot ai-usage-icon"></i>
-            <h3>AI Chat Assistant</h3>
-            <p>Ask our intelligent chatbot anything about the market. Powered by advanced language models, it provides instant answers, stock summaries, and personalized recommendations.</p>
-          </div>
-          <div className="ai-usage-card">
-            <i className="fas fa-chart-bar ai-usage-icon"></i>
-            <h3>Predictive Analytics</h3>
-            <p>Leverage machine learning models that identify emerging trends and forecast potential market movements, helping you stay ahead of the curve.</p>
-          </div>
-          <div className="ai-usage-card">
-            <i className="fas fa-shield-alt ai-usage-icon"></i>
-            <h3>Smart Risk Assessment</h3>
-            <p>AI-driven risk analysis evaluates your portfolio exposure and alerts you to potential risks before they impact your investments.</p>
-          </div>
+    <section className="ai-section">
+      <div className="ai-section-inner">
+        <div className="ai-section-left">
+          <span className="ai-section-eyebrow">Intelligence Layer</span>
+          <h2 className="ai-section-headline">
+            Built for those<br />who move first.
+          </h2>
+          <p className="ai-section-aside">
+            Every feature is designed around one principle: speed of insight.
+          </p>
+        </div>
+        <div className="ai-section-right">
+          {features.map((f, i) => (
+            <div className="ai-feature-row" key={i}>
+              <span className="ai-feature-num">{f.number}</span>
+              <div className="ai-feature-body">
+                <span className="ai-feature-title">{f.title}</span>
+                <span className="ai-feature-desc">{f.desc}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
