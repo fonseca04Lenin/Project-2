@@ -1033,11 +1033,15 @@ const DashboardRedesign = () => {
                             } catch (e) {
                                 // // console.warn(`Failed to fetch price for ${symbol}:`, e);
                             }
+                            // Clear loading state on failure so price shows as $0.00
+                            setWatchlistData(prev => prev.map(s =>
+                                s.symbol === symbol ? { ...s, _priceLoading: false } : s
+                            ));
                             return false;
                         };
-                        
-                        // Fetch prices for all stocks in parallel (up to 10 at a time)
-                        const stocksToFetch = stocksNeedingPrices.slice(0, 10);
+
+                        // Fetch prices for all stocks in parallel
+                        const stocksToFetch = stocksNeedingPrices;
                         Promise.all(stocksToFetch.map(stock => fetchStockPrice(stock.symbol)))
                             .then(() => {
                                 // Initial price fetch completed
@@ -3026,6 +3030,7 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover, p
 // Watchlist View Component
 const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selectedCategory, onCategoryChange, categories, onAddFirstStock, onStockHover, updatingStocks = new Set(), preferences = {} }) => {
     const [displayCount, setDisplayCount] = useState(12);
+    const sentinelRef = React.useRef(null);
     const showPercentChange = preferences.showPercentChange !== false;
     const compactNumbers = preferences.compactNumbers || false;
     const currencySymbol = { USD: '$', EUR: '\u20AC', GBP: '\u00A3', JPY: '\u00A5' }[preferences.currency] || '$';
@@ -3041,6 +3046,19 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
     };
     // Reset display count when category changes
     useEffect(() => { setDisplayCount(12); }, [selectedCategory]);
+
+    // Infinite scroll: load 12 more when sentinel enters viewport
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                setDisplayCount(prev => prev + 12);
+            }
+        }, { threshold: 0.1 });
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [sentinelRef.current]);
 
     // Count stocks per category from unfiltered data
     const categoryCounts = {};
@@ -3177,11 +3195,7 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                         </div>
                         <div className="stock-name">{stock.name}</div>
                         <div className={`stock-price-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
-                            {stock._priceLoading ? (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', opacity: 0.5 }}>
-                                    <i className="fas fa-spinner fa-spin" style={{ fontSize: '0.875rem' }}></i> Loading...
-                                </span>
-                            ) : formatStockPrice(stock.current_price || stock.price || 0)}
+                            {formatStockPrice(stock.current_price || stock.price || 0)}
                         </div>
                         {showPercentChange && (
                         <div className={`stock-change-large ${stock.change_percent >= 0 ? 'positive' : 'negative'}`}>
@@ -3227,49 +3241,9 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                 )}
             </div>
 
-            {/* Show More Button */}
+            {/* Infinite scroll sentinel */}
             {filteredWatchlist.length > displayCount && (
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '2rem',
-                    gap: '0.75rem',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.1)'
-                }}>
-                    <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.875rem' }}>
-                        Showing {Math.min(displayCount, filteredWatchlist.length)} of {filteredWatchlist.length} stocks
-                    </span>
-                    <button
-                        onClick={() => setDisplayCount(prev => prev + 12)}
-                        className="load-more-btn"
-                        style={{
-                            padding: '0.875rem 2rem',
-                            background: 'linear-gradient(135deg, #00D924, #FF6B35)',
-                            border: 'none',
-                            borderRadius: '6px',
-                            color: '#ffffff',
-                            fontWeight: '600',
-                            fontSize: '0.9375rem',
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem'
-                        }}
-                        onMouseOver={(e) => {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 8px 20px rgba(0, 217, 36, 0.3)';
-                        }}
-                        onMouseOut={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = 'none';
-                        }}
-                    >
-                        <i className="fas fa-arrow-down"></i>
-                        Show More ({filteredWatchlist.length - displayCount} remaining)
-                    </button>
-                </div>
+                <div ref={sentinelRef} style={{ height: '1px', marginTop: '1rem' }} />
             )}
         </div>
     );
