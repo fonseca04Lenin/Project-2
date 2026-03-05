@@ -19,6 +19,7 @@ from flask import request, jsonify
 from flask_login import current_user
 
 from app.services.stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI, AlpacaAPI, CompanyInfoService, StocktwitsAPI
+from app.services.stock_symbol_index import StockSymbolIndexService
 from app.services.firebase_service import FirebaseService, get_firestore_client, FirebaseUser
 from app.services.watchlist_service import get_watchlist_service
 from app.config import Config
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 # API instances
 # ---------------------------------------------------------------------------
 yahoo_finance_api = YahooFinanceAPI()
+stock_symbol_index_service = StockSymbolIndexService()
 news_api = NewsAPI()
 stocktwits_api = StocktwitsAPI()
 finnhub_api = FinnhubAPI()

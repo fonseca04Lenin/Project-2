@@ -8,7 +8,7 @@ from app.services.stock import Stock
 from app.services.firebase_service import FirebaseService
 from app.services.services import (
     authenticate_request, yahoo_finance_api, company_info_service,
-    get_stock_with_fallback, get_stock_alpaca_only,
+    get_stock_with_fallback, get_stock_alpaca_only, stock_symbol_index_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -170,15 +170,17 @@ def search_stocks():
     query = sanitize_search_query(query)
 
     try:
-        import time
-        time.sleep(0.2)
-
-        search_results = yahoo_finance_api.search_stocks(query, limit=10)
+        source = 'symbol_index'
+        search_results = stock_symbol_index_service.search(query, limit=10)
+        if not search_results:
+            search_results = yahoo_finance_api.search_stocks(query, limit=10)
+            source = 'yahoo_fallback'
 
         if search_results:
             return jsonify({
                 'results': search_results,
-                'query': query
+                'query': query,
+                'source': source
             })
         else:
             return jsonify({
@@ -213,10 +215,11 @@ def search_companies():
     query = sanitize_search_query(query)
 
     try:
-        import time
-        time.sleep(0.3)
-
-        search_results = yahoo_finance_api.search_stocks(query, limit=15)
+        source = 'symbol_index'
+        search_results = stock_symbol_index_service.search(query, limit=15)
+        if not search_results:
+            search_results = yahoo_finance_api.search_stocks(query, limit=15)
+            source = 'yahoo_fallback'
 
         enhanced_results = []
         for result in search_results:
@@ -231,7 +234,8 @@ def search_companies():
 
         return jsonify({
             'results': enhanced_results,
-            'query': query
+            'query': query,
+            'source': source
         })
 
     except Exception as e:
