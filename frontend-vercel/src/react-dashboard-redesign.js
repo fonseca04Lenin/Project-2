@@ -37,6 +37,7 @@ const DashboardRedesign = () => {
     const [searching, setSearching] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
+    const [searchNoResults, setSearchNoResults] = useState(false);
     const searchDebounceRef = useRef(null);
     const searchInputRef = useRef(null);
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -1187,17 +1188,22 @@ const DashboardRedesign = () => {
             setHighlightedIndex((prev) => Math.max(prev - 1, 0));
             return;
         }
-        if (e.key === 'Enter') {
-            if (suggestions.length > 0 && highlightedIndex >= 0) {
-                const choice = suggestions[highlightedIndex];
-                if (choice?.symbol) {
-                    window.openStockDetailsModalReact && window.openStockDetailsModalReact(choice.symbol);
-                    setSuggestions([]);
-                    setHighlightedIndex(-1);
-                    return;
-                }
+        if (e.key === 'Escape') {
+            setSuggestions([]);
+            setHighlightedIndex(-1);
+            setSearchNoResults(false);
+            return;
+        }
+        if (e.key === 'Enter' && suggestions.length > 0) {
+            const idx = highlightedIndex >= 0 ? highlightedIndex : 0;
+            const choice = suggestions[idx];
+            if (choice?.symbol) {
+                window.openStockDetailsModalReact && window.openStockDetailsModalReact(choice.symbol);
+                setSuggestions([]);
+                setHighlightedIndex(-1);
+                setSearchQuery('');
+                setSearchNoResults(false);
             }
-            handleSearch();
         }
     };
 
@@ -1225,6 +1231,7 @@ const DashboardRedesign = () => {
         if (!value.trim()) {
             setSuggestions([]);
             setHighlightedIndex(-1);
+            setSearchNoResults(false);
             return;
         }
         searchDebounceRef.current = setTimeout(async () => {
@@ -1239,21 +1246,24 @@ const DashboardRedesign = () => {
                 });
                 if (resp.ok) {
                     const data = await resp.json();
-                    // Extract results array from response (handles both {results: [...]} and direct array)
                     const res = data.results || data;
-                    setSuggestions(Array.isArray(res) ? res.slice(0, 8) : []);
-                    setHighlightedIndex(res && res.length > 0 ? 0 : -1);
+                    const results = Array.isArray(res) ? res.slice(0, 8) : [];
+                    setSuggestions(results);
+                    setHighlightedIndex(results.length > 0 ? 0 : -1);
+                    setSearchNoResults(results.length === 0);
                 } else {
                     setSuggestions([]);
                     setHighlightedIndex(-1);
+                    setSearchNoResults(true);
                 }
             } catch (_) {
                 setSuggestions([]);
                 setHighlightedIndex(-1);
+                setSearchNoResults(false);
             } finally {
                 setSearching(false);
             }
-        }, 200); // Faster debounce for real-time feel
+        }, 200);
     };
 
     const refreshData = () => {
@@ -1310,6 +1320,12 @@ const DashboardRedesign = () => {
             padding: 20px;
             animation: fadeIn 0.3s ease;
         `;
+        chartModalContainer.onclick = (e) => {
+            if (e.target === chartModalContainer) {
+                chartModalContainer.remove();
+                document.body.style.overflow = '';
+            }
+        };
         
         // Add fadeIn animation if not exists
         if (!document.getElementById('chart-modal-styles')) {
@@ -1326,18 +1342,13 @@ const DashboardRedesign = () => {
         
         const chartContent = document.createElement('div');
         chartContent.style.cssText = `
-            background: linear-gradient(135deg, #10121b 0%, #1a1d2e 100%);
-            border-radius: 6px;
-            padding: 0;
-            max-width: 1000px;
+            max-width: 1100px;
             width: 100%;
             max-height: 90vh;
             position: relative;
             overflow: visible;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(204, 85, 0, 0.2);
         `;
-        
+
         // Close button - positioned outside the chart box
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '✕';
@@ -1348,7 +1359,6 @@ const DashboardRedesign = () => {
             background: rgba(239, 68, 68, 0.9);
             color: #ffffff;
             border: 2px solid rgba(239, 68, 68, 1);
-            padding: 0.5rem 0.75rem;
             border-radius: 50%;
             font-size: 1rem;
             font-weight: 700;
@@ -1370,25 +1380,20 @@ const DashboardRedesign = () => {
             closeBtn.style.background = 'rgba(239, 68, 68, 0.9)';
             closeBtn.style.transform = 'scale(1)';
         };
-        
+
         const closeModal = () => {
             chartModalContainer.remove();
             document.body.style.overflow = '';
         };
         closeBtn.onclick = closeModal;
-        
-        // Chart container wrapper with padding
-        const chartWrapper = document.createElement('div');
-        chartWrapper.style.cssText = 'padding: 2rem; width: 100%; box-sizing: border-box;';
-        
-        // Chart container
+
+        // Chart container - direct child, no extra padding wrapper
         const chartContainer = document.createElement('div');
         chartContainer.id = 'chartOnlyContainer';
-        chartContainer.style.cssText = 'width: 100%; min-height: 500px;';
-        
-        chartWrapper.appendChild(chartContainer);
+        chartContainer.style.cssText = 'width: 100%; min-height: 500px; max-height: 90vh; overflow: hidden;';
+
         chartContent.appendChild(closeBtn);
-        chartContent.appendChild(chartWrapper);
+        chartContent.appendChild(chartContainer);
         chartModalContainer.appendChild(chartContent);
         document.body.appendChild(chartModalContainer);
         document.body.style.overflow = 'hidden';
@@ -1613,6 +1618,13 @@ const DashboardRedesign = () => {
                             <i className="fas fa-brain"></i>
                             <span>AI Suite</span>
                         </button>
+                        <button
+                            className={`nav-tab ${activeView === 'paper' ? 'active' : ''}`}
+                            onClick={() => setActiveView('paper')}
+                        >
+                            <i className="fas fa-flask"></i>
+                            <span>Paper Trade</span>
+                        </button>
                     </nav>
                 </div>
                 <div className="header-right">
@@ -1631,10 +1643,6 @@ const DashboardRedesign = () => {
                             </span>
                         </div>
                     )}
-                    
-                    <button className="refresh-btn" onClick={refreshData}>
-                        <i className="fas fa-sync-alt"></i>
-                    </button>
                     <div className="user-menu-wrapper">
                         <button 
                             ref={userMenuBtnRef}
@@ -1658,7 +1666,7 @@ const DashboardRedesign = () => {
                                     <div className="user-info">
                                         <div className="user-avatar">
                                             {profilePicture ? (
-                                                <img src={profilePicture} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                                <img src={profilePicture} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                                             ) : (
                                                 <i className="fas fa-user"></i>
                                             )}
@@ -1757,43 +1765,66 @@ const DashboardRedesign = () => {
 
             {/* Quick Search Bar - Always Visible */}
             <div className="quick-search-bar">
-                <i className="fas fa-search"></i>
+                <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} search-icon`}></i>
                 <div className="search-input-wrapper" style={{ position: 'relative', flex: 1 }}>
-                    <input 
+                    <input
                         ref={searchInputRef}
-                        type="text" 
-                        placeholder="Search stocks, companies, or symbols..." 
+                        type="text"
+                        placeholder="Search stocks, ETFs, companies..."
                         className="search-input"
                         value={searchQuery}
                         onChange={(e) => onSearchInputChange(e.target.value)}
                         onKeyDown={handleKeyPress}
+                        onBlur={() => setTimeout(() => {
+                            setSuggestions([]);
+                            setHighlightedIndex(-1);
+                            setSearchNoResults(false);
+                        }, 150)}
+                        onFocus={() => { if (searchQuery.trim()) onSearchInputChange(searchQuery); }}
                         aria-autocomplete="list"
-                        aria-expanded={suggestions.length > 0}
+                        aria-expanded={suggestions.length > 0 || searchNoResults}
+                        autoComplete="off"
                     />
-                    {suggestions.length > 0 && (
+                    {searchQuery.trim() && (suggestions.length > 0 || searchNoResults) && (
                         <div className="search-suggestions" role="listbox">
-                        {suggestions.map((s, idx) => (
-                            <div 
-                                key={`${s.symbol}-${idx}`}
-                                role="option"
-                                className={`suggestion-item ${idx === highlightedIndex ? 'active' : ''}`}
-                                onMouseEnter={() => setHighlightedIndex(idx)}
-                                onClick={() => {
-                                    window.openStockDetailsModalReact && window.openStockDetailsModalReact(s.symbol);
-                                    setSuggestions([]);
-                                    setHighlightedIndex(-1);
-                                }}
-                            >
-                                <span className="s-symbol">{s.symbol}</span>
-                                <span className="s-name">{s.name}</span>
-                            </div>
-                        ))}
+                            {suggestions.length > 0 ? suggestions.map((s, idx) => {
+                                const q = searchQuery.trim().toUpperCase();
+                                const sym = s.symbol || '';
+                                const nm = s.name || '';
+                                const highlightText = (text, query) => {
+                                    const i = text.toUpperCase().indexOf(query);
+                                    if (i === -1) return React.createElement('span', null, text);
+                                    return React.createElement(React.Fragment, null,
+                                        text.slice(0, i),
+                                        React.createElement('span', { className: 'match-highlight' }, text.slice(i, i + query.length)),
+                                        text.slice(i + query.length)
+                                    );
+                                };
+                                return React.createElement('div',
+                                    {
+                                        key: `${sym}-${idx}`,
+                                        role: 'option',
+                                        className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                        onMouseEnter: () => setHighlightedIndex(idx),
+                                        onMouseDown: (e) => e.preventDefault(),
+                                        onClick: () => {
+                                            window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
+                                            setSuggestions([]);
+                                            setHighlightedIndex(-1);
+                                            setSearchQuery('');
+                                            setSearchNoResults(false);
+                                        }
+                                    },
+                                    React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
+                                    React.createElement('span', { className: 's-name' }, highlightText(nm, q))
+                                );
+                            }) : React.createElement('div', { className: 'search-no-results' },
+                                React.createElement('i', { className: 'fas fa-search' }),
+                                React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
+                            )}
                         </div>
                     )}
                 </div>
-                <button className="search-btn" onClick={handleSearch} disabled={searching}>
-                    {searching ? 'Searching…' : 'Search'}
-                </button>
             </div>
 
             {/* Main Content Area */}
@@ -1820,6 +1851,13 @@ const DashboardRedesign = () => {
                 {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
                 {activeView === 'assistant' && <AIAssistantView />}
                 {activeView === 'aisuite' && <AISuiteView watchlistData={watchlistData} />}
+                {activeView === 'paper' && window.PaperTradingView && React.createElement(window.PaperTradingView, {})}
+                {activeView === 'paper' && !window.PaperTradingView && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'rgba(255,255,255,0.3)', flexDirection: 'column', gap: '1rem' }}>
+                        <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem' }}></i>
+                        <span>Loading Paper Trading…</span>
+                    </div>
+                )}
             </div>
 
             {/* Floating Assistant - Hidden when already in assistant view */}
