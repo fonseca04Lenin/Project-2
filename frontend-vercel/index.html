@@ -240,9 +240,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Styles -->
-    <link rel="stylesheet" href="static/css/marketpulse-landing.css?v=dark-theme-restore">
-    <link rel="stylesheet" href="static/css/style.css?v=dark-theme-restore">
-    <link rel="stylesheet" href="static/css/react-ai-chat.css?v=1.0">
+    <link rel="stylesheet" href="/static/css/marketpulse-landing.css?v=dark-theme-restore">
+    <link rel="stylesheet" href="/static/css/style.css?v=dark-theme-restore">
+    <link rel="stylesheet" href="/static/css/react-ai-chat.css?v=1.0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Landing page styles -->
     <style>
@@ -258,8 +258,9 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #000000 !important;
-            color: #ffffff !important;
+            /* Use CSS variables so light/dark themes both work */
+            background-color: var(--bg-primary, #000000) !important;
+            color: var(--text-primary, #ffffff) !important;
             overflow-x: hidden;
         }
         
@@ -327,7 +328,7 @@
     <!-- Firebase SDK v9 with Compat Mode (Most reliable) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <script src="/firebase-config.js"></script>
 </head>
 <body>
     <div id="app" style="min-height: 100vh; background: #000;">
@@ -394,7 +395,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="config.js?v=2.2"></script>
+    <script src="/config.js?v=2.2"></script>
     
     <!-- React Integration - Production builds to suppress console warnings -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -414,9 +415,11 @@
     </script>
     
     <!-- NEW DASHBOARD UI - Load it FIRST so it's available for showMainContent -->
-    <link rel="stylesheet" href="static/css/dashboard-redesign.css?v=dark-theme-restore">
+    <link rel="stylesheet" href="/static/css/dashboard-redesign.css?v=dark-theme-restore">
+    <link rel="stylesheet" href="/static/css/paper-trading.css?v=1.0">
     <div id="dashboard-redesign-root" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow: auto; z-index: 9999;"></div>
-    <script type="text/babel" src="src/react-dashboard-redesign.js"></script>
+    <script type="text/babel" src="/src/react-dashboard-redesign.js"></script>
+    <script type="text/babel" src="/src/react-paper-trading.js"></script>
     
     <!-- Helper Functions for New UI -->
     <script>
@@ -567,15 +570,15 @@
     </script>
     
     <!-- Paywall Modal -->
-    <script type="text/babel" src="src/react-paywall-modal.js"></script>
+    <script type="text/babel" src="/src/react-paywall-modal.js"></script>
 
     <!-- Old UI removed - using new React dashboard only -->
-    <script type="text/babel" src="src/react-landing-page.js"></script>
-    <script type="text/babel" src="src/react-ai-chat.js?v=1.0"></script>
-    <script type="text/babel" src="src/react-chart.js?v=1.0"></script>
-    <script type="text/babel" src="src/react-watchlist-notes.js?v=1.0"></script>
-    <script type="text/babel" src="src/react-stock-details-modal.js?v=2.0-education"></script>
-    <script type="text/babel" src="src/react-stock-details-page.js?v=1.0"></script>
+    <script type="text/babel" src="/src/react-landing-page.js"></script>
+    <script type="text/babel" src="/src/react-ai-chat.js?v=1.0"></script>
+    <script type="text/babel" src="/src/react-chart.js?v=1.0"></script>
+    <script type="text/babel" src="/src/react-watchlist-notes.js?v=1.0"></script>
+    <script type="text/babel" src="/src/react-stock-details-modal.js?v=2.0-education"></script>
+    <script type="text/babel" src="/src/react-stock-details-page.js?v=1.0"></script>
 
     <!-- Duplicate showNewDashboard function for Firebase auth state changes -->
     <script type="text/babel">

@@ -874,6 +874,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
         // Main Chart Area
         React.createElement('div', {
             key: 'chart-area',
+            onMouseLeave: () => setHoveredData(null),
             style: {
                 padding: '0 0 0 0',
                 position: 'relative'

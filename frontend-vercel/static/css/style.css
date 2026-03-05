@@ -145,6 +145,87 @@
     --radius-2xl: 12px;
 }
 
+/* Re-declare theme variables on :root so they apply correctly in modern browsers */
+:root {
+    /* Professional Financial Color Palette */
+    --primary-color: #00D924;
+    --primary-dark: #00B01F;
+    --secondary-color: #1A1A1A;
+    --accent-color: #FF6B35;
+    --success-color: #00D924;
+    --warning-color: #FFB800;
+    --error-color: #FF3B30;
+    
+    /* Sophisticated Text Colors */
+    --text-primary: #FFFFFF;
+    --text-secondary: #C7C7CC;
+    --text-muted: #8E8E93;
+    --text-inverse: #1A1A1A;
+    
+    /* Premium Background System */
+    --bg-primary: #000000;
+    --bg-secondary: #0D0D0D;
+    --bg-tertiary: #1A1A1A;
+    --bg-surface: #2C2C2E;
+    --bg-elevated: #3A3A3C;
+    
+    /* Refined Card System */
+    --card-bg: rgba(44, 44, 46, 0.8);
+    --card-border: rgba(142, 142, 147, 0.12);
+    --card-elevated: rgba(58, 58, 60, 0.9);
+    
+    /* Professional Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
+    
+    /* Data Visualization Colors */
+    --gain-color: #00D924;
+    --loss-color: #FF3B30;
+    --neutral-color: #8E8E93;
+    
+    /* Spacing System */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+    --space-24: 6rem;
+    --space-32: 8rem;
+    
+    /* Border Radius System */
+    --radius-sm: 3px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 10px;
+    --radius-2xl: 12px;
+}
+
+/* Light theme variable overrides (activated when body has data-theme="light") */
+body[data-theme="light"] {
+    --bg-primary: #f9fafb;
+    --bg-secondary: #e5e7eb;
+    --bg-tertiary: #d1d5db;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f3f4f6;
+
+    --text-primary: #0f172a;
+    --text-secondary: #4b5563;
+    --text-muted: #6b7280;
+    --text-inverse: #ffffff;
+
+    --card-bg: rgba(255, 255, 255, 0.9);
+    --card-border: rgba(148, 163, 184, 0.35);
+    --card-elevated: rgba(241, 245, 249, 0.95);
+}
+
 html, body {
     height: 100%;
     min-height: 100vh;
@@ -6222,6 +6303,39 @@ body {
     z-index: 100;
 }
 
+/* Light theme overrides for stock details page */
+body[data-theme="light"] .stock-page-container {
+    background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 50%, #f3f4f6 100%);
+    color: var(--text-primary);
+}
+
+body[data-theme="light"] .stock-page-nav {
+    background: rgba(255, 255, 255, 0.96);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+body[data-theme="light"] .back-button {
+    background: rgba(15, 23, 42, 0.04);
+    border-color: rgba(15, 23, 42, 0.15);
+    color: #0f172a;
+}
+
+body[data-theme="light"] .back-button i {
+    color: rgba(15, 23, 42, 0.7);
+}
+
+body[data-theme="light"] .nav-price {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .nav-change.positive {
+    color: #16a34a;
+}
+
+body[data-theme="light"] .nav-change.negative {
+    color: #b91c1c;
+}
+
 .back-button {
     display: inline-flex;
     align-items: center;
@@ -6336,7 +6450,7 @@ body {
 .nav-name {
     font-weight: 600;
     font-size: 1rem;
-    color: #ffffff;
+    color: #cc5500;
     max-width: 200px;
     white-space: nowrap;
     overflow: hidden;

@@ -58,8 +58,30 @@ const AIAdvisorChat = () => {
     const testAPIConnection = async () => {
         try {
             const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
-            const response = await fetch(`${API_BASE_URL}/api/health`);
-            setIsOnline(response.ok);
+            
+            // If user is authenticated, use chat status endpoint so we know if Gemini and rate limits are OK
+            const user = window.firebaseAuth?.currentUser;
+            if (user) {
+                const token = await user.getIdToken();
+                const res = await fetch(`${API_BASE_URL}/api/chat/status`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'X-User-ID': user.uid
+                    }
+                });
+                if (!res.ok) {
+                    setIsOnline(false);
+                    return;
+                }
+                const data = await res.json();
+                const canSend = data?.rate_limit?.can_send !== false;
+                setRateLimitInfo(data.rate_limit || null);
+                setIsOnline(data.success && data.status === 'available' && canSend);
+            } else {
+                // Fallback: basic API health check when not logged in
+                const response = await fetch(`${API_BASE_URL}/api/health`);
+                setIsOnline(response.ok);
+            }
         } catch (error) {
             console.error('API connection test failed:', error);
             setIsOnline(false);
@@ -114,9 +136,12 @@ const AIAdvisorChat = () => {
                 };
                 setMessages(prev => [...prev, aiMessage]);
 
-                // Update rate limit info
+                // Update rate limit / availability info when provided
                 if (data.rate_limit) {
                     setRateLimitInfo(data.rate_limit);
+                    if (data.rate_limit.can_send === false) {
+                        setIsOnline(false);
+                    }
                 }
 
                 // Check if response is about adding/removing stocks and refresh watchlist
@@ -137,7 +162,14 @@ const AIAdvisorChat = () => {
                     }
                 }
             } else {
-                showError(data.error || data.response || 'Failed to get response from AI');
+                const errMsg = data.error || data.response || 'Failed to get response from AI';
+                showError(errMsg);
+
+                // If backend reports AI service/ quota issues, reflect that in status
+                const lower = String(errMsg).toLowerCase();
+                if (lower.includes('ai service unavailable') || lower.includes('quota') || lower.includes('usage limit')) {
+                    setIsOnline(false);
+                }
             }
         } catch (error) {
             console.error('Chat API error:', error);

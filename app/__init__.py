@@ -112,6 +112,7 @@ def create_app():
     from app.routes.map_companies import map_companies_bp
     from app.routes.youtube import youtube_bp
     from app.routes.ai_features import ai_features_bp
+    from app.routes.paper_trading import paper_trading_bp
 
     app.register_blueprint(auth)
     app.register_blueprint(core_bp)
@@ -124,6 +125,7 @@ def create_app():
     app.register_blueprint(map_companies_bp)
     app.register_blueprint(youtube_bp)
     app.register_blueprint(ai_features_bp)
+    app.register_blueprint(paper_trading_bp)
 
     # -------------------------------------------------------------------
     # Register SocketIO events
