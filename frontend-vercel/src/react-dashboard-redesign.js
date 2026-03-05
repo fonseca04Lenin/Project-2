@@ -1126,25 +1126,71 @@ const DashboardRedesign = () => {
     };
 
     const handleSearch = async () => {
-        if (!searchQuery.trim()) return;
-        
+        const rawQuery = searchQuery.trim();
+        if (!rawQuery) return;
+
         try {
+            setSearching(true);
             const authHeaders = await window.getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            
-            const response = await fetch(`${API_BASE}/api/stock/${searchQuery.toUpperCase()}`, {
+
+            const upperQuery = rawQuery.toUpperCase();
+            const looksLikeSymbol = /^[A-Z0-9.]{1,10}$/.test(upperQuery);
+            let resolvedSymbol = upperQuery;
+
+            try {
+                const searchResp = await fetch(`${API_BASE}/api/search/stocks?q=${encodeURIComponent(rawQuery)}`, {
+                    method: 'GET',
+                    headers: authHeaders,
+                    credentials: 'include'
+                });
+
+                if (searchResp.ok) {
+                    const searchData = await searchResp.json();
+                    const searchResults = Array.isArray(searchData?.results) ? searchData.results : [];
+
+                    if (searchResults.length > 0) {
+                        const normalize = (value) => String(value || '').toUpperCase().trim();
+                        const exactSymbolMatch = searchResults.find((r) => normalize(r?.symbol) === upperQuery);
+                        const prefixSymbolMatch = searchResults.find((r) => normalize(r?.symbol).startsWith(upperQuery));
+                        const exactNameMatch = searchResults.find((r) => normalize(r?.name) === upperQuery);
+                        const containsNameMatch = searchResults.find((r) => normalize(r?.name).includes(upperQuery));
+                        const selected = exactSymbolMatch || prefixSymbolMatch || exactNameMatch || containsNameMatch || searchResults[0];
+
+                        if (selected?.symbol) {
+                            resolvedSymbol = normalize(selected.symbol);
+                            setSearchQuery(resolvedSymbol);
+                        }
+                    }
+                }
+            } catch (_) {
+                // Symbol resolution failure should not block direct symbol searches.
+            }
+
+            let response = await fetch(`${API_BASE}/api/stock/${resolvedSymbol}`, {
                 method: 'GET',
                 headers: authHeaders,
                 credentials: 'include'
             });
-            
+
+            if (!response.ok && looksLikeSymbol && resolvedSymbol !== upperQuery) {
+                response = await fetch(`${API_BASE}/api/stock/${upperQuery}`, {
+                    method: 'GET',
+                    headers: authHeaders,
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    resolvedSymbol = upperQuery;
+                }
+            }
+
             if (response.ok) {
                 const data = await response.json();
                 setSearchResults([data]);
                 setShowSearchResults(true);
                 
                 // Track searched stock for priority real-time updates
-                const symbol = searchQuery.toUpperCase();
+                const symbol = resolvedSymbol;
                 trackStockView(symbol);
                 
                 // Track search results for priority updates
@@ -1166,7 +1212,7 @@ const DashboardRedesign = () => {
                     trackSearch();
                 }
                 
-                window.openStockDetailsModalReact && window.openStockDetailsModalReact(searchQuery.toUpperCase());
+                window.openStockDetailsModalReact && window.openStockDetailsModalReact(symbol);
                 setSuggestions([]);
                 setHighlightedIndex(-1);
             } else {
@@ -1174,6 +1220,8 @@ const DashboardRedesign = () => {
             }
         } catch (error) {
             window.showNotification && window.showNotification('Search failed', 'error');
+        } finally {
+            setSearching(false);
         }
     };
 
@@ -6801,4 +6849,3 @@ const MarketStatusCard = ({ marketStatus }) => {
 
 // Initialize the redesign (this won't replace the current dashboard, just for testing)
 window.DashboardRedesign = DashboardRedesign;
-
