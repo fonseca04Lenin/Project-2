@@ -3337,70 +3337,56 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
 
 // News View Component
 const NewsView = () => {
-    const FEATURED_COUNT = 1;
-    const CARDS_PER_ROW = 3;
-    const LOAD_STEP = CARDS_PER_ROW * 2; // Keep batches aligned to full rows
-    const INITIAL_DISPLAY_COUNT = FEATURED_COUNT + LOAD_STEP;
+    const PAGE_SIZE = 9; // 1 featured + 8 cards (aligns to 3-per-row grid)
 
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
-    const [allArticles, setAllArticles] = useState([]);
-    const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
-    const [query, setQuery] = useState('');
+    const [articles, setArticles] = useState([]);
     const [hasMore, setHasMore] = useState(true);
+    const [query, setQuery] = useState('');
+
     const sentinelRef = useRef(null);
-    const requestInFlightRef = useRef(false);
+    const inFlightRef = useRef(false);   // ref-based guard, never stale
+    const pageRef = useRef(1);           // current page, never stale
+    const queryRef = useRef('');         // current query, never stale
+    const loadMoreRef = useRef(null);    // always points to latest loadMore fn
 
-    const visibleArticles = allArticles.slice(0, displayCount);
+    const fetchPage = async (page, append, currentQuery) => {
+        if (inFlightRef.current) return;
+        inFlightRef.current = true;
 
-    const loadNews = async ({ append = false, targetDisplayCount = INITIAL_DISPLAY_COUNT } = {}) => {
-        if (requestInFlightRef.current) return;
-        requestInFlightRef.current = true;
-
-        const requestedLimit = Math.max(
-            targetDisplayCount,
-            append ? allArticles.length + LOAD_STEP : INITIAL_DISPLAY_COUNT
-        );
+        if (append) {
+            setLoadingMore(true);
+        } else {
+            setLoading(true);
+            setHasMore(true);
+            setError('');
+        }
 
         try {
-            if (append) {
-                setLoadingMore(true);
-            } else {
-                setLoading(true);
-                setDisplayCount(INITIAL_DISPLAY_COUNT);
-                setHasMore(true);
-            }
-
-            setError('');
             const authHeaders = await window.getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            const url = query.trim() 
-                ? `${API_BASE}/api/news/market?q=${encodeURIComponent(query.trim())}&limit=${requestedLimit}`
-                : `${API_BASE}/api/news/market?limit=${requestedLimit}`;
+            const url = currentQuery.trim()
+                ? `${API_BASE}/api/news/market?q=${encodeURIComponent(currentQuery.trim())}&limit=${PAGE_SIZE}&page=${page}`
+                : `${API_BASE}/api/news/market?limit=${PAGE_SIZE}&page=${page}`;
+
             const r = await fetch(url, { headers: authHeaders, credentials: 'include' });
             if (!r.ok) throw new Error('Failed to fetch news');
             const data = await r.json();
-            const fetchedArticles = Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : [];
+            const fetched = Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : [];
 
-            // If append call returns no newly added items, no more news is available.
-            const newlyLoadedCount = fetchedArticles.length - allArticles.length;
-            if (append && newlyLoadedCount <= 0) {
-                setHasMore(false);
-                return;
+            if (append) {
+                setArticles(prev => [...prev, ...fetched]);
+            } else {
+                setArticles(fetched);
             }
-
-            const nextDisplayCount = Math.min(targetDisplayCount, fetchedArticles.length);
-            setAllArticles(fetchedArticles);
-            setDisplayCount(nextDisplayCount);
-
-            const reachedApiLimit = fetchedArticles.length < requestedLimit || fetchedArticles.length === 0;
-            setHasMore(!reachedApiLimit);
+            // If we got fewer articles than requested, there are no more pages
+            setHasMore(fetched.length >= PAGE_SIZE);
         } catch (e) {
             setError('Unable to load news right now');
             if (!append) {
-                setAllArticles([]);
-                setDisplayCount(0);
+                setArticles([]);
                 setHasMore(false);
             }
         } finally {
@@ -3409,58 +3395,74 @@ const NewsView = () => {
             } else {
                 setLoading(false);
             }
-            requestInFlightRef.current = false;
+            inFlightRef.current = false;
         }
     };
 
+    // Initial load
     useEffect(() => {
-        loadNews({ append: false, targetDisplayCount: INITIAL_DISPLAY_COUNT });
+        pageRef.current = 1;
+        queryRef.current = '';
+        fetchPage(1, false, '');
     }, []);
 
-    const loadMoreNews = async () => {
-        if (loading || loadingMore || !!error) return;
-
-        const nextDisplayCount = displayCount + LOAD_STEP;
-
-        if (nextDisplayCount <= allArticles.length) {
-            setDisplayCount(nextDisplayCount);
-            return;
-        }
-
-        if (hasMore) {
-            await loadNews({ append: true, targetDisplayCount: nextDisplayCount });
-        } else {
-            setDisplayCount(allArticles.length);
-        }
+    // Keep loadMoreRef current on every render so the observer never has a stale closure
+    loadMoreRef.current = () => {
+        if (inFlightRef.current || !hasMore) return;
+        const nextPage = pageRef.current + 1;
+        pageRef.current = nextPage;
+        fetchPage(nextPage, true, queryRef.current);
     };
 
+    // Mount observer once — uses loadMoreRef so it never captures stale state
     useEffect(() => {
-        if (!sentinelRef.current || loading) return;
-
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0]?.isIntersecting) {
-                    loadMoreNews();
+                    loadMoreRef.current();
                 }
             },
-            {
-                root: null,
-                rootMargin: '0px',
-                threshold: 0
-            }
+            { root: null, rootMargin: '200px', threshold: 0 }
         );
 
-        observer.observe(sentinelRef.current);
+        // Observe whenever sentinelRef is attached (hasMore controls its presence)
+        const checkAndObserve = () => {
+            if (sentinelRef.current) {
+                observer.observe(sentinelRef.current);
+            }
+        };
 
+        // Poll briefly for the sentinel to mount after first render
+        const t = setTimeout(checkAndObserve, 50);
         return () => {
+            clearTimeout(t);
             observer.disconnect();
         };
-    }, [loading, loadingMore, error, displayCount, allArticles.length, hasMore, query]);
+    }, []);
+
+    // Re-attach observer when sentinel mounts/unmounts (hasMore toggles it)
+    useEffect(() => {
+        if (!sentinelRef.current) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    loadMoreRef.current();
+                }
+            },
+            { root: null, rootMargin: '200px', threshold: 0 }
+        );
+        observer.observe(sentinelRef.current);
+        return () => observer.disconnect();
+    }, [hasMore]);
 
     const triggerSearch = () => {
         if (loading || loadingMore) return;
-        loadNews({ append: false, targetDisplayCount: INITIAL_DISPLAY_COUNT });
+        pageRef.current = 1;
+        queryRef.current = query;
+        fetchPage(1, false, query);
     };
+
+    const visibleArticles = articles;
 
     return (
         <div className="news-view">
@@ -3630,7 +3632,7 @@ const NewsView = () => {
             </div>
 
             {!loading && visibleArticles.length === 0 && !error && (
-                <div className="news-empty-message">sorrythere is nomore news</div>
+                <div className="news-empty-message">No more news to load</div>
             )}
 
             {!loading && visibleArticles.length > 0 && (
@@ -3643,7 +3645,7 @@ const NewsView = () => {
                             </div>
                         )}
                         {!loadingMore && !hasMore && (
-                            <div className="news-end-message">sorrythere is nomore news</div>
+                            <div className="news-end-message">No more news to load</div>
                         )}
                     </div>
 

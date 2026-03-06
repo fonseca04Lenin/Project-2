@@ -224,7 +224,7 @@ class NewsAPI:
     def __init__(self):
         self.api_key = os.getenv('NEWS_API_KEY', 'demo')
 
-    def get_market_news(self, limit=10, query=None):
+    def get_market_news(self, limit=10, query=None, page=1):
         """Get general market news using NewsAPI.org"""
         try:
             if query and query.strip():
@@ -234,6 +234,7 @@ class NewsAPI:
                     'language': 'en',
                     'sortBy': 'publishedAt',
                     'pageSize': limit,
+                    'page': page,
                     'apiKey': self.api_key
                 }
             else:
@@ -242,6 +243,7 @@ class NewsAPI:
                     'category': 'business',
                     'language': 'en',
                     'pageSize': limit,
+                    'page': page,
                     'apiKey': self.api_key
                 }
 

@@ -12,10 +12,11 @@ news_social_bp = Blueprint('news_social', __name__, url_prefix='/api')
 @news_social_bp.route('/news/market')
 def get_market_news():
     try:
-        limit = request.args.get('limit', 10, type=int)
+        limit = min(request.args.get('limit', 10, type=int), 20)
+        page = max(request.args.get('page', 1, type=int), 1)
         query = request.args.get('q', '').strip()
-        news = news_api.get_market_news(limit=limit, query=query if query else None)
-        return jsonify(news)
+        news = news_api.get_market_news(limit=limit, query=query if query else None, page=page)
+        return jsonify({'articles': news, 'page': page, 'limit': limit})
     except Exception as e:
         return jsonify({'error': 'Could not fetch market news'}), 500
 
