@@ -439,32 +439,33 @@
             }
         };
 
-        // Map 402 response data + context to window.showPaywall
-        window.handle402 = function(data, context) {
-            if (!window.showPaywall) return;
-            if (data && data.feature === 'ai_suite') {
-                window.showPaywall({ reason: 'ai_suite' });
-                return;
-            }
-            if (context === 'chat') {
-                window.showPaywall({
-                    reason: 'chat_limit',
-                    chat_count: data && data.chat_count,
-                    chat_limit: data && data.chat_limit,
-                });
-                return;
-            }
-            if (context === 'overview') {
-                window.showPaywall({
-                    reason: 'overview_limit',
-                    overview_count: data && data.overview_count,
-                    overview_limit: data && data.overview_limit,
-                });
-                return;
-            }
-            // fallback
-            window.showPaywall({ reason: 'ai_suite' });
-        };
+        // TODO: Uncomment when paywall feature is ready (react-paywall-modal.js)
+        // window.handle402 = function(data, context) {
+        //     if (!window.showPaywall) return;
+        //     if (data && data.feature === 'ai_suite') {
+        //         window.showPaywall({ reason: 'ai_suite' });
+        //         return;
+        //     }
+        //     if (context === 'chat') {
+        //         window.showPaywall({
+        //             reason: 'chat_limit',
+        //             chat_count: data && data.chat_count,
+        //             chat_limit: data && data.chat_limit,
+        //         });
+        //         return;
+        //     }
+        //     if (context === 'overview') {
+        //         window.showPaywall({
+        //             reason: 'overview_limit',
+        //             overview_count: data && data.overview_count,
+        //             overview_limit: data && data.overview_limit,
+        //         });
+        //         return;
+        //     }
+        //     // fallback
+        //     window.showPaywall({ reason: 'ai_suite' });
+        // };
+        window.handle402 = function() {}; // no-op until paywall is implemented
 
         // Show notification/toast
         window.showNotification = function(message, type = 'info') {
@@ -522,7 +523,7 @@
                 if (loadingScreen) {
                     loadingScreen.style.display = 'none';
                 }
-                
+
                 // Hide landing page completely
                 const marketpulseRoot = document.getElementById('marketpulse-root');
                 if (marketpulseRoot) {
@@ -531,26 +532,44 @@
                     marketpulseRoot.style.position = 'absolute';
                     marketpulseRoot.style.zIndex = '-1';
                 }
-                
-                // Show new dashboard - position it at the top
-                const redesignRoot = document.getElementById('dashboard-redesign-root');
-                if (redesignRoot && !redesignRoot.hasAttribute('rendered')) {
-                    const root = ReactDOM.createRoot(redesignRoot);
+
+                // Show new dashboard — only make it visible after React has rendered into it
+                function tryRenderDashboard() {
+                    const redesignRoot = document.getElementById('dashboard-redesign-root');
+                    if (!redesignRoot) return;
+
+                    if (redesignRoot.hasAttribute('rendered')) {
+                        // Already rendered, just make it visible
+                        redesignRoot.style.display = 'block';
+                        redesignRoot.style.position = 'fixed';
+                        redesignRoot.style.top = '0';
+                        redesignRoot.style.left = '0';
+                        redesignRoot.style.width = '100%';
+                        redesignRoot.style.height = '100%';
+                        redesignRoot.style.zIndex = '9999';
+                        redesignRoot.style.overflow = 'auto';
+                        return;
+                    }
+
                     if (window.DashboardRedesign) {
+                        const root = ReactDOM.createRoot(redesignRoot);
                         root.render(React.createElement(window.DashboardRedesign));
                         redesignRoot.setAttribute('rendered', 'true');
+                        // Only show the div AFTER rendering — prevents black screen
+                        redesignRoot.style.display = 'block';
+                        redesignRoot.style.position = 'fixed';
+                        redesignRoot.style.top = '0';
+                        redesignRoot.style.left = '0';
+                        redesignRoot.style.width = '100%';
+                        redesignRoot.style.height = '100%';
+                        redesignRoot.style.zIndex = '9999';
+                        redesignRoot.style.overflow = 'auto';
+                    } else {
+                        // DashboardRedesign not compiled yet — wait and retry
+                        setTimeout(tryRenderDashboard, 100);
                     }
                 }
-                if (redesignRoot) {
-                    redesignRoot.style.display = 'block';
-                    redesignRoot.style.position = 'fixed';
-                    redesignRoot.style.top = '0';
-                    redesignRoot.style.left = '0';
-                    redesignRoot.style.width = '100%';
-                    redesignRoot.style.height = '100%';
-                    redesignRoot.style.zIndex = '9999';
-                    redesignRoot.style.overflow = 'auto';
-                }
+                tryRenderDashboard();
             };
             
             // Also listen for the userAuthenticated event from React landing page
@@ -569,8 +588,8 @@
         }
     </script>
     
-    <!-- Paywall Modal -->
-    <script type="text/babel" src="/src/react-paywall-modal.js"></script>
+    <!-- Paywall Modal - TODO: uncomment when react-paywall-modal.js is created -->
+    <!-- <script type="text/babel" src="/src/react-paywall-modal.js"></script> -->
 
     <!-- Old UI removed - using new React dashboard only -->
     <script type="text/babel" src="/src/react-landing-page.js"></script>
@@ -592,32 +611,50 @@
                 marketpulseRoot.style.position = 'absolute';
                 marketpulseRoot.style.zIndex = '-1';
             }
-            
+
             // Hide loading screen
             const loadingScreen = document.getElementById('loading-screen');
             if (loadingScreen) {
                 loadingScreen.style.display = 'none';
             }
-            
-            // Show new dashboard with fixed positioning
-            const redesignRoot = document.getElementById('dashboard-redesign-root');
-            if (redesignRoot && !redesignRoot.hasAttribute('rendered')) {
-                const root = ReactDOM.createRoot(redesignRoot);
+
+            // Show new dashboard — only make it visible after React has rendered into it
+            function tryRenderDashboard() {
+                const redesignRoot = document.getElementById('dashboard-redesign-root');
+                if (!redesignRoot) return;
+
+                if (redesignRoot.hasAttribute('rendered')) {
+                    // Already rendered, just make it visible
+                    redesignRoot.style.display = 'block';
+                    redesignRoot.style.position = 'fixed';
+                    redesignRoot.style.top = '0';
+                    redesignRoot.style.left = '0';
+                    redesignRoot.style.width = '100%';
+                    redesignRoot.style.height = '100%';
+                    redesignRoot.style.zIndex = '9999';
+                    redesignRoot.style.overflow = 'auto';
+                    return;
+                }
+
                 if (window.DashboardRedesign) {
+                    const root = ReactDOM.createRoot(redesignRoot);
                     root.render(React.createElement(window.DashboardRedesign));
                     redesignRoot.setAttribute('rendered', 'true');
+                    // Only show the div AFTER rendering — prevents black screen
+                    redesignRoot.style.display = 'block';
+                    redesignRoot.style.position = 'fixed';
+                    redesignRoot.style.top = '0';
+                    redesignRoot.style.left = '0';
+                    redesignRoot.style.width = '100%';
+                    redesignRoot.style.height = '100%';
+                    redesignRoot.style.zIndex = '9999';
+                    redesignRoot.style.overflow = 'auto';
+                } else {
+                    // DashboardRedesign not compiled yet — wait and retry
+                    setTimeout(tryRenderDashboard, 100);
                 }
             }
-            if (redesignRoot) {
-                redesignRoot.style.display = 'block';
-                redesignRoot.style.position = 'fixed';
-                redesignRoot.style.top = '0';
-                redesignRoot.style.left = '0';
-                redesignRoot.style.width = '100%';
-                redesignRoot.style.height = '100%';
-                redesignRoot.style.zIndex = '9999';
-                redesignRoot.style.overflow = 'auto';
-            }
+            tryRenderDashboard();
         };
         
         window.hideNewDashboard = function() {
