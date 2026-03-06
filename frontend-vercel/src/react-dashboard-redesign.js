@@ -3341,7 +3341,6 @@ const NewsView = () => {
     const CARDS_PER_ROW = 3;
     const LOAD_STEP = CARDS_PER_ROW * 2; // Keep batches aligned to full rows
     const INITIAL_DISPLAY_COUNT = FEATURED_COUNT + LOAD_STEP;
-    const PREFETCH_BUFFER = LOAD_STEP * 2;
 
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -3360,8 +3359,8 @@ const NewsView = () => {
         requestInFlightRef.current = true;
 
         const requestedLimit = Math.max(
-            targetDisplayCount + PREFETCH_BUFFER,
-            append ? allArticles.length + LOAD_STEP + PREFETCH_BUFFER : INITIAL_DISPLAY_COUNT + PREFETCH_BUFFER
+            targetDisplayCount,
+            append ? allArticles.length + LOAD_STEP : INITIAL_DISPLAY_COUNT
         );
 
         try {
@@ -3384,8 +3383,9 @@ const NewsView = () => {
             const data = await r.json();
             const fetchedArticles = Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : [];
 
-            // If a larger request doesn't return more articles, the upstream API is exhausted.
-            if (append && fetchedArticles.length <= allArticles.length) {
+            // If append call returns no newly added items, no more news is available.
+            const newlyLoadedCount = fetchedArticles.length - allArticles.length;
+            if (append && newlyLoadedCount <= 0) {
                 setHasMore(false);
                 return;
             }
@@ -3394,7 +3394,7 @@ const NewsView = () => {
             setAllArticles(fetchedArticles);
             setDisplayCount(nextDisplayCount);
 
-            const reachedApiLimit = fetchedArticles.length < requestedLimit;
+            const reachedApiLimit = fetchedArticles.length < requestedLimit || fetchedArticles.length === 0;
             setHasMore(!reachedApiLimit);
         } catch (e) {
             setError('Unable to load news right now');
@@ -3445,7 +3445,7 @@ const NewsView = () => {
             },
             {
                 root: null,
-                rootMargin: '320px 0px 320px 0px',
+                rootMargin: '0px',
                 threshold: 0
             }
         );
@@ -3630,7 +3630,7 @@ const NewsView = () => {
             </div>
 
             {!loading && visibleArticles.length === 0 && !error && (
-                <div className="news-empty-message">Sorry, there is no more news.</div>
+                <div className="news-empty-message">sorrythere is nomore news</div>
             )}
 
             {!loading && visibleArticles.length > 0 && (
@@ -3643,7 +3643,7 @@ const NewsView = () => {
                             </div>
                         )}
                         {!loadingMore && !hasMore && (
-                            <div className="news-end-message">Sorry, there is no more news.</div>
+                            <div className="news-end-message">sorrythere is nomore news</div>
                         )}
                     </div>
 
