@@ -3337,72 +3337,129 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
 
 // News View Component
 const NewsView = () => {
+    const FEATURED_COUNT = 1;
+    const CARDS_PER_ROW = 3;
+    const LOAD_STEP = CARDS_PER_ROW * 2; // Keep batches aligned to full rows
+    const INITIAL_DISPLAY_COUNT = FEATURED_COUNT + LOAD_STEP;
+    const PREFETCH_BUFFER = LOAD_STEP * 2;
+
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
-    const [articles, setArticles] = useState([]);
     const [allArticles, setAllArticles] = useState([]);
-    const [displayCount, setDisplayCount] = useState(7); // Show 1 featured + 6 regular initially
+    const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
     const [query, setQuery] = useState('');
+    const [hasMore, setHasMore] = useState(true);
+    const sentinelRef = useRef(null);
+    const requestInFlightRef = useRef(false);
 
-    useEffect(() => { loadNews(); }, []);
+    const visibleArticles = allArticles.slice(0, displayCount);
 
-    const loadNews = async (isLoadMore = false) => {
+    const loadNews = async ({ append = false, targetDisplayCount = INITIAL_DISPLAY_COUNT } = {}) => {
+        if (requestInFlightRef.current) return;
+        requestInFlightRef.current = true;
+
+        const requestedLimit = Math.max(
+            targetDisplayCount + PREFETCH_BUFFER,
+            append ? allArticles.length + LOAD_STEP + PREFETCH_BUFFER : INITIAL_DISPLAY_COUNT + PREFETCH_BUFFER
+        );
+
         try {
-            if (isLoadMore) {
+            if (append) {
                 setLoadingMore(true);
             } else {
                 setLoading(true);
-                setDisplayCount(7); // Reset display count on new search
+                setDisplayCount(INITIAL_DISPLAY_COUNT);
+                setHasMore(true);
             }
+
             setError('');
             const authHeaders = await window.getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-            // Fetch more articles when loading more (increase limit)
-            const limit = isLoadMore ? allArticles.length + 10 : 20; // Fetch 20 initially, then add 10 more each time
             const url = query.trim() 
-                ? `${API_BASE}/api/news/market?q=${encodeURIComponent(query.trim())}&limit=${limit}`
-                : `${API_BASE}/api/news/market?limit=${limit}`;
+                ? `${API_BASE}/api/news/market?q=${encodeURIComponent(query.trim())}&limit=${requestedLimit}`
+                : `${API_BASE}/api/news/market?limit=${requestedLimit}`;
             const r = await fetch(url, { headers: authHeaders, credentials: 'include' });
             if (!r.ok) throw new Error('Failed to fetch news');
             const data = await r.json();
             const fetchedArticles = Array.isArray(data?.articles) ? data.articles : Array.isArray(data) ? data : [];
-            if (isLoadMore) {
-                setAllArticles(fetchedArticles);
-                // Update displayed articles if we have more to show
-                if (displayCount < fetchedArticles.length) {
-                    setArticles(fetchedArticles.slice(0, displayCount));
-                }
-            } else {
-                setAllArticles(fetchedArticles);
-                setArticles(fetchedArticles.slice(0, displayCount));
+
+            // If a larger request doesn't return more articles, the upstream API is exhausted.
+            if (append && fetchedArticles.length <= allArticles.length) {
+                setHasMore(false);
+                return;
             }
+
+            const nextDisplayCount = Math.min(targetDisplayCount, fetchedArticles.length);
+            setAllArticles(fetchedArticles);
+            setDisplayCount(nextDisplayCount);
+
+            const reachedApiLimit = fetchedArticles.length < requestedLimit;
+            setHasMore(!reachedApiLimit);
         } catch (e) {
             setError('Unable to load news right now');
-            if (!isLoadMore) {
-            setArticles([]);
+            if (!append) {
                 setAllArticles([]);
+                setDisplayCount(0);
+                setHasMore(false);
             }
         } finally {
-            if (isLoadMore) {
+            if (append) {
                 setLoadingMore(false);
             } else {
-            setLoading(false);
+                setLoading(false);
             }
+            requestInFlightRef.current = false;
         }
     };
 
-    const handleLoadMore = () => {
-        const newCount = displayCount + 6; // Load 6 more articles
-        setDisplayCount(newCount);
-        
-        // Show more articles from existing list
-        if (newCount <= allArticles.length) {
-            setArticles(allArticles.slice(0, newCount));
-        } else {
-            // If we need more articles, fetch from API
-            loadNews(true);
+    useEffect(() => {
+        loadNews({ append: false, targetDisplayCount: INITIAL_DISPLAY_COUNT });
+    }, []);
+
+    const loadMoreNews = async () => {
+        if (loading || loadingMore || !!error) return;
+
+        const nextDisplayCount = displayCount + LOAD_STEP;
+
+        if (nextDisplayCount <= allArticles.length) {
+            setDisplayCount(nextDisplayCount);
+            return;
         }
+
+        if (hasMore) {
+            await loadNews({ append: true, targetDisplayCount: nextDisplayCount });
+        } else {
+            setDisplayCount(allArticles.length);
+        }
+    };
+
+    useEffect(() => {
+        if (!sentinelRef.current || loading) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    loadMoreNews();
+                }
+            },
+            {
+                root: null,
+                rootMargin: '320px 0px 320px 0px',
+                threshold: 0
+            }
+        );
+
+        observer.observe(sentinelRef.current);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [loading, loadingMore, error, displayCount, allArticles.length, hasMore, query]);
+
+    const triggerSearch = () => {
+        if (loading || loadingMore) return;
+        loadNews({ append: false, targetDisplayCount: INITIAL_DISPLAY_COUNT });
     };
 
     return (
@@ -3418,13 +3475,13 @@ const NewsView = () => {
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 e.preventDefault();
-                                loadNews();
+                                triggerSearch();
                             }
                         }}
                         placeholder="Search news" />
                     <button 
                         className="search-btn" 
-                        onClick={loadNews} 
+                        onClick={triggerSearch} 
                         disabled={loading || loadingMore}
                     >
                         {query.trim() ? 'Search' : 'Refresh'}
@@ -3433,7 +3490,7 @@ const NewsView = () => {
                 </div>
             </div>
             <div className="news-grid">
-                {(loading ? Array.from({length:1}) : articles.slice(0,1)).map((a, idx) => {
+                {(loading ? Array.from({length:1}) : visibleArticles.slice(0,1)).map((a, idx) => {
                     // Generate fallback image URL using Unsplash Source API (generic financial/stock market image)
                     const getImageUrl = () => {
                         if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
@@ -3503,7 +3560,7 @@ const NewsView = () => {
                     );
                 })}
 
-                {(loading ? Array.from({length:6}) : articles.slice(1, displayCount)).map((a, i) => {
+                {(loading ? Array.from({length:6}) : visibleArticles.slice(1)).map((a, i) => {
                     // Generate fallback image URL using Unsplash Source API
                     const getImageUrl = () => {
                         if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
@@ -3527,7 +3584,7 @@ const NewsView = () => {
 
                     return (
                         <div
-                            key={`card-${i}`}
+                            key={`card-${a?.url || a?.link || a?.title || i}`}
                             className="news-card"
                             onClick={handleCardClick}
                             style={{ cursor: articleUrl ? 'pointer' : 'default' }}
@@ -3571,65 +3628,27 @@ const NewsView = () => {
                     );
                 })}
             </div>
-            
-            {/* Load More Button */}
-            {!loading && articles.length > 0 && (
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    padding: '2rem',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.1)'
-                }}>
-                    <button
-                        onClick={handleLoadMore}
-                        disabled={loadingMore || displayCount >= allArticles.length}
-                        className="load-more-btn"
-                        style={{
-                            padding: '0.875rem 2rem',
-                            background: loadingMore || displayCount >= allArticles.length
-                                ? 'rgba(255, 255, 255, 0.1)'
-                                : 'linear-gradient(135deg, #00D924, #FF6B35)',
-                            border: 'none',
-                            borderRadius: '6px',
-                            color: '#ffffff',
-                            fontWeight: '600',
-                            fontSize: '0.9375rem',
-                            cursor: loadingMore || displayCount >= allArticles.length ? 'not-allowed' : 'pointer',
-                            transition: 'all 0.3s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            opacity: loadingMore || displayCount >= allArticles.length ? 0.5 : 1
-                        }}
-                        onMouseOver={(e) => {
-                            if (!loadingMore && displayCount < allArticles.length) {
-                                e.target.style.transform = 'translateY(-2px)';
-                                e.target.style.boxShadow = '0 8px 20px rgba(0, 217, 36, 0.3)';
-                            }
-                        }}
-                        onMouseOut={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = 'none';
-                        }}
-                    >
-                        {loadingMore ? (
-                            <>
+
+            {!loading && visibleArticles.length === 0 && !error && (
+                <div className="news-empty-message">Sorry, there is no more news.</div>
+            )}
+
+            {!loading && visibleArticles.length > 0 && (
+                <>
+                    <div className="news-infinite-status">
+                        {loadingMore && (
+                            <div className="news-loading-more">
                                 <i className="fas fa-spinner fa-spin"></i>
-                                Loading...
-                            </>
-                        ) : displayCount >= allArticles.length ? (
-                            <>
-                                <i className="fas fa-check"></i>
-                                All News Loaded
-                            </>
-                        ) : (
-                            <>
-                                <i className="fas fa-arrow-down"></i>
-                                Load More ({allArticles.length - displayCount} remaining)
-                            </>
+                                Loading more news...
+                            </div>
                         )}
-                    </button>
-                </div>
+                        {!loadingMore && !hasMore && (
+                            <div className="news-end-message">Sorry, there is no more news.</div>
+                        )}
+                    </div>
+
+                    {hasMore && <div ref={sentinelRef} className="news-scroll-sentinel" aria-hidden="true" />}
+                </>
             )}
         </div>
     );
