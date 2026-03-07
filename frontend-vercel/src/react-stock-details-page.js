@@ -315,6 +315,28 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
+    const fetchNews = async () => {
+        if (newsLoading || !symbol) return;
+        setNewsLoading(true);
+        setNewsPage(1);
+        setNewsHasMore(true);
+        setNews([]);
+        try {
+            const newsResp = await fetch(`${API_BASE_PAGE}/api/news/company/${symbol}?page=1&limit=5`, {
+                credentials: 'include'
+            });
+            if (newsResp.ok) {
+                const newsRespData = await newsResp.json();
+                setNews(newsRespData.articles || []);
+                setNewsHasMore(newsRespData.hasMore);
+            }
+        } catch (error) {
+            // ignore
+        } finally {
+            setNewsLoading(false);
+        }
+    };
+
     const loadMoreNews = async () => {
         if (newsLoadingMore || !newsHasMore || !symbol) return;
         setNewsLoadingMore(true);
@@ -577,6 +599,14 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                         <div className="section-header">
                             <h3><i className="fas fa-newspaper"></i> Latest News</h3>
                             {news.length > 0 && <span className="count-badge">{news.length}</span>}
+                            <button
+                                className="fetch-news-btn"
+                                onClick={fetchNews}
+                                disabled={newsLoading}
+                            >
+                                <i className={newsLoading ? 'fas fa-spinner fa-spin' : 'fas fa-sync-alt'}></i>
+                                {newsLoading ? 'Fetching...' : 'Fetch News'}
+                            </button>
                         </div>
                         <div className="news-content">
                             {newsLoading ? (
@@ -631,6 +661,9 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                 <div className="empty-state">
                                     <i className="fas fa-newspaper"></i>
                                     <p>No recent news for {symbol}</p>
+                                    <button className="fetch-news-btn" onClick={fetchNews}>
+                                        <i className="fas fa-sync-alt"></i> Fetch News
+                                    </button>
                                 </div>
                             )}
                         </div>

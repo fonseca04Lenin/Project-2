@@ -1713,6 +1713,29 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         });
     };
 
+    const fetchNews = async () => {
+        if (newsLoading || !symbol) return;
+        setNewsLoading(true);
+        setNewsPage(1);
+        setNewsHasMore(true);
+        setNews([]);
+        try {
+            const newsResp = await fetch(`${API_BASE}/api/news/company/${symbol}?page=1&limit=5`, {
+                credentials: 'include'
+            });
+            if (newsResp.ok) {
+                const newsRespData = await newsResp.json();
+                setNews(newsRespData.articles || []);
+                setNewsHasMore(newsRespData.hasMore);
+                setNewsPage(1);
+            }
+        } catch (error) {
+            console.log(`[StockDetailsModal] News fetch error:`, error);
+        } finally {
+            setNewsLoading(false);
+        }
+    };
+
     // Load more news for lazy loading
     const loadMoreNews = async () => {
         if (newsLoadingMore || !newsHasMore || !symbol) return;
@@ -2065,18 +2088,38 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         </div>
 
-                        {(news.length > 0 || newsLoading) && (
-                            <div className="modal-news">
+                        <div className="modal-news">
                                 <h3>
                                     <i className="fas fa-newspaper"></i>
                                     Recent News
-                                    {news.length > 0 && (
+                                    {news.length > 0 ? (
                                         <span style={{
                                             fontSize: '0.75rem',
                                             fontWeight: '400',
                                             color: 'rgba(255, 255, 255, 0.5)',
                                             marginLeft: 'auto'
                                         }}>{news.length} articles</span>
+                                    ) : (
+                                        <button
+                                            onClick={fetchNews}
+                                            disabled={newsLoading}
+                                            style={{
+                                                marginLeft: 'auto',
+                                                padding: '0.3rem 0.75rem',
+                                                fontSize: '0.75rem',
+                                                background: 'rgba(255,255,255,0.08)',
+                                                border: '1px solid rgba(255,255,255,0.15)',
+                                                borderRadius: '6px',
+                                                color: 'rgba(255,255,255,0.8)',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}
+                                        >
+                                            <i className={newsLoading ? 'fas fa-spinner fa-spin' : 'fas fa-sync-alt'}></i>
+                                            {newsLoading ? 'Fetching...' : 'Fetch News'}
+                                        </button>
                                     )}
                                 </h3>
                                 {newsLoading ? (
@@ -2133,7 +2176,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     </div>
                                 ) : null}
                             </div>
-                        )}
 
                         {/* Stocktwits Social Sentiment Section */}
                         <div className="modal-stocktwits" style={{
