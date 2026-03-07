@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import re
 import json
@@ -128,7 +129,7 @@ def chat_status():
 
         return jsonify({
             'success': True,
-            'status': 'available' if chat_service.gemini_client else 'unavailable',
+            'status': 'available' if chat_service.xai_api_key else 'unavailable',
             'rate_limit': {
                 'can_send': can_send,
                 'max_requests_per_hour': chat_service.max_requests_per_hour
@@ -143,9 +144,9 @@ def chat_status():
         }), 500
 
 
-@chat_bp.route('/chat/test-gemini', methods=['GET'])
-def test_gemini_api():
-    """Test Gemini API directly"""
+@chat_bp.route('/chat/test-grok', methods=['GET'])
+def test_grok_api():
+    """Test Grok (xAI) API directly"""
     try:
         user = authenticate_request()
         if not user:
@@ -153,36 +154,35 @@ def test_gemini_api():
 
         from app.services.chat_service import chat_service
 
-        if not chat_service.gemini_client:
+        if not chat_service.xai_api_key:
             return jsonify({
                 'success': False,
-                'error': 'Gemini client not initialized - API key may be missing',
-                'gemini_available': False
+                'error': 'XAI_API_KEY not configured',
+                'grok_available': False
             })
 
-        import google.generativeai as genai
-        response = chat_service.gemini_client.generate_content(
-            "Say 'Hello, Gemini API is working!'"
+        data = chat_service._call_grok_api(
+            [{"role": "user", "content": "Say 'Hello, Grok API is working!'"}],
+            max_tokens=50
         )
-
-        result = response.text if hasattr(response, 'text') else str(response)
+        result = data['choices'][0]['message'].get('content', '')
 
         return jsonify({
             'success': True,
-            'gemini_available': True,
+            'grok_available': True,
             'test_response': result,
-            'message': 'Gemini API is working correctly'
+            'message': 'Grok API is working correctly'
         })
 
     except Exception as e:
-        logger.error("Gemini test error: %s", e)
+        logger.error("Grok test error: %s", e)
         import traceback
         logger.error("Full traceback: %s", traceback.format_exc())
         return jsonify({
             'success': False,
             'error': str(e),
-            'gemini_available': False,
-            'message': 'Gemini API test failed'
+            'grok_available': False,
+            'message': 'Grok API test failed'
         }), 500
 
 
@@ -268,37 +268,31 @@ def get_stock_ai_analysis(symbol):
 
 @chat_bp.route('/stock/<symbol>/ai-insight')
 def get_stock_ai_insight(symbol):
-    """Get AI-generated insight explaining why a stock is moving"""
+    """Get AI-generated 7-day overview explaining why a stock is moving (powered by Grok)"""
     symbol = symbol.upper()
 
     try:
-        from app.services.chat_service import chat_service
+        import requests as http_requests
         import yfinance as yf
 
-        logger.info("[AI Insight] Starting for %s", symbol)
+        logger.info("[AI Insight] Starting 7-day overview for %s", symbol)
 
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
 
             price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('regularMarketPreviousClose') or 0
-            prev_close = info.get('regularMarketPreviousClose') or info.get('previousClose') or 0
             name = info.get('shortName') or info.get('longName') or symbol
 
-            if price and prev_close and prev_close != 0:
-                daily_change_pct = ((price - prev_close) / prev_close) * 100
-            else:
-                daily_change_pct = 0
-
-            # Fetch 5-day history for weekly change
-            hist = ticker.history(period='5d')
+            # Always use 7-day history for the weekly overview
+            hist = ticker.history(period='7d')
             if len(hist) >= 2:
                 week_start_price = float(hist['Close'].iloc[0])
-                weekly_change_pct = ((price - week_start_price) / week_start_price) * 100 if week_start_price else daily_change_pct
+                weekly_change_pct = ((price - week_start_price) / week_start_price) * 100 if week_start_price else 0
             else:
-                weekly_change_pct = daily_change_pct
+                weekly_change_pct = 0
 
-            logger.info("[AI Insight] %s: $%.2f daily=%+.2f%% weekly=%+.2f%%", symbol, price, daily_change_pct, weekly_change_pct)
+            logger.info("[AI Insight] %s: $%.2f 7-day=%+.2f%%", symbol, price, weekly_change_pct)
 
         except Exception as e:
             import traceback
@@ -311,83 +305,56 @@ def get_stock_ai_insight(symbol):
             return jsonify({'error': f'Stock "{symbol}" not found', 'symbol': symbol}), 404
 
         news_context = ""
-        has_news = False
         try:
             news = news_api.get_company_news(symbol, limit=3)
             if news:
-                has_news = True
                 news_context = "\n".join([f"- {n.get('title', '')}" for n in news[:3]])
-        except:
+        except Exception:
             pass
 
-        if not chat_service.gemini_client:
-            logger.warning("[AI Insight] Gemini client not available")
+        direction = "up" if weekly_change_pct >= 0 else "down"
+        prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock has moved {direction} {abs(weekly_change_pct):.1f}% over the past 7 days. Focus on the weekly trend, sector dynamics, or macro factors driving this move.
+
+Current price: ${price:.2f}
+7-day change: {'+' if weekly_change_pct >= 0 else ''}{weekly_change_pct:.1f}%
+Recent headlines: {news_context if news_context else "No recent news available"}
+
+Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
+
+        logger.debug("[AI Insight] Calling Grok for %s", symbol)
+
+        xai_api_key = os.environ.get('XAI_API_KEY')
+        if not xai_api_key:
+            logger.warning("[AI Insight] XAI_API_KEY not configured")
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
-        # Use daily if there's a major single-day move (>=3%) or breaking news with a notable daily move (>=1.5%)
-        MAJOR_DAILY_THRESHOLD = 3.0
-        use_daily = abs(daily_change_pct) >= MAJOR_DAILY_THRESHOLD or (has_news and abs(daily_change_pct) >= 1.5)
-
-        if use_daily:
-            display_pct = daily_change_pct
-            period = "today"
-            direction = "up" if daily_change_pct >= 0 else "down"
-            prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock moved {direction} {abs(daily_change_pct):.1f}% today. This is a notable single-day move so focus on today's specific catalyst.
-
-Current price: ${price:.2f}
-Recent headlines: {news_context if news_context else "No recent news available"}
-
-Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
-        else:
-            display_pct = weekly_change_pct
-            period = "this week"
-            direction = "up" if weekly_change_pct >= 0 else "down"
-            prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock has moved {direction} {abs(weekly_change_pct):.1f}% this week. Focus on the broader weekly trend, sector dynamics, or macro factors rather than a single day's move.
-
-Current price: ${price:.2f}
-Recent headlines: {news_context if news_context else "No recent news available"}
-
-Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
-
-        logger.debug("[AI Insight] Calling Gemini for %s", symbol)
-
-        response = chat_service.gemini_client.generate_content(
-            prompt,
-            generation_config={"temperature": 0.5, "max_output_tokens": 500}
+        grok_resp = http_requests.post(
+            'https://api.x.ai/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {xai_api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'grok-beta',
+                'messages': [{'role': 'user', 'content': prompt}],
+                'temperature': 0.5,
+                'max_tokens': 300
+            },
+            timeout=30
         )
-
-        insight_text = None
-        if hasattr(response, 'candidates') and response.candidates:
-            candidate = response.candidates[0]
-            if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
-                for part in candidate.content.parts:
-                    if hasattr(part, 'text') and part.text:
-                        insight_text = part.text.strip()
-                        break
-
-        if not insight_text and hasattr(response, 'text'):
-            insight_text = response.text.strip()
+        grok_resp.raise_for_status()
+        insight_text = grok_resp.json()['choices'][0]['message']['content'].strip()
 
         if insight_text:
-            if insight_text.strip().startswith('{') or '```json' in insight_text:
-                try:
-                    clean = re.sub(r'^```json\s*', '', insight_text.strip())
-                    clean = re.sub(r'\s*```$', '', clean)
-                    parsed = json.loads(clean)
-                    if isinstance(parsed, dict) and 'summary' in parsed:
-                        insight_text = parsed['summary']
-                except:
-                    pass
-
             logger.info("[AI Insight] Generated for %s: %s...", symbol, insight_text[:80])
             return jsonify({
                 'symbol': symbol,
-                'change_percent': round(display_pct, 2),
-                'period': period,
+                'change_percent': round(weekly_change_pct, 2),
+                'period': '7 days',
                 'ai_insight': insight_text
             })
         else:
-            logger.warning("[AI Insight] No text in response for %s", symbol)
+            logger.warning("[AI Insight] Empty response for %s", symbol)
             return jsonify({'symbol': symbol, 'ai_insight': 'Unable to generate insight.'}), 200
 
     except Exception as e:

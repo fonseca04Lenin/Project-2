@@ -301,18 +301,18 @@ RULES:
 - Do NOT make up stocks or numbers not in the data above
 - Write approximately 180 words"""
 
-        groq_api_key = os.environ.get('GROQ_API_KEY')
-        if not groq_api_key:
-            raise Exception("GROQ_API_KEY not configured")
+        xai_api_key = os.environ.get('XAI_API_KEY')
+        if not xai_api_key:
+            raise Exception("XAI_API_KEY not configured")
 
         groq_response = http_requests.post(
-            'https://api.groq.com/openai/v1/chat/completions',
+            'https://api.x.ai/v1/chat/completions',
             headers={
-                'Authorization': f'Bearer {groq_api_key}',
+                'Authorization': f'Bearer {xai_api_key}',
                 'Content-Type': 'application/json'
             },
             json={
-                'model': 'llama-3.3-70b-versatile',
+                'model': 'grok-beta',
                 'messages': [{'role': 'user', 'content': prompt}],
                 'temperature': 0.8,
                 'max_tokens': 500

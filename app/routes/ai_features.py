@@ -70,6 +70,30 @@ def _call_groq(prompt, max_tokens=600, temperature=0.75):
     return resp.json()['choices'][0]['message']['content'].strip()
 
 
+def _call_grok(prompt, max_tokens=600, temperature=0.75):
+    import requests as http_requests
+    xai_api_key = os.environ.get('XAI_API_KEY')
+    if not xai_api_key:
+        raise RuntimeError("XAI_API_KEY not configured")
+
+    resp = http_requests.post(
+        'https://api.x.ai/v1/chat/completions',
+        headers={
+            'Authorization': f'Bearer {xai_api_key}',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'model': 'grok-beta',
+            'messages': [{'role': 'user', 'content': prompt}],
+            'temperature': temperature,
+            'max_tokens': max_tokens
+        },
+        timeout=30
+    )
+    resp.raise_for_status()
+    return resp.json()['choices'][0]['message']['content'].strip()
+
+
 def _call_gemini(prompt, max_tokens=800, temperature=0.7):
     """Call Gemini, returns text or raises."""
     import google.generativeai as genai
@@ -194,7 +218,7 @@ UPCOMING EARNINGS FROM WATCHLIST (next 7 days):
 Write a 120-word morning brief in newsletter style. Open with today's date. Reference the actual stocks and moves. Flag any earnings coming up. Close with one specific thing to watch today.
 {_RULES_BLOCK}"""
 
-        narrative = _call_groq(prompt, max_tokens=700, temperature=0.75)
+        narrative = _call_grok(prompt, max_tokens=700, temperature=0.75)
 
         top_headline = ''
         for m in top_movers:
