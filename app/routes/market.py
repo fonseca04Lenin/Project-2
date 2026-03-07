@@ -312,7 +312,7 @@ RULES:
                 'Content-Type': 'application/json'
             },
             json={
-                'model': 'grok-beta',
+                'model': 'grok-4-1-fast-reasoning',
                 'messages': [{'role': 'user', 'content': prompt}],
                 'temperature': 0.8,
                 'max_tokens': 500
@@ -324,7 +324,8 @@ RULES:
         analysis_text = groq_data['choices'][0]['message']['content'].strip()
 
         if analysis_text:
-            analysis_text = re.sub(r'\bundefined\b', '', analysis_text).strip()
+            analysis_text = re.sub(r'\bundefined\b', '', analysis_text, flags=re.IGNORECASE)
+            analysis_text = re.sub(r' {2,}', ' ', analysis_text).strip()
 
         return jsonify({
             'analysis': analysis_text,
