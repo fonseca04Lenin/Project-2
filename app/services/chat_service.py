@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 GROK_API_URL = 'https://api.x.ai/v1/chat/completions'
-GROK_MODEL = 'grok-beta'
+GROK_MODEL = 'grok-4-1-fast-reasoning'
 
 def serialize_datetime(obj):
     """Helper function to serialize datetime objects for JSON"""
@@ -75,6 +75,8 @@ class ChatService:
             json=payload,
             timeout=45,
         )
+        if not resp.ok:
+            logger.error("xAI API error %s: %s", resp.status_code, resp.text[:500])
         resp.raise_for_status()
         return resp.json()
     

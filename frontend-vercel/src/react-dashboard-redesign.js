@@ -3683,11 +3683,12 @@ const WhatsWhatView = () => {
             });
             if (!r.ok) throw new Error('Failed to fetch market analysis');
             const data = await r.json();
-            setAnalysis(data.analysis || '');
+            const analysisText = (data.analysis || '').replace(/\bundefined\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+            setAnalysis(analysisText);
             setMarketData(data.data || null);
             setLoading(false);
             // Start typing animation
-            setTimeout(() => startTypingAnimation(data.analysis || ''), 100);
+            setTimeout(() => startTypingAnimation(analysisText), 100);
         } catch (e) {
             console.error('Error loading market analysis:', e);
             setError('Unable to load market analysis');
