@@ -1,39 +1,24 @@
 """
 Chat Service for AI Stock Advisor
-Handles Google Gemini API integration and conversation management
+Handles xAI Grok API integration and conversation management
 """
 
 import os
 import json
 import time
+import requests as http_requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-import google.generativeai as genai
 from app.services.firebase_service import FirebaseService, get_firestore_client
 from app.services.stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 import logging
 
-# Import protobuf utilities for proper message conversion
-try:
-    from google.protobuf.json_format import MessageToDict
-    HAS_PROTOBUF_UTILS = True
-except ImportError:
-    HAS_PROTOBUF_UTILS = False
-    logger = logging.getLogger(__name__)
-    logger.warning("protobuf json_format not available, will use fallback conversion")
-
-# Try to import Tool types, but fallback to dict if not available
-try:
-    from google.generativeai.types import Tool, FunctionDeclaration
-    HAS_TOOL_TYPES = True
-except ImportError:
-    HAS_TOOL_TYPES = False
-    logger = logging.getLogger(__name__)
-    logger.info("Tool types not available, will use dictionary format")
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+GROK_API_URL = 'https://api.x.ai/v1/chat/completions'
+GROK_MODEL = 'grok-beta'
 
 def serialize_datetime(obj):
     """Helper function to serialize datetime objects for JSON"""
@@ -48,84 +33,50 @@ def serialize_datetime(obj):
 
 class ChatService:
     def __init__(self):
-        """Initialize the chat service with Gemini API and Firebase"""
-        self.gemini_client = None
+        """Initialize the chat service with xAI Grok API and Firebase"""
         self.firebase_service = FirebaseService()
         self.firestore_client = get_firestore_client()
         self.stock_api = YahooFinanceAPI()
         self.finnhub_api = FinnhubAPI()
         self.news_api = NewsAPI()
-        
-        # Rate limiting - IMPROVED: 60 requests/hour for better UX
-        self.user_requests = {}  # Track user request counts
-        self.max_requests_per_hour = 60  # Allows ~1 message per minute
-        
-        # Initialize Gemini client
-        self._initialize_gemini()
-    
-    def _initialize_gemini(self):
-        """Initialize Gemini API client"""
-        try:
-            api_key = os.getenv('GEMINI_API_KEY')
-            if not api_key:
-                logger.warning("GEMINI_API_KEY not found in environment variables")
-                return
-            
-            genai.configure(api_key=api_key)
-            # List available models and prefer lighter models (flash/nano) for free tier
-            try:
-                models = genai.list_models()
-                available_models = [m.name for m in models if 'generateContent' in m.supported_generation_methods]
-                
-                if available_models:
-                    # Prefer lighter models for free tier (flash, nano) - these have better quotas
-                    # AVOID experimental (exp) and pro models for free tier
-                    preferred_models = ['flash', 'nano', '1.5-flash']
-                    model_name = None
-                    
-                    # First, try to find flash or nano models (best for free tier)
-                    for preferred in preferred_models:
-                        matching = [m for m in available_models if preferred.lower() in m.lower() and 'exp' not in m.lower()]
-                        if matching:
-                            model_name = matching[0]
-                            logger.info(f"Found preferred model for free tier: {model_name}")
-                            break
-                    
-                    # If no flash/nano found, try 1.0-pro (avoid exp and 2.x)
-                    if not model_name:
-                        matching = [m for m in available_models if '1.0-pro' in m.lower() and 'exp' not in m.lower()]
-                        if matching:
-                            model_name = matching[0]
-                            logger.info(f"Using 1.0-pro model: {model_name}")
-                    
-                    # If still no preferred model, filter out exp models and use first available
-                    if not model_name:
-                        non_exp_models = [m for m in available_models if 'exp' not in m.lower() and '2.5' not in m.lower()]
-                        if non_exp_models:
-                            model_name = non_exp_models[0]
-                            logger.info(f"Using non-experimental model: {model_name}")
-                        else:
-                            # Last resort - use first available
-                            model_name = available_models[0]
-                            logger.warning(f"Using model (may have quota limits): {model_name}")
-                    
-                    # Extract just the model name (remove 'models/' prefix if present)
-                    if '/' in model_name:
-                        model_name = model_name.split('/')[-1]
-                    
-                    self.gemini_client = genai.GenerativeModel(model_name)
-                    logger.info(f"Gemini API client initialized with model: {model_name}")
-                    logger.info(f"Available models: {', '.join(available_models[:5])}")
-                else:
-                    logger.error("No available models found that support generateContent")
-                    self.gemini_client = None
-            except Exception as e:
-                logger.error(f"Failed to list/initialize Gemini models: {e}")
-                import traceback
-                logger.error(f"Traceback: {traceback.format_exc()}")
-                self.gemini_client = None
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini API: {e}")
+
+        # Rate limiting - 60 requests/hour for better UX
+        self.user_requests = {}
+        self.max_requests_per_hour = 60
+
+        self.xai_api_key = os.getenv('XAI_API_KEY')
+        if not self.xai_api_key:
+            logger.warning("XAI_API_KEY not found in environment variables")
+        else:
+            logger.info("Grok (xAI) API client ready")
+
+    def _call_grok_api(self, messages: List[Dict], tools: List[Dict] = None,
+                       temperature: float = 0.7, max_tokens: int = 2000) -> Dict:
+        """Call the xAI Grok API (OpenAI-compatible)"""
+        if not self.xai_api_key:
+            raise RuntimeError("XAI_API_KEY not configured")
+
+        payload = {
+            'model': GROK_MODEL,
+            'messages': messages,
+            'temperature': temperature,
+            'max_tokens': max_tokens,
+        }
+        if tools:
+            payload['tools'] = tools
+            payload['tool_choice'] = 'auto'
+
+        resp = http_requests.post(
+            GROK_API_URL,
+            headers={
+                'Authorization': f'Bearer {self.xai_api_key}',
+                'Content-Type': 'application/json',
+            },
+            json=payload,
+            timeout=45,
+        )
+        resp.raise_for_status()
+        return resp.json()
     
     def _check_rate_limit(self, user_id: str) -> bool:
         """Check if user has exceeded rate limit"""
@@ -995,9 +946,9 @@ INSTRUCTIONS: Present this as a personalized portfolio analysis. Say things like
                     }
                 }
             
-            # Check if Gemini client is available
-            if not self.gemini_client:
-                logger.error("Gemini client not initialized - API key may be missing")
+            # Check if Grok API key is available
+            if not self.xai_api_key:
+                logger.error("XAI_API_KEY not configured")
                 return {
                     "success": False,
                     "error": "AI service unavailable - API key not configured",
@@ -1168,267 +1119,81 @@ NEVER just say "I analyzed your watchlist" without showing the actual data. Alwa
 The analysis should be based on the most recent data you have when the user requests current conditions for anything. of last month"""
 
 
-            # Prepare messages for Gemini API
-            # Combine system prompt and user message
-            full_prompt = f"{system_prompt}\n\nUser: {message}\nAssistant:"
-            
-            # Convert functions to Gemini's tool format
-            function_declarations = []
-            for func in self._get_available_functions():
-                function_declarations.append({
-                    "name": func["name"],
-                    "description": func["description"],
-                    "parameters": func["parameters"]
-                })
-            
-            # Create tools list - use dictionary format (more compatible)
-            tools = [{"function_declarations": function_declarations}] if function_declarations else None
-            
-            # Call Gemini API
-            logger.info("Calling Gemini API...")
+            # Build messages for Grok API (OpenAI-compatible format)
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ]
+
+            # Format tools for OpenAI/Grok tool-calling format
+            tools = [
+                {"type": "function", "function": func}
+                for func in self._get_available_functions()
+            ]
+
+            # First call to Grok
+            logger.info("Calling Grok API...")
             try:
-                # Use the model instance
-                model = self.gemini_client
-                
-                # Generate content with tools for function calling
-                # Increased max_output_tokens to allow for detailed general knowledge answers
-                # Safety settings allow business/finance content including layoffs, company news, etc.
-                response = model.generate_content(
-                    full_prompt,
-                    tools=tools if tools else None,
-                    generation_config={
-                        "temperature": 0.7,
-                        "max_output_tokens": 2000  # Increased to allow comprehensive answers
-                    },
-                    safety_settings=[
-                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                    ]
-                )
-                logger.info("Gemini API call successful")
+                response_data = self._call_grok_api(messages, tools=tools)
+                logger.info("Grok API call successful")
             except Exception as e:
                 error_str = str(e)
-                logger.error(f"Gemini API call failed: {error_str}")
-                
-                # Check if it's a quota error
-                if "429" in error_str or "quota" in error_str.lower() or "Quota exceeded" in error_str:
-                    logger.warning("Quota exceeded - user may need to wait or upgrade plan")
+                logger.error(f"Grok API call failed: {error_str}")
+                if "429" in error_str or "quota" in error_str.lower():
                     return {
                         "success": False,
-                        "error": "I've reached my usage limit for today. Please try again later, or check your Gemini API quota at https://ai.dev/usage?tab=rate-limit",
-                        "response": "I've reached my daily usage limit. Please try again in a few hours, or check your API quota settings."
+                        "error": "Rate limit reached. Please try again in a moment.",
+                        "response": "I've hit a rate limit. Please try again in a moment."
                     }
-                
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 return {
                     "success": False,
-                    "error": f"I'm having trouble connecting to my AI service right now. Please try again in a moment. Error: {str(e)[:200]}",
+                    "error": f"AI service error: {str(e)[:200]}",
                     "response": "I'm having trouble connecting right now. Please try again in a moment."
                 }
-            
-            # Process response
+
             ai_response = None
-            function_calls = []
-            
-            # Extract text response and function calls from Gemini
-            if hasattr(response, 'candidates') and response.candidates:
-                candidate = response.candidates[0]
-                
-                # Check for function calls in the response
-                if hasattr(candidate, 'content') and candidate.content:
-                    parts = candidate.content.parts
-                    for part in parts:
-                        # Check for function calls (Gemini function calling format)
-                        if hasattr(part, 'function_call') and part.function_call:
-                            func_call = part.function_call
-                            # Validate function name exists
-                            if hasattr(func_call, 'name') and func_call.name:
-                                function_calls.append(func_call)
-                            else:
-                                logger.warning(f"Received function call with empty name: {func_call}")
-                        elif hasattr(part, 'text') and part.text:
-                            ai_response = part.text
-                # Fallback: try to get text directly
-                elif hasattr(response, 'text') and response.text:
-                    ai_response = response.text
-            
-            # Handle function calls (if any)
-            if function_calls:
-                function_results = []
-                for func_call in function_calls:
+            assistant_msg = response_data['choices'][0]['message']
+            tool_calls = assistant_msg.get('tool_calls') or []
+
+            if tool_calls:
+                # Append the assistant message (with tool_calls) to history
+                messages.append(assistant_msg)
+
+                # Execute each tool call
+                for tc in tool_calls:
+                    function_name = tc['function']['name']
                     try:
-                        # Get function name
-                        function_name = getattr(func_call, 'name', None)
-                        if not function_name:
-                            logger.error(f"Function call missing name: {func_call}")
-                            function_results.append({
-                                "function_name": "unknown",
-                                "result": {
-                                    "success": False,
-                                    "error": "Function name is missing"
-                                }
-                            })
-                            continue
-                        
+                        function_args = json.loads(tc['function']['arguments'])
+                    except Exception:
                         function_args = {}
-                        
-                        # Parse function arguments from protobuf message
-                        if hasattr(func_call, 'args') and func_call.args:
-                            try:
-                                # Check if args is already a dict or list (edge case)
-                                if isinstance(func_call.args, dict):
-                                    function_args = func_call.args
-                                elif isinstance(func_call.args, list):
-                                    # If args is a list, log warning and skip
-                                    logger.warning(f"Function args is a list, not a dict: {func_call.args}")
-                                    function_args = {}
-                                # Use protobuf MessageToDict for proper conversion (handles all protobuf types)
-                                elif HAS_PROTOBUF_UTILS:
-                                    # MessageToDict properly handles protobuf Struct and other message types
-                                    # This avoids the WhichOneof error by using proper protobuf conversion
-                                    function_args = MessageToDict(func_call.args, preserving_proto_field_name=True, including_default_value_fields=False)
-                                    # MessageToDict may return nested structures, ensure we have a flat dict for function args
-                                    if not isinstance(function_args, dict):
-                                        logger.warning(f"MessageToDict returned non-dict: {type(function_args)}")
-                                        function_args = {}
-                                # Fallback: try accessing as attributes (for simple protobuf messages)
-                                else:
-                                    # Try to get args as a dict by accessing fields
-                                    try:
-                                        # Some protobuf messages expose fields directly
-                                        if hasattr(func_call.args, 'fields'):
-                                            # It's a Struct message, access fields
-                                            function_args = {}
-                                            for key, value in func_call.args.fields.items():
-                                                # Convert protobuf Value to Python type
-                                                if hasattr(value, 'string_value'):
-                                                    function_args[key] = value.string_value
-                                                elif hasattr(value, 'number_value'):
-                                                    function_args[key] = value.number_value
-                                                elif hasattr(value, 'bool_value'):
-                                                    function_args[key] = value.bool_value
-                                                elif hasattr(value, 'list_value'):
-                                                    # Handle list values
-                                                    function_args[key] = [
-                                                        item.string_value if hasattr(item, 'string_value') else 
-                                                        item.number_value if hasattr(item, 'number_value') else item
-                                                        for item in value.list_value.values
-                                                    ]
-                                                else:
-                                                    function_args[key] = str(value)
-                                        else:
-                                            logger.warning(f"Could not parse function args: {type(func_call.args)}")
-                                            function_args = {}
-                                    except Exception as fallback_error:
-                                        logger.error(f"Fallback parsing failed: {fallback_error}")
-                                        function_args = {}
-                            except Exception as parse_error:
-                                logger.error(f"Error parsing function arguments: {parse_error}")
-                                import traceback
-                                logger.error(f"Traceback: {traceback.format_exc()}")
-                                function_args = {}
-                        
-                        logger.info(f"Executing function: {function_name} with args: {function_args}")
-                        
-                        # Execute the function
-                        result = self._execute_function(function_name, function_args, user_id)
-                        # Serialize datetime objects in result
-                        serialized_result = serialize_datetime(result)
-                        function_results.append({
-                            "function_name": function_name,
-                            "result": serialized_result
-                        })
-                    except Exception as e:
-                        logger.error(f"Error executing function {func_call.name}: {e}")
-                        import traceback
-                        logger.error(f"Traceback: {traceback.format_exc()}")
-                        function_results.append({
-                            "function_name": func_call.name,
-                            "result": {
-                                "success": False,
-                                "error": f"Function execution failed: {str(e)}"
-                            }
-                        })
-                
-                # Build context for final response with function results
-                results_context = "\n\nFunction Results:\n"
-                for result in function_results:
-                    formatted_content = self._format_function_result(result["result"], result["function_name"])
-                    results_context += f"- {result['function_name']}: {formatted_content}\n"
-                
-                final_prompt = f"{system_prompt}\n\nUser: {message}\n{results_context}\nAssistant:"
-                
-                # Get final AI response
+
+                    logger.info(f"Executing function: {function_name} with args: {function_args}")
+                    result = self._execute_function(function_name, function_args, user_id)
+                    serialized_result = serialize_datetime(result)
+                    formatted_content = self._format_function_result(serialized_result, function_name)
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc['id'],
+                        "content": formatted_content
+                    })
+
+                # Second call to get final response (no tools needed)
                 try:
-                    logger.info("Getting final AI response after function execution...")
-                    final_response = model.generate_content(
-                        final_prompt,
-                        tools=tools if tools else None,
-                        generation_config={
-                            "temperature": 0.7,
-                            "max_output_tokens": 2000  # Increased to allow comprehensive answers
-                        },
-                        safety_settings=[
-                            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                        ]
-                    )
-                    
-                    if hasattr(final_response, 'candidates') and final_response.candidates:
-                        candidate = final_response.candidates[0]
-                        if hasattr(candidate, 'content') and candidate.content:
-                            parts = candidate.content.parts
-                            for part in parts:
-                                if hasattr(part, 'text'):
-                                    ai_response = part.text
-                                    break
-                    
-                    if not ai_response:
-                        # Fallback to function results summary
-                        if function_results:
-                            success_results = [r for r in function_results if r["result"].get("success")]
-                            if success_results:
-                                messages_summary = ", ".join([r["result"].get("message", "") for r in success_results])
-                                ai_response = messages_summary
-                            else:
-                                error_messages = [r["result"].get("message", "Unknown error") for r in function_results]
-                                ai_response = f"Error: {'; '.join(error_messages)}"
-                        else:
-                            ai_response = "I've completed the requested action."
-                    
-                    logger.info(f"Final AI response received: {ai_response[:100]}...")
+                    logger.info("Getting final Grok response after tool execution...")
+                    final_data = self._call_grok_api(messages)
+                    ai_response = final_data['choices'][0]['message'].get('content', '')
+                    logger.info(f"Final AI response received: {str(ai_response)[:100]}...")
                 except Exception as e:
-                    logger.error(f"Failed to get final AI response: {e}")
-                    # Fallback to function results summary
-                    if function_results:
-                        success_results = [r for r in function_results if r["result"].get("success")]
-                        if success_results:
-                            messages_summary = ", ".join([r["result"].get("message", "") for r in success_results])
-                            ai_response = messages_summary
-                        else:
-                            error_messages = [r["result"].get("message", "Unknown error") for r in function_results]
-                            ai_response = f"Error: {'; '.join(error_messages)}"
-                    else:
-                        ai_response = "I encountered an error while processing your request. Please try again."
+                    logger.error(f"Failed to get final Grok response: {e}")
+                    ai_response = "I encountered an error while processing your request. Please try again."
             else:
-                # No function calls, just get the text response
-                if not ai_response:
-                    if hasattr(response, 'candidates') and response.candidates:
-                        candidate = response.candidates[0]
-                        if hasattr(candidate, 'content') and candidate.content:
-                            parts = candidate.content.parts
-                            for part in parts:
-                                if hasattr(part, 'text'):
-                                    ai_response = part.text
-                                    break
-                
-                if not ai_response:
-                    ai_response = "I'm sorry, I didn't receive a response. Please try again."
+                ai_response = assistant_msg.get('content', '')
+
+            if not ai_response:
+                ai_response = "I'm sorry, I didn't receive a response. Please try again."
             
             # Save conversation
             self._save_conversation(user_id, message, ai_response)
@@ -1452,9 +1217,9 @@ The analysis should be based on the most recent data you have when the user requ
         try:
             logger.info(f"Generating AI analysis for {symbol}")
 
-            # Check if Gemini client is available
-            if not self.gemini_client:
-                logger.error("Gemini client not initialized for stock analysis")
+            # Check if Grok API key is available
+            if not self.xai_api_key:
+                logger.error("XAI_API_KEY not configured for stock analysis")
                 return {
                     "success": False,
                     "error": "AI service unavailable"
@@ -1502,35 +1267,17 @@ Format your response as JSON (and ONLY JSON, no other text):
   "confidence": "high|medium|low"
 }}"""
 
-            # Call Gemini API
-            logger.info(f"Calling Gemini API for stock analysis of {symbol}")
-            response = self.gemini_client.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": 0.4,
-                    "max_output_tokens": 500
-                },
-                safety_settings=[
-                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                ]
+            # Call Grok API
+            logger.info(f"Calling Grok API for stock analysis of {symbol}")
+            grok_data = self._call_grok_api(
+                [{"role": "user", "content": prompt}],
+                temperature=0.4,
+                max_tokens=500
             )
-
-            # Extract response text
-            response_text = None
-            if hasattr(response, 'candidates') and response.candidates:
-                candidate = response.candidates[0]
-                if hasattr(candidate, 'content') and candidate.content:
-                    parts = candidate.content.parts
-                    for part in parts:
-                        if hasattr(part, 'text'):
-                            response_text = part.text
-                            break
+            response_text = grok_data['choices'][0]['message'].get('content', '').strip()
 
             if not response_text:
-                logger.error(f"No response text from Gemini for {symbol}")
+                logger.error(f"No response text from Grok for {symbol}")
                 return {
                     "success": False,
                     "error": "No response from AI"
@@ -1588,38 +1335,17 @@ Format your response as JSON (and ONLY JSON, no other text):
     def generate_simple_response(self, prompt: str) -> str:
         """Generate a simple text response from a prompt - used for quick AI insights"""
         try:
-            if not self.gemini_client:
-                logger.error("Gemini client not initialized for simple response")
+            if not self.xai_api_key:
+                logger.error("XAI_API_KEY not configured for simple response")
                 return "AI service temporarily unavailable."
 
-            logger.info("Generating simple AI response")
-            response = self.gemini_client.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": 0.5,
-                    "max_output_tokens": 500
-                },
-                safety_settings=[
-                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                ]
+            logger.info("Generating simple Grok response")
+            grok_data = self._call_grok_api(
+                [{"role": "user", "content": prompt}],
+                temperature=0.5,
+                max_tokens=500
             )
-
-            # Extract response text
-            if hasattr(response, 'candidates') and response.candidates:
-                candidate = response.candidates[0]
-                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
-                    for part in candidate.content.parts:
-                        if hasattr(part, 'text') and part.text:
-                            return part.text.strip()
-
-            # Fallback: try direct text access
-            if hasattr(response, 'text') and response.text:
-                return response.text.strip()
-
-            return "Unable to generate insight."
+            return grok_data['choices'][0]['message'].get('content', '').strip() or "Unable to generate insight."
 
         except Exception as e:
             logger.error(f"Error generating simple response: {e}")

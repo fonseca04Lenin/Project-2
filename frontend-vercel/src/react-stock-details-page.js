@@ -553,22 +553,22 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 
             <main className={`stock-page-main ${isIndex ? 'index-view' : ''}`}>
                 <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}>
-                    {/* AI Insight */}
+                    {/* AI Insight - 7-Day Overview */}
                     <section className="ai-insight-card">
                         <div className="card-header">
                             <i className="fas fa-robot"></i>
-                            <h3>AI Market Insight</h3>
+                            <h3>7-Day AI Overview</h3>
                             {aiInsightLoading && <i className="fas fa-spinner fa-spin loading-indicator"></i>}
                         </div>
                         <div className="card-content">
                             {aiInsightLoading ? (
-                                <p className="loading-text">Analyzing market conditions...</p>
+                                <p className="loading-text">Analyzing 7-day market conditions...</p>
                             ) : aiInsight?.ai_insight ? (
                                 <div>
                                     {aiInsight.change_percent !== undefined && (
                                         <div className={`insight-badge ${aiInsight.change_percent >= 0 ? 'positive' : 'negative'}`}>
                                             <i className={`fas fa-arrow-${aiInsight.change_percent >= 0 ? 'up' : 'down'}`}></i>
-                                            <span>{aiInsight.change_percent >= 0 ? '+' : ''}{aiInsight.change_percent}% ({aiInsight.period || '5 days'})</span>
+                                            <span>{aiInsight.change_percent >= 0 ? '+' : ''}{aiInsight.change_percent}% (7 days)</span>
                                         </div>
                                     )}
                                     <p className="insight-text">{aiInsight.ai_insight}</p>
