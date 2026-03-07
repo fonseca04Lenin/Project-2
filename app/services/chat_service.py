@@ -17,7 +17,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-GROK_API_URL = 'https://api.x.ai/v1/chat/completions'
+GROK_API_URL = 'https://api.x.ai/v1/responses'
 GROK_MODEL = 'grok-4-1-fast-reasoning'
 
 def serialize_datetime(obj):
@@ -51,20 +51,34 @@ class ChatService:
             logger.info("Grok (xAI) API client ready")
 
     def _call_grok_api(self, messages: List[Dict], tools: List[Dict] = None,
-                       temperature: float = 0.7, max_tokens: int = 2000) -> Dict:
-        """Call the xAI Grok API (OpenAI-compatible)"""
+                       temperature: float = 0.7, max_tokens: int = 2000,
+                       previous_response_id: str = None) -> Dict:
+        """Call the xAI Grok API via /v1/responses"""
         if not self.xai_api_key:
             raise RuntimeError("XAI_API_KEY not configured")
 
+        input_items = []
+        for msg in messages:
+            role = msg.get('role', '')
+            if role == 'tool':
+                input_items.append({
+                    'type': 'function_call_output',
+                    'call_id': msg['tool_call_id'],
+                    'output': msg['content'],
+                })
+            else:
+                input_items.append({'role': role, 'content': msg['content']})
+
         payload = {
             'model': GROK_MODEL,
-            'messages': messages,
+            'input': input_items,
             'temperature': temperature,
-            'max_tokens': max_tokens,
+            'max_output_tokens': max_tokens,
         }
+        if previous_response_id:
+            payload['previous_response_id'] = previous_response_id
         if tools:
             payload['tools'] = tools
-            payload['tool_choice'] = 'auto'
 
         resp = http_requests.post(
             GROK_API_URL,
@@ -78,7 +92,33 @@ class ChatService:
         if not resp.ok:
             logger.error("xAI API error %s: %s", resp.status_code, resp.text[:500])
         resp.raise_for_status()
-        return resp.json()
+        return self._normalize_response(resp.json())
+
+    def _normalize_response(self, data: Dict) -> Dict:
+        """Normalize /v1/responses output to internal OpenAI-like format"""
+        tool_calls = []
+        content = None
+        for item in data.get('output', []):
+            item_type = item.get('type', '')
+            if item_type == 'function_call':
+                tool_calls.append({
+                    'id': item.get('call_id', ''),
+                    'type': 'function',
+                    'function': {
+                        'name': item.get('name', ''),
+                        'arguments': item.get('arguments', '{}'),
+                    },
+                })
+            elif item_type == 'message':
+                for part in item.get('content', []):
+                    if isinstance(part, dict) and part.get('type') == 'output_text':
+                        content = part.get('text', '')
+                    elif isinstance(part, str):
+                        content = part
+        return {
+            'choices': [{'message': {'content': content, 'tool_calls': tool_calls or None}}],
+            '_response_id': data.get('id'),
+        }
     
     def _check_rate_limit(self, user_id: str) -> bool:
         """Check if user has exceeded rate limit"""
@@ -1127,11 +1167,15 @@ The analysis should be based on the most recent data you have when the user requ
                 {"role": "user", "content": message}
             ]
 
-            # Format tools for xAI Grok tool-calling format
+            # Format tools for xAI /v1/responses (flat format + web search)
             tools = [
                 {"type": "web_search"},
-                *[{"type": "function", **func}
-                  for func in self._get_available_functions()]
+                *[{
+                    "type": "function",
+                    "name": func["name"],
+                    "description": func["description"],
+                    "parameters": func["parameters"],
+                } for func in self._get_available_functions()]
             ]
 
             # First call to Grok
@@ -1157,14 +1201,13 @@ The analysis should be based on the most recent data you have when the user requ
                 }
 
             ai_response = None
+            response_id = response_data.get('_response_id')
             assistant_msg = response_data['choices'][0]['message']
             tool_calls = assistant_msg.get('tool_calls') or []
 
             if tool_calls:
-                # Append the assistant message (with tool_calls) to history
-                messages.append(assistant_msg)
-
-                # Execute each tool call
+                # Execute each tool call and collect results
+                tool_result_messages = []
                 for tc in tool_calls:
                     function_name = tc['function']['name']
                     try:
@@ -1177,16 +1220,20 @@ The analysis should be based on the most recent data you have when the user requ
                     serialized_result = serialize_datetime(result)
                     formatted_content = self._format_function_result(serialized_result, function_name)
 
-                    messages.append({
+                    tool_result_messages.append({
                         "role": "tool",
                         "tool_call_id": tc['id'],
-                        "content": formatted_content
+                        "content": formatted_content,
                     })
 
-                # Second call to get final response (no tools needed)
+                # Second call with tool results via previous_response_id
                 try:
                     logger.info("Getting final Grok response after tool execution...")
-                    final_data = self._call_grok_api(messages)
+                    final_data = self._call_grok_api(
+                        tool_result_messages,
+                        tools=tools,
+                        previous_response_id=response_id,
+                    )
                     ai_response = final_data['choices'][0]['message'].get('content', '')
                     logger.info(f"Final AI response received: {str(ai_response)[:100]}...")
                 except Exception as e:
