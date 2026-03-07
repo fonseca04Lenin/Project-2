@@ -7029,6 +7029,31 @@ body[data-theme="light"] .nav-change.negative {
     opacity: 0.6;
 }
 
+.fetch-news-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: auto;
+}
+
+.fetch-news-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.fetch-news-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 /* Empty State */
 .empty-state {
     display: flex;
