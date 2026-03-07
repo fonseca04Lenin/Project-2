@@ -1127,10 +1127,10 @@ The analysis should be based on the most recent data you have when the user requ
                 {"role": "user", "content": message}
             ]
 
-            # Format tools for OpenAI/Grok tool-calling format
+            # Format tools for xAI Grok tool-calling format
             tools = [
                 {"type": "web_search"},
-                *[{"type": "function", "function": func}
+                *[{"type": "function", **func}
                   for func in self._get_available_functions()]
             ]
 
