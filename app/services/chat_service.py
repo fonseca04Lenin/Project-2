@@ -1129,8 +1129,9 @@ The analysis should be based on the most recent data you have when the user requ
 
             # Format tools for OpenAI/Grok tool-calling format
             tools = [
-                {"type": "function", "function": func}
-                for func in self._get_available_functions()
+                {"type": "web_search"},
+                *[{"type": "function", "function": func}
+                  for func in self._get_available_functions()]
             ]
 
             # First call to Grok
