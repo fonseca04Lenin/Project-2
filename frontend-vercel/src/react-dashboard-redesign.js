@@ -6703,7 +6703,40 @@ const AIAssistantView = () => {
                                     <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.5)' }}>AI Assistant</span>
                                 </div>
                             )}
-                            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                            {(() => {
+                                if (msg.type !== 'ai') {
+                                    return <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.content}</p>;
+                                }
+                                const citations = {};
+                                const citationRegex = /\[{1,2}(\d+)\]{1,2}\((https?:\/\/[^)]+)\)/g;
+                                let m;
+                                while ((m = citationRegex.exec(msg.content)) !== null) {
+                                    citations[m[1]] = m[2];
+                                }
+                                const cleanText = msg.content.replace(/\[{1,2}(\d+)\]{1,2}\((https?:\/\/[^)]+)\)/g, '').replace(/\s{2,}/g, ' ').trim();
+                                const citationEntries = Object.entries(citations).sort((a, b) => Number(a[0]) - Number(b[0]));
+                                return (
+                                    <>
+                                        <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{cleanText}</p>
+                                        {citationEntries.length > 0 && (
+                                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                                                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: '0.4rem' }}>Sources</span>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                                    {citationEntries.map(([num, url]) => (
+                                                        <a key={num} href={url} target="_blank" rel="noopener noreferrer" style={{
+                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                            width: '22px', height: '22px', borderRadius: '50%',
+                                                            background: 'rgba(0,217,36,0.12)', border: '1px solid rgba(0,217,36,0.3)',
+                                                            color: '#00D924', fontSize: '0.68rem', fontWeight: '600',
+                                                            textDecoration: 'none', flexShrink: 0
+                                                        }}>{num}</a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 ))}
