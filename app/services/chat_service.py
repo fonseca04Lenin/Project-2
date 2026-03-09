@@ -80,19 +80,25 @@ class ChatService:
         if tools:
             payload['tools'] = tools
 
-        resp = http_requests.post(
-            GROK_API_URL,
-            headers={
-                'Authorization': f'Bearer {self.xai_api_key}',
-                'Content-Type': 'application/json',
-            },
-            json=payload,
-            timeout=45,
-        )
-        if not resp.ok:
-            logger.error("xAI API error %s: %s", resp.status_code, resp.text[:500])
-        resp.raise_for_status()
-        return self._normalize_response(resp.json())
+        last_resp = None
+        for attempt in range(3):
+            last_resp = http_requests.post(
+                GROK_API_URL,
+                headers={
+                    'Authorization': f'Bearer {self.xai_api_key}',
+                    'Content-Type': 'application/json',
+                },
+                json=payload,
+                timeout=45,
+            )
+            if last_resp.status_code < 500:
+                break
+            logger.warning("xAI API %s on attempt %s, retrying...", last_resp.status_code, attempt + 1)
+            time.sleep(2 ** attempt)
+        if not last_resp.ok:
+            logger.error("xAI API error %s: %s", last_resp.status_code, last_resp.text[:500])
+        last_resp.raise_for_status()
+        return self._normalize_response(last_resp.json())
 
     def _normalize_response(self, data: Dict) -> Dict:
         """Normalize /v1/responses output to internal OpenAI-like format"""
@@ -189,12 +195,15 @@ class ChatService:
                     logger.info(f"🔍 Processing watchlist item: {symbol}")
                     
                     # Get current stock price and info
-                    stock_info = self.stock_api.get_stock_info(symbol)
+                    info = self.stock_api.get_info(symbol)
+                    current_price = info.get('currentPrice') or info.get('regularMarketPrice') or 0
+                    prev_close = info.get('regularMarketPreviousClose') or info.get('previousClose') or 0
+                    change_percent = round((current_price - prev_close) / prev_close * 100, 2) if prev_close else 0
                     watchlist_data.append({
                         'symbol': symbol,
-                        'name': item.get('company_name', stock_info.get('name', '')),
-                        'current_price': stock_info.get('current_price', 0),
-                        'change_percent': stock_info.get('change_percent', 0),
+                        'name': item.get('company_name', info.get('longName', info.get('shortName', symbol))),
+                        'current_price': current_price,
+                        'change_percent': change_percent,
                         'category': item.get('category', 'General'),
                         'priority': item.get('priority', 'medium'),
                         'notes': item.get('notes', ''),
@@ -783,25 +792,32 @@ INSTRUCTIONS: Present this as a personalized portfolio analysis. Say things like
                         company_name_input = typo_corrections[company_lower]
                         logger.info(f"Corrected typo: {company_lower} → {company_name_input}")
 
-                    logger.info(f"Searching for symbol for company: {company_name_input}")
-                    # Try to search for the company
+                    logger.info(f"Using AI to resolve company name to symbol: {company_name_input}")
                     try:
-                        search_result = self.stock_api.search_stocks(company_name_input, limit=5)
-                        if search_result and len(search_result) > 0:
-                            symbol = search_result[0].get('symbol', '').upper()
-                            logger.info(f"Found symbol {symbol} for company {company_name_input}")
+                        resolution = self._call_grok_api(
+                            [{"role": "user", "content": f"What is the stock ticker symbol for '{company_name_input}'? Reply with ONLY the ticker symbol (e.g. AAPL, BA, TSLA). Nothing else, no punctuation."}],
+                            temperature=0,
+                            max_tokens=10
+                        )
+                        resolved = resolution['choices'][0]['message'].get('content', '').strip().upper()
+                        # Validate it looks like a ticker (1-5 uppercase letters)
+                        import re as _re
+                        if resolved and _re.match(r'^[A-Z]{1,5}$', resolved):
+                            symbol = resolved
+                            logger.info(f"AI resolved '{company_name_input}' → {symbol}")
                         else:
+                            logger.warning(f"AI returned invalid symbol '{resolved}' for '{company_name_input}'")
                             return {
                                 "success": False,
                                 "data": None,
-                                "message": f"Could not find stock for '{company_name_input}'. Please provide the stock symbol directly (e.g., AAPL for Apple, NVDA for Nvidia)."
+                                "message": f"Could not identify a stock symbol for '{company_name_input}'. Please provide the ticker directly (e.g. BA for Boeing)."
                             }
                     except Exception as e:
-                        logger.error(f"Error searching for company: {e}")
+                        logger.error(f"Error resolving company name via AI: {e}")
                         return {
                             "success": False,
                             "data": None,
-                            "message": f"Error searching for '{company_name_input}'. Please provide the stock symbol directly (e.g., AAPL for Apple, NVDA for Nvidia)."
+                            "message": f"Could not resolve '{company_name_input}' to a stock symbol. Please provide the ticker directly."
                         }
                 
                 # If still no symbol, fail

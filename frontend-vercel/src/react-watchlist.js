@@ -282,6 +282,21 @@ const WatchlistComponent = () => {
         return 'watchlist-perf-flat';
     };
 
+    const getSinceAdded = (stock) => {
+        const originalPrice = stock.original_price;
+        const currentPrice = stock.price;
+        if (!originalPrice || !currentPrice || originalPrice <= 0) return null;
+        const pct = ((currentPrice - originalPrice) / originalPrice) * 100;
+        return pct;
+    };
+
+    const formatAddedDate = (addedAt) => {
+        if (!addedAt) return null;
+        const date = new Date(addedAt);
+        if (isNaN(date.getTime())) return null;
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
     if (loading) {
         return React.createElement('section', { className: 'watchlist-section' },
             React.createElement('div', { className: 'section-header' },
@@ -392,9 +407,29 @@ const WatchlistComponent = () => {
                             ),
                             React.createElement('div', { className: 'text-right' },
                                 React.createElement('p', { className: 'text-2xl font-bold text-primary' }, `$${formatPrice(stock.price)}`),
-                                React.createElement('span', { 
-                                    className: `badge ${stock.change_percent >= 0 ? 'bg-primary' : 'bg-destructive'}` 
-                                }, formatChange(stock.change_percent))
+                                React.createElement('span', {
+                                    className: `badge ${stock.change_percent >= 0 ? 'bg-primary' : 'bg-destructive'}`
+                                }, formatChange(stock.change_percent)),
+                                (() => {
+                                    const sinceAdded = getSinceAdded(stock);
+                                    const addedDate = formatAddedDate(stock.added_at);
+                                    if (sinceAdded === null) return null;
+                                    const sign = sinceAdded >= 0 ? '+' : '';
+                                    return React.createElement('div', {
+                                        className: 'since-added-row',
+                                        style: {
+                                            marginTop: '4px',
+                                            fontSize: '0.72rem',
+                                            color: sinceAdded >= 0 ? 'var(--color-success, #22c55e)' : 'var(--color-danger, #ef4444)',
+                                            opacity: 0.8
+                                        }
+                                    },
+                                        `${sign}${sinceAdded.toFixed(2)}% since added`,
+                                        addedDate ? React.createElement('span', {
+                                            style: { color: 'rgba(255,255,255,0.35)', marginLeft: '4px' }
+                                        }, `(${addedDate})`) : null
+                                    );
+                                })()
                             )
                         ),
                         React.createElement('div', { className: 'flex gap-2' },
