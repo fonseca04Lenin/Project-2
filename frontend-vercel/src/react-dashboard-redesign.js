@@ -6507,17 +6507,37 @@ const MapView = () => {
     );
 };
 
+const AI_ASSISTANT_WELCOME = `Here's what I can do for you:
+
+• Get real-time stock prices and data
+• Analyze your watchlist performance
+• Add or remove stocks from your watchlist
+• Compare stocks side by side
+• Answer questions about companies, earnings, and market trends
+• Search the web for the latest news and current events
+
+Just type naturally — try "How is NVDA doing?" or "Add Apple to my watchlist" or "What's happening with oil prices today?"`;
+
 const AIAssistantView = () => {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const [rateLimitInfo, setRateLimitInfo] = useState(null);
+    const [showInfoModal, setShowInfoModal] = useState(false);
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
+
+    useEffect(() => {
+        const hasVisited = localStorage.getItem('ai_assistant_visited');
+        if (!hasVisited) {
+            setShowInfoModal(true);
+            localStorage.setItem('ai_assistant_visited', '1');
+        }
+    }, []);
 
     useEffect(() => {
         // Set up authentication listener
@@ -6657,17 +6677,84 @@ const AIAssistantView = () => {
                 }}>
                     <i className="fas fa-robot" style={{ fontSize: '1.75rem', color: '#fff' }}></i>
                 </div>
-                <h2 style={{
-                    fontSize: '1.75rem',
-                    fontWeight: '700',
-                    color: '#fff',
-                    marginBottom: '0.5rem'
-                }}>AI Stock Assistant</h2>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}>
+                    <h2 style={{
+                        fontSize: '1.75rem',
+                        fontWeight: '700',
+                        color: '#fff',
+                        marginBottom: '0.5rem'
+                    }}>AI Stock Assistant</h2>
+                    <button
+                        onClick={() => setShowInfoModal(true)}
+                        title="How it works"
+                        style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            color: 'rgba(255,255,255,0.4)', fontSize: '1rem',
+                            padding: '0', marginBottom: '0.4rem', lineHeight: 1,
+                            transition: 'color 0.2s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#00D924'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+                    >
+                        <i className="fas fa-info-circle"></i>
+                    </button>
+                </div>
                 <p style={{
                     color: 'rgba(255, 255, 255, 0.5)',
                     fontSize: '0.9375rem'
                 }}>Ask about markets, stocks, or your watchlist</p>
             </div>
+
+            {/* Info Modal */}
+            {showInfoModal && (
+                <div
+                    onClick={() => setShowInfoModal(false)}
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 1000,
+                        background: 'rgba(0,0,0,0.6)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', padding: '1.5rem'
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: '#1a1a2e', border: '1px solid rgba(0,217,36,0.25)',
+                            borderRadius: '16px', padding: '2rem', maxWidth: '420px', width: '100%',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                            <div style={{
+                                width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+                                background: 'linear-gradient(135deg, #00D924, #00a81c)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <i className="fas fa-robot" style={{ color: '#fff', fontSize: '1rem' }}></i>
+                            </div>
+                            <h3 style={{ color: '#fff', fontWeight: '700', fontSize: '1.1rem', margin: 0 }}>
+                                AI Stock Assistant
+                            </h3>
+                        </div>
+                        <p style={{
+                            color: 'rgba(255,255,255,0.75)', fontSize: '0.9rem',
+                            lineHeight: '1.8', whiteSpace: 'pre-line', margin: '0 0 1.5rem'
+                        }}>
+                            {AI_ASSISTANT_WELCOME}
+                        </p>
+                        <button
+                            onClick={() => setShowInfoModal(false)}
+                            style={{
+                                width: '100%', padding: '0.75rem',
+                                background: 'linear-gradient(135deg, #00D924, #00a81c)',
+                                border: 'none', borderRadius: '8px', color: '#fff',
+                                fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer'
+                            }}
+                        >
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Messages Area */}
             <div style={{
