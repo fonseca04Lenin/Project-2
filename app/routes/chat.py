@@ -335,7 +335,7 @@ Write plain text only. No formatting, no bullet points, no JSON. Complete your s
                 'Content-Type': 'application/json'
             },
             json={
-                'model': 'grok-beta',
+                'model': 'grok-3-fast',
                 'messages': [{'role': 'user', 'content': prompt}],
                 'temperature': 0.5,
                 'max_tokens': 300
