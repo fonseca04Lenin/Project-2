@@ -44,6 +44,7 @@ const DashboardRedesign = () => {
     
     // User data state
     const [userData, setUserData] = useState({ name: 'Account', email: 'Loading...' });
+    const [isGuest, setIsGuest] = useState(false);
     
     // Live pricing state
     const [lastUpdate, setLastUpdate] = useState(null);
@@ -114,6 +115,13 @@ const DashboardRedesign = () => {
     }, [preferences]);
 
     useEffect(() => {
+        // Handle guest mode on mount
+        if (window.__guestMode && (!window.firebaseAuth || !window.firebaseAuth.currentUser)) {
+            setIsGuest(true);
+            setUserData({ name: 'Guest', email: '' });
+            setIsLoading(false);
+        }
+
         // Load critical data first (non-blocking)
         loadUserData();
         loadPreferences();
@@ -142,12 +150,15 @@ const DashboardRedesign = () => {
                     // User authenticated, loading watchlist
                     loadWatchlistData();
                 } else {
-                    // Clear watchlist if user is signed out
-                    clearWatchlistCache(); // Clear cached data for logged out user
+                    clearWatchlistCache();
                     setWatchlistData([]);
                     setIsLoading(false);
-                    // Redirect if user is signed out
-                    window.location.href = '/';
+                    if (window.__guestMode) {
+                        setIsGuest(true);
+                        setUserData({ name: 'Guest', email: '' });
+                    } else {
+                        window.location.href = '/';
+                    }
                 }
             });
         }
@@ -1603,6 +1614,30 @@ const DashboardRedesign = () => {
 
     return (
         <div className="dashboard-redesign">
+            {/* Guest Banner */}
+            {isGuest && (
+                <div className="guest-banner">
+                    <span>
+                        <i className="fas fa-eye"></i> You're browsing as a guest. Sign in to save your watchlist, set alerts, and use AI chat.
+                    </span>
+                    <button
+                        className="guest-banner-btn"
+                        onClick={() => {
+                            window.__guestMode = false;
+                            window.hideNewDashboard();
+                            const marketpulseRoot = document.getElementById('marketpulse-root');
+                            if (marketpulseRoot) {
+                                marketpulseRoot.style.display = '';
+                                marketpulseRoot.style.visibility = '';
+                                marketpulseRoot.style.position = '';
+                                marketpulseRoot.style.zIndex = '';
+                            }
+                        }}
+                    >
+                        Sign In
+                    </button>
+                </div>
+            )}
             {/* Top Navigation Bar */}
             <header className="dashboard-header">
                 <div className="header-left">
@@ -1878,7 +1913,27 @@ const DashboardRedesign = () => {
             {/* Main Content Area */}
             <div className="dashboard-content">
                 {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} preferences={preferences} />}
-                {activeView === 'watchlist' && (
+                {activeView === 'watchlist' && isGuest && (
+                    <div className="guest-locked-view">
+                        <i className="fas fa-lock"></i>
+                        <h3>Sign in to use your Watchlist</h3>
+                        <p>Create a free account to save stocks, track performance, set price alerts, and get AI-powered insights.</p>
+                        <button className="guest-signin-btn" onClick={() => {
+                            window.__guestMode = false;
+                            window.hideNewDashboard();
+                            const marketpulseRoot = document.getElementById('marketpulse-root');
+                            if (marketpulseRoot) {
+                                marketpulseRoot.style.display = '';
+                                marketpulseRoot.style.visibility = '';
+                                marketpulseRoot.style.position = '';
+                                marketpulseRoot.style.zIndex = '';
+                            }
+                        }}>
+                            <i className="fas fa-user"></i> Sign In / Create Account
+                        </button>
+                    </div>
+                )}
+                {activeView === 'watchlist' && !isGuest && (
                     <WatchlistView
                         watchlistData={watchlistData}
                         onOpenDetails={openDetails}
@@ -1898,12 +1953,32 @@ const DashboardRedesign = () => {
                 {activeView === 'map' && <MapView />}
                 {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
                 {activeView === 'assistant' && <AIAssistantView />}
-                {activeView === 'aisuite' && <AISuiteView watchlistData={watchlistData} />}
-                {activeView === 'paper' && window.PaperTradingView && React.createElement(window.PaperTradingView, {})}
-                {activeView === 'paper' && !window.PaperTradingView && (
+                {activeView === 'aisuite' && !isGuest && <AISuiteView watchlistData={watchlistData} />}
+                {activeView === 'aisuite' && isGuest && (
+                    <div className="guest-locked-view">
+                        <i className="fas fa-lock"></i>
+                        <h3>Sign in to access AI Suite</h3>
+                        <p>Get AI-powered portfolio analysis, stock comparisons, and personalized insights.</p>
+                        <button className="guest-signin-btn" onClick={() => { window.__guestMode = false; window.hideNewDashboard(); const r = document.getElementById('marketpulse-root'); if(r){r.style.display='';r.style.visibility='';r.style.position='';r.style.zIndex='';} }}>
+                            <i className="fas fa-user"></i> Sign In / Create Account
+                        </button>
+                    </div>
+                )}
+                {activeView === 'paper' && !isGuest && window.PaperTradingView && React.createElement(window.PaperTradingView, {})}
+                {activeView === 'paper' && !isGuest && !window.PaperTradingView && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'rgba(255,255,255,0.3)', flexDirection: 'column', gap: '1rem' }}>
                         <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem' }}></i>
                         <span>Loading Paper Trading…</span>
+                    </div>
+                )}
+                {activeView === 'paper' && isGuest && (
+                    <div className="guest-locked-view">
+                        <i className="fas fa-lock"></i>
+                        <h3>Sign in to use Paper Trading</h3>
+                        <p>Practice trading with virtual money, test strategies risk-free, and track your simulated portfolio.</p>
+                        <button className="guest-signin-btn" onClick={() => { window.__guestMode = false; window.hideNewDashboard(); const r = document.getElementById('marketpulse-root'); if(r){r.style.display='';r.style.visibility='';r.style.position='';r.style.zIndex='';} }}>
+                            <i className="fas fa-user"></i> Sign In / Create Account
+                        </button>
                     </div>
                 )}
             </div>
