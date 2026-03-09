@@ -90,7 +90,15 @@ const AIAdvisorChat = () => {
 
     const sendMessage = async () => {
         const message = inputValue.trim();
-        if (!message || isTyping || !currentUser) return;
+        if (!message || isTyping) return;
+        if (!currentUser) {
+            setMessages(prev => [...prev,
+                { id: Date.now() - 1, type: 'user', content: message, timestamp: new Date() },
+                { id: Date.now(), type: 'assistant', content: 'Sign in to use the AI chat advisor. It\'s free — create an account to get personalized stock insights, watchlist analysis, and real-time AI guidance.', timestamp: new Date() }
+            ]);
+            setInputValue('');
+            return;
+        }
 
         // Check rate limit
         if (rateLimitInfo && !rateLimitInfo.can_send) {

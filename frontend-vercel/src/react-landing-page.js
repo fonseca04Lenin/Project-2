@@ -578,6 +578,17 @@ function HeroSection() {
             >
               Sign In
             </button>
+            <button
+              onClick={() => {
+                window.__guestMode = true;
+                if (typeof window.showNewDashboard === 'function') {
+                  window.showNewDashboard();
+                }
+              }}
+              className="stock-watchlist-btn stock-watchlist-btn-ghost"
+            >
+              Continue as Guest
+            </button>
           </div>
 
         </div>

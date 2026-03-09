@@ -7054,6 +7054,110 @@ body[data-theme="light"] .nav-change.negative {
     opacity: 0.6;
 }
 
+/* Guest Banner */
+.guest-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 1.5rem;
+    background: linear-gradient(90deg, rgba(0, 217, 36, 0.12), rgba(0, 217, 36, 0.06));
+    border-bottom: 1px solid rgba(0, 217, 36, 0.2);
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+.guest-banner i {
+    color: #00D924;
+    margin-right: 0.4rem;
+}
+
+.guest-banner-btn {
+    padding: 0.3rem 1rem;
+    background: #00D924;
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.guest-banner-btn:hover {
+    background: #00f52a;
+}
+
+/* Guest Locked View */
+.guest-locked-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.guest-locked-view i.fa-lock {
+    font-size: 2.5rem;
+    color: rgba(255, 255, 255, 0.15);
+    margin-bottom: 0.5rem;
+}
+
+.guest-locked-view h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+}
+
+.guest-locked-view p {
+    font-size: 0.9rem;
+    max-width: 380px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.guest-signin-btn {
+    margin-top: 0.5rem;
+    padding: 0.65rem 1.75rem;
+    background: #00D924;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s;
+}
+
+.guest-signin-btn:hover {
+    background: #00f52a;
+}
+
+/* "Continue as Guest" landing page button */
+.stock-watchlist-btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s;
+}
+
+.stock-watchlist-btn-ghost:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+}
+
 /* Empty State */
 .empty-state {
     display: flex;
