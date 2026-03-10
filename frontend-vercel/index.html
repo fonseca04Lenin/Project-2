@@ -588,8 +588,19 @@
         }
     </script>
     
-    <!-- Paywall Modal - TODO: uncomment when react-paywall-modal.js is created -->
-    <!-- <script type="text/babel" src="/src/react-paywall-modal.js"></script> -->
+    <!-- Stripe public price IDs — set these to your actual Stripe price IDs -->
+    <script>
+        window.STRIPE_CONFIG = {
+            PRO_MONTHLY:   'price_1T9FCtDDgxuIufn0XuEgkYV5',
+            PRO_YEARLY:    'price_1T9FHjDDgxuIufn0fgS9CrpC',
+            ELITE_MONTHLY: 'price_1T9FEQDDgxuIufn0mt4Ytley',
+            ELITE_YEARLY:  'price_1T9FI9DDgxuIufn0aF0cDIVy',
+        };
+    </script>
+
+    <!-- Upgrade Modal (global — accessible from any component via window.showUpgradeModal) -->
+    <div id="upgrade-modal-root"></div>
+    <script type="text/babel" src="/src/react-upgrade-modal.js?v=1.0"></script>
 
     <!-- Old UI removed - using new React dashboard only -->
     <script type="text/babel" src="/src/react-landing-page.js"></script>

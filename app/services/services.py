@@ -45,11 +45,9 @@ if USE_ALPACA_API:
     logger.info("ALPACA API CONFIGURATION")
     logger.info("=" * 60)
     logger.info("Alpaca API enabled: %s", USE_ALPACA_API)
-    logger.info("API keys configured: %s", has_keys)
+    logger.info("API keys configured: %s", bool(has_keys))
     if alpaca_api:
         logger.info("Base URL: %s", alpaca_api.base_url)
-        if has_keys:
-            logger.info("API Key: %s...%s", alpaca_api.api_key[:8], alpaca_api.api_key[-4:] if len(alpaca_api.api_key) > 12 else '***')
     logger.info("Will use Alpaca for price data with Yahoo fallback")
     logger.info("=" * 60)
 else:

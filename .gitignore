@@ -1,7 +1,18 @@
-# Environment variables
+# Environment variables — NEVER commit these
 .env
 .env.local
+.env.production
+.env.staging
 *.env
+.envrc
+
+# Secrets and credentials — NEVER commit these
+*secret*
+*credential*
+*private_key*
+service-account*.json
+firebase-admin*.json
+google-credentials*.json
 
 # Python
 __pycache__/
