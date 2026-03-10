@@ -113,6 +113,7 @@ def create_app():
     from app.routes.youtube import youtube_bp
     from app.routes.ai_features import ai_features_bp
     from app.routes.paper_trading import paper_trading_bp
+    from app.routes.billing import billing_bp
 
     app.register_blueprint(auth)
     app.register_blueprint(core_bp)
@@ -126,6 +127,7 @@ def create_app():
     app.register_blueprint(youtube_bp)
     app.register_blueprint(ai_features_bp)
     app.register_blueprint(paper_trading_bp)
+    app.register_blueprint(billing_bp)
 
     # -------------------------------------------------------------------
     # Register SocketIO events
@@ -136,7 +138,7 @@ def create_app():
     register_chat_socketio_events()
 
     # -------------------------------------------------------------------
-    # Startup logging
+    # Startup logging + security validation
     # -------------------------------------------------------------------
     logger.info("=" * 80)
     logger.info("Stock Watchlist App - Initializing...")
@@ -147,6 +149,21 @@ def create_app():
     logger.info("Firebase credentials: %s",
                 'configured' if os.path.exists(Config.FIREBASE_CREDENTIALS_PATH)
                 or os.environ.get('FIREBASE_CREDENTIALS_BASE64') else 'not found (will initialize on demand)')
+
+    # Warn loudly if critical env vars are missing in production
+    _is_production = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+    _required_in_prod = [
+        'SECRET_KEY', 'XAI_API_KEY', 'FIREBASE_CREDENTIALS_BASE64',
+        'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET',
+    ]
+    if _is_production:
+        for _var in _required_in_prod:
+            if not os.environ.get(_var):
+                logger.critical("SECURITY: Required environment variable '%s' is not set in production!", _var)
+
+    if Config.DEBUG and _is_production:
+        logger.critical("SECURITY: DEBUG mode is enabled in production! Disable it immediately.")
+
     logger.info("App module loaded successfully - services will initialize on demand")
     logger.info("=" * 80)
 

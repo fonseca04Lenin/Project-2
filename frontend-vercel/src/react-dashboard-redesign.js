@@ -4263,6 +4263,44 @@ const AISuiteView = ({ watchlistData }) => {
         return { authHeaders, API_BASE };
     };
 
+    // Upgrade gate — shown when a feature requires a paid plan
+    const UpgradeGate = ({ message }) => (
+        <div style={{
+            textAlign: 'center',
+            padding: '3rem 2rem',
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255,255,255,0.06)',
+        }}>
+            <div style={{
+                width: 52, height: 52, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #FFB800, #FF6B35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px', fontSize: 22,
+            }}>
+                <i className="fas fa-crown"></i>
+            </div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>
+                Pro Feature
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.87rem', maxWidth: 360, margin: '0 auto 20px', lineHeight: 1.6 }}>
+                {message}
+            </div>
+            <button
+                onClick={() => window.showUpgradeModal && window.showUpgradeModal(message)}
+                style={{
+                    background: 'linear-gradient(135deg, #00D4AA, #00A878)',
+                    color: '#000', border: 'none', borderRadius: 10,
+                    padding: '10px 24px', fontWeight: 700, fontSize: '0.9rem',
+                    cursor: 'pointer',
+                }}
+            >
+                <i className="fas fa-bolt" style={{ marginRight: 6 }}></i>
+                Upgrade to Pro — 7-day free trial
+            </button>
+        </div>
+    );
+
     // Skeleton shimmer block
     const SkeletonBlock = ({ height = '1.2rem', width = '100%', style = {} }) => (
         <div style={{
@@ -4291,6 +4329,10 @@ const AISuiteView = ({ watchlistData }) => {
                 const { authHeaders, API_BASE } = await withAuth();
                 const url = `${API_BASE}/api/ai/morning-brief${refresh ? '?refresh=1' : ''}`;
                 const r = await fetch(url, { headers: authHeaders, credentials: 'include' });
+                if (r.status === 403) {
+                    const j = await r.json().catch(() => ({}));
+                    if (j.error === 'upgrade_required') { setError('upgrade_required'); return; }
+                }
                 if (!r.ok) {
                     const j = await r.json().catch(() => ({}));
                     throw new Error(j.error || 'Failed to load');
@@ -4328,9 +4370,14 @@ const AISuiteView = ({ watchlistData }) => {
                     </button>
                 </div>
 
-                {error && <div style={{ color: '#FF6B35', marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,107,53,0.1)', borderRadius: '8px' }}>{error}</div>}
+                {error === 'upgrade_required' ? (
+                    <UpgradeGate message="Morning Brief gives you a personalized daily AI briefing on your watchlist's top movers and upcoming earnings." />
+                ) : error && (
+                    <div style={{ color: '#FF6B35', marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,107,53,0.1)', borderRadius: '8px' }}>{error}</div>
+                )}
 
                 {/* Narrative card */}
+                {error !== 'upgrade_required' && (
                 <div className="intel-card" style={{ marginBottom: '1rem' }}>
                     {loading ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -4345,6 +4392,7 @@ const AISuiteView = ({ watchlistData }) => {
                         </p>
                     ) : null}
                 </div>
+                )}
 
                 {/* Top movers strip */}
                 {!loading && data && data.movers && data.movers.length > 0 && (
@@ -4421,6 +4469,10 @@ const AISuiteView = ({ watchlistData }) => {
                     credentials: 'include',
                     body: JSON.stringify({ symbol: sym })
                 });
+                if (r.status === 403) {
+                    const j = await r.json().catch(() => ({}));
+                    if (j.error === 'upgrade_required') { setError('upgrade_required'); return; }
+                }
                 if (!r.ok) {
                     const j = await r.json().catch(() => ({}));
                     throw new Error(j.error || 'Failed to build thesis');
@@ -4459,8 +4511,12 @@ const AISuiteView = ({ watchlistData }) => {
                     <button className="search-btn" onClick={analyze} disabled={loading || !symbol.trim()}>
                         {loading ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: '0.4rem' }}></i>Analyzing…</> : 'Analyze'}
                     </button>
-                    {error && <span style={{ color: '#FF6B35', fontSize: '0.85rem' }}>{error}</span>}
+                    {error && error !== 'upgrade_required' && <span style={{ color: '#FF6B35', fontSize: '0.85rem' }}>{error}</span>}
                 </div>
+
+                {error === 'upgrade_required' && (
+                    <UpgradeGate message="Thesis Builder generates AI-powered bull and bear investment cases grounded in live market data." />
+                )}
 
                 {/* Skeleton */}
                 {loading && (
@@ -4556,6 +4612,10 @@ const AISuiteView = ({ watchlistData }) => {
                 const { authHeaders, API_BASE } = await withAuth();
                 const url = `${API_BASE}/api/ai/health-score${refresh ? '?refresh=1' : ''}`;
                 const r = await fetch(url, { headers: authHeaders, credentials: 'include' });
+                if (r.status === 403) {
+                    const j = await r.json().catch(() => ({}));
+                    if (j.error === 'upgrade_required') { setError('upgrade_required'); return; }
+                }
                 if (!r.ok) {
                     const j = await r.json().catch(() => ({}));
                     throw new Error(j.error || 'Failed to load');
@@ -4609,9 +4669,13 @@ const AISuiteView = ({ watchlistData }) => {
                     </button>
                 </div>
 
-                {error && <div style={{ color: '#FF6B35', marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,107,53,0.1)', borderRadius: '8px' }}>{error}</div>}
+                {error === 'upgrade_required' ? (
+                    <UpgradeGate message="Portfolio Health Score gives your watchlist an AI-powered grade with diversification analysis and actionable suggestions." />
+                ) : error && (
+                    <div style={{ color: '#FF6B35', marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,107,53,0.1)', borderRadius: '8px' }}>{error}</div>
+                )}
 
-                {loading && (
+                {error !== 'upgrade_required' && loading && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div className="intel-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', padding: '2rem' }}>
                             <SkeletonBlock height="5rem" width="5rem" style={{ borderRadius: '50%' }} />
@@ -4727,6 +4791,10 @@ const AISuiteView = ({ watchlistData }) => {
                 const { authHeaders, API_BASE } = await withAuth();
                 const url = `${API_BASE}/api/ai/sector-rotation${refresh ? '?refresh=1' : ''}`;
                 const r = await fetch(url, { headers: authHeaders, credentials: 'include' });
+                if (r.status === 403) {
+                    const j = await r.json().catch(() => ({}));
+                    if (j.error === 'upgrade_required') { setError('upgrade_required'); return; }
+                }
                 if (!r.ok) {
                     const j = await r.json().catch(() => ({}));
                     throw new Error(j.error || 'Failed to load');
@@ -4765,10 +4833,14 @@ const AISuiteView = ({ watchlistData }) => {
                     </button>
                 </div>
 
-                {error && <div style={{ color: '#FF6B35', marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,107,53,0.1)', borderRadius: '8px' }}>{error}</div>}
+                {error === 'upgrade_required' ? (
+                    <UpgradeGate message="Sector Rotation tracks institutional money flow across all 11 S&P sectors with AI-generated strategy notes." />
+                ) : error && (
+                    <div style={{ color: '#FF6B35', marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,107,53,0.1)', borderRadius: '8px' }}>{error}</div>
+                )}
 
                 {/* Narrative */}
-                <div className="intel-card" style={{ marginBottom: '1.25rem', minHeight: '80px' }}>
+                {error !== 'upgrade_required' && (<div className="intel-card" style={{ marginBottom: '1.25rem', minHeight: '80px' }}>
                     {loading ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                             <SkeletonBlock height="1rem" />
@@ -4781,7 +4853,7 @@ const AISuiteView = ({ watchlistData }) => {
                             {isTyping && <span style={{ opacity: 0.6, animation: 'blink 1s infinite' }}>|</span>}
                         </p>
                     )}
-                </div>
+                </div>)}
 
                 {/* Sort controls */}
                 {!loading && data && (

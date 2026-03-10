@@ -37,6 +37,26 @@ def chat_endpoint():
         if not message:
             return jsonify({'error': 'Message cannot be empty'}), 400
 
+        # --- Subscription gate: daily chat limit ---
+        from app.services.subscription_service import check_and_increment_chat_usage
+        usage = check_and_increment_chat_usage(user.id)
+        if not usage['allowed']:
+            limit = usage['limit']
+            return jsonify({
+                'success': False,
+                'error': 'daily_limit_reached',
+                'message': (
+                    f"You've used all {limit} free AI messages for today. "
+                    "Upgrade to Pro for 50 messages/day, or Elite for unlimited access."
+                ),
+                'usage': {
+                    'used': usage['used'],
+                    'limit': limit,
+                    'tier': usage['tier'],
+                    'upgrade_required': True,
+                },
+            }), 429
+
         from app.services.chat_service import chat_service
 
         result = chat_service.process_message(user.id, message)
@@ -45,7 +65,12 @@ def chat_endpoint():
             return jsonify({
                 'success': True,
                 'response': result['response'],
-                'timestamp': result['timestamp']
+                'timestamp': result['timestamp'],
+                'usage': {
+                    'used': usage['used'],
+                    'limit': usage['limit'],
+                    'tier': usage['tier'],
+                },
             })
         else:
             return jsonify({
@@ -55,12 +80,12 @@ def chat_endpoint():
             }), 500
 
     except Exception as e:
-        logger.error("Chat endpoint error: %s", e)
         import traceback
+        logger.error("Chat endpoint error: %s", e)
         logger.error("Full traceback: %s", traceback.format_exc())
         return jsonify({
             'success': False,
-            'error': f'Internal server error: {str(e)}',
+            'error': 'Internal server error',
             'response': 'I\'m sorry, I encountered an error. Please try again.'
         }), 500
 
@@ -124,15 +149,24 @@ def chat_status():
             return jsonify({'error': 'Authentication required'}), 401
 
         from app.services.chat_service import chat_service
+        from app.services.subscription_service import get_user_subscription, get_daily_chat_usage, PLANS
 
-        can_send = chat_service._check_rate_limit(user.id)
+        sub = get_user_subscription(user.id)
+        tier = sub['tier']
+        plan = PLANS.get(tier, PLANS['free'])
+        used = get_daily_chat_usage(user.id)
+        limit = plan['chat_daily_limit']
+        can_send = limit is None or used < limit
 
         return jsonify({
             'success': True,
             'status': 'available' if chat_service.xai_api_key else 'unavailable',
             'rate_limit': {
                 'can_send': can_send,
-                'max_requests_per_hour': chat_service.max_requests_per_hour
+                'used_today': used,
+                'daily_limit': limit,
+                'tier': tier,
+                'upgrade_required': not can_send,
             }
         })
 
