@@ -10,45 +10,88 @@ map_companies_bp = Blueprint('map_companies', __name__, url_prefix='/api/compani
 
 # Comprehensive list of S&P 500 and major publicly traded companies
 MAJOR_COMPANY_SYMBOLS = [
-    # Technology
-    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'INTC', 'CRM',
-    'ORCL', 'ADBE', 'CSCO', 'IBM', 'QCOM', 'TXN', 'AVGO', 'NOW', 'INTU', 'AMAT',
-    'MU', 'LRCX', 'ADI', 'SNPS', 'CDNS', 'KLAC', 'MRVL', 'NXPI', 'FTNT', 'PANW',
-    'CRWD', 'ZS', 'DDOG', 'SNOW', 'NET', 'PLTR', 'SHOP', 'SQ', 'PYPL', 'COIN',
-    'DELL', 'HPQ', 'HPE', 'NTAP', 'WDC', 'STX',
-    # Finance
-    'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'BLK', 'SCHW', 'AXP', 'V', 'MA',
-    'COF', 'USB', 'PNC', 'TFC', 'BK', 'STT', 'FITB', 'RF', 'CFG', 'KEY',
-    'HBAN', 'MTB', 'ZION', 'CMA', 'ALLY', 'DFS', 'SYF', 'AIG', 'MET', 'PRU',
-    'AFL', 'TRV', 'CB', 'ALL', 'PGR', 'HIG', 'BRK-B', 'CME', 'ICE', 'NDAQ',
-    # Healthcare
-    'JNJ', 'UNH', 'PFE', 'ABBV', 'MRK', 'LLY', 'TMO', 'ABT', 'DHR', 'BMY',
-    'AMGN', 'GILD', 'CVS', 'CI', 'ELV', 'HUM', 'CNC', 'MCK', 'CAH', 'ABC',
-    'ISRG', 'SYK', 'MDT', 'BSX', 'EW', 'ZBH', 'BDX', 'BAX', 'HOLX', 'ALGN',
-    'DXCM', 'IDXX', 'IQV', 'MTD', 'A', 'WAT', 'PKI', 'TECH', 'BIO', 'MRNA',
-    'REGN', 'VRTX', 'BIIB',
-    # Consumer & Retail
-    'WMT', 'COST', 'HD', 'LOW', 'TGT', 'AMZN', 'DG', 'DLTR', 'KR', 'SYY',
-    'SBUX', 'MCD', 'YUM', 'CMG', 'DPZ', 'QSR', 'DRI', 'TXRH', 'EAT',
-    'NKE', 'LULU', 'VFC', 'PVH', 'RL', 'TPR', 'CPRI', 'HBI', 'UAA',
-    'PG', 'KO', 'PEP', 'MDLZ', 'KHC', 'GIS', 'K', 'CAG', 'SJM', 'MKC',
-    'HSY', 'TSN', 'HRL', 'CPB', 'CLX', 'CL', 'CHD', 'EL', 'KMB',
-    # Energy
-    'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'OXY', 'PXD',
-    'DVN', 'HES', 'FANG', 'HAL', 'BKR', 'KMI', 'WMB', 'OKE', 'TRGP', 'LNG',
-    # Industrial
-    'BA', 'CAT', 'GE', 'HON', 'MMM', 'UPS', 'FDX', 'UNP', 'CSX', 'NSC',
-    'DE', 'LMT', 'RTX', 'NOC', 'GD', 'TXT', 'HII', 'LHX', 'LDOS', 'BAH',
-    'EMR', 'ROK', 'ETN', 'ITW', 'PH', 'IR', 'DOV', 'SWK', 'FAST', 'GWW',
-    # Telecom & Media
-    'T', 'VZ', 'TMUS', 'CMCSA', 'DIS', 'NFLX', 'WBD', 'PARA', 'FOX', 'FOXA',
-    'CHTR', 'DISH', 'LUMN', 'FYBR', 'LSXMA', 'LSXMK', 'SIRI',
-    # Real Estate
-    'AMT', 'PLD', 'CCI', 'EQIX', 'SPG', 'O', 'WELL', 'DLR', 'AVB', 'EQR',
-    'PSA', 'ARE', 'VTR', 'BXP', 'SLG', 'KIM', 'REG', 'HST', 'MAA', 'UDR',
-    # Utilities
-    'NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'SRE', 'XEL', 'ED', 'WEC',
-    'ES', 'DTE', 'PPL', 'FE', 'AEE', 'CMS', 'CNP', 'EVRG', 'NI', 'ATO',
+
+# Technology
+'AAPL','MSFT','GOOGL','GOOG','AMZN','META','NVDA','TSLA','AMD','INTC','CRM',
+'ORCL','ADBE','CSCO','IBM','QCOM','TXN','AVGO','NOW','INTU','AMAT',
+'MU','LRCX','ADI','SNPS','CDNS','KLAC','MRVL','NXPI','FTNT','PANW',
+'CRWD','ZS','DDOG','SNOW','NET','PLTR','SHOP','SQ','PYPL','COIN',
+'DELL','HPQ','HPE','NTAP','WDC','STX','TEAM','OKTA','DOCU','WDAY',
+'ANET','SMCI','ASML','ARM','MDB','ESTC','HUBS','SPLK','TWLO',
+
+# Semiconductors
+'TSM','ON','MPWR','SWKS','QRVO','TER','ENTG','MCHP','WOLF','UMC',
+'AMKR','IPGP','COHR','LSCC',
+
+# Finance
+'JPM','BAC','WFC','C','GS','MS','BLK','SCHW','AXP','V','MA',
+'COF','USB','PNC','TFC','BK','STT','FITB','RF','CFG','KEY',
+'HBAN','MTB','ZION','CMA','ALLY','DFS','SYF','AIG','MET','PRU',
+'AFL','TRV','CB','ALL','PGR','HIG','BRK-B','CME','ICE','NDAQ',
+'SPGI','MCO','AJG','MMC','WTW','RJF','FDS','BEN','TROW',
+
+# Healthcare
+'JNJ','UNH','PFE','ABBV','MRK','LLY','TMO','ABT','DHR','BMY',
+'AMGN','GILD','CVS','CI','ELV','HUM','CNC','MCK','CAH','ABC',
+'ISRG','SYK','MDT','BSX','EW','ZBH','BDX','BAX','HOLX','ALGN',
+'DXCM','IDXX','IQV','MTD','A','WAT','TECH','BIO','MRNA',
+'REGN','VRTX','BIIB','ILMN','INCY','RMD','STE','ALNY','NBIX',
+
+# Consumer Retail
+'WMT','COST','HD','LOW','TGT','DG','DLTR','KR','SYY',
+'SBUX','MCD','YUM','CMG','DPZ','QSR','DRI','TXRH','EAT',
+'NKE','LULU','VFC','PVH','RL','TPR','CPRI','HBI','UAA',
+'PG','KO','PEP','MDLZ','KHC','GIS','K','CAG','SJM','MKC',
+'HSY','TSN','HRL','CPB','CLX','CL','CHD','EL','KMB',
+'ROST','TJX','ULTA','BBY','ETSY','EBAY','GME','WSM',
+
+# Travel & Hospitality
+'MAR','HLT','H','WYNN','MGM','LVS','CCL','RCL','NCLH',
+
+# Automotive
+'F','GM','RIVN','LCID','TM','HMC','STLA',
+
+# Airlines
+'DAL','UAL','AAL','LUV','ALK','SAVE','JBLU',
+
+# Logistics & Transportation
+'UPS','FDX','ODFL','CHRW','XPO','EXPD','JBHT',
+
+# Energy
+'XOM','CVX','COP','SLB','EOG','MPC','PSX','VLO','OXY','PXD',
+'DVN','HES','FANG','HAL','BKR','KMI','WMB','OKE','TRGP','LNG',
+'APA','MRO','EQT','AR','CNX',
+
+# Industrial
+'BA','CAT','GE','HON','MMM','UNP','CSX','NSC',
+'DE','LMT','RTX','NOC','GD','TXT','HII','LHX','LDOS','BAH',
+'EMR','ROK','ETN','ITW','PH','IR','DOV','SWK','FAST','GWW',
+'CMI','PCAR','TT','XYL','OTIS','CARR','MAS','JCI',
+
+# Construction / Materials
+'VMC','MLM','NUE','STLD','FCX','AA','X','EXP',
+
+# Telecom & Media
+'T','VZ','TMUS','CMCSA','DIS','NFLX','WBD','PARA','FOX','FOXA',
+'CHTR','DISH','LUMN','FYBR','SIRI','ROKU','SPOT',
+
+# Real Estate (REITs)
+'AMT','PLD','CCI','EQIX','SPG','O','WELL','DLR','AVB','EQR',
+'PSA','ARE','VTR','BXP','SLG','KIM','REG','HST','MAA','UDR',
+'ESS','EXR','IRM','CPT','PEAK','DOC','VICI',
+
+# Utilities
+'NEE','DUK','SO','D','AEP','EXC','SRE','XEL','ED','WEC',
+'ES','DTE','PPL','FE','AEE','CMS','CNP','EVRG','NI','ATO',
+
+# Agriculture / Equipment
+'DE','AGCO','CNHI','ADM','BG','MOS','CF','NTR',
+
+# Defense
+'LMT','RTX','NOC','GD','HII','BA','LDOS','LHX',
+
+# Payments / Fintech
+'PYPL','SQ','COIN','FIS','FISV','GPN','JKHY','AFRM','SOFI'
 ]
 
 # Cache for company locations (refresh every 24 hours)
