@@ -10,6 +10,7 @@ const AIAdvisorChat = () => {
     const [isOnline, setIsOnline] = useState(true);
     const [rateLimitInfo, setRateLimitInfo] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
+    const [usageInfo, setUsageInfo] = useState(null); // { used, limit, tier }
     
     const messagesEndRef = useRef(null);
     const chatInputRef = useRef(null);
@@ -77,6 +78,13 @@ const AIAdvisorChat = () => {
                 const canSend = data?.rate_limit?.can_send !== false;
                 setRateLimitInfo(data.rate_limit || null);
                 setIsOnline(data.success && data.status === 'available' && canSend);
+                if (data.rate_limit) {
+                    setUsageInfo({
+                        used: data.rate_limit.used_today || 0,
+                        limit: data.rate_limit.daily_limit,
+                        tier: data.rate_limit.tier || 'free',
+                    });
+                }
             } else {
                 // Fallback: basic API health check when not logged in
                 const response = await fetch(`${API_BASE_URL}/api/health`);
@@ -100,9 +108,14 @@ const AIAdvisorChat = () => {
             return;
         }
 
-        // Check rate limit
+        // Check daily limit before sending
         if (rateLimitInfo && !rateLimitInfo.can_send) {
-            showError('Rate limit exceeded. Please wait before sending another message.');
+            const reason = `You've used all ${rateLimitInfo.daily_limit} free AI messages for today. Upgrade to Pro for 50 messages/day.`;
+            if (window.showUpgradeModal) {
+                window.showUpgradeModal(reason);
+            } else {
+                showError(reason);
+            }
             return;
         }
 
@@ -144,6 +157,20 @@ const AIAdvisorChat = () => {
                 };
                 setMessages(prev => [...prev, aiMessage]);
 
+                // Update usage counter from response
+                if (data.usage) {
+                    setUsageInfo(data.usage);
+                    const { used, limit, tier } = data.usage;
+                    // Warn when 1 message remaining (free tier only)
+                    if (tier === 'free' && limit !== null && used === limit - 1) {
+                        setRateLimitInfo(prev => ({ ...(prev || {}), can_send: true, used_today: used, daily_limit: limit }));
+                    }
+                    if (limit !== null && used >= limit) {
+                        setRateLimitInfo(prev => ({ ...(prev || {}), can_send: false, used_today: used, daily_limit: limit, tier }));
+                        setIsOnline(false);
+                    }
+                }
+
                 // Update rate limit / availability info when provided
                 if (data.rate_limit) {
                     setRateLimitInfo(data.rate_limit);
@@ -170,6 +197,20 @@ const AIAdvisorChat = () => {
                     }
                 }
             } else {
+                // Daily limit hit from backend
+                if (data.error === 'daily_limit_reached' || response.status === 429) {
+                    const reason = data.message || `You've used all your free AI messages for today. Upgrade for more.`;
+                    if (data.usage) setUsageInfo(data.usage);
+                    setRateLimitInfo(prev => ({ ...(prev || {}), can_send: false }));
+                    setIsOnline(false);
+                    if (window.showUpgradeModal) {
+                        window.showUpgradeModal(reason);
+                    } else {
+                        showError(reason);
+                    }
+                    return;
+                }
+
                 const errMsg = data.error || data.response || 'Failed to get response from AI';
                 showError(errMsg);
 
@@ -312,6 +353,30 @@ const AIAdvisorChat = () => {
 
                 <div ref={messagesEndRef} />
             </div>
+
+            {/* Daily Usage Bar (free tier) */}
+            {usageInfo && usageInfo.limit !== null && usageInfo.tier === 'free' && (
+                <div className="ai-daily-usage-bar">
+                    <div className="usage-bar-track">
+                        <div
+                            className="usage-bar-fill"
+                            style={{ width: `${Math.min((usageInfo.used / usageInfo.limit) * 100, 100)}%` }}
+                        ></div>
+                    </div>
+                    <div className="usage-bar-label">
+                        <span>{usageInfo.used}/{usageInfo.limit} free messages today</span>
+                        {usageInfo.used >= usageInfo.limit ? (
+                            <button className="usage-upgrade-btn" onClick={() => window.showUpgradeModal && window.showUpgradeModal('Upgrade to Pro for 50 messages/day.')}>
+                                Upgrade for more
+                            </button>
+                        ) : usageInfo.used >= usageInfo.limit - 1 ? (
+                            <button className="usage-upgrade-btn warning" onClick={() => window.showUpgradeModal && window.showUpgradeModal('You have 1 message left today. Upgrade to Pro for 50 messages/day.')}>
+                                1 left — Upgrade
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+            )}
 
             {/* Input Container */}
             <div className="ai-chat-input-container">

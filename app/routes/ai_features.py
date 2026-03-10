@@ -133,6 +133,15 @@ def morning_brief():
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
+    from app.services.subscription_service import check_ai_suite_access
+    access = check_ai_suite_access(user.id)
+    if not access['allowed']:
+        return jsonify({
+            'error': 'upgrade_required',
+            'message': 'Morning Brief is a Pro feature. Upgrade to unlock personalized daily briefings.',
+            'tier': access['tier'],
+        }), 403
+
     force_refresh = request.args.get('refresh') == '1'
     cache_key = f'morning_brief_{user.id}'
     ttl = 6 * 3600  # 6 hours
@@ -252,6 +261,15 @@ def thesis_builder():
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
+
+    from app.services.subscription_service import check_ai_suite_access
+    access = check_ai_suite_access(user.id)
+    if not access['allowed']:
+        return jsonify({
+            'error': 'upgrade_required',
+            'message': 'Thesis Builder is a Pro feature. Upgrade to generate AI investment theses.',
+            'tier': access['tier'],
+        }), 403
 
     body = request.get_json(silent=True) or {}
     symbol = (body.get('symbol') or '').upper().strip()
@@ -374,6 +392,15 @@ def health_score():
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
+
+    from app.services.subscription_service import check_ai_suite_access
+    access = check_ai_suite_access(user.id)
+    if not access['allowed']:
+        return jsonify({
+            'error': 'upgrade_required',
+            'message': 'Portfolio Health Score is a Pro feature. Upgrade to get your AI-powered portfolio grade.',
+            'tier': access['tier'],
+        }), 403
 
     force_refresh = request.args.get('refresh') == '1'
     cache_key = f'health_score_{user.id}'
@@ -537,6 +564,15 @@ def sector_rotation():
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
+
+    from app.services.subscription_service import check_ai_suite_access
+    access = check_ai_suite_access(user.id)
+    if not access['allowed']:
+        return jsonify({
+            'error': 'upgrade_required',
+            'message': 'Sector Rotation is a Pro feature. Upgrade to track institutional money flow.',
+            'tier': access['tier'],
+        }), 403
 
     force_refresh = request.args.get('refresh') == '1'
     cache_key = 'sector_rotation'
