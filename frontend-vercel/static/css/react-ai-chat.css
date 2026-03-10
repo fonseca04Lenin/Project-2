@@ -523,3 +523,51 @@ body[data-theme="light"] .ai-chat-input-container {
         opacity: 0.5;
     }
 }
+
+/* ========== Daily Usage Bar ========== */
+.ai-daily-usage-bar {
+    padding: 8px 16px 4px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.usage-bar-track {
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+.usage-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #00D4AA, #00A878);
+    transition: width 0.4s ease;
+}
+.usage-bar-fill[style*="width: 100%"],
+.usage-bar-fill[style*="width:100%"] {
+    background: linear-gradient(90deg, #FF6B35, #FF4500);
+}
+.usage-bar-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+}
+.usage-upgrade-btn {
+    background: rgba(0,212,170,0.15);
+    border: 1px solid rgba(0,212,170,0.3);
+    color: #00D4AA;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.usage-upgrade-btn:hover { background: rgba(0,212,170,0.25); }
+.usage-upgrade-btn.warning {
+    background: rgba(255,107,53,0.15);
+    border-color: rgba(255,107,53,0.3);
+    color: #FF6B35;
+}
+.usage-upgrade-btn.warning:hover { background: rgba(255,107,53,0.25); }
