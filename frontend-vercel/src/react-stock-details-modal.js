@@ -1243,6 +1243,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [stocktwitsLoading, setStocktwitsLoading] = useState(false);
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
+    const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
     const chartRootRef = useRef(null);
 
     // CEO Modal State
@@ -1428,13 +1429,20 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 // Load AI insight in background
                 setAiInsightLoading(true);
                 setAiInsight(null);
+                setAiInsightUpgradeRequired(false);
                 (async () => {
                     try {
+                        const authUser = window.firebaseAuth?.currentUser;
+                        const headers = {};
+                        if (authUser) {
+                            const token = await authUser.getIdToken();
+                            headers['Authorization'] = `Bearer ${token}`;
+                        }
                         console.log(`[StockDetailsModal] Fetching AI insight for ${symbol}`);
-                        const insightResp = await fetch(`${API_BASE}/api/stock/${symbol}/ai-insight`, {
-                            credentials: 'include'
-                        });
-                        if (insightResp.ok) {
+                        const insightResp = await fetch(`${API_BASE}/api/stock/${symbol}/ai-insight`, { headers });
+                        if (insightResp.status === 403) {
+                            setAiInsightUpgradeRequired(true);
+                        } else if (insightResp.ok) {
                             const insightData = await insightResp.json();
                             console.log(`[StockDetailsModal] AI insight received for ${symbol}`);
                             setAiInsight(insightData);
@@ -1898,6 +1906,22 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     color: 'rgba(255, 255, 255, 0.6)',
                                     fontStyle: 'italic'
                                 }}>Analyzing market conditions...</p>
+                            ) : aiInsightUpgradeRequired ? (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)' }}>
+                                        <i className="fas fa-lock" style={{ marginRight: '6px', color: '#FFB800' }}></i>
+                                        AI Market Insights are available on Pro and Elite plans.
+                                    </p>
+                                    <button
+                                        onClick={() => window.showUpgradeModal && window.showUpgradeModal('Unlock AI Market Insights with Pro or Elite.')}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #00D4AA, #00A878)',
+                                            border: 'none', borderRadius: '8px', padding: '6px 16px',
+                                            color: '#000', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >Upgrade to Pro</button>
+                                </div>
                             ) : aiInsight?.ai_insight ? (
                                 <div>
                                     {aiInsight.change_percent !== undefined && (

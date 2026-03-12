@@ -6693,6 +6693,28 @@ body[data-theme="light"] .nav-change.negative {
     color: rgba(255, 255, 255, 0.85);
 }
 
+.insight-upgrade-gate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.insight-upgrade-btn {
+    background: linear-gradient(135deg, #00D4AA, #00A878);
+    border: none;
+    border-radius: 8px;
+    padding: 7px 18px;
+    color: #000;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: filter 0.2s;
+}
+.insight-upgrade-btn:hover { filter: brightness(1.1); }
+
 /* Chart Section */
 .chart-section .chart-container {
     padding: 1rem;

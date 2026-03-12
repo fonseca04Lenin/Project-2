@@ -22,6 +22,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const sentimentContainerRef = useRef(null);
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
+    const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
     const chartRootRef = useRef(null);
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -196,12 +197,19 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 // Load AI insight
                 setAiInsightLoading(true);
                 setAiInsight(null);
+                setAiInsightUpgradeRequired(false);
                 (async () => {
                     try {
-                        const insightResp = await fetch(`${API_BASE_PAGE}/api/stock/${symbol}/ai-insight`, {
-                            credentials: 'include'
-                        });
-                        if (insightResp.ok) {
+                        const authUser = window.firebaseAuth?.currentUser;
+                        const headers = {};
+                        if (authUser) {
+                            const token = await authUser.getIdToken();
+                            headers['Authorization'] = `Bearer ${token}`;
+                        }
+                        const insightResp = await fetch(`${API_BASE_PAGE}/api/stock/${symbol}/ai-insight`, { headers });
+                        if (insightResp.status === 403) {
+                            setAiInsightUpgradeRequired(true);
+                        } else if (insightResp.ok) {
                             const insightData = await insightResp.json();
                             setAiInsight(insightData);
                         }
@@ -563,6 +571,17 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                         <div className="card-content">
                             {aiInsightLoading ? (
                                 <p className="loading-text">Analyzing 7-day market conditions...</p>
+                            ) : aiInsightUpgradeRequired ? (
+                                <div className="insight-upgrade-gate">
+                                    <p className="no-data-text">
+                                        <i className="fas fa-lock" style={{ marginRight: '6px', color: '#FFB800' }}></i>
+                                        AI Market Insights are available on Pro and Elite plans.
+                                    </p>
+                                    <button
+                                        className="insight-upgrade-btn"
+                                        onClick={() => window.showUpgradeModal && window.showUpgradeModal('Unlock AI Market Insights with Pro or Elite.')}
+                                    >Upgrade to Pro</button>
+                                </div>
                             ) : aiInsight?.ai_insight ? (
                                 <div>
                                     {aiInsight.change_percent !== undefined && (

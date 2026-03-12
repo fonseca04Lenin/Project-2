@@ -129,11 +129,22 @@ const PricingPage = () => {
         return () => unsub && unsub();
     }, []);
 
-    // Check for checkout=success in URL
+    // Check for checkout=success in URL — reload subscription to reflect new tier
     useEffect(() => {
         if (window.location.search.includes('checkout=success')) {
-            // Show success state
-            setCurrentTier(null); // will reload
+            const clean = window.location.pathname;
+            window.history.replaceState({}, document.title, clean);
+            // Re-fetch subscription so the UI reflects the new plan immediately
+            const user = window.firebaseAuth?.currentUser;
+            if (user) {
+                user.getIdToken(/* forceRefresh */ true).then(token =>
+                    fetch(`${API_BASE_URL}/api/billing/subscription`, {
+                        headers: { 'Authorization': `Bearer ${token}` },
+                    })
+                ).then(res => res.json()).then(data => {
+                    setCurrentTier(data.tier || 'free');
+                }).catch(() => {});
+            }
         }
     }, []);
 
