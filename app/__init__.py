@@ -167,4 +167,8 @@ def create_app():
     logger.info("App module loaded successfully - services will initialize on demand")
     logger.info("=" * 80)
 
+    @app.route('/health')
+    def health_check():
+        return jsonify({'status': 'ok'}), 200
+
     return app

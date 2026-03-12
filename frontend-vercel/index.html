@@ -234,6 +234,14 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/Gemini_Generated_Image_rvo6frrvo6frrvo6-min-removebg-preview.png">
     <link rel="manifest" href="/manifest.json">
+
+    <!-- Performance: pre-warm DNS/TCP to external origins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://www.gstatic.com">
     <meta name="theme-color" content="#22c55e">
     
     <!-- Fonts -->
@@ -392,34 +400,21 @@
         <!-- End Stock Details Modal -->
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="/config.js?v=2.2"></script>
+    <!-- Scripts — defer frees the HTML parser while preserving execution order -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script defer src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script defer src="/config.js?v=2.2"></script>
+
+    <!-- React — defer, executes in order before compiled components below -->
+    <script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- React Integration - Production builds to suppress console warnings -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script>
-        // Suppress Babel transformer warning
-        if (window.Babel) {
-            window.Babel.transform = (function(originalTransform) {
-                return function(code, options) {
-                    const result = originalTransform.call(this, code, options);
-                    // Suppress console warnings from Babel
-                    return result;
-                };
-            })(window.Babel.transform);
-        }
-    </script>
-    
-    <!-- NEW DASHBOARD UI - Load it FIRST so it's available for showMainContent -->
+    <!-- NEW DASHBOARD UI -->
     <link rel="stylesheet" href="/static/css/dashboard-redesign.css?v=dark-theme-restore">
     <link rel="stylesheet" href="/static/css/paper-trading.css?v=1.0">
     <div id="dashboard-redesign-root" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow: auto; z-index: 9999;"></div>
-    <script type="text/babel" src="/src/react-dashboard-redesign.js"></script>
-    <script type="text/babel" src="/src/react-paper-trading.js"></script>
+    <script defer src="/dist/src/react-dashboard-redesign.js"></script>
+    <script defer src="/dist/src/react-paper-trading.js"></script>
     
     <!-- Helper Functions for New UI -->
     <script>
@@ -600,18 +595,18 @@
 
     <!-- Upgrade Modal (global — accessible from any component via window.showUpgradeModal) -->
     <div id="upgrade-modal-root"></div>
-    <script type="text/babel" src="/src/react-upgrade-modal.js?v=1.0"></script>
+    <script defer src="/dist/src/react-upgrade-modal.js"></script>
 
-    <!-- Old UI removed - using new React dashboard only -->
-    <script type="text/babel" src="/src/react-landing-page.js"></script>
-    <script type="text/babel" src="/src/react-ai-chat.js?v=1.0"></script>
-    <script type="text/babel" src="/src/react-chart.js?v=1.0"></script>
-    <script type="text/babel" src="/src/react-watchlist-notes.js?v=1.0"></script>
-    <script type="text/babel" src="/src/react-stock-details-modal.js?v=2.0-education"></script>
-    <script type="text/babel" src="/src/react-stock-details-page.js?v=1.0"></script>
+    <!-- Components — pre-compiled by esbuild, no runtime transpilation -->
+    <script defer src="/dist/src/react-landing-page.js"></script>
+    <script defer src="/dist/src/react-ai-chat.js"></script>
+    <script defer src="/dist/src/react-chart.js"></script>
+    <script defer src="/dist/src/react-watchlist-notes.js"></script>
+    <script defer src="/dist/src/react-stock-details-modal.js"></script>
+    <script defer src="/dist/src/react-stock-details-page.js"></script>
 
     <!-- Duplicate showNewDashboard function for Firebase auth state changes -->
-    <script type="text/babel">
+    <script>
         // Make showNewDashboard available globally
         window.showNewDashboard = function() {
             // Hide landing page completely
