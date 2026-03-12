@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 
 billing_bp = Blueprint('billing', __name__, url_prefix='/api/billing')
 
-_FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://aistocksage.com')
+_raw = os.environ.get('FRONTEND_URL', 'https://aistocksage.com').strip().rstrip('/')
+_FRONTEND_URL = _raw if _raw.startswith(('http://', 'https://')) else f'https://{_raw}'
+logger.info("Billing module loaded — FRONTEND_URL resolved to: %s", _FRONTEND_URL)
 
 
 def _allowed_price_ids():
@@ -100,8 +102,9 @@ def customer_portal():
     except ValueError:
         return jsonify({'error': 'No subscription found. Please upgrade first.'}), 400
     except Exception as e:
-        logger.error("Portal error for %s: %s", user.id, e)
-        return jsonify({'error': 'Failed to create portal session'}), 500
+        import traceback
+        logger.error("Portal error for %s: %s\n%s", user.id, e, traceback.format_exc())
+        return jsonify({'error': 'Failed to create portal session', 'detail': str(e)}), 500
 
 
 @billing_bp.route('/webhook', methods=['POST'])
