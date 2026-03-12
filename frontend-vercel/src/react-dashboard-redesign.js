@@ -45,6 +45,9 @@ const DashboardRedesign = () => {
     // User data state
     const [userData, setUserData] = useState({ name: 'Account', email: 'Loading...' });
     const [isGuest, setIsGuest] = useState(false);
+
+    // Subscription state
+    const [subscriptionInfo, setSubscriptionInfo] = useState(null);
     
     // Live pricing state
     const [lastUpdate, setLastUpdate] = useState(null);
@@ -125,6 +128,7 @@ const DashboardRedesign = () => {
         // Load critical data first (non-blocking)
         loadUserData();
         loadPreferences();
+        loadSubscriptionInfo();
 
         // Load profile picture from localStorage
         const savedProfilePic = localStorage.getItem('profilePicture');
@@ -149,6 +153,7 @@ const DashboardRedesign = () => {
                     // Reload watchlist when user is authenticated
                     // User authenticated, loading watchlist
                     loadWatchlistData();
+                    loadSubscriptionInfo();
                 } else {
                     clearWatchlistCache();
                     setWatchlistData([]);
@@ -185,6 +190,30 @@ const DashboardRedesign = () => {
             });
         }
     };
+
+    const loadSubscriptionInfo = async () => {
+        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+        try {
+            const user = window.firebaseAuth?.currentUser;
+            if (!user) return;
+            const token = await user.getIdToken();
+            const res = await fetch(`${API_BASE}/api/billing/subscription`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSubscriptionInfo(data);
+            }
+        } catch (e) {
+            // Non-critical — silently ignore
+        }
+    };
+
+    // Expose globally so index.html checkout=success flow can trigger a reload
+    useEffect(() => {
+        window.__reloadSubscriptionInfo = loadSubscriptionInfo;
+        return () => { delete window.__reloadSubscriptionInfo; };
+    }, []);
 
     // REMOVED: Auto-refresh conflicted with WebSocket updates
     // WebSocket provides real-time updates every 30s from backend
@@ -1759,6 +1788,42 @@ const DashboardRedesign = () => {
                                             <div className="user-email">{userData.email}</div>
                                         </div>
                                     </div>
+                                    {subscriptionInfo && (
+                                        <div className="user-plan-badge" style={{
+                                            marginTop: '10px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: '8px',
+                                        }}>
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '5px',
+                                                background: subscriptionInfo.tier === 'elite'
+                                                    ? 'rgba(255,184,0,0.15)'
+                                                    : subscriptionInfo.tier === 'pro'
+                                                        ? 'rgba(0,212,170,0.15)'
+                                                        : 'rgba(255,255,255,0.08)',
+                                                border: `1px solid ${subscriptionInfo.tier === 'elite' ? 'rgba(255,184,0,0.4)' : subscriptionInfo.tier === 'pro' ? 'rgba(0,212,170,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                                                color: subscriptionInfo.tier === 'elite'
+                                                    ? '#FFB800'
+                                                    : subscriptionInfo.tier === 'pro'
+                                                        ? '#00D4AA'
+                                                        : 'rgba(255,255,255,0.5)',
+                                                borderRadius: '20px',
+                                                padding: '3px 10px',
+                                                fontSize: '11px',
+                                                fontWeight: '700',
+                                            }}>
+                                                <i className={`fas ${subscriptionInfo.tier === 'elite' ? 'fa-crown' : subscriptionInfo.tier === 'pro' ? 'fa-bolt' : 'fa-user'}`}></i>
+                                                {subscriptionInfo.label || subscriptionInfo.tier.charAt(0).toUpperCase() + subscriptionInfo.tier.slice(1)} Plan
+                                            </span>
+                                            {subscriptionInfo.status === 'trialing' && (
+                                                <span style={{ fontSize: '11px', color: '#FFB800' }}>Trial active</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="dropdown-divider"></div>
                                 <div
@@ -1796,6 +1861,38 @@ const DashboardRedesign = () => {
                                 >
                                     <i className="fas fa-shield-alt"></i>
                                     <span>Security</span>
+                                </div>
+                                <div className="dropdown-divider"></div>
+                                <div
+                                    className="dropdown-item"
+                                    onClick={async (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setUserMenuOpen(false);
+                                        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                                        try {
+                                            const user = window.firebaseAuth?.currentUser;
+                                            if (!user) return;
+                                            const token = await user.getIdToken();
+                                            const res = await fetch(`${API_BASE}/api/billing/portal`, {
+                                                method: 'POST',
+                                                headers: { 'Authorization': `Bearer ${token}` },
+                                            });
+                                            const data = await res.json();
+                                            if (data.portal_url) {
+                                                window.location.href = data.portal_url;
+                                            } else if (subscriptionInfo?.tier === 'free') {
+                                                window.showUpgradeModal && window.showUpgradeModal('Upgrade to manage your subscription.');
+                                            } else if (window.showNotification) {
+                                                window.showNotification('Could not open billing portal. Please try again.', 'error');
+                                            }
+                                        } catch (err) {
+                                            if (window.showNotification) window.showNotification('Could not open billing portal.', 'error');
+                                        }
+                                    }}
+                                >
+                                    <i className="fas fa-credit-card"></i>
+                                    <span>Manage Billing</span>
                                 </div>
                                 <div className="dropdown-divider"></div>
                                 <div

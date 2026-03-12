@@ -50,7 +50,7 @@ def get_user_subscription(user_id: str) -> dict:
         db = _get_db()
         doc = db.collection('users').document(user_id).get()
         if not doc.exists:
-            return {'tier': 'free', 'status': None}
+            return {'tier': 'free', 'status': None, 'trial_end': None, 'current_period_end': None}
         data = doc.to_dict() or {}
         tier = data.get('subscription_tier', 'free')
         status = data.get('subscription_status')
@@ -62,10 +62,12 @@ def get_user_subscription(user_id: str) -> dict:
             'status': status,
             'stripe_customer_id': data.get('stripe_customer_id'),
             'stripe_subscription_id': data.get('stripe_subscription_id'),
+            'trial_end': data.get('trial_end'),
+            'current_period_end': data.get('current_period_end'),
         }
     except Exception as e:
         logger.error("Error fetching subscription for %s: %s", user_id, e)
-        return {'tier': 'free', 'status': None}
+        return {'tier': 'free', 'status': None, 'trial_end': None, 'current_period_end': None}
 
 
 def _today_utc() -> str:
@@ -237,6 +239,17 @@ def handle_stripe_webhook(payload: bytes, sig_header: str) -> bool:
         if session.get('subscription'):
             sub = stripe.Subscription.retrieve(session['subscription'])
             _sync_subscription(sub)
+    elif event_type == 'invoice.payment_failed':
+        # Payment failed — sync the subscription so status becomes past_due,
+        # which causes get_user_subscription() to downgrade the user to free tier.
+        invoice = event['data']['object']
+        if invoice.get('subscription'):
+            sub = stripe.Subscription.retrieve(invoice['subscription'])
+            _sync_subscription(sub)
+            logger.warning(
+                "Payment failed for subscription %s (customer %s) — tier downgraded if status is past_due",
+                invoice['subscription'], invoice.get('customer')
+            )
 
     return True
 
@@ -264,6 +277,8 @@ def _sync_subscription(subscription) -> None:
         'subscription_status': status,
         'stripe_subscription_id': subscription.get('id'),
         'stripe_customer_id': subscription.get('customer'),
+        'trial_end': subscription.get('trial_end'),
+        'current_period_end': subscription.get('current_period_end'),
         'subscription_updated_at': datetime.now(timezone.utc).isoformat(),
     }, merge=True)
     logger.info("Synced subscription: uid=%s tier=%s status=%s", firebase_uid, tier, status)
