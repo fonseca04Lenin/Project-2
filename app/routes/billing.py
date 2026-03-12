@@ -81,8 +81,9 @@ def create_checkout():
         )
         return jsonify({'checkout_url': url})
     except Exception as e:
-        logger.error("Checkout error for %s: %s", user.id, e)
-        return jsonify({'error': 'Failed to create checkout session'}), 500
+        import traceback
+        logger.error("Checkout error for %s: %s\n%s", user.id, e, traceback.format_exc())
+        return jsonify({'error': 'Failed to create checkout session', 'detail': str(e)}), 500
 
 
 @billing_bp.route('/portal', methods=['POST'])
