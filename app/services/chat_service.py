@@ -40,10 +40,6 @@ class ChatService:
         self.finnhub_api = FinnhubAPI()
         self.news_api = NewsAPI()
 
-        # Rate limiting - 60 requests/hour for better UX
-        self.user_requests = {}
-        self.max_requests_per_hour = 60
-
         self.xai_api_key = os.getenv('XAI_API_KEY')
         if not self.xai_api_key:
             logger.warning("XAI_API_KEY not found in environment variables")
@@ -125,28 +121,6 @@ class ChatService:
             'choices': [{'message': {'content': content, 'tool_calls': tool_calls or None}}],
             '_response_id': data.get('id'),
         }
-    
-    def _check_rate_limit(self, user_id: str) -> bool:
-        """Check if user has exceeded rate limit"""
-        current_time = time.time()
-        hour_ago = current_time - 3600  # 1 hour ago
-        
-        # Clean old entries
-        if user_id in self.user_requests:
-            self.user_requests[user_id] = [
-                req_time for req_time in self.user_requests[user_id] 
-                if req_time > hour_ago
-            ]
-        else:
-            self.user_requests[user_id] = []
-        
-        # Check if under limit
-        if len(self.user_requests[user_id]) >= self.max_requests_per_hour:
-            return False
-        
-        # Add current request
-        self.user_requests[user_id].append(current_time)
-        return True
     
     def _get_user_context(self, user_id: str) -> Dict[str, Any]:
         """Get user's watchlist and conversation context"""
@@ -980,30 +954,7 @@ INSTRUCTIONS: Present this as a personalized portfolio analysis. Say things like
         """Process a user message and return AI response"""
         try:
             logger.info(f"Processing message from user {user_id}: {message}")
-            
-            # Check rate limit
-            if not self._check_rate_limit(user_id):
-                logger.warning(f"Rate limit exceeded for user {user_id}")
-                # Calculate when user can send next message
-                if user_id in self.user_requests and self.user_requests[user_id]:
-                    oldest_request = min(self.user_requests[user_id])
-                    time_until_reset = int(3600 - (time.time() - oldest_request))
-                    minutes = time_until_reset // 60
-                    seconds = time_until_reset % 60
-                    retry_message = f"You've reached the limit of {self.max_requests_per_hour} messages per hour. Please try again in {minutes} min {seconds} sec."
-                else:
-                    retry_message = "Rate limit exceeded. Please wait a few minutes before sending another message."
 
-                return {
-                    "success": False,
-                    "error": retry_message,
-                    "response": retry_message,
-                    "rate_limit": {
-                        "limit": self.max_requests_per_hour,
-                        "reset_in_seconds": time_until_reset if user_id in self.user_requests else 3600
-                    }
-                }
-            
             # Check if Grok API key is available
             if not self.xai_api_key:
                 logger.error("XAI_API_KEY not configured")
@@ -1277,6 +1228,339 @@ The analysis should be based on the most recent data you have when the user requ
                 "error": str(e),
                 "response": f"I'm sorry, I encountered an error processing your message: {str(e)}. Please try again."
             }
+
+    # -----------------------------------------------------------------------
+    # System prompt builder (shared by process_message and process_message_stream)
+    # -----------------------------------------------------------------------
+
+    def _build_system_prompt(self, user_id: str, serialized_context: dict) -> str:
+        return f"""You are an AI assistant for Ai Stock Sage. You are a personalized broker and financial advisor that uses stock-specific functions and knowledge based on history and the current market conditions to help the user make investment decisions.
+
+**MANDATORY INSTRUCTION**: You MUST answer ALL questions, including general questions about companies, layoffs, business history, market trends, and any business/finance topics. You have access to your knowledge base and should use it to answer these questions. DO NOT refuse to answer general questions. DO NOT say you're "limited to stock market data" - that is FALSE. Also use the most recent data you have when thr user requrest current conditions for anything.
+
+User Context:
+- User ID: {user_id}
+- Watchlist: {json.dumps(serialized_context['watchlist'], indent=2)}
+- Recent conversation: {json.dumps(serialized_context['recent_conversation'], indent=2)}
+
+        Your Capabilities:
+        1. **General Knowledge Questions**: Answer questions about companies, business history, layoffs, market trends, financial news, etc. using your knowledge base. Use the most recent data you have when the user requests current conditions for anything.
+        2. **Stock-Specific Functions**: Use available functions to get real-time stock data, manage watchlists (including adding/removing stocks), analyze portfolios, and get market news.
+        3. **Hybrid Approach**: Combine your knowledge with function calls when appropriate.
+
+        Examples of questions you MUST answer:
+        - "Which company has had the most layoffs in 2025?" → Answer using your knowledge about recent layoffs.
+        - "Tell me the history of Apple" → Answer using your knowledge about Apple's history.
+        - "What's the current price of AAPL?" → Use get_stock_price function.
+        - "Tell me about Tesla's business strategy" → Answer using your knowledge.
+        - "What companies in my portfolio have had layoffs?" → Use get_watchlist_details or analyze_watchlist plus your knowledge about layoffs.
+        - "Which stocks in my watchlist are doing best today?" → Use analyze_watchlist and get_watchlist_details.
+
+Your Personality: Be helpful, professional, and conversational. Adapt your response length based on the question:
+- For simple stock queries: Keep it brief (2-3 sentences)
+- For general knowledge questions: Provide comprehensive, informative answers
+- For complex topics: Give detailed explanations when needed
+- Make eyour answer look like a real person and not a robot.ALso make them look profesional and readible do not symbols such as "*"
+
+Guidelines:
+1. **YOU MUST ANSWER GENERAL QUESTIONS**: When users ask about layoffs, company history, business strategies, market trends, etc., you MUST provide informative answers using your knowledge base. DO NOT refuse or say you're limited.
+
+2. **Use functions for real-time data**: When users ask about current prices, watchlist management, or real-time market data, use the available functions
+
+3. **Use your knowledge for general questions**: For questions about company history, layoffs, business strategies, market trends, etc., use your knowledge base to provide informative answers
+
+4. **Combine when helpful**: For questions like "Tell me about Apple and its current stock price", use both your knowledge AND the get_stock_price function
+
+5. **ALWAYS check the user's existing watchlist before recommending stocks** - don't recommend stocks they already have
+
+6. When asked "what stocks should I add?", ONLY RECOMMEND stocks - DO NOT add them automatically
+
+7. Wait for EXPLICIT user confirmation before adding any stocks to the watchlist
+
+8. Be conversational and direct, not overly academic or formal
+
+9. When you successfully add or remove a stock, just give the confirmation message - nothing else
+
+Available functions (use these ONLY for real-time stock data):
+- get_stock_price: Get current stock price and info
+- analyze_watchlist: Analyze user's watchlist performance
+- get_watchlist_details: Get comprehensive watchlist information
+- get_market_news: Get news for specific stocks
+- compare_stocks: Compare multiple stocks (ALWAYS pass symbols as array: ["AAPL", "MSFT"])
+- add_stock_to_watchlist: Add a stock to the user's watchlist
+- remove_stock_from_watchlist: Remove a stock from the user's watchlist
+
+FUNCTION CALLING EXAMPLES - STUDY THESE CAREFULLY:
+
+**COMPARE STOCKS EXAMPLES:**
+- User: "Compare AAPL and MSFT" → Call compare_stocks with symbols=["AAPL", "MSFT"]
+- User: "compare apple and microsoft" → Call compare_stocks with symbols=["AAPL", "MSFT"]
+- User: "how does tesla compare to ford" → Call compare_stocks with symbols=["TSLA", "F"]
+- ALWAYS extract ALL symbols mentioned and pass as array
+
+**ADD STOCK EXAMPLES:**
+- User: "add NVDA" → Call add_stock_to_watchlist with symbol="NVDA"
+- User: "add nvidia" → Call add_stock_to_watchlist with company_name="nvidia"
+- User: "add nvdia" (typo) → Call add_stock_to_watchlist with company_name="nvidia" (fix the typo)
+- User: "NVDA" (just symbol) → Call add_stock_to_watchlist with symbol="NVDA"
+- User: "here NVDA" → Call add_stock_to_watchlist with symbol="NVDA"
+- User: "I want AAPL" → Call add_stock_to_watchlist with symbol="AAPL"
+- User: "get me apple stock" → Call add_stock_to_watchlist with company_name="apple"
+
+**KEY RULES FOR ADD/REMOVE:**
+- If user provides 2-5 letter uppercase code = SYMBOL
+- If user provides company name = COMPANY_NAME
+- Common typos: "nvdia"→"nvidia", "mircosoft"→"microsoft", "gogle"→"google"
+- "add X", "get X", "X" (alone), "here X" = user wants to add X
+
+CRITICAL RULES:
+1. **YOU MUST ANSWER GENERAL QUESTIONS - THIS IS MANDATORY**:
+   - If asked about layoffs → Answer with information about company layoffs
+   - If asked about company history → Answer with company history
+   - If asked about business strategies → Answer with business information
+   - If asked about market trends → Answer with market analysis
+   - DO NOT say "I cannot provide information" or "I'm limited to stock data" - that is INCORRECT
+   - Use your knowledge base to answer these questions
+
+2. **USE FUNCTIONS FOR REAL-TIME DATA ONLY**: Use functions when you need:
+   - Current stock prices
+   - Real-time market data
+   - Watchlist management
+   - Current news articles
+
+3. **BE BRIEF FOR SIMPLE QUERIES**: For simple stock price checks or watchlist questions, keep it short (2-3 sentences)
+
+4. **BE DETAILED FOR GENERAL QUESTIONS**: For questions about company history, layoffs, business strategies, etc., provide comprehensive, informative answers
+
+5. **ALWAYS CHECK EXISTING WATCHLIST FIRST** - Before recommending any stocks, check what they already have using get_watchlist_details to avoid duplicate suggestions
+
+6. **DO NOT ADD STOCKS AUTOMATICALLY** - Only add stocks when user explicitly says "add" or "yes" or gives clear confirmation
+
+7. NEVER create fake data, fake stock details, or fake watchlists
+
+8. When you receive "SUCCESS:" from a function, that means it actually worked in the database
+
+9. When you receive "FAILED:" from a function, tell the user exactly what went wrong
+
+10. **ABSOLUTELY CRITICAL**: When adding a stock, respond with EXACTLY this format:
+   "Successfully added AAPL (Apple Inc.) to your watchlist at $150.00. Your watchlist will update automatically."
+   ONE line only. Nothing else.
+
+11. **ABSOLUTELY CRITICAL**: When removing a stock, respond with:
+    "Successfully removed AAPL from your watchlist."
+    ONE line only.
+
+12. NEVER show full watchlist JSON to the user - just brief responses
+
+13. NEVER generate fake JSON watchlists - only use real data from functions
+
+14. ALWAYS use the exact information returned by functions
+
+15. When users provide company names for adding/removing, use company_name parameter
+
+16. When users provide stock symbols, use symbol parameter
+
+17. For add/remove operations, provide EITHER symbol OR company_name, not both
+
+18. **DON'T VERBOSE**: When listing your current watchlist, just give symbols and brief performance - don't analyze every single stock unless asked
+
+19. **REMEMBER**: You are a personalized broker and financial advisor that uses stock-specific functions and knowledge based on history and the current market conditions to help the user make investment decisions. You MUST answer general questions using your knowledge. DO NOT refuse general questions.
+
+20. **WATCHLIST ANALYSIS FORMAT**: When user asks to "analyze my watchlist" or similar, present the analysis in this EXACT format:
+
+**Watchlist Analysis**
+
+**Overview:**
+- Total stocks: X
+- Stocks up: X | Stocks down: X | Flat: X
+- Average change: +X.XX%
+
+**Top Performers:**
+1. SYMBOL +X.XX%
+2. SYMBOL +X.XX%
+3. SYMBOL +X.XX%
+
+**Biggest Losers:**
+1. SYMBOL -X.XX%
+2. SYMBOL -X.XX%
+
+**Insights:**
+[Provide 1-2 sentences of actual analysis based on the data - e.g., "Your portfolio is tech-heavy with 60% in technology stocks. Consider diversifying into other sectors."]
+
+NEVER just say "I analyzed your watchlist" without showing the actual data. Always show specific numbers and stock symbols.
+The analysis should be based on the most recent data you have when the user requests current conditions for anything. of last month"""
+
+    # -----------------------------------------------------------------------
+    # Streaming support
+    # -----------------------------------------------------------------------
+
+    def _call_grok_api_stream(self, messages: List[Dict], tools: List[Dict] = None,
+                               temperature: float = 0.7, max_tokens: int = 2000,
+                               previous_response_id: str = None):
+        """
+        Like _call_grok_api but yields text chunks via the xAI streaming API.
+        Uses the same /v1/responses endpoint with stream=True.
+        """
+        if not self.xai_api_key:
+            yield "AI service unavailable."
+            return
+
+        input_items = []
+        for msg in messages:
+            role = msg.get('role', '')
+            if role == 'tool':
+                input_items.append({
+                    'type': 'function_call_output',
+                    'call_id': msg['tool_call_id'],
+                    'output': msg['content'],
+                })
+            else:
+                input_items.append({'role': role, 'content': msg['content']})
+
+        payload = {
+            'model': GROK_MODEL,
+            'input': input_items,
+            'temperature': temperature,
+            'max_output_tokens': max_tokens,
+            'stream': True,
+        }
+        if previous_response_id:
+            payload['previous_response_id'] = previous_response_id
+        if tools:
+            payload['tools'] = tools
+
+        try:
+            resp = http_requests.post(
+                GROK_API_URL,
+                headers={
+                    'Authorization': f'Bearer {self.xai_api_key}',
+                    'Content-Type': 'application/json',
+                },
+                json=payload,
+                stream=True,
+                timeout=60,
+            )
+            resp.raise_for_status()
+
+            for raw_line in resp.iter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.decode('utf-8') if isinstance(raw_line, bytes) else raw_line
+                if not line.startswith('data: '):
+                    continue
+                data_str = line[6:]
+                if data_str == '[DONE]':
+                    break
+                try:
+                    event = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+
+                # xAI Responses API streaming event
+                event_type = event.get('type', '')
+                if event_type == 'response.output_text.delta':
+                    delta = event.get('delta', '')
+                    if delta:
+                        yield delta
+                elif event_type == 'response.completed':
+                    break
+                # OpenAI-compatible streaming fallback
+                elif 'choices' in event:
+                    delta = ((event.get('choices') or [{}])[0].get('delta') or {}).get('content', '')
+                    if delta:
+                        yield delta
+
+        except Exception as e:
+            logger.error("_call_grok_api_stream error: %s", e)
+            yield f"\n[Stream interrupted: {str(e)[:80]}]"
+
+    def process_message_stream(self, user_id: str, message: str):
+        """
+        Generator version of process_message. Yields text chunks for SSE.
+
+        Flow:
+          1. Execute tool calls synchronously (same as process_message).
+          2. Stream the final text response chunk-by-chunk.
+          3. Save the conversation once all chunks are yielded.
+
+        The streaming win is on the final LLM call — users see text appear
+        immediately instead of waiting for the full response to buffer.
+        """
+        full_response = ''
+        try:
+            context = self._get_user_context(user_id)
+            serialized_context = serialize_datetime(context)
+            system_prompt = self._build_system_prompt(user_id, serialized_context)
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message},
+            ]
+            tools = [
+                {"type": "web_search"},
+                *[{
+                    "type": "function",
+                    "name": func["name"],
+                    "description": func["description"],
+                    "parameters": func["parameters"],
+                } for func in self._get_available_functions()]
+            ]
+
+            # First call — synchronous, needed to detect tool calls
+            try:
+                response_data = self._call_grok_api(messages, tools=tools)
+            except Exception as e:
+                logger.error("process_message_stream first API call failed: %s", e)
+                yield "I'm having trouble connecting right now. Please try again in a moment."
+                return
+
+            response_id = response_data.get('_response_id')
+            assistant_msg = response_data['choices'][0]['message']
+            tool_calls = assistant_msg.get('tool_calls') or []
+
+            if tool_calls:
+                # Execute tools synchronously
+                tool_result_messages = []
+                for tc in tool_calls:
+                    function_name = tc['function']['name']
+                    try:
+                        function_args = json.loads(tc['function']['arguments'])
+                    except Exception:
+                        function_args = {}
+                    result = self._execute_function(function_name, function_args, user_id)
+                    serialized_result = serialize_datetime(result)
+                    formatted_content = self._format_function_result(serialized_result, function_name)
+                    tool_result_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc['id'],
+                        "content": formatted_content,
+                    })
+
+                # Stream the final answer
+                for chunk in self._call_grok_api_stream(
+                    tool_result_messages,
+                    tools=tools,
+                    previous_response_id=response_id,
+                ):
+                    full_response += chunk
+                    yield chunk
+            else:
+                # No tool calls — direct response already in hand; yield as one chunk
+                direct = assistant_msg.get('content', '') or "I'm sorry, I didn't receive a response. Please try again."
+                full_response = direct
+                yield direct
+
+        except Exception as e:
+            logger.error("process_message_stream error: %s", e, exc_info=True)
+            err_msg = "I'm sorry, I encountered an error processing your message. Please try again."
+            full_response = err_msg
+            yield err_msg
+        finally:
+            if full_response:
+                try:
+                    self._save_conversation(user_id, message, full_response)
+                except Exception as e:
+                    logger.warning("Failed to save streamed conversation: %s", e)
 
     def generate_stock_analysis(self, symbol: str, price_data: dict, news: list) -> dict:
         """Generate AI analysis for stock movement - separate from chat to avoid conversation pollution"""

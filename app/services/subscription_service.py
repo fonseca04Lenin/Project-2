@@ -133,6 +133,30 @@ def check_and_increment_chat_usage(user_id: str) -> dict:
     }
 
 
+def check_hourly_rate_limit(user_id: str, limit: int = 60) -> dict:
+    """
+    Checks and atomically increments per-user hourly request count in Firestore.
+    Collection: hourly_usage/{user_id}  Field: 'YYYY-MM-DD-HH'
+
+    Returns dict with: allowed, used, limit.
+    Fails open (allowed=True) on any Firestore error.
+    """
+    from google.cloud.firestore_v1 import Increment
+    hour_key = datetime.now(timezone.utc).strftime('%Y-%m-%d-%H')
+    try:
+        db = _get_db()
+        ref = db.collection('hourly_usage').document(user_id)
+        doc = ref.get()
+        count = int(((doc.to_dict() or {}) if doc.exists else {}).get(hour_key, 0))
+        if count >= limit:
+            return {'allowed': False, 'used': count, 'limit': limit}
+        ref.set({hour_key: Increment(1)}, merge=True)
+        return {'allowed': True, 'used': count + 1, 'limit': limit}
+    except Exception as e:
+        logger.error("Error checking hourly rate for %s: %s", user_id, e)
+        return {'allowed': True, 'used': 0, 'limit': limit}
+
+
 def check_ai_suite_access(user_id: str) -> dict:
     """
     Gate for AI Suite features (Morning Brief, Thesis, Health Score, Sector Rotation).

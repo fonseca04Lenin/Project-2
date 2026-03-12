@@ -1,35 +1,15 @@
 import logging
-import os
 from datetime import datetime, timedelta
 
 from flask import Blueprint, request, jsonify
 
 from app.services.services import authenticate_request, ensure_watchlist_service, yahoo_finance_api
+from app.services.cache_service import cache_get, cache_set
+from app.services.ai_gateway import generate as ai_generate
 
 logger = logging.getLogger(__name__)
 
 ai_features_bp = Blueprint('ai_features', __name__, url_prefix='/api/ai')
-
-# ---------------------------------------------------------------------------
-# Cache
-# ---------------------------------------------------------------------------
-_ai_suite_cache = {}
-
-
-def _is_cache_fresh(key, ttl_seconds):
-    entry = _ai_suite_cache.get(key)
-    if not entry or entry.get('data') is None or entry.get('timestamp') is None:
-        return False
-    age = (datetime.now() - entry['timestamp']).total_seconds()
-    return age < ttl_seconds
-
-
-def _set_cache(key, data):
-    _ai_suite_cache[key] = {'data': data, 'timestamp': datetime.now()}
-
-
-def _get_cache(key):
-    return _ai_suite_cache.get(key, {}).get('data')
 
 
 # ---------------------------------------------------------------------------
@@ -45,71 +25,6 @@ RULES:
 - No markdown, no bullet characters in prose sections
 """
 
-
-def _call_groq(prompt, max_tokens=600, temperature=0.75):
-    import requests as http_requests
-    groq_api_key = os.environ.get('GROQ_API_KEY')
-    if not groq_api_key:
-        raise RuntimeError("GROQ_API_KEY not configured")
-
-    resp = http_requests.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        headers={
-            'Authorization': f'Bearer {groq_api_key}',
-            'Content-Type': 'application/json'
-        },
-        json={
-            'model': 'llama-3.3-70b-versatile',
-            'messages': [{'role': 'user', 'content': prompt}],
-            'temperature': temperature,
-            'max_tokens': max_tokens
-        },
-        timeout=30
-    )
-    resp.raise_for_status()
-    return resp.json()['choices'][0]['message']['content'].strip()
-
-
-def _call_grok(prompt, max_tokens=600, temperature=0.75):
-    import requests as http_requests
-    xai_api_key = os.environ.get('XAI_API_KEY')
-    if not xai_api_key:
-        raise RuntimeError("XAI_API_KEY not configured")
-
-    resp = http_requests.post(
-        'https://api.x.ai/v1/chat/completions',
-        headers={
-            'Authorization': f'Bearer {xai_api_key}',
-            'Content-Type': 'application/json'
-        },
-        json={
-            'model': 'grok-beta',
-            'messages': [{'role': 'user', 'content': prompt}],
-            'temperature': temperature,
-            'max_tokens': max_tokens
-        },
-        timeout=30
-    )
-    resp.raise_for_status()
-    return resp.json()['choices'][0]['message']['content'].strip()
-
-
-def _call_gemini(prompt, max_tokens=800, temperature=0.7):
-    """Call Gemini, returns text or raises."""
-    import google.generativeai as genai
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY not configured")
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    response = model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-        )
-    )
-    return response.text.strip()
 
 
 def _get_user_watchlist_symbols(user_id):
@@ -146,8 +61,10 @@ def morning_brief():
     cache_key = f'morning_brief_{user.id}'
     ttl = 6 * 3600  # 6 hours
 
-    if not force_refresh and _is_cache_fresh(cache_key, ttl):
-        return jsonify(_get_cache(cache_key))
+    if not force_refresh:
+        cached = cache_get(cache_key, ttl)
+        if cached is not None:
+            return jsonify(cached)
 
     try:
         import yfinance as yf
@@ -227,7 +144,10 @@ UPCOMING EARNINGS FROM WATCHLIST (next 7 days):
 Write a 120-word morning brief in newsletter style. Open with today's date. Reference the actual stocks and moves. Flag any earnings coming up. Close with one specific thing to watch today.
 {_RULES_BLOCK}"""
 
-        narrative = _call_grok(prompt, max_tokens=700, temperature=0.75)
+        narrative = ai_generate(
+            prompt, max_tokens=700, temperature=0.75,
+            user_id=user.id, endpoint='morning_brief',
+        )
 
         top_headline = ''
         for m in top_movers:
@@ -244,7 +164,7 @@ Write a 120-word morning brief in newsletter style. Open with today's date. Refe
                 'top_headline': top_headline
             }
         }
-        _set_cache(cache_key, result)
+        cache_set(cache_key, result, ttl)
         return jsonify(result)
 
     except Exception as e:
@@ -347,13 +267,11 @@ Return a JSON object ONLY (no prose before or after) with this exact structure:
 Each title: 3-5 words. Each body: 1-2 sentences anchored to the actual data provided. Bull case highlights growth catalysts. Bear case highlights real risks.
 {_RULES_BLOCK}"""
 
-        # Try Gemini first, fallback to Groq
-        raw_text = None
-        try:
-            raw_text = _call_gemini(prompt, max_tokens=800, temperature=0.7)
-        except Exception as gem_err:
-            logger.warning("Gemini failed for thesis, using Groq: %s", gem_err)
-            raw_text = _call_groq(prompt, max_tokens=800, temperature=0.7)
+        raw_text = ai_generate(
+            prompt, max_tokens=800, temperature=0.7,
+            providers=['gemini', 'groq', 'grok'],
+            user_id=user.id, endpoint='thesis',
+        )
 
         # Parse JSON from response
         import json
@@ -406,8 +324,10 @@ def health_score():
     cache_key = f'health_score_{user.id}'
     ttl = 6 * 3600
 
-    if not force_refresh and _is_cache_fresh(cache_key, ttl):
-        return jsonify(_get_cache(cache_key))
+    if not force_refresh:
+        cached = cache_get(cache_key, ttl)
+        if cached is not None:
+            return jsonify(cached)
 
     try:
         import yfinance as yf
@@ -509,7 +429,11 @@ Return ONLY valid JSON with this structure:
 {{"narrative": "...", "suggestions": ["...", "...", "..."]}}
 {_RULES_BLOCK}"""
 
-        raw = _call_groq(prompt, max_tokens=500, temperature=0.65)
+        raw = ai_generate(
+            prompt, max_tokens=500, temperature=0.65,
+            providers=['groq', 'grok', 'gemini'],
+            user_id=user.id, endpoint='health_score',
+        )
 
         import json
         import re
@@ -538,7 +462,7 @@ Return ONLY valid JSON with this structure:
             'narrative': narrative,
             'suggestions': suggestions
         }
-        _set_cache(cache_key, result)
+        cache_set(cache_key, result, ttl)
         return jsonify(result)
 
     except Exception as e:
@@ -578,8 +502,10 @@ def sector_rotation():
     cache_key = 'sector_rotation'
     ttl = 2 * 3600  # 2 hours
 
-    if not force_refresh and _is_cache_fresh(cache_key, ttl):
-        return jsonify(_get_cache(cache_key))
+    if not force_refresh:
+        cached = cache_get(cache_key, ttl)
+        if cached is not None:
+            return jsonify(cached)
 
     try:
         import yfinance as yf
@@ -669,13 +595,17 @@ SECTOR PERFORMANCE DATA:
 Write a 140-word strategist note identifying which sectors are gaining institutional interest, which are losing momentum, and where the rotation is heading. Name specific sectors and reference their actual numbers.
 {_RULES_BLOCK}"""
 
-        narrative = _call_groq(prompt, max_tokens=400, temperature=0.78)
+        narrative = ai_generate(
+            prompt, max_tokens=400, temperature=0.78,
+            providers=['groq', 'grok', 'gemini'],
+            user_id=user.id, endpoint='sector_rotation',
+        )
 
         result = {
             'narrative': narrative,
             'sectors': sectors_raw
         }
-        _set_cache(cache_key, result)
+        cache_set(cache_key, result, ttl)
         return jsonify(result)
 
     except Exception as e:
