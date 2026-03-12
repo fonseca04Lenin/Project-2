@@ -3,7 +3,7 @@ import os
 import time
 import re
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, request, jsonify
 from flask_socketio import emit
@@ -42,17 +42,27 @@ def chat_endpoint():
         usage = check_and_increment_chat_usage(user.id)
         if not usage['allowed']:
             limit = usage['limit']
+            tier = usage['tier']
+            now_utc = datetime.now(timezone.utc)
+            tomorrow_midnight = (now_utc + timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            hours_left = max(1, int((tomorrow_midnight - now_utc).total_seconds() / 3600))
+            reset_note = f" Resets in ~{hours_left} hour{'s' if hours_left != 1 else ''} (midnight UTC)."
+            if tier == 'free':
+                upgrade_hint = " Upgrade to Pro for 50 messages/day, or Elite for unlimited."
+            else:
+                upgrade_hint = " Upgrade to Elite for unlimited messages."
             return jsonify({
                 'success': False,
                 'error': 'daily_limit_reached',
                 'message': (
-                    f"You've used all {limit} free AI messages for today. "
-                    "Upgrade to Pro for 50 messages/day, or Elite for unlimited access."
+                    f"You've used all {limit} AI messages for today.{reset_note}{upgrade_hint}"
                 ),
                 'usage': {
                     'used': usage['used'],
                     'limit': limit,
-                    'tier': usage['tier'],
+                    'tier': tier,
                     'upgrade_required': True,
                 },
             }), 429
@@ -228,6 +238,16 @@ def get_stock_ai_analysis(symbol):
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
 
+        # --- Subscription gate: Pro/Elite only ---
+        from app.services.subscription_service import check_ai_suite_access
+        access = check_ai_suite_access(user.id)
+        if not access['allowed']:
+            return jsonify({
+                'error': 'upgrade_required',
+                'message': 'AI Stock Analysis is available on Pro and Elite plans.',
+                'tier': access['tier'],
+            }), 403
+
         symbol = symbol.upper()
         current_time = time.time()
 
@@ -303,6 +323,20 @@ def get_stock_ai_analysis(symbol):
 @chat_bp.route('/stock/<symbol>/ai-insight')
 def get_stock_ai_insight(symbol):
     """Get AI-generated 7-day overview explaining why a stock is moving (powered by Grok)"""
+    # --- Auth + subscription gate: Pro/Elite only ---
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    from app.services.subscription_service import check_ai_suite_access
+    access = check_ai_suite_access(user.id)
+    if not access['allowed']:
+        return jsonify({
+            'error': 'upgrade_required',
+            'message': 'AI Market Insights are available on Pro and Elite plans.',
+            'tier': access['tier'],
+        }), 403
+
     symbol = symbol.upper()
 
     try:

@@ -48,6 +48,8 @@ def get_subscription():
         'chat_used_today': used,
         'ai_suite_access': plan['ai_suite'],
         'can_send_chat': limit is None or used < limit,
+        'trial_end': sub.get('trial_end'),
+        'current_period_end': sub.get('current_period_end'),
     })
 
 
