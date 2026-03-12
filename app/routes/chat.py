@@ -1,23 +1,22 @@
 import logging
 import os
-import time
 import re
 import json
 from datetime import datetime, timezone, timedelta
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response, stream_with_context
 from flask_socketio import emit
 
 from app.extensions import socketio
 from app.services.firebase_service import get_firestore_client
 from app.services.services import authenticate_request, yahoo_finance_api, news_api
+from app.services.cache_service import cache_get, cache_set
+from app.services.ai_gateway import generate as ai_generate
 
 logger = logging.getLogger(__name__)
 
 chat_bp = Blueprint('chat', __name__, url_prefix='/api')
 
-# AI Analysis cache - 4 hour TTL
-_ai_analysis_cache = {}
 ANALYSIS_CACHE_TTL = 4 * 60 * 60
 
 
@@ -38,7 +37,9 @@ def chat_endpoint():
             return jsonify({'error': 'Message cannot be empty'}), 400
 
         # --- Subscription gate: daily chat limit ---
-        from app.services.subscription_service import check_and_increment_chat_usage
+        from app.services.subscription_service import (
+            check_and_increment_chat_usage, check_hourly_rate_limit
+        )
         usage = check_and_increment_chat_usage(user.id)
         if not usage['allowed']:
             limit = usage['limit']
@@ -65,6 +66,16 @@ def chat_endpoint():
                     'tier': tier,
                     'upgrade_required': True,
                 },
+            }), 429
+
+        # --- Hourly burst limit (60/hr, all tiers) ---
+        hourly = check_hourly_rate_limit(user.id, limit=60)
+        if not hourly['allowed']:
+            return jsonify({
+                'success': False,
+                'error': 'hourly_limit_reached',
+                'message': 'You have sent too many messages this hour. Please wait a few minutes.',
+                'usage': {'used': hourly['used'], 'limit': hourly['limit']},
             }), 429
 
         from app.services.chat_service import chat_service
@@ -98,6 +109,76 @@ def chat_endpoint():
             'error': 'Internal server error',
             'response': 'I\'m sorry, I encountered an error. Please try again.'
         }), 500
+
+
+@chat_bp.route('/chat/stream', methods=['POST'])
+def chat_stream():
+    """
+    Streaming chat endpoint — returns Server-Sent Events (text/event-stream).
+
+    Each event is:  data: {"chunk": "..."}\n\n
+    Final event is: data: {"done": true, "usage": {...}}\n\n
+    Error event is: data: {"error": "..."}\n\n
+
+    The client reads chunks and appends them to the message bubble in real time.
+    """
+    try:
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.get_json(silent=True) or {}
+        message = (data.get('message') or '').strip()
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+
+        from app.services.subscription_service import (
+            check_and_increment_chat_usage, check_hourly_rate_limit
+        )
+        usage = check_and_increment_chat_usage(user.id)
+        if not usage['allowed']:
+            limit = usage['limit']
+            return jsonify({
+                'success': False,
+                'error': 'daily_limit_reached',
+                'message': (
+                    f"You've used all {limit} free AI messages for today. "
+                    "Upgrade to Pro for 50 messages/day, or Elite for unlimited access."
+                ),
+            }), 429
+
+        hourly = check_hourly_rate_limit(user.id, limit=60)
+        if not hourly['allowed']:
+            return jsonify({
+                'success': False,
+                'error': 'hourly_limit_reached',
+                'message': 'You have sent too many messages this hour. Please wait a few minutes.',
+            }), 429
+
+        from app.services.chat_service import chat_service
+
+        def generate():
+            try:
+                for chunk in chat_service.process_message_stream(user.id, message):
+                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'usage': {'used': usage['used'], 'limit': usage['limit'], 'tier': usage['tier']}})}\n\n"
+            except Exception as e:
+                logger.error("SSE stream error for user %s: %s", user.id, e)
+                yield f"data: {json.dumps({'error': str(e)[:100]})}\n\n"
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',   # disable nginx buffering
+                'Connection': 'keep-alive',
+            },
+        )
+
+    except Exception as e:
+        logger.error("chat_stream endpoint error: %s", e)
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @chat_bp.route('/chat/history', methods=['GET'])
@@ -249,16 +330,12 @@ def get_stock_ai_analysis(symbol):
             }), 403
 
         symbol = symbol.upper()
-        current_time = time.time()
+        cache_key = f'ai_analysis_{symbol}'
 
-        if symbol in _ai_analysis_cache:
-            cached = _ai_analysis_cache[symbol]
-            cache_age = current_time - cached['timestamp']
-            if cache_age < ANALYSIS_CACHE_TTL:
-                cached_data = cached['data'].copy()
-                cached_data['cached'] = True
-                cached_data['cache_age_minutes'] = int(cache_age / 60)
-                return jsonify(cached_data)
+        cached = cache_get(cache_key, ANALYSIS_CACHE_TTL)
+        if cached is not None:
+            cached['cached'] = True
+            return jsonify(cached)
 
         stock_data = yahoo_finance_api.get_real_time_data(symbol)
         if not stock_data:
@@ -298,15 +375,10 @@ def get_stock_ai_analysis(symbol):
             'symbol': symbol,
             'analysis': result.get('analysis'),
             'cached': False,
-            'cache_age_minutes': 0,
             'generated_at': datetime.now().isoformat()
         }
 
-        _ai_analysis_cache[symbol] = {
-            'data': response_data,
-            'timestamp': current_time
-        }
-
+        cache_set(cache_key, response_data, ANALYSIS_CACHE_TTL)
         return jsonify(response_data)
 
     except Exception as e:
@@ -340,7 +412,6 @@ def get_stock_ai_insight(symbol):
     symbol = symbol.upper()
 
     try:
-        import requests as http_requests
         import yfinance as yf
 
         logger.info("[AI Insight] Starting 7-day overview for %s", symbol)
@@ -389,29 +460,13 @@ Recent headlines: {news_context if news_context else "No recent news available"}
 
 Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
 
-        logger.debug("[AI Insight] Calling Grok for %s", symbol)
+        logger.debug("[AI Insight] Calling AI gateway for %s", symbol)
 
-        xai_api_key = os.environ.get('XAI_API_KEY')
-        if not xai_api_key:
-            logger.warning("[AI Insight] XAI_API_KEY not configured")
+        try:
+            insight_text = ai_generate(prompt, max_tokens=300, temperature=0.5, endpoint='ai_insight')
+        except Exception as gw_err:
+            logger.warning("[AI Insight] Gateway failed for %s: %s", symbol, gw_err)
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
-
-        grok_resp = http_requests.post(
-            'https://api.x.ai/v1/chat/completions',
-            headers={
-                'Authorization': f'Bearer {xai_api_key}',
-                'Content-Type': 'application/json'
-            },
-            json={
-                'model': 'grok-3-fast',
-                'messages': [{'role': 'user', 'content': prompt}],
-                'temperature': 0.5,
-                'max_tokens': 300
-            },
-            timeout=30
-        )
-        grok_resp.raise_for_status()
-        insight_text = grok_resp.json()['choices'][0]['message']['content'].strip()
 
         if insight_text:
             logger.info("[AI Insight] Generated for %s: %s...", symbol, insight_text[:80])
