@@ -1869,6 +1869,10 @@ const DashboardRedesign = () => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         setUserMenuOpen(false);
+                                        if (!subscriptionInfo || subscriptionInfo.tier === 'free') {
+                                            window.showUpgradeModal && window.showUpgradeModal('Upgrade to manage your subscription.');
+                                            return;
+                                        }
                                         const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                                         try {
                                             const user = window.firebaseAuth?.currentUser;
@@ -1881,8 +1885,6 @@ const DashboardRedesign = () => {
                                             const data = await res.json();
                                             if (data.portal_url) {
                                                 window.location.href = data.portal_url;
-                                            } else if (subscriptionInfo?.tier === 'free') {
-                                                window.showUpgradeModal && window.showUpgradeModal('Upgrade to manage your subscription.');
                                             } else if (window.showNotification) {
                                                 window.showNotification('Could not open billing portal. Please try again.', 'error');
                                             }
