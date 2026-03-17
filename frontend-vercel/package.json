@@ -4,6 +4,7 @@
   "description": "Frontend for Stock Watchlist Pro - A modern stock tracking application",
   "main": "index.html",
   "scripts": {
+    "build": "node build.js",
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
@@ -17,10 +18,10 @@
   "author": "Elvin",
   "license": "MIT",
   "devDependencies": {
-    "vercel": "^32.0.0"
+    "vercel": "^32.0.0",
+    "esbuild": "^0.25.0"
   },
   "dependencies": {
-    "@babel/standalone": "^7.28.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^2.12.7",
