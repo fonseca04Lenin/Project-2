@@ -38,6 +38,8 @@ const DashboardRedesign = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [searchNoResults, setSearchNoResults] = useState(false);
+    const [toolsOpen, setToolsOpen] = useState(false);
+    const [marketsOpen, setMarketsOpen] = useState(false);
     const searchDebounceRef = useRef(null);
     const searchInputRef = useRef(null);
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -745,6 +747,19 @@ const DashboardRedesign = () => {
         };
     }, [userMenuOpen]);
 
+    // Close nav dropdowns when clicking outside
+    useEffect(() => {
+        if (!toolsOpen && !marketsOpen) return;
+        const handle = (e) => {
+            if (!e.target.closest('.hn-dropdown-wrapper')) {
+                setToolsOpen(false);
+                setMarketsOpen(false);
+            }
+        };
+        document.addEventListener('click', handle);
+        return () => document.removeEventListener('click', handle);
+    }, [toolsOpen, marketsOpen]);
+
     // Periodic watchlist refresh to keep cache updated (controlled by autoRefresh preference)
     useEffect(() => {
         if (!preferences.autoRefresh) return;
@@ -1296,19 +1311,9 @@ const DashboardRedesign = () => {
     };
 
     const handleAddFirstStock = () => {
-        // Scroll to search bar smoothly
-        const searchBar = document.querySelector('.quick-search-bar');
-        if (searchBar) {
-            searchBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (searchInputRef.current) {
+            searchInputRef.current.focus();
         }
-        
-        // Focus the search input after a short delay to ensure scroll completes
-        setTimeout(() => {
-            if (searchInputRef.current) {
-                searchInputRef.current.focus();
-                searchInputRef.current.click();
-            }
-        }, 300);
     };
 
     const onSearchInputChange = (value) => {
@@ -1669,100 +1674,146 @@ const DashboardRedesign = () => {
             )}
             {/* Top Navigation Bar */}
             <header className="dashboard-header">
-                <div className="header-left">
-                    <h1 className="logo">
-                        <i className="fas fa-chart-line"></i> AI Stock Sage
-                    </h1>
-                    <nav className="nav-tabs">
-                        <button 
-                            className={`nav-tab ${activeView === 'overview' ? 'active' : ''}`}
-                            onClick={() => setActiveView('overview')}
-                        >
-                            <i className="fas fa-chart-area"></i>
-                            <span>Overview</span>
-                        </button>
-                        <button 
-                            className={`nav-tab ${activeView === 'watchlist' ? 'active' : ''}`}
-                            onClick={() => setActiveView('watchlist')}
-                        >
-                            <i className="fas fa-briefcase"></i>
-                            <span>Watchlist</span>
-                        </button>
-                        <button
-                            className={`nav-tab ${activeView === 'news' ? 'active' : ''}`}
-                            onClick={() => setActiveView('news')}
-                        >
-                            <i className="fas fa-bullhorn"></i>
-                            <span>News</span>
-                        </button>
-                        <button
-                            className={`nav-tab ${activeView === 'whatswhat' ? 'active' : ''}`}
-                            onClick={() => setActiveView('whatswhat')}
-                        >
-                            <i className="fas fa-fire"></i>
-                            <span>What's Hot</span>
-                        </button>
-                        <button
-                            className={`nav-tab ${activeView === 'intelligence' ? 'active' : ''}`}
-                            onClick={() => setActiveView('intelligence')}
-                        >
-                            <i className="fas fa-chart-pie"></i>
-                            <span>Intelligence</span>
-                        </button>
-                        <button
-                            className={`nav-tab ${activeView === 'map' ? 'active' : ''}`}
-                            onClick={() => setActiveView('map')}
-                        >
-                            <i className="fas fa-map-marker-alt"></i>
-                            <span>Map</span>
-                        </button>
-                        <button
-                            className={`nav-tab ${activeView === 'assistant' ? 'active' : ''}`}
-                            onClick={() => setActiveView('assistant')}
-                        >
-                            <i className="fas fa-comments"></i>
-                            <span>Assistant</span>
-                        </button>
-                        <button
-                            className={`nav-tab ${activeView === 'aisuite' ? 'active' : ''}`}
-                            onClick={() => setActiveView('aisuite')}
-                        >
-                            <i className="fas fa-brain"></i>
-                            <span>AI Suite</span>
-                        </button>
-                        <button
-                            className={`nav-tab ${activeView === 'paper' ? 'active' : ''}`}
-                            onClick={() => setActiveView('paper')}
-                        >
-                            <i className="fas fa-flask"></i>
-                            <span>Paper Trade</span>
-                        </button>
-                    </nav>
+                {/* Logo + Search */}
+                <div className="header-brand">
+                    <div className="header-logo">
+                        <i className="fas fa-chart-line logo-icon"></i>
+                        <span className="logo-name">AI Stock Sage</span>
+                    </div>
+                    <div className="header-search-wrap">
+                        <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} hs-icon`}></i>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Search stocks, ETFs..."
+                                className="hs-input"
+                                value={searchQuery}
+                                onChange={(e) => onSearchInputChange(e.target.value)}
+                                onKeyDown={handleKeyPress}
+                                onBlur={() => setTimeout(() => {
+                                    setSuggestions([]);
+                                    setHighlightedIndex(-1);
+                                    setSearchNoResults(false);
+                                }, 150)}
+                                onFocus={() => { if (searchQuery.trim()) onSearchInputChange(searchQuery); }}
+                                aria-autocomplete="list"
+                                aria-expanded={suggestions.length > 0 || searchNoResults}
+                                autoComplete="off"
+                            />
+                            {searchQuery.trim() && (suggestions.length > 0 || searchNoResults) && (
+                                <div className="search-suggestions" role="listbox">
+                                    {suggestions.length > 0 ? suggestions.map((s, idx) => {
+                                        const q = searchQuery.trim().toUpperCase();
+                                        const sym = s.symbol || '';
+                                        const nm = s.name || '';
+                                        const highlightText = (text, query) => {
+                                            const i = text.toUpperCase().indexOf(query);
+                                            if (i === -1) return React.createElement('span', null, text);
+                                            return React.createElement(React.Fragment, null,
+                                                text.slice(0, i),
+                                                React.createElement('span', { className: 'match-highlight' }, text.slice(i, i + query.length)),
+                                                text.slice(i + query.length)
+                                            );
+                                        };
+                                        return React.createElement('div',
+                                            {
+                                                key: `${sym}-${idx}`,
+                                                role: 'option',
+                                                className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                                onMouseEnter: () => setHighlightedIndex(idx),
+                                                onMouseDown: (e) => e.preventDefault(),
+                                                onClick: () => {
+                                                    window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
+                                                    setSuggestions([]);
+                                                    setHighlightedIndex(-1);
+                                                    setSearchQuery('');
+                                                    setSearchNoResults(false);
+                                                }
+                                            },
+                                            React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
+                                            React.createElement('span', { className: 's-name' }, highlightText(nm, q))
+                                        );
+                                    }) : React.createElement('div', { className: 'search-no-results' },
+                                        React.createElement('i', { className: 'fas fa-search' }),
+                                        React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-                <div className="header-right">
-                    {/* Market Status Indicator */}
+                {/* Center Nav */}
+                <nav className="header-nav">
+                    <button
+                        className={`hn-item ${activeView === 'overview' ? 'active' : ''}`}
+                        onClick={() => setActiveView('overview')}
+                    >Overview</button>
+                    <button
+                        className={`hn-item ${activeView === 'watchlist' ? 'active' : ''}`}
+                        onClick={() => setActiveView('watchlist')}
+                    >Watchlist</button>
+                    <button
+                        className={`hn-item ${activeView === 'intelligence' ? 'active' : ''}`}
+                        onClick={() => setActiveView('intelligence')}
+                    >Intelligence</button>
+                    <div className="hn-dropdown-wrapper">
+                        <button
+                            className={`hn-item hn-dropdown-btn ${['news', 'whatswhat', 'map'].includes(activeView) ? 'active' : ''}`}
+                            onClick={() => { setMarketsOpen(v => !v); setToolsOpen(false); }}
+                        >
+                            Markets <i className={`fas fa-chevron-down hn-chevron ${marketsOpen ? 'hn-chevron-open' : ''}`}></i>
+                        </button>
+                        {marketsOpen && (
+                            <div className="hn-dropdown">
+                                <button className="hn-dropdown-item" onClick={() => { setActiveView('news'); setMarketsOpen(false); }}>
+                                    <i className="fas fa-newspaper"></i> News
+                                </button>
+                                <button className="hn-dropdown-item" onClick={() => { setActiveView('whatswhat'); setMarketsOpen(false); }}>
+                                    <i className="fas fa-fire"></i> What's Hot
+                                </button>
+                                <button className="hn-dropdown-item" onClick={() => { setActiveView('map'); setMarketsOpen(false); }}>
+                                    <i className="fas fa-map"></i> Map
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="hn-dropdown-wrapper">
+                        <button
+                            className={`hn-item hn-dropdown-btn ${['aisuite', 'paper'].includes(activeView) ? 'active' : ''}`}
+                            onClick={() => { setToolsOpen(v => !v); setMarketsOpen(false); }}
+                        >
+                            Tools <i className={`fas fa-chevron-down hn-chevron ${toolsOpen ? 'hn-chevron-open' : ''}`}></i>
+                        </button>
+                        {toolsOpen && (
+                            <div className="hn-dropdown">
+                                <button className="hn-dropdown-item" onClick={() => { setActiveView('aisuite'); setToolsOpen(false); }}>
+                                    <i className="fas fa-brain"></i> AI Suite
+                                </button>
+                                <button className="hn-dropdown-item" onClick={() => { setActiveView('paper'); setToolsOpen(false); }}>
+                                    <i className="fas fa-flask"></i> Paper Trading
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </nav>
+                {/* Right Actions */}
+                <div className="header-actions">
+                    <button className="assistant-cta-btn" onClick={() => setActiveView('assistant')}>
+                        <i className="fas fa-robot"></i>
+                        <span>Assistant</span>
+                    </button>
                     <div className="market-status-indicator">
                         <div className={`market-status-dot ${marketStatus.isOpen ? 'open' : 'closed'}`}></div>
-                        <span className="market-status-text">{marketStatus.status}</span>
+                        <span className="market-status-text">{marketStatus.isOpen ? 'Markets Open' : 'Markets Closed'}</span>
                     </div>
-                    
-                    {/* Last Update Indicator */}
-                    {lastUpdate && (
-                        <div className="last-update-indicator">
-                            <i className="fas fa-clock"></i>
-                            <span className="update-time">
-                                Updated {formatTimeAgo(lastUpdate)}
-                            </span>
-                        </div>
-                    )}
                     <div className="user-menu-wrapper">
-                        <button 
+                        <button
                             ref={userMenuBtnRef}
                             className="user-menu-btn"
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                         >
                             <i className="fas fa-user-circle"></i>
-                            <span>Account</span>
                             <i className={`fas fa-chevron-down ${userMenuOpen ? 'open' : ''}`}></i>
                         </button>
                         {userMenuOpen && ReactDOM.createPortal(
@@ -1945,69 +1996,6 @@ const DashboardRedesign = () => {
                 </div>
             </header>
 
-            {/* Quick Search Bar - Always Visible */}
-            <div className="quick-search-bar">
-                <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} search-icon`}></i>
-                <div className="search-input-wrapper" style={{ position: 'relative', flex: 1 }}>
-                    <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="Search stocks, ETFs, companies..."
-                        className="search-input"
-                        value={searchQuery}
-                        onChange={(e) => onSearchInputChange(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        onBlur={() => setTimeout(() => {
-                            setSuggestions([]);
-                            setHighlightedIndex(-1);
-                            setSearchNoResults(false);
-                        }, 150)}
-                        onFocus={() => { if (searchQuery.trim()) onSearchInputChange(searchQuery); }}
-                        aria-autocomplete="list"
-                        aria-expanded={suggestions.length > 0 || searchNoResults}
-                        autoComplete="off"
-                    />
-                    {searchQuery.trim() && (suggestions.length > 0 || searchNoResults) && (
-                        <div className="search-suggestions" role="listbox">
-                            {suggestions.length > 0 ? suggestions.map((s, idx) => {
-                                const q = searchQuery.trim().toUpperCase();
-                                const sym = s.symbol || '';
-                                const nm = s.name || '';
-                                const highlightText = (text, query) => {
-                                    const i = text.toUpperCase().indexOf(query);
-                                    if (i === -1) return React.createElement('span', null, text);
-                                    return React.createElement(React.Fragment, null,
-                                        text.slice(0, i),
-                                        React.createElement('span', { className: 'match-highlight' }, text.slice(i, i + query.length)),
-                                        text.slice(i + query.length)
-                                    );
-                                };
-                                return React.createElement('div',
-                                    {
-                                        key: `${sym}-${idx}`,
-                                        role: 'option',
-                                        className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
-                                        onMouseEnter: () => setHighlightedIndex(idx),
-                                        onMouseDown: (e) => e.preventDefault(),
-                                        onClick: () => {
-                                            window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
-                                            setSuggestions([]);
-                                            setHighlightedIndex(-1);
-                                            setSearchQuery('');
-                                            setSearchNoResults(false);
-                                        }
-                                    },
-                                    React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
-                                    React.createElement('span', { className: 's-name' }, highlightText(nm, q))
-                                );
-                            }) : React.createElement('div', { className: 'search-no-results' },
-                                React.createElement('i', { className: 'fas fa-search' }),
-                                React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
 
             {/* Main Content Area */}
             <div className="dashboard-content">
