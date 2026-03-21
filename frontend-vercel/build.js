@@ -24,6 +24,7 @@ esbuild.build({
     entryPoints: entries,
     outdir: 'dist/src',
     bundle: false,          // no bundling — React stays as CDN global
+    format: 'iife',         // wrap each file in IIFE to prevent const redeclaration across scripts
     minify: true,
     jsx: 'transform',
     jsxFactory: 'React.createElement',
