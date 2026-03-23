@@ -85,7 +85,7 @@ def create_checkout():
     except Exception as e:
         import traceback
         logger.error("Checkout error for %s: %s\n%s", user.id, e, traceback.format_exc())
-        return jsonify({'error': 'Failed to create checkout session', 'detail': str(e)}), 500
+        return jsonify({'error': 'Failed to create checkout session'}), 500
 
 
 @billing_bp.route('/portal', methods=['POST'])
@@ -104,7 +104,7 @@ def customer_portal():
     except Exception as e:
         import traceback
         logger.error("Portal error for %s: %s\n%s", user.id, e, traceback.format_exc())
-        return jsonify({'error': 'Failed to create portal session', 'detail': str(e)}), 500
+        return jsonify({'error': 'Failed to create portal session'}), 500
 
 
 @billing_bp.route('/webhook', methods=['POST'])

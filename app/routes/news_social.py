@@ -1,4 +1,5 @@
 import logging
+import os
 
 from flask import Blueprint, request, jsonify
 
@@ -7,6 +8,15 @@ from app.services.services import news_api, stocktwits_api
 logger = logging.getLogger(__name__)
 
 news_social_bp = Blueprint('news_social', __name__, url_prefix='/api')
+
+_ALLOWED_ORIGINS = {
+    "https://aistocksage.com",
+    "https://www.aistocksage.com",
+    "https://stock-watchlist-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5000",
+}
 
 
 @news_social_bp.route('/news/market')
@@ -44,7 +54,7 @@ def get_stock_stocktwits(symbol):
     if request.method == 'OPTIONS':
         response = jsonify()
         origin = request.headers.get('Origin', '')
-        if origin:
+        if origin and origin in _ALLOWED_ORIGINS:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
@@ -85,7 +95,7 @@ def get_stock_sentiment(symbol):
     if request.method == 'OPTIONS':
         response = jsonify()
         origin = request.headers.get('Origin', '')
-        if origin:
+        if origin and origin in _ALLOWED_ORIGINS:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
@@ -119,7 +129,7 @@ def get_trending_stocktwits():
     if request.method == 'OPTIONS':
         response = jsonify()
         origin = request.headers.get('Origin', '')
-        if origin:
+        if origin and origin in _ALLOWED_ORIGINS:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'

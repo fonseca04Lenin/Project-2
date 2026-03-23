@@ -353,47 +353,6 @@ def chat_status():
         }), 500
 
 
-@chat_bp.route('/chat/test-grok', methods=['GET'])
-def test_grok_api():
-    """Test Grok (xAI) API directly"""
-    try:
-        user = authenticate_request()
-        if not user:
-            return jsonify({'error': 'Authentication required'}), 401
-
-        from app.services.chat_service import chat_service
-
-        if not chat_service.xai_api_key:
-            return jsonify({
-                'success': False,
-                'error': 'XAI_API_KEY not configured',
-                'grok_available': False
-            })
-
-        data = chat_service._call_grok_api(
-            [{"role": "user", "content": "Say 'Hello, Grok API is working!'"}],
-            max_tokens=50
-        )
-        result = data['choices'][0]['message'].get('content', '')
-
-        return jsonify({
-            'success': True,
-            'grok_available': True,
-            'test_response': result,
-            'message': 'Grok API is working correctly'
-        })
-
-    except Exception as e:
-        logger.error("Grok test error: %s", e)
-        import traceback
-        logger.error("Full traceback: %s", traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'grok_available': False,
-            'message': 'Grok API test failed'
-        }), 500
-
 
 @chat_bp.route('/stock/<symbol>/ai-analysis', methods=['GET'])
 def get_stock_ai_analysis(symbol):
@@ -582,7 +541,7 @@ Write plain text only. No formatting, no bullet points, no JSON. Complete your s
 
         return jsonify({
             'symbol': symbol,
-            'ai_insight': f'Error: {error_msg[:100]}'
+            'ai_insight': 'Unable to generate insight at this time.'
         }), 200
 
 
