@@ -6759,11 +6759,30 @@ const AIAssistantView = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [rateLimitInfo, setRateLimitInfo] = useState(null);
     const [showInfoModal, setShowInfoModal] = useState(false);
+
+    // Thread state
+    const [threads, setThreads] = useState([]);
+    const [currentThreadId, setCurrentThreadId] = useState(null);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [renamingThreadId, setRenamingThreadId] = useState(null);
+    const [renameValue, setRenameValue] = useState('');
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
     const messagesEndRef = useRef(null);
+    const renameInputRef = useRef(null);
+
+    const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
+
+    useEffect(() => {
+        if (renamingThreadId && renameInputRef.current) {
+            renameInputRef.current.focus();
+            renameInputRef.current.select();
+        }
+    }, [renamingThreadId]);
 
     useEffect(() => {
         const hasVisited = localStorage.getItem('ai_assistant_visited');
@@ -6774,17 +6793,124 @@ const AIAssistantView = () => {
     }, []);
 
     useEffect(() => {
-        // Set up authentication listener
         if (window.firebaseAuth) {
-            const unsubscribe = window.firebaseAuth.onAuthStateChanged((user) => {
+            const unsubscribe = window.firebaseAuth.onAuthStateChanged(async (user) => {
                 setCurrentUser(user);
-                if (!user) {
+                if (user) {
+                    await loadThreads(user);
+                } else {
                     setMessages([]);
+                    setThreads([]);
+                    setCurrentThreadId(null);
                 }
             });
             return () => unsubscribe();
         }
     }, []);
+
+    const getHeaders = async (user) => {
+        const u = user || currentUser;
+        const token = await u.getIdToken();
+        return { 'Authorization': `Bearer ${token}`, 'X-User-ID': u.uid, 'Content-Type': 'application/json' };
+    };
+
+    const loadThreads = async (user) => {
+        try {
+            const headers = await getHeaders(user);
+            const res = await fetch(`${API_BASE}/api/chat/threads`, { headers });
+            const data = await res.json();
+            if (data.success) {
+                const list = data.threads || [];
+                setThreads(list);
+                if (list.length > 0) {
+                    await switchThread(list[0].thread_id, user);
+                } else {
+                    await createThread(user);
+                }
+            }
+        } catch (e) { console.error('loadThreads error', e); }
+    };
+
+    const createThread = async (user) => {
+        try {
+            const headers = await getHeaders(user);
+            const res = await fetch(`${API_BASE}/api/chat/threads`, {
+                method: 'POST', headers, body: JSON.stringify({ title: 'New Chat' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setThreads(prev => [data.thread, ...prev]);
+                setCurrentThreadId(data.thread.thread_id);
+                setMessages([]);
+            }
+        } catch (e) { console.error('createThread error', e); }
+    };
+
+    const switchThread = async (threadId, user) => {
+        setCurrentThreadId(threadId);
+        setLoadingHistory(true);
+        try {
+            const headers = await getHeaders(user);
+            const res = await fetch(`${API_BASE}/api/chat/threads/${threadId}/history`, { headers });
+            const data = await res.json();
+            if (data.success) {
+                const msgs = (data.history || []).map((m, i) => ({
+                    id: i,
+                    type: m.role === 'user' ? 'user' : 'ai',
+                    content: m.content,
+                    timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+                }));
+                setMessages(msgs);
+            }
+        } catch (e) { console.error('switchThread error', e); }
+        finally { setLoadingHistory(false); }
+    };
+
+    const deleteThread = async (threadId, e) => {
+        e.stopPropagation();
+        try {
+            const headers = await getHeaders();
+            await fetch(`${API_BASE}/api/chat/threads/${threadId}`, { method: 'DELETE', headers });
+            const newList = threads.filter(t => t.thread_id !== threadId);
+            setThreads(newList);
+            if (currentThreadId === threadId) {
+                if (newList.length > 0) await switchThread(newList[0].thread_id);
+                else await createThread();
+            }
+        } catch (e) { console.error('deleteThread error', e); }
+    };
+
+    const startRename = (threadId, currentTitle, e) => {
+        e.stopPropagation();
+        setRenamingThreadId(threadId);
+        setRenameValue(currentTitle);
+    };
+
+    const commitRename = async (threadId) => {
+        const title = renameValue.trim();
+        setRenamingThreadId(null);
+        if (!title) return;
+        try {
+            const headers = await getHeaders();
+            await fetch(`${API_BASE}/api/chat/threads/${threadId}`, {
+                method: 'PATCH', headers, body: JSON.stringify({ title })
+            });
+            setThreads(prev => prev.map(t => t.thread_id === threadId ? { ...t, title } : t));
+        } catch (e) { console.error('renameThread error', e); }
+    };
+
+    const formatThreadDate = (iso) => {
+        if (!iso) return '';
+        try {
+            const d = new Date(iso);
+            const now = new Date();
+            const diffDays = Math.floor((now - d) / 86400000);
+            if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        } catch { return ''; }
+    };
 
     const showError = (message) => {
         const errorMessage = {
@@ -6800,51 +6926,46 @@ const AIAssistantView = () => {
         const message = inputValue.trim();
         if (!message || isTyping || !currentUser) return;
 
-        // Check rate limit
         if (rateLimitInfo && !rateLimitInfo.can_send) {
             showError('Rate limit exceeded. Please wait before sending another message.');
             return;
         }
 
-        // Clear input and add user message
+        const isFirstMessage = messages.length === 0;
         setInputValue('');
-        const userMessage = {
-            id: Date.now(),
-            type: 'user',
-            content: message,
-            timestamp: new Date()
-        };
-        setMessages(prev => [...prev, userMessage]);
+        setMessages(prev => [...prev, { id: Date.now(), type: 'user', content: message, timestamp: new Date() }]);
         setIsTyping(true);
 
         try {
-            // Get auth headers
-            const token = await currentUser.getIdToken();
-            const API_BASE_URL = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-
-            const response = await fetch(`${API_BASE_URL}/api/chat`, {
+            const headers = await getHeaders();
+            const response = await fetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'X-User-ID': currentUser.uid,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ message })
+                headers,
+                body: JSON.stringify({ message, thread_id: currentThreadId })
             });
 
             const data = await response.json();
             setIsTyping(false);
 
             if (data.success) {
-                const aiMessage = {
-                    id: Date.now() + 1,
-                    type: 'ai',
-                    content: data.response,
-                    timestamp: new Date()
-                };
-                setMessages(prev => [...prev, aiMessage]);
+                setMessages(prev => [...prev, { id: Date.now() + 1, type: 'ai', content: data.response, timestamp: new Date() }]);
 
-                // Update rate limit info
+                // Auto-title thread from first message
+                if (isFirstMessage && currentThreadId) {
+                    const autoTitle = message.length > 40 ? message.slice(0, 40) + '...' : message;
+                    setThreads(prev => prev.map(t =>
+                        t.thread_id === currentThreadId && t.title === 'New Chat'
+                            ? { ...t, title: autoTitle, preview: message.slice(0, 80), last_updated: new Date().toISOString() }
+                            : t
+                    ));
+                } else if (currentThreadId) {
+                    setThreads(prev => prev.map(t =>
+                        t.thread_id === currentThreadId
+                            ? { ...t, preview: message.slice(0, 80), last_updated: new Date().toISOString() }
+                            : t
+                    ));
+                }
+
                 if (data.rate_limit) {
                     setRateLimitInfo(data.rate_limit);
                 }
@@ -6884,15 +7005,138 @@ const AIAssistantView = () => {
         { icon: "fa-balance-scale", text: "Compare AAPL vs MSFT" }
     ];
 
+    const currentThread = threads.find(t => t.thread_id === currentThreadId);
+
     return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            maxWidth: '900px',
-            margin: '0 auto',
-            padding: '2rem'
-        }}>
+        <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+
+            {/* ── Thread Sidebar ── */}
+            <div style={{
+                width: sidebarOpen ? '220px' : '48px',
+                minWidth: sidebarOpen ? '220px' : '48px',
+                background: 'rgba(14, 16, 22, 0.95)',
+                borderRight: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'width 0.2s ease, min-width 0.2s ease',
+                overflow: 'hidden',
+                flexShrink: 0,
+            }}>
+                {/* Sidebar header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                    <button
+                        onClick={() => createThread()}
+                        title="New Chat"
+                        style={{
+                            flex: sidebarOpen ? 1 : 0,
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            background: 'rgba(0,217,36,0.12)', border: '1px solid rgba(0,217,36,0.25)',
+                            borderRadius: '6px', color: '#00D924', fontSize: '12px', fontWeight: '600',
+                            padding: sidebarOpen ? '6px 10px' : '6px', cursor: 'pointer',
+                            whiteSpace: 'nowrap', overflow: 'hidden', justifyContent: 'center',
+                        }}
+                    >
+                        <i className="fas fa-plus"></i>
+                        {sidebarOpen && <span>New Chat</span>}
+                    </button>
+                    <button
+                        onClick={() => setSidebarOpen(o => !o)}
+                        title={sidebarOpen ? 'Collapse' : 'Expand'}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '6px', borderRadius: '4px', fontSize: '11px', flexShrink: 0 }}
+                    >
+                        <i className={`fas fa-chevron-${sidebarOpen ? 'left' : 'right'}`}></i>
+                    </button>
+                </div>
+
+                {/* Thread list */}
+                {sidebarOpen && (
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+                        {threads.length === 0 && (
+                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', textAlign: 'center', padding: '20px 12px', margin: 0 }}>
+                                No conversations yet
+                            </p>
+                        )}
+                        {threads.map(thread => (
+                            <div
+                                key={thread.thread_id}
+                                onClick={() => thread.thread_id !== currentThreadId && switchThread(thread.thread_id)}
+                                style={{
+                                    display: 'flex', alignItems: 'flex-start', gap: '6px',
+                                    padding: '8px 10px', cursor: 'pointer', borderRadius: '6px',
+                                    margin: '1px 6px', minHeight: '44px',
+                                    background: thread.thread_id === currentThreadId ? 'rgba(0,217,36,0.08)' : 'transparent',
+                                    borderLeft: thread.thread_id === currentThreadId ? '2px solid #00D924' : '2px solid transparent',
+                                    transition: 'background 0.15s',
+                                }}
+                                onMouseEnter={e => { if (thread.thread_id !== currentThreadId) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                                onMouseLeave={e => { if (thread.thread_id !== currentThreadId) e.currentTarget.style.background = 'transparent'; }}
+                            >
+                                {renamingThreadId === thread.thread_id ? (
+                                    <input
+                                        ref={renameInputRef}
+                                        value={renameValue}
+                                        onChange={e => setRenameValue(e.target.value)}
+                                        onBlur={() => commitRename(thread.thread_id)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') commitRename(thread.thread_id);
+                                            if (e.key === 'Escape') setRenamingThreadId(null);
+                                        }}
+                                        onClick={e => e.stopPropagation()}
+                                        style={{
+                                            width: '100%', background: 'rgba(255,255,255,0.08)',
+                                            border: '1px solid #00D924', borderRadius: '4px',
+                                            color: '#fff', fontSize: '12px', padding: '3px 6px', outline: 'none'
+                                        }}
+                                    />
+                                ) : (
+                                    <>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: '12px', fontWeight: '500', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.3' }}>
+                                                {thread.title || 'New Chat'}
+                                            </div>
+                                            {thread.preview && (
+                                                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px', lineHeight: '1.3' }}>
+                                                    {thread.preview}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+                                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', whiteSpace: 'nowrap' }}>
+                                                {formatThreadDate(thread.last_updated)}
+                                            </span>
+                                            <div style={{ display: 'flex', gap: '2px' }}>
+                                                <button onClick={e => startRename(thread.thread_id, thread.title || 'New Chat', e)}
+                                                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px 4px', borderRadius: '3px', fontSize: '10px' }}
+                                                    onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                                                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
+                                                    title="Rename"><i className="fas fa-pen"></i></button>
+                                                <button onClick={e => deleteThread(thread.thread_id, e)}
+                                                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px 4px', borderRadius: '3px', fontSize: '10px' }}
+                                                    onMouseEnter={e => e.currentTarget.style.color = '#ff6b6b'}
+                                                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
+                                                    title="Delete"><i className="fas fa-trash"></i></button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Main chat area ── */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                minWidth: 0,
+                maxWidth: '860px',
+                margin: '0 auto',
+                padding: '2rem',
+                overflow: 'hidden',
+            }}>
+
             {/* Header */}
             <div style={{
                 textAlign: 'center',
@@ -6917,7 +7161,7 @@ const AIAssistantView = () => {
                         fontWeight: '700',
                         color: '#fff',
                         marginBottom: '0.5rem'
-                    }}>AI Stock Assistant</h2>
+                    }}>{currentThread && currentThread.title !== 'New Chat' ? currentThread.title : 'AI Stock Assistant'}</h2>
                     <button
                         onClick={() => setShowInfoModal(true)}
                         title="How it works"
@@ -6999,6 +7243,11 @@ const AIAssistantView = () => {
                 flexDirection: 'column',
                 gap: '1rem'
             }}>
+                {loadingHistory && (
+                    <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '13px', padding: '40px 0' }}>
+                        <i className="fas fa-circle-notch fa-spin" style={{ marginRight: '8px' }}></i>Loading conversation...
+                    </div>
+                )}
                 {messages.map((msg) => (
                     <div key={msg.id} style={{
                         display: 'flex',
@@ -7189,6 +7438,7 @@ const AIAssistantView = () => {
                     40% { transform: scale(1); opacity: 1; }
                 }
             `}</style>
+            </div>
         </div>
     );
 };
