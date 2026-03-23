@@ -992,13 +992,11 @@ class ImprovedAlpacaAPI:
             symbols_to_fetch = symbols
 
         if not symbols_to_fetch:
-            print(f"📦 [ALPACA BATCH] All {len(symbols)} symbols from cache")
             return results
 
         # Check circuit breaker
         endpoint_key = "batch_snapshots"
         if self.circuit_breaker.get_state(endpoint_key) == 'OPEN':
-            print(f"🚫 [ALPACA BATCH] Circuit breaker OPEN")
             return results
 
         # Wait for rate limit

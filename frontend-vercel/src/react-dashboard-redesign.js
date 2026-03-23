@@ -910,10 +910,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 }));
                 setWatchlistData(cachedWithFlag);
 
-                // Show notification that cached data is being displayed
-                if (window.showNotification) {
-                    window.showNotification('Loading watchlist from cache...', 'info');
-                }
+
             }
             
             const authHeaders = await getAuthHeaders();
@@ -1168,10 +1165,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 if (cachedData && cachedData.length > 0) {
                     // // console.log('Keeping cached watchlist data due to API error');
                     setWatchlistData(cachedData);
-                    // Show a warning but don't clear the data
-                    if (window.showNotification) {
-                        window.showNotification('Using cached watchlist data. Some information may be outdated.', 'warning');
-                    }
                 } else {
                     setWatchlistData([]);
                 }
@@ -1179,21 +1172,11 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
         } catch (error) {
             // Error loading watchlist
             console.error('Error loading watchlist:', error);
-            console.error('Error details:', {
-                message: error.message,
-                name: error.name,
-                stack: error.stack
-            });
 
             // Don't clear watchlist if we have cached data
             const cachedData = loadWatchlistFromCache();
             if (cachedData && cachedData.length > 0) {
-                // // console.log('Using cached watchlist data due to error');
                 setWatchlistData(cachedData);
-                // Show a warning but don't clear the data
-                if (window.showNotification) {
-                    window.showNotification('Using cached watchlist data due to connection issues.', 'warning');
-                }
             } else {
                 setWatchlistData([]);
                 // Show user-friendly error message only if no cache available

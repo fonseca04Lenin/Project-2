@@ -280,8 +280,6 @@ class WatchlistService:
             # Apply limit to query
             query = query.limit(limit)
             
-            print(f"🔍 Executing Firestore query with limit={limit}...")
-            
             # Use thread pool executor to run Firestore query in separate thread
             # This prevents blocking the eventlet event loop
             watchlist = []
@@ -303,15 +301,12 @@ class WatchlistService:
                 future = executor.submit(execute_query)
                 try:
                     docs = future.result(timeout=15)  # 15 second timeout
-                    print(f"Firestore query completed, retrieved {len(docs)} documents")
                 except FutureTimeoutError:
                     logger.error("Firestore query timed out after 15 seconds")
-                    print(f"Firestore query timed out - returning empty list")
                     future.cancel()  # Try to cancel the future
                     return []
                 except Exception as future_error:
                     logger.error(f"Error waiting for Firestore query: {future_error}")
-                    print(f"Firestore query future error: {future_error}")
                     return []
                 
                 # Process documents
@@ -333,10 +328,8 @@ class WatchlistService:
                         
             except Exception as query_error:
                 logger.error(f"Firestore query error: {query_error}")
-                print(f"Firestore query error: {query_error}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
-                print(f"Traceback: {traceback.format_exc()}")
                 # Return empty list if query fails
                 return []
 
