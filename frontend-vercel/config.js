@@ -2,8 +2,8 @@
 // Backend now deployed on Railway
 
 const CONFIG = {
-    // Backend API base URL - Railway deployment
-    API_BASE_URL: 'https://web-production-2e2e.up.railway.app',
+    // Backend API base URL for local development
+    API_BASE_URL: 'http://localhost:5000',
 
     // App settings
     APP_NAME: 'AI Stock Sage',

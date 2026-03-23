@@ -1,8 +1,27 @@
 // Modern Financial Dashboard Redesign - Concept Prototype
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-const DashboardRedesign = () => {
-    const [activeView, setActiveView] = useState('overview');
+function routeTo(path, state = {}, replace = false) {
+    window.dispatchEvent(new CustomEvent('app:navigate', {
+        detail: { path, state, replace }
+    }));
+}
+
+function getAuthClient() {
+    return window.AppAuth?.getClient ? window.AppAuth.getClient() : null;
+}
+
+function getCurrentUser() {
+    return window.AppAuth?.getCurrentUser ? window.AppAuth.getCurrentUser() : null;
+}
+
+function getAuthHeaders(user = null) {
+    return window.AppAuth?.getAuthHeaders ? window.AppAuth.getAuthHeaders(user) : Promise.resolve({});
+}
+
+const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => {
+    const { currentUser: authCurrentUser } = window.AppAuth.useAuth();
+    const [activeView, setActiveView] = useState(routeView);
     const [watchlistData, setWatchlistData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -80,6 +99,13 @@ const DashboardRedesign = () => {
     const updateStatsRef = useRef({ updates: [], lastMinute: [] });
     const isLoadingRef = useRef(false); // Prevent duplicate watchlist requests
 
+    const handleNavigate = useCallback((view) => {
+        setActiveView(view);
+        if (onRouteChange) {
+            onRouteChange(view);
+        }
+    }, [onRouteChange]);
+
     // Load preferences from localStorage (merge with defaults so new keys are always present)
     const loadPreferences = () => {
         try {
@@ -120,8 +146,14 @@ const DashboardRedesign = () => {
     }, [preferences]);
 
     useEffect(() => {
+        if (routeView && routeView !== activeView) {
+            setActiveView(routeView);
+        }
+    }, [routeView, activeView]);
+
+    useEffect(() => {
         // Handle guest mode on mount
-        if (window.__guestMode && (!window.firebaseAuth || !window.firebaseAuth.currentUser)) {
+        if (window.__guestMode && !authCurrentUser) {
             setIsGuest(true);
             setUserData({ name: 'Guest', email: '' });
             setIsLoading(false);
@@ -144,32 +176,6 @@ const DashboardRedesign = () => {
         // Load watchlist data (this is the main data we need)
         loadWatchlistData();
         
-        // Listen for auth state changes
-        if (window.firebaseAuth) {
-            window.firebaseAuth.onAuthStateChanged((user) => {
-                if (user) {
-                    setUserData({
-                        name: user.displayName || user.email.split('@')[0] || 'Account',
-                        email: user.email || 'user@example.com'
-                    });
-                    // Reload watchlist when user is authenticated
-                    // User authenticated, loading watchlist
-                    loadWatchlistData();
-                    loadSubscriptionInfo();
-                } else {
-                    clearWatchlistCache();
-                    setWatchlistData([]);
-                    setIsLoading(false);
-                    if (window.__guestMode) {
-                        setIsGuest(true);
-                        setUserData({ name: 'Guest', email: '' });
-                    } else {
-                        window.location.href = '/';
-                    }
-                }
-            });
-        }
-        
         // Listen for watchlist changes from chatbot or other sources
         const handleWatchlistChange = () => {
             loadWatchlistData();
@@ -181,11 +187,33 @@ const DashboardRedesign = () => {
             window.removeEventListener('watchlistChanged', handleWatchlistChange);
         };
     }, []);
+
+    useEffect(() => {
+        if (authCurrentUser) {
+            setUserData({
+                name: authCurrentUser.displayName || authCurrentUser.email.split('@')[0] || 'Account',
+                email: authCurrentUser.email || 'user@example.com'
+            });
+            loadWatchlistData();
+            loadSubscriptionInfo();
+            return;
+        }
+
+        clearWatchlistCache();
+        setWatchlistData([]);
+        setIsLoading(false);
+        if (window.__guestMode) {
+            setIsGuest(true);
+            setUserData({ name: 'Guest', email: '' });
+        } else {
+            routeTo('/', {}, true);
+        }
+    }, [authCurrentUser]);
     
     // Load user data from Firebase
     const loadUserData = () => {
-        if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            const user = window.firebaseAuth.currentUser;
+        const user = authCurrentUser;
+        if (user) {
             setUserData({
                 name: user.displayName || user.email.split('@')[0] || 'Account',
                 email: user.email || 'user@example.com'
@@ -196,7 +224,7 @@ const DashboardRedesign = () => {
     const loadSubscriptionInfo = async () => {
         const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
         try {
-            const user = window.firebaseAuth?.currentUser;
+            const user = authCurrentUser;
             if (!user) return;
             const token = await user.getIdToken();
             const res = await fetch(`${API_BASE}/api/billing/subscription`, {
@@ -271,7 +299,7 @@ const DashboardRedesign = () => {
                 // Join watchlist updates room when user is available
                 const setupRooms = async () => {
                     try {
-                        const authHeaders = await window.getAuthHeaders();
+                        const authHeaders = await getAuthHeaders();
                         if (authHeaders['X-User-ID']) {
                             const userId = authHeaders['X-User-ID'];
                             socketRef.current.emit('join_watchlist_updates', { user_id: userId });
@@ -444,7 +472,7 @@ const DashboardRedesign = () => {
         
         const trackView = async () => {
             try {
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await getAuthHeaders();
                 const userId = authHeaders['X-User-ID'];
                 if (userId && symbol) {
                     viewedStocksRef.current.add(symbol);
@@ -467,7 +495,7 @@ const DashboardRedesign = () => {
         
         const untrackView = async () => {
             try {
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await getAuthHeaders();
                 const userId = authHeaders['X-User-ID'];
                 if (userId && symbol) {
                     viewedStocksRef.current.delete(symbol);
@@ -532,7 +560,7 @@ const DashboardRedesign = () => {
         const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
         
         try {
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await getAuthHeaders();
             const response = await fetch(`${API_BASE}/api/search`, {
                 method: 'POST',
                 headers: {
@@ -766,7 +794,7 @@ const DashboardRedesign = () => {
 
         const refreshWatchlist = () => {
             // Only refresh if user is authenticated and we have data
-            if (window.firebaseAuth?.currentUser && watchlistData.length > 0) {
+            if (getCurrentUser() && watchlistData.length > 0) {
                 const timeSinceLastLoad = Date.now() - lastSuccessfulLoadRef.current;
                 if (timeSinceLastLoad > WATCHLIST_REFRESH_INTERVAL) {
                     loadWatchlistData();
@@ -793,7 +821,7 @@ const DashboardRedesign = () => {
             const cacheData = {
                 data: watchlistData,
                 timestamp: Date.now(),
-                userId: window.firebaseAuth?.currentUser?.uid
+                userId: getCurrentUser()?.uid
             };
             localStorage.setItem(WATCHLIST_CACHE_KEY, JSON.stringify(cacheData));
             // // console.log('Saved watchlist to localStorage cache');
@@ -815,7 +843,7 @@ const DashboardRedesign = () => {
             const cacheAge = now - cache.timestamp;
 
             // Check if cache is for current user
-            const currentUserId = window.firebaseAuth?.currentUser?.uid;
+            const currentUserId = getCurrentUser()?.uid;
             if (cache.userId !== currentUserId) {
                 // // console.log('👤 Cache is for different user, ignoring');
                 localStorage.removeItem(WATCHLIST_CACHE_KEY);
@@ -860,7 +888,7 @@ const DashboardRedesign = () => {
             // // console.log('='.repeat(80));
 
             // Check if user is authenticated before making request
-            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
+            if (!getCurrentUser()) {
                 // // console.log('User not authenticated');
                 // User not authenticated, cannot load watchlist
                 clearWatchlistCache(); // Clear cache for logged out user
@@ -888,7 +916,7 @@ const DashboardRedesign = () => {
                 }
             }
             
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await getAuthHeaders();
             
             // Verify we have auth headers
             if (!authHeaders || !authHeaders['Authorization']) {
@@ -1056,7 +1084,7 @@ const DashboardRedesign = () => {
                         // Helper function to fetch a single stock price
                         const fetchStockPrice = async (symbol) => {
                             try {
-                                const authHeaders = await window.getAuthHeaders();
+                                const authHeaders = await getAuthHeaders();
                                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                                 const response = await fetch(`${API_BASE}/api/search`, {
                                     method: 'POST',
@@ -1122,9 +1150,9 @@ const DashboardRedesign = () => {
                 if (response.status === 401) {
                     // Authentication failed - user may need to log in again
                     // Try to refresh the token
-                    if (window.firebaseAuth && window.firebaseAuth.currentUser) {
+                    if (getCurrentUser()) {
                         try {
-                            await window.firebaseAuth.currentUser.getIdToken(true); // Force refresh
+                            await getCurrentUser().getIdToken(true); // Force refresh
                             // Token refreshed, retrying
                             // Retry once after token refresh
                             setTimeout(() => loadWatchlistData(), 1000);
@@ -1186,7 +1214,7 @@ const DashboardRedesign = () => {
 
         try {
             setSearching(true);
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
             const upperQuery = rawQuery.toUpperCase();
@@ -1252,7 +1280,7 @@ const DashboardRedesign = () => {
                 if (socketRef.current && socketRef.current.connected) {
                     const trackSearch = async () => {
                         try {
-                            const authHeaders = await window.getAuthHeaders();
+                            const authHeaders = await getAuthHeaders();
                             const userId = authHeaders['X-User-ID'];
                             if (userId) {
                                 socketRef.current.emit('track_search_stock', {
@@ -1330,7 +1358,7 @@ const DashboardRedesign = () => {
         searchDebounceRef.current = setTimeout(async () => {
             try {
                 setSearching(true);
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await getAuthHeaders();
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                 const resp = await fetch(`${API_BASE}/api/search/stocks?q=${encodeURIComponent(value.trim())}`, {
                     method: 'GET',
@@ -1367,8 +1395,8 @@ const DashboardRedesign = () => {
     const handleLogout = async () => {
         try {
             // Sign out from Firebase
-            if (window.firebaseAuth) {
-                await window.firebaseAuth.signOut();
+            if (getAuthClient()) {
+                await window.AppAuth.signOut();
             }
             
             // Sign out from backend
@@ -1561,7 +1589,7 @@ const DashboardRedesign = () => {
                 return filtered;
             });
             
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             const response = await fetch(`${API_BASE}/api/watchlist/${encodeURIComponent(symbol)}`, {
                 method: 'DELETE',
@@ -1599,7 +1627,7 @@ const DashboardRedesign = () => {
             const input = window.prompt ? window.prompt('Enter stock symbol (e.g., AAPL):') : '';
             const symbol = (input || '').trim().toUpperCase();
             if (!symbol) return;
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             const response = await fetch(`${API_BASE}/api/watchlist`, {
                 method: 'POST',
@@ -1658,14 +1686,7 @@ const DashboardRedesign = () => {
                         className="guest-banner-btn"
                         onClick={() => {
                             window.__guestMode = false;
-                            window.hideNewDashboard();
-                            const marketpulseRoot = document.getElementById('marketpulse-root');
-                            if (marketpulseRoot) {
-                                marketpulseRoot.style.display = '';
-                                marketpulseRoot.style.visibility = '';
-                                marketpulseRoot.style.position = '';
-                                marketpulseRoot.style.zIndex = '';
-                            }
+                            routeTo('/');
                         }}
                     >
                         Sign In
@@ -1747,15 +1768,15 @@ const DashboardRedesign = () => {
                 <nav className="header-nav">
                     <button
                         className={`hn-item ${activeView === 'overview' ? 'active' : ''}`}
-                        onClick={() => setActiveView('overview')}
+                        onClick={() => handleNavigate('overview')}
                     >Overview</button>
                     <button
                         className={`hn-item ${activeView === 'watchlist' ? 'active' : ''}`}
-                        onClick={() => setActiveView('watchlist')}
+                        onClick={() => handleNavigate('watchlist')}
                     >Watchlist</button>
                     <button
                         className={`hn-item ${activeView === 'intelligence' ? 'active' : ''}`}
-                        onClick={() => setActiveView('intelligence')}
+                        onClick={() => handleNavigate('intelligence')}
                     >Intelligence</button>
                     <div className="hn-dropdown-wrapper">
                         <button
@@ -1766,13 +1787,13 @@ const DashboardRedesign = () => {
                         </button>
                         {marketsOpen && (
                             <div className="hn-dropdown">
-                                <button className="hn-dropdown-item" onClick={() => { setActiveView('news'); setMarketsOpen(false); }}>
+                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('news'); setMarketsOpen(false); }}>
                                     <i className="fas fa-newspaper"></i> News
                                 </button>
-                                <button className="hn-dropdown-item" onClick={() => { setActiveView('whatswhat'); setMarketsOpen(false); }}>
+                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('whatswhat'); setMarketsOpen(false); }}>
                                     <i className="fas fa-fire"></i> What's Hot
                                 </button>
-                                <button className="hn-dropdown-item" onClick={() => { setActiveView('map'); setMarketsOpen(false); }}>
+                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('map'); setMarketsOpen(false); }}>
                                     <i className="fas fa-map"></i> Map
                                 </button>
                             </div>
@@ -1787,10 +1808,10 @@ const DashboardRedesign = () => {
                         </button>
                         {toolsOpen && (
                             <div className="hn-dropdown">
-                                <button className="hn-dropdown-item" onClick={() => { setActiveView('aisuite'); setToolsOpen(false); }}>
+                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('aisuite'); setToolsOpen(false); }}>
                                     <i className="fas fa-brain"></i> AI Suite
                                 </button>
-                                <button className="hn-dropdown-item" onClick={() => { setActiveView('paper'); setToolsOpen(false); }}>
+                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('paper'); setToolsOpen(false); }}>
                                     <i className="fas fa-flask"></i> Paper Trading
                                 </button>
                             </div>
@@ -1799,7 +1820,7 @@ const DashboardRedesign = () => {
                 </nav>
                 {/* Right Actions */}
                 <div className="header-actions">
-                    <button className="assistant-cta-btn" onClick={() => setActiveView('assistant')}>
+                    <button className="assistant-cta-btn" onClick={() => handleNavigate('assistant')}>
                         <i className="fas fa-robot"></i>
                         <span>Assistant</span>
                     </button>
@@ -1926,7 +1947,7 @@ const DashboardRedesign = () => {
                                         }
                                         const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                                         try {
-                                            const user = window.firebaseAuth?.currentUser;
+                                            const user = getCurrentUser();
                                             if (!user) return;
                                             const token = await user.getIdToken();
                                             const res = await fetch(`${API_BASE}/api/billing/portal`, {
@@ -1999,7 +2020,7 @@ const DashboardRedesign = () => {
 
             {/* Main Content Area */}
             <div className="dashboard-content">
-                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={setActiveView} onStockHover={handleStockHover} preferences={preferences} />}
+                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={handleNavigate} onStockHover={handleStockHover} preferences={preferences} />}
                 {activeView === 'watchlist' && isGuest && (
                     <div className="guest-locked-view">
                         <i className="fas fa-lock"></i>
@@ -2007,14 +2028,7 @@ const DashboardRedesign = () => {
                         <p>Create a free account to save stocks, track performance, set price alerts, and get AI-powered insights.</p>
                         <button className="guest-signin-btn" onClick={() => {
                             window.__guestMode = false;
-                            window.hideNewDashboard();
-                            const marketpulseRoot = document.getElementById('marketpulse-root');
-                            if (marketpulseRoot) {
-                                marketpulseRoot.style.display = '';
-                                marketpulseRoot.style.visibility = '';
-                                marketpulseRoot.style.position = '';
-                                marketpulseRoot.style.zIndex = '';
-                            }
+                            routeTo('/');
                         }}>
                             <i className="fas fa-user"></i> Sign In / Create Account
                         </button>
@@ -2046,7 +2060,7 @@ const DashboardRedesign = () => {
                         <i className="fas fa-lock"></i>
                         <h3>Sign in to access AI Suite</h3>
                         <p>Get AI-powered portfolio analysis, stock comparisons, and personalized insights.</p>
-                        <button className="guest-signin-btn" onClick={() => { window.__guestMode = false; window.hideNewDashboard(); const r = document.getElementById('marketpulse-root'); if(r){r.style.display='';r.style.visibility='';r.style.position='';r.style.zIndex='';} }}>
+                        <button className="guest-signin-btn" onClick={() => { window.__guestMode = false; routeTo('/'); }}>
                             <i className="fas fa-user"></i> Sign In / Create Account
                         </button>
                     </div>
@@ -2063,7 +2077,7 @@ const DashboardRedesign = () => {
                         <i className="fas fa-lock"></i>
                         <h3>Sign in to use Paper Trading</h3>
                         <p>Practice trading with virtual money, test strategies risk-free, and track your simulated portfolio.</p>
-                        <button className="guest-signin-btn" onClick={() => { window.__guestMode = false; window.hideNewDashboard(); const r = document.getElementById('marketpulse-root'); if(r){r.style.display='';r.style.visibility='';r.style.position='';r.style.zIndex='';} }}>
+                        <button className="guest-signin-btn" onClick={() => { window.__guestMode = false; routeTo('/'); }}>
                             <i className="fas fa-user"></i> Sign In / Create Account
                         </button>
                     </div>
@@ -2072,7 +2086,7 @@ const DashboardRedesign = () => {
 
             {/* Floating Assistant - Hidden when already in assistant view */}
             {activeView !== 'assistant' && (
-                <button className="floating-ai-btn" onClick={() => setActiveView('assistant')}>
+                    <button className="floating-ai-btn" onClick={() => handleNavigate('assistant')}>
                     <i className="fas fa-comments"></i>
                     <span className="tooltip">Open Assistant</span>
                 </button>
@@ -2777,7 +2791,7 @@ const SectorAllocationChart = ({ watchlistData }) => {
         const fetchSectors = async () => {
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await getAuthHeaders();
                 
                 const symbols = watchlistData.map(stock => stock.symbol).filter(Boolean);
                 if (symbols.length === 0) return;
@@ -3020,11 +3034,7 @@ const MarketOverview = ({ marketStatus }) => {
                         <div
                             key={index.symbol}
                             className="market-index-item clickable"
-                            onClick={() => {
-                                if (window.navigateToStockPage) {
-                                    window.navigateToStockPage(index.symbol, false);
-                                }
-                            }}
+                            onClick={() => routeTo(`/stock/${index.symbol}`, { isFromWatchlist: false })}
                             style={{ cursor: 'pointer' }}
                         >
                             <div className="index-name">{index.shortName}</div>
@@ -3059,7 +3069,7 @@ const MarketIntelligenceWidget = ({ onNavigate }) => {
         const fetchIntelData = async () => {
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await getAuthHeaders();
                 const opts = { headers: authHeaders, credentials: 'include' };
 
                 const [earningsRes, newsRes] = await Promise.allSettled([
@@ -3527,7 +3537,7 @@ const NewsView = () => {
         }
 
         try {
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             const url = currentQuery.trim()
                 ? `${API_BASE}/api/news/market?q=${encodeURIComponent(currentQuery.trim())}&limit=${PAGE_SIZE}&page=${page}`
@@ -3837,7 +3847,7 @@ const WhatsWhatView = () => {
         try {
             setLoading(true);
             setError('');
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await getAuthHeaders();
             const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
             const r = await fetch(`${API_BASE}/api/market/analysis`, {
                 headers: authHeaders,
@@ -4345,7 +4355,7 @@ const AISuiteView = ({ watchlistData }) => {
     const [activeTab, setActiveTab] = useState('brief');
 
     const withAuth = async () => {
-        const authHeaders = await window.getAuthHeaders();
+        const authHeaders = await getAuthHeaders();
         const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
         return { authHeaders, API_BASE };
     };
@@ -5081,7 +5091,7 @@ const IntelligenceView = ({ watchlistData }) => {
     }, []);
 
     const withAuth = async () => {
-        const authHeaders = await window.getAuthHeaders();
+        const authHeaders = await getAuthHeaders();
         const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
         return { authHeaders, API_BASE };
     };
@@ -5319,7 +5329,7 @@ const CorrelationHeatmap = ({ watchlistData }) => {
                 setLoading(true);
                 setError('');
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await getAuthHeaders();
                 const r = await fetch(`${API_BASE}/api/stocks/correlation`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -6159,7 +6169,7 @@ const MapView = () => {
                     const btn = popupEl.querySelector('.popup-btn[data-symbol]');
                     if (btn) {
                         btn.onclick = () => {
-                            if (window.navigateToStockPage) window.navigateToStockPage(company.symbol);
+                            routeTo(`/stock/${company.symbol}`);
                         };
                     }
                 }
@@ -6294,7 +6304,7 @@ const MapView = () => {
                                 <div
                                     key={company.symbol}
                                     className="company-item"
-                                    onClick={() => window.navigateToStockPage && window.navigateToStockPage(company.symbol)}
+                                    onClick={() => routeTo(`/stock/${company.symbol}`)}
                                 >
                                     <div className="company-symbol" style={{ borderLeftColor: getSectorColor(company.sector) }}>
                                         {company.symbol}
@@ -6753,10 +6763,10 @@ const AI_ASSISTANT_WELCOME = `Here's what I can do for you:
 Just type naturally — try "How is NVDA doing?" or "Add Apple to my watchlist" or "What's happening with oil prices today?"`;
 
 const AIAssistantView = () => {
+    const { currentUser } = window.AppAuth.useAuth();
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null);
     const [rateLimitInfo, setRateLimitInfo] = useState(null);
     const [showInfoModal, setShowInfoModal] = useState(false);
 
@@ -6794,23 +6804,18 @@ const AIAssistantView = () => {
     }, []);
 
     useEffect(() => {
-        if (window.firebaseAuth) {
-            const unsubscribe = window.firebaseAuth.onAuthStateChanged(async (user) => {
-                setCurrentUser(user);
-                if (user) {
-                    await loadThreads(user);
-                } else {
-                    setMessages([]);
-                    setThreads([]);
-                    setCurrentThreadId(null);
-                }
-            });
-            return () => unsubscribe();
+        if (currentUser) {
+            loadThreads(currentUser);
+            return;
         }
-    }, []);
+        setMessages([]);
+        setThreads([]);
+        setCurrentThreadId(null);
+    }, [currentUser]);
 
     const getHeaders = async (user) => {
         const u = user || currentUser;
+        if (!u) return { 'Content-Type': 'application/json' };
         const token = await u.getIdToken();
         return { 'Authorization': `Bearer ${token}`, 'X-User-ID': u.uid, 'Content-Type': 'application/json' };
     };

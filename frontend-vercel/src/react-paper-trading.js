@@ -48,7 +48,7 @@
     // ---------------------------------------------------------------- //
 
     async function authFetch(path, options = {}) {
-        const headers = await window.getAuthHeaders();
+        const headers = await window.AppAuth.getAuthHeaders();
         return fetch(API_BASE() + path, {
             ...options,
             headers: { 'Content-Type': 'application/json', ...headers, ...(options.headers || {}) },
@@ -187,7 +187,7 @@
         const searchSymbol = useCallback(async (query) => {
             if (query.length < 1) { setSuggestions([]); return; }
             try {
-                const headers = await window.getAuthHeaders();
+                const headers = await window.AppAuth.getAuthHeaders();
                 const r = await fetch(`${API_BASE()}/api/search/stocks?q=${encodeURIComponent(query)}&limit=5`, {
                     headers, credentials: 'include'
                 });

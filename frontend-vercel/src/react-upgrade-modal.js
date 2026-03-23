@@ -70,8 +70,8 @@ const UpgradeModal = ({ isOpen, onClose, reason }) => {
             return;
         }
 
-        const user = window.firebaseAuth?.currentUser;
-        if (!user) {
+        const currentUser = window.AppAuth?.getCurrentUser?.() ?? null;
+        if (!currentUser) {
             setError('Please sign in to upgrade.');
             return;
         }
@@ -79,7 +79,7 @@ const UpgradeModal = ({ isOpen, onClose, reason }) => {
         setLoading(plan.id);
         setError('');
         try {
-            const token = await user.getIdToken();
+            const token = await currentUser.getIdToken();
             const res = await fetch(`${API_BASE_URL}/api/billing/create-checkout`, {
                 method: 'POST',
                 headers: {

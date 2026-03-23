@@ -100,6 +100,7 @@ const FAQS = [
 ];
 
 const PricingPage = () => {
+    const { currentUser } = window.AppAuth.useAuth();
     const [billing, setBilling] = useState('yearly');
     const [loading, setLoading] = useState(null);
     const [error, setError] = useState('');
@@ -107,12 +108,10 @@ const PricingPage = () => {
     const [openFaq, setOpenFaq] = useState(null);
 
     useEffect(() => {
-        // Load current subscription
         const loadSub = async () => {
-            const user = window.firebaseAuth?.currentUser;
-            if (!user) return;
+            if (!currentUser) return;
             try {
-                const token = await user.getIdToken();
+                const token = await currentUser.getIdToken();
                 const res = await fetch(`${API_BASE_URL}/api/billing/subscription`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
@@ -123,11 +122,8 @@ const PricingPage = () => {
             }
         };
 
-        const unsub = window.firebaseAuth?.onAuthStateChanged((user) => {
-            if (user) loadSub();
-        });
-        return () => unsub && unsub();
-    }, []);
+        loadSub();
+    }, [currentUser]);
 
     // Check for checkout=success in URL — reload subscription to reflect new tier
     useEffect(() => {
@@ -135,9 +131,8 @@ const PricingPage = () => {
             const clean = window.location.pathname;
             window.history.replaceState({}, document.title, clean);
             // Re-fetch subscription so the UI reflects the new plan immediately
-            const user = window.firebaseAuth?.currentUser;
-            if (user) {
-                user.getIdToken(/* forceRefresh */ true).then(token =>
+            if (currentUser) {
+                currentUser.getIdToken(/* forceRefresh */ true).then(token =>
                     fetch(`${API_BASE_URL}/api/billing/subscription`, {
                         headers: { 'Authorization': `Bearer ${token}` },
                     })
@@ -146,7 +141,7 @@ const PricingPage = () => {
                 }).catch(() => {});
             }
         }
-    }, []);
+    }, [currentUser]);
 
     const handleCta = async (plan) => {
         if (plan.id === 'free') {
@@ -160,8 +155,7 @@ const PricingPage = () => {
             return;
         }
 
-        const user = window.firebaseAuth?.currentUser;
-        if (!user) {
+        if (!currentUser) {
             // Redirect to sign-in, then back to pricing
             window.location.href = '/?redirect=pricing';
             return;
@@ -171,7 +165,7 @@ const PricingPage = () => {
             // Open customer portal to manage subscription
             setLoading(plan.id);
             try {
-                const token = await user.getIdToken();
+                const token = await currentUser.getIdToken();
                 const res = await fetch(`${API_BASE_URL}/api/billing/portal`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
@@ -189,7 +183,7 @@ const PricingPage = () => {
         setLoading(plan.id);
         setError('');
         try {
-            const token = await user.getIdToken();
+            const token = await currentUser.getIdToken();
             const res = await fetch(`${API_BASE_URL}/api/billing/create-checkout`, {
                 method: 'POST',
                 headers: {
@@ -505,8 +499,4 @@ const PricingPage = () => {
     );
 };
 
-const pricingRoot = document.getElementById('pricing-page-root');
-if (pricingRoot) {
-    const root = ReactDOM.createRoot(pricingRoot);
-    root.render(<PricingPage />);
-}
+window.PricingPage = PricingPage;

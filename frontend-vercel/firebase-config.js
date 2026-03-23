@@ -29,38 +29,6 @@ try {
             console.error('Could not set Firebase auth persistence:', error);
         });
 
-    // Auth state listener - triggers UI immediately (no Babel/setTimeout delay)
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            // Poll until showNewDashboard is defined (Babel scripts compile async)
-            const tryShow = (retries) => {
-                if (typeof window.showNewDashboard === 'function') {
-                    window.showNewDashboard();
-                    // If on a stock URL, navigate to the stock page after dashboard loads
-                    if (window.location.pathname.startsWith('/stock/')) {
-                        const tryStock = (r) => {
-                            if (typeof window.handleInitialStockUrl === 'function') {
-                                window.handleInitialStockUrl();
-                            } else if (r < 50) {
-                                setTimeout(() => tryStock(r + 1), 200);
-                            }
-                        };
-                        tryStock(0);
-                    }
-                } else if (retries < 100) {
-                    setTimeout(() => tryShow(retries + 1), 100);
-                }
-            };
-            tryShow(0);
-        } else {
-            if (typeof window.hideNewDashboard === 'function') {
-                window.hideNewDashboard();
-            }
-        }
-    }, (error) => {
-        console.error('Firebase auth state error:', error);
-    });
-
     // Make auth globally available
     window.firebaseAuth = auth;
     window.firebaseApp = app;

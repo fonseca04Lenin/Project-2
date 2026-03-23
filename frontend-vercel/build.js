@@ -8,11 +8,12 @@ if (!fs.existsSync(outdir)) {
     fs.mkdirSync(outdir, { recursive: true });
 }
 
-const entries = [
+const componentEntries = [
     'src/react-dashboard-redesign.js',
     'src/react-paper-trading.js',
     'src/react-upgrade-modal.js',
     'src/react-landing-page.js',
+    'src/react-pricing.js',
     'src/react-ai-chat.js',
     'src/react-chart.js',
     'src/react-watchlist-notes.js',
@@ -20,19 +21,37 @@ const entries = [
     'src/react-stock-details-page.js',
 ];
 
-esbuild.build({
-    entryPoints: entries,
-    outdir: 'dist/src',
-    bundle: false,          // no bundling — React stays as CDN global
-    format: 'iife',         // wrap each file in IIFE to prevent const redeclaration across scripts
-    minify: true,
+const sharedConfig = {
     jsx: 'transform',
     jsxFactory: 'React.createElement',
     jsxFragment: 'React.Fragment',
     loader: { '.js': 'jsx' },
+    format: 'iife',
+    minify: true,
     logLevel: 'info',
-}).then(() => {
-    console.log(`✓ Built ${entries.length} files → dist/src/`);
+};
+
+Promise.all([
+    // Components — no bundling, React/ReactDOM stay as CDN globals
+    esbuild.build({
+        ...sharedConfig,
+        entryPoints: componentEntries,
+        outdir: 'dist/src',
+        bundle: false,
+    }),
+    // App router — bundle react-router-dom; shims redirect react/react-dom to CDN globals
+    esbuild.build({
+        ...sharedConfig,
+        entryPoints: ['src/react-app.js'],
+        outdir: 'dist/src',
+        bundle: true,
+        alias: {
+            'react': path.resolve(__dirname, 'src/shims/react.js'),
+            'react-dom': path.resolve(__dirname, 'src/shims/react-dom.js'),
+        },
+    }),
+]).then(() => {
+    console.log(`✓ Built ${componentEntries.length + 1} files → dist/src/`);
 }).catch(err => {
     console.error('Build failed:', err);
     process.exit(1);

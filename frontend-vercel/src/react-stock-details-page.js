@@ -71,7 +71,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
             setNews([]);
 
             try {
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await window.AppAuth.getAuthHeaders();
                 const useWatchlistEndpoint = isFromWatchlist;
 
                 // Details API call
@@ -200,7 +200,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 setAiInsightUpgradeRequired(false);
                 (async () => {
                     try {
-                        const authUser = window.firebaseAuth?.currentUser;
+                        const authUser = window.AppAuth.getCurrentUser();
                         const headers = {};
                         if (authUser) {
                             const token = await authUser.getIdToken();
@@ -426,7 +426,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 
         setAddingToWatchlist(true);
         try {
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await window.AppAuth.getAuthHeaders();
             // console.log('[StockDetailsPage] Auth headers obtained:', !!authHeaders);
 
             const response = await fetch(`${API_BASE_PAGE}/api/watchlist`, {
@@ -940,144 +940,6 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         </div>
     );
 };
-
-// Page state
-let pageState = {
-    isActive: false,
-    symbol: null,
-    isFromWatchlist: false
-};
-
-let pageContainer = null;
-let pageRoot = null;
-
-const initPage = () => {
-    if (!pageContainer) {
-        pageContainer = document.createElement('div');
-        pageContainer.id = 'react-stock-details-page-container';
-        pageContainer.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; z-index: 10000; background: #000;';
-        document.body.appendChild(pageContainer);
-        pageRoot = ReactDOM.createRoot(pageContainer);
-    }
-};
-
-window.navigateToStockPage = (symbol, isFromWatchlist = false) => {
-    // console.log(`[StockDetailsPage] Navigating to ${symbol}`);
-    initPage();
-
-    const newUrl = `/stock/${symbol}`;
-    // Use replaceState if already on the same URL (e.g., page reload)
-    if (window.location.pathname === newUrl) {
-        window.history.replaceState({ symbol, isFromWatchlist, page: 'stock' }, '', newUrl);
-    } else {
-        window.history.pushState({ symbol, isFromWatchlist, page: 'stock' }, '', newUrl);
-    }
-
-    const dashboardContent = document.querySelector('#dashboard-redesign-root');
-    if (dashboardContent) {
-        dashboardContent.style.display = 'none';
-    }
-
-    // Show the page container
-    if (pageContainer) {
-        pageContainer.style.display = 'block';
-    }
-
-    pageState = { isActive: true, symbol, isFromWatchlist };
-    pageRoot.render(React.createElement(StockDetailsPage, {
-        symbol,
-        isFromWatchlist,
-        onNavigateBack: () => {
-            window.navigateBackToDashboard();
-        }
-    }));
-
-    window.scrollTo(0, 0);
-};
-
-window.navigateBackToDashboard = () => {
-    // console.log('[StockDetailsPage] Navigating back to dashboard');
-    window.history.pushState({ page: 'dashboard' }, '', '/');
-
-    if (pageRoot) {
-        pageRoot.render(null);
-    }
-
-    // Hide the page container so it doesn't block the dashboard
-    if (pageContainer) {
-        pageContainer.style.display = 'none';
-    }
-
-    const dashboardContent = document.querySelector('#dashboard-redesign-root');
-    if (dashboardContent) {
-        dashboardContent.style.display = '';
-    }
-
-    pageState.isActive = false;
-};
-
-window.addEventListener('popstate', (event) => {
-    // console.log('[StockDetailsPage] Popstate event:', event.state);
-
-    if (event.state?.page === 'stock' && event.state?.symbol) {
-        window.navigateToStockPage(event.state.symbol, event.state.isFromWatchlist || false);
-    } else {
-        if (pageRoot) {
-            pageRoot.render(null);
-        }
-        if (pageContainer) {
-            pageContainer.style.display = 'none';
-        }
-        const dashboardContent = document.querySelector('#dashboard-redesign-root');
-        if (dashboardContent) {
-            dashboardContent.style.display = '';
-        }
-        pageState.isActive = false;
-    }
-});
-
-window.handleInitialStockUrl = () => {
-    const path = window.location.pathname;
-    const stockMatch = path.match(/^\/stock\/([A-Z0-9]+)$/i);
-
-    if (stockMatch) {
-        const symbol = stockMatch[1].toUpperCase();
-        // console.log(`[StockDetailsPage] Initial load for stock: ${symbol}`);
-
-        // Wait for page container to be ready
-        const attemptNavigation = (retries = 0) => {
-            if (retries > 20) {
-                console.error('[StockDetailsPage] Failed to initialize page after multiple attempts');
-                return;
-            }
-
-            // Check if React and required functions are ready
-            if (typeof React !== 'undefined' && typeof ReactDOM !== 'undefined' && document.getElementById('dashboard-redesign-root')) {
-                initPage();
-                setTimeout(() => {
-                    window.navigateToStockPage(symbol, false);
-                }, 50);
-            } else {
-                setTimeout(() => attemptNavigation(retries + 1), 100);
-            }
-        };
-
-        attemptNavigation();
-    }
-};
-
-// Also handle when scripts load after DOM is ready
-if (document.readyState === 'complete') {
-    // Page already loaded, check URL immediately
-    const path = window.location.pathname;
-    if (path.startsWith('/stock/')) {
-        setTimeout(() => {
-            if (typeof window.handleInitialStockUrl === 'function') {
-                window.handleInitialStockUrl();
-            }
-        }, 100);
-    }
-}
 
 window.StockDetailsPage = StockDetailsPage;
 
