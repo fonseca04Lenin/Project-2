@@ -403,14 +403,16 @@ def get_stock_ai_analysis(symbol):
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
 
-        # --- Subscription gate: Pro/Elite only ---
-        from app.services.subscription_service import check_ai_suite_access
-        access = check_ai_suite_access(user.id)
+        # --- Usage gate: free=1/day, pro/elite=unlimited ---
+        from app.services.subscription_service import check_and_increment_analysis_usage
+        access = check_and_increment_analysis_usage(user.id)
         if not access['allowed']:
             return jsonify({
                 'error': 'upgrade_required',
-                'message': 'AI Stock Analysis is available on Pro and Elite plans.',
+                'message': f"You've used your {access['limit']} free AI analysis today. Upgrade for unlimited access.",
                 'tier': access['tier'],
+                'used': access['used'],
+                'limit': access['limit'],
             }), 403
 
         symbol = symbol.upper()
@@ -484,13 +486,15 @@ def get_stock_ai_insight(symbol):
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
 
-    from app.services.subscription_service import check_ai_suite_access
-    access = check_ai_suite_access(user.id)
+    from app.services.subscription_service import check_and_increment_overview_usage
+    access = check_and_increment_overview_usage(user.id)
     if not access['allowed']:
         return jsonify({
             'error': 'upgrade_required',
-            'message': 'AI Market Insights are available on Pro and Elite plans.',
+            'message': f"You've used your {access['limit']} free AI overviews today. Upgrade for unlimited access.",
             'tier': access['tier'],
+            'used': access['used'],
+            'limit': access['limit'],
         }), 403
 
     symbol = symbol.upper()

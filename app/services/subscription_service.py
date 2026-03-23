@@ -16,16 +16,22 @@ PLANS = {
     'free': {
         'chat_daily_limit': 5,
         'ai_suite': False,
+        'overview_daily_limit': 5,   # ai-insight calls per day
+        'analysis_daily_limit': 1,   # ai-analysis calls per day
         'label': 'Free',
     },
     'pro': {
         'chat_daily_limit': 50,
         'ai_suite': True,
+        'overview_daily_limit': None,
+        'analysis_daily_limit': None,
         'label': 'Pro',
     },
     'elite': {
-        'chat_daily_limit': None,   # None = unlimited
+        'chat_daily_limit': None,
         'ai_suite': True,
+        'overview_daily_limit': None,
+        'analysis_daily_limit': None,
         'label': 'Elite',
     },
 }
@@ -157,6 +163,68 @@ def check_hourly_rate_limit(user_id: str, limit: int = 60) -> dict:
     except Exception as e:
         logger.error("Error checking hourly rate for %s: %s", user_id, e)
         return {'allowed': True, 'used': 0, 'limit': limit}
+
+
+def check_and_increment_overview_usage(user_id: str) -> dict:
+    """
+    Gate for ai-insight (stock overview) calls.
+    Free tier: 5/day. Pro/Elite: unlimited.
+    Returns dict with: allowed, used, limit, tier, upgrade_required.
+    """
+    from google.cloud.firestore_v1 import Increment
+    sub = get_user_subscription(user_id)
+    tier = sub['tier']
+    plan = PLANS.get(tier, PLANS['free'])
+    limit = plan['overview_daily_limit']
+
+    if limit is None:
+        return {'allowed': True, 'used': None, 'limit': None, 'tier': tier, 'upgrade_required': False}
+
+    today = _today_utc()
+    field = f'overview_{today}'
+    try:
+        db = _get_db()
+        ref = db.collection('daily_usage').document(user_id)
+        doc = ref.get()
+        used = int(((doc.to_dict() or {}) if doc.exists else {}).get(field, 0))
+        if used >= limit:
+            return {'allowed': False, 'used': used, 'limit': limit, 'tier': tier, 'upgrade_required': True}
+        ref.set({field: Increment(1)}, merge=True)
+        return {'allowed': True, 'used': used + 1, 'limit': limit, 'tier': tier, 'upgrade_required': False}
+    except Exception as e:
+        logger.error("Error checking overview usage for %s: %s", user_id, e)
+        return {'allowed': True, 'used': 0, 'limit': limit, 'tier': tier, 'upgrade_required': False}
+
+
+def check_and_increment_analysis_usage(user_id: str) -> dict:
+    """
+    Gate for ai-analysis calls.
+    Free tier: 1/day. Pro/Elite: unlimited.
+    Returns dict with: allowed, used, limit, tier, upgrade_required.
+    """
+    from google.cloud.firestore_v1 import Increment
+    sub = get_user_subscription(user_id)
+    tier = sub['tier']
+    plan = PLANS.get(tier, PLANS['free'])
+    limit = plan['analysis_daily_limit']
+
+    if limit is None:
+        return {'allowed': True, 'used': None, 'limit': None, 'tier': tier, 'upgrade_required': False}
+
+    today = _today_utc()
+    field = f'analysis_{today}'
+    try:
+        db = _get_db()
+        ref = db.collection('daily_usage').document(user_id)
+        doc = ref.get()
+        used = int(((doc.to_dict() or {}) if doc.exists else {}).get(field, 0))
+        if used >= limit:
+            return {'allowed': False, 'used': used, 'limit': limit, 'tier': tier, 'upgrade_required': True}
+        ref.set({field: Increment(1)}, merge=True)
+        return {'allowed': True, 'used': used + 1, 'limit': limit, 'tier': tier, 'upgrade_required': False}
+    except Exception as e:
+        logger.error("Error checking analysis usage for %s: %s", user_id, e)
+        return {'allowed': True, 'used': 0, 'limit': limit, 'tier': tier, 'upgrade_required': False}
 
 
 def check_ai_suite_access(user_id: str) -> dict:
