@@ -2,6 +2,24 @@
 
 const { useState, useEffect } = React;
 
+function navigateApp(path, state = {}, replace = false) {
+  window.dispatchEvent(new CustomEvent('app:navigate', {
+    detail: { path, state, replace }
+  }));
+}
+
+function getAuthClient() {
+  return window.AppAuth?.getClient ? window.AppAuth.getClient() : null;
+}
+
+function emitAuthenticatedUser() {
+  const user = window.AppAuth?.getCurrentUser ? window.AppAuth.getCurrentUser() : null;
+  if (!user) return;
+  window.dispatchEvent(new CustomEvent('userAuthenticated', {
+    detail: { user }
+  }));
+}
+
 // Header Component
 function LandingHeader() {
   return (
@@ -65,7 +83,8 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
     setError("");
 
     try {
-      if (!window.firebaseAuth) {
+      const authClient = getAuthClient();
+      if (!authClient) {
         throw new Error("Firebase authentication not available. Please refresh the page.");
       }
 
@@ -77,7 +96,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       provider.addScope('profile');
 
       // Sign in with Google
-      const result = await window.firebaseAuth.signInWithPopup(provider);
+      const result = await authClient.signInWithPopup(provider);
       const user = result.user;
 
       // Get ID token and send to backend
@@ -115,21 +134,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       
       // Trigger main app authentication state change
       setTimeout(() => {
-        if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-          // // console.log('Triggering main app auth state change for Google sign-in');
-          
-          // Method 1: Call function directly if available
-          if (typeof window.handleAuthStateChange === 'function') {
-            window.handleAuthStateChange(window.firebaseAuth.currentUser);
-          }
-          
-          // Method 2: Dispatch custom event
-          const authEvent = new CustomEvent('userAuthenticated', {
-            detail: { user: window.firebaseAuth.currentUser }
-          });
-          window.dispatchEvent(authEvent);
-          // // console.log('📡 Dispatched userAuthenticated event');
-        }
+        emitAuthenticatedUser();
       }, 100);
 
     } catch (error) {
@@ -203,21 +208,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       
       // Trigger main app authentication state change
       setTimeout(() => {
-        if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-          // // console.log('Triggering main app auth state change after username set');
-          
-          // Method 1: Call function directly if available
-          if (typeof window.handleAuthStateChange === 'function') {
-            window.handleAuthStateChange(window.firebaseAuth.currentUser);
-          }
-          
-          // Method 2: Dispatch custom event
-          const authEvent = new CustomEvent('userAuthenticated', {
-            detail: { user: window.firebaseAuth.currentUser }
-          });
-          window.dispatchEvent(authEvent);
-          // // console.log('📡 Dispatched userAuthenticated event');
-        }
+        emitAuthenticatedUser();
       }, 100);
 
     } catch (error) {
@@ -234,7 +225,8 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
     setError("");
 
     try {
-      if (!window.firebaseAuth) {
+      const authClient = getAuthClient();
+      if (!authClient) {
         throw new Error("Firebase authentication not available. Please refresh the page.");
       }
 
@@ -251,7 +243,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         }
 
         // Create user with Firebase Auth
-        const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(
+        const userCredential = await authClient.createUserWithEmailAndPassword(
           formData.email,
           formData.password
         );
@@ -293,21 +285,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         
         // Trigger main app authentication state change
         setTimeout(() => {
-          if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            // // console.log('Triggering main app auth state change for registration');
-            
-            // Method 1: Call function directly if available
-            if (typeof window.handleAuthStateChange === 'function') {
-              window.handleAuthStateChange(window.firebaseAuth.currentUser);
-            }
-            
-            // Method 2: Dispatch custom event
-            const authEvent = new CustomEvent('userAuthenticated', {
-              detail: { user: window.firebaseAuth.currentUser }
-            });
-            window.dispatchEvent(authEvent);
-            // // console.log('📡 Dispatched userAuthenticated event');
-          }
+          emitAuthenticatedUser();
         }, 100);
         
       } else {
@@ -322,7 +300,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         // Sign in with Firebase Auth
         let userCredential;
         try {
-          userCredential = await window.firebaseAuth.signInWithEmailAndPassword(
+          userCredential = await authClient.signInWithEmailAndPassword(
             formData.email,
             formData.password
           );
@@ -371,21 +349,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         
         // Trigger main app authentication state change
         setTimeout(() => {
-          if (window.firebaseAuth && window.firebaseAuth.currentUser) {
-            // // console.log('Triggering main app auth state change for login');
-            
-            // Method 1: Call function directly if available
-            if (typeof window.handleAuthStateChange === 'function') {
-              window.handleAuthStateChange(window.firebaseAuth.currentUser);
-            }
-            
-            // Method 2: Dispatch custom event
-            const authEvent = new CustomEvent('userAuthenticated', {
-              detail: { user: window.firebaseAuth.currentUser }
-            });
-            window.dispatchEvent(authEvent);
-            // // console.log('📡 Dispatched userAuthenticated event');
-          }
+          emitAuthenticatedUser();
         }, 100);
       }
     } catch (error) {
@@ -581,9 +545,7 @@ function HeroSection() {
             <button
               onClick={() => {
                 window.__guestMode = true;
-                if (typeof window.showNewDashboard === 'function') {
-                  window.showNewDashboard();
-                }
+                navigateApp('/app/overview');
               }}
               className="stock-watchlist-btn stock-watchlist-btn-ghost"
             >
@@ -668,15 +630,4 @@ function StockWatchlistLandingPage() {
   );
 }
 
-// Render the landing page
-// // console.log('Starting landing page render...');
-const rootElement = document.getElementById('marketpulse-root');
-// // console.log('📦 Root element:', rootElement);
-if (rootElement) {
-  // // console.log('Creating React root and rendering...');
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(<StockWatchlistLandingPage />);
-  // // console.log('Landing page rendered successfully!');
-} else {
-  console.error('Root element not found - marketpulse-root missing');
-}
+window.StockWatchlistLandingPage = StockWatchlistLandingPage;

@@ -32,8 +32,7 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
 
         setIsSaving(true);
         try {
-            // Get auth headers
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await window.AppAuth.getAuthHeaders();
             
             // Get API base URL from config
             const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';

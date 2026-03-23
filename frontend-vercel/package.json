@@ -18,13 +18,14 @@
   "author": "Elvin",
   "license": "MIT",
   "devDependencies": {
-    "vercel": "^32.0.0",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "vercel": "^32.0.0"
   },
   "dependencies": {
+    "date-fns": "^3.6.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "recharts": "^2.12.7",
-    "date-fns": "^3.6.0"
+    "react-router-dom": "^6.3.0",
+    "recharts": "^2.12.7"
   }
 }

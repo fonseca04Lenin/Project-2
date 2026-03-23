@@ -31,7 +31,7 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
         if (isSaving) return;
         setIsSaving(true);
         try {
-            const authHeaders = await window.getAuthHeaders();
+            const authHeaders = await window.AppAuth.getAuthHeaders();
             const response = await fetch(`${API_BASE}/api/watchlist/${symbol}/notes`, {
                 method: 'PUT',
                 headers: {
@@ -1304,7 +1304,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             try {
                 // Auth headers timing
                 console.time(`StockDetailsModal-${symbol}-auth-headers`);
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await window.AppAuth.getAuthHeaders();
                 console.timeEnd(`StockDetailsModal-${symbol}-auth-headers`);
                 console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}`);
 
@@ -1432,7 +1432,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 setAiInsightUpgradeRequired(false);
                 (async () => {
                     try {
-                        const authUser = window.firebaseAuth?.currentUser;
+                        const authUser = window.AppAuth.getCurrentUser();
                         const headers = {};
                         if (authUser) {
                             const token = await authUser.getIdToken();
@@ -1520,7 +1520,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 // Use backend API for price updates (handles CORS and Alpaca/Yahoo fallback)
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                 const authStart = performance.now();
-                const authHeaders = await window.getAuthHeaders();
+                const authHeaders = await window.AppAuth.getAuthHeaders();
                 const authTime = performance.now() - authStart;
                 console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}: ${authTime.toFixed(2)}ms`);
 
@@ -2416,35 +2416,12 @@ const initModal = () => {
 // Open modal function - now redirects to full page
 window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
     console.log(`[StockDetailsModal] Redirecting to stock page for ${symbol}`);
-
-    // Use the new page navigation instead of modal
-    if (typeof window.navigateToStockPage === 'function') {
-        window.navigateToStockPage(symbol, isFromWatchlist);
-    } else {
-        // Fallback to modal if page is not loaded yet
-        console.log(`[StockDetailsModal] Page not ready, using modal fallback for ${symbol}`);
-        initModal();
-        modalState = { isOpen: true, symbol, isFromWatchlist };
-        modalRoot.render(React.createElement(StockDetailsModal, {
-            ...modalState,
-            onClose: () => {
-                console.log(`[StockDetailsModal] Modal closed for ${symbol}`);
-                modalState.isOpen = false;
-                if (modalRoot) {
-                    modalRoot.render(null);
-                }
-                if (modalContainer) {
-                    modalContainer.remove();
-                    modalContainer = null;
-                    modalRoot = null;
-                }
-            }
-        }));
-
-        // Hide search bar
-        const searchSection = document.querySelector('.search-section');
-        if (searchSection) searchSection.style.display = 'none';
-    }
+    window.dispatchEvent(new CustomEvent('app:navigate', {
+        detail: {
+            path: `/stock/${String(symbol).toUpperCase()}`,
+            state: { isFromWatchlist: Boolean(isFromWatchlist) }
+        }
+    }));
 };
 
 // Legacy modal open function (for cases where modal is specifically needed)

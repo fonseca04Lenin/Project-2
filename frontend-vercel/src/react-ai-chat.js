@@ -5,12 +5,12 @@ const { useState, useEffect, useRef, useCallback } = React;
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
 
 const AIAdvisorChat = () => {
+    const { currentUser } = window.AppAuth.useAuth();
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isOnline, setIsOnline] = useState(true);
     const [rateLimitInfo, setRateLimitInfo] = useState(null);
-    const [currentUser, setCurrentUser] = useState(null);
     const [usageInfo, setUsageInfo] = useState(null);
 
     // Thread state
@@ -29,21 +29,16 @@ const AIAdvisorChat = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, []);
 
-    // Auth listener — on login load threads; on logout clear everything
     useEffect(() => {
-        const authUnsubscribe = window.firebaseAuth?.onAuthStateChanged(async (user) => {
-            setCurrentUser(user);
-            if (user) {
-                await testAPIConnection(user);
-                await loadThreads(user);
-            } else {
-                setMessages([]);
-                setThreads([]);
-                setCurrentThreadId(null);
-            }
-        });
-        return () => { if (authUnsubscribe) authUnsubscribe(); };
-    }, []);
+        if (currentUser) {
+            testAPIConnection(currentUser);
+            loadThreads(currentUser);
+            return;
+        }
+        setMessages([]);
+        setThreads([]);
+        setCurrentThreadId(null);
+    }, [currentUser]);
 
     // Auto-scroll on new messages
     useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
@@ -65,10 +60,12 @@ const AIAdvisorChat = () => {
     }, [renamingThreadId]);
 
     const getAuthHeaders = async (user) => {
-        const token = await (user || currentUser).getIdToken();
+        const activeUser = user || currentUser;
+        if (!activeUser) return { 'Content-Type': 'application/json' };
+        const token = await activeUser.getIdToken();
         return {
             'Authorization': `Bearer ${token}`,
-            'X-User-ID': (user || currentUser).uid,
+            'X-User-ID': activeUser.uid,
             'Content-Type': 'application/json',
         };
     };

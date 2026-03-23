@@ -340,8 +340,8 @@
 </head>
 <body>
     <div id="app" style="min-height: 100vh; background: #000;">
-        <!-- React Landing Page Root -->
-        <div id="marketpulse-root" style="min-height: 100vh; display: block !important;"></div>
+        <div id="router-root" style="min-height: 100vh;"></div>
+        <div id="marketpulse-root" style="display: none !important;"></div>
         
         <!-- Loading Screen - hidden by default, shown during auth check -->
         <div id="loading-screen" class="loading-screen" style="display: none;">
@@ -420,18 +420,10 @@
     <script>
         // Get auth headers for API calls
         window.getAuthHeaders = async function() {
-            if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-                return {};
+            if (window.AppAuth && window.AppAuth.getAuthHeaders) {
+                return window.AppAuth.getAuthHeaders();
             }
-            try {
-                const token = await window.firebaseAuth.currentUser.getIdToken();
-                return {
-                    'Authorization': `Bearer ${token}`,
-                    'X-User-ID': window.firebaseAuth.currentUser.uid
-                };
-            } catch (error) {
-                return {};
-            }
+            return {};
         };
 
         // TODO: Uncomment when paywall feature is ready (react-paywall-modal.js)
@@ -481,108 +473,6 @@
         };
     </script>
     
-    <!-- Setup new React dashboard -->
-    <script>
-        // Wait for DashboardRedesign to be available
-        const waitForDashboard = setInterval(() => {
-            if (window.DashboardRedesign) {
-                clearInterval(waitForDashboard);
-                setupShowMainContent();
-            }
-        }, 100);
-        
-        function setupShowMainContent() {
-            // Detect ?checkout=success in URL and show a success notification
-            (function detectCheckoutSuccess() {
-                const params = new URLSearchParams(window.location.search);
-                if (params.get('checkout') === 'success') {
-                    // Clean the URL without reloading
-                    const clean = window.location.pathname;
-                    window.history.replaceState({}, document.title, clean);
-                    // Show notification once the dashboard is ready
-                    const waitForNotif = setInterval(() => {
-                        if (window.showNotification) {
-                            clearInterval(waitForNotif);
-                            window.showNotification('Welcome to Pro! Your subscription is now active.', 'success');
-                            // Reload subscription info if available
-                            if (window.__reloadSubscriptionInfo) window.__reloadSubscriptionInfo();
-                        }
-                    }, 200);
-                }
-            })();
-
-            // Override showMainContent to use new React dashboard
-            window.showMainContent = function(user) {
-                // Hide loading screen immediately
-                const loadingScreen = document.getElementById('loading-screen');
-                if (loadingScreen) {
-                    loadingScreen.style.display = 'none';
-                }
-
-                // Hide landing page completely
-                const marketpulseRoot = document.getElementById('marketpulse-root');
-                if (marketpulseRoot) {
-                    marketpulseRoot.style.display = 'none';
-                    marketpulseRoot.style.visibility = 'hidden';
-                    marketpulseRoot.style.position = 'absolute';
-                    marketpulseRoot.style.zIndex = '-1';
-                }
-
-                // Show new dashboard — only make it visible after React has rendered into it
-                function tryRenderDashboard() {
-                    const redesignRoot = document.getElementById('dashboard-redesign-root');
-                    if (!redesignRoot) return;
-
-                    if (redesignRoot.hasAttribute('rendered')) {
-                        // Already rendered, just make it visible
-                        redesignRoot.style.display = 'block';
-                        redesignRoot.style.position = 'fixed';
-                        redesignRoot.style.top = '0';
-                        redesignRoot.style.left = '0';
-                        redesignRoot.style.width = '100%';
-                        redesignRoot.style.height = '100%';
-                        redesignRoot.style.zIndex = '9999';
-                        redesignRoot.style.overflow = 'auto';
-                        return;
-                    }
-
-                    if (window.DashboardRedesign) {
-                        const root = ReactDOM.createRoot(redesignRoot);
-                        root.render(React.createElement(window.DashboardRedesign));
-                        redesignRoot.setAttribute('rendered', 'true');
-                        // Only show the div AFTER rendering — prevents black screen
-                        redesignRoot.style.display = 'block';
-                        redesignRoot.style.position = 'fixed';
-                        redesignRoot.style.top = '0';
-                        redesignRoot.style.left = '0';
-                        redesignRoot.style.width = '100%';
-                        redesignRoot.style.height = '100%';
-                        redesignRoot.style.zIndex = '9999';
-                        redesignRoot.style.overflow = 'auto';
-                    } else {
-                        // DashboardRedesign not compiled yet — wait and retry
-                        setTimeout(tryRenderDashboard, 100);
-                    }
-                }
-                tryRenderDashboard();
-            };
-            
-            // Also listen for the userAuthenticated event from React landing page
-            window.addEventListener('userAuthenticated', function(event) {
-                if (event.detail && event.detail.user) {
-                    // Call showMainContent with the user data
-                    setTimeout(() => {
-                        window.showMainContent({ 
-                            email: event.detail.user.email, 
-                            id: event.detail.user.uid,
-                            name: event.detail.user.displayName || event.detail.user.email.split('@')[0]
-                        });
-                    }, 100);
-                }
-            });
-        }
-    </script>
-    
     <!-- Stripe public price IDs — set these to your actual Stripe price IDs -->
     <script>
         window.STRIPE_CONFIG = {
@@ -593,105 +483,19 @@
         };
     </script>
 
-    <!-- Upgrade Modal (global — accessible from any component via window.showUpgradeModal) -->
-    <div id="upgrade-modal-root"></div>
-    <script defer src="/dist/src/react-upgrade-modal.js?v=2.0"></script>
-
     <!-- Components — pre-compiled by esbuild, no runtime transpilation -->
     <script defer src="/dist/src/react-landing-page.js?v=2.0"></script>
+    <script defer src="/dist/src/react-pricing.js?v=2.0"></script>
     <script defer src="/dist/src/react-ai-chat.js?v=2.0"></script>
     <script defer src="/dist/src/react-chart.js?v=2.0"></script>
     <script defer src="/dist/src/react-watchlist-notes.js?v=2.0"></script>
     <script defer src="/dist/src/react-stock-details-modal.js?v=2.0"></script>
     <script defer src="/dist/src/react-stock-details-page.js?v=2.0"></script>
+    <script defer src="/dist/src/react-app.js?v=2.0"></script>
 
-    <!-- Duplicate showNewDashboard function for Firebase auth state changes -->
-    <script>
-        // Make showNewDashboard available globally
-        window.showNewDashboard = function() {
-            // Hide landing page completely
-            const marketpulseRoot = document.getElementById('marketpulse-root');
-            if (marketpulseRoot) {
-                marketpulseRoot.style.display = 'none';
-                marketpulseRoot.style.visibility = 'hidden';
-                marketpulseRoot.style.position = 'absolute';
-                marketpulseRoot.style.zIndex = '-1';
-            }
-
-            // Hide loading screen
-            const loadingScreen = document.getElementById('loading-screen');
-            if (loadingScreen) {
-                loadingScreen.style.display = 'none';
-            }
-
-            // Show new dashboard — only make it visible after React has rendered into it
-            function tryRenderDashboard() {
-                const redesignRoot = document.getElementById('dashboard-redesign-root');
-                if (!redesignRoot) return;
-
-                if (redesignRoot.hasAttribute('rendered')) {
-                    // Already rendered, just make it visible
-                    redesignRoot.style.display = 'block';
-                    redesignRoot.style.position = 'fixed';
-                    redesignRoot.style.top = '0';
-                    redesignRoot.style.left = '0';
-                    redesignRoot.style.width = '100%';
-                    redesignRoot.style.height = '100%';
-                    redesignRoot.style.zIndex = '9999';
-                    redesignRoot.style.overflow = 'auto';
-                    return;
-                }
-
-                if (window.DashboardRedesign) {
-                    const root = ReactDOM.createRoot(redesignRoot);
-                    root.render(React.createElement(window.DashboardRedesign));
-                    redesignRoot.setAttribute('rendered', 'true');
-                    // Only show the div AFTER rendering — prevents black screen
-                    redesignRoot.style.display = 'block';
-                    redesignRoot.style.position = 'fixed';
-                    redesignRoot.style.top = '0';
-                    redesignRoot.style.left = '0';
-                    redesignRoot.style.width = '100%';
-                    redesignRoot.style.height = '100%';
-                    redesignRoot.style.zIndex = '9999';
-                    redesignRoot.style.overflow = 'auto';
-                } else {
-                    // DashboardRedesign not compiled yet — wait and retry
-                    setTimeout(tryRenderDashboard, 100);
-                }
-            }
-            tryRenderDashboard();
-        };
-        
-        window.hideNewDashboard = function() {
-            const redesignRoot = document.getElementById('dashboard-redesign-root');
-            if (redesignRoot) {
-                redesignRoot.style.display = 'none';
-            }
-        };
-        
-        // Fallback auth listener (primary one is in firebase-config.js which runs faster without Babel delay)
-        // This handles edge cases like userAuthenticated events from the landing page
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().onAuthStateChanged((user) => {
-                if (user) {
-                    window.showNewDashboard();
-                    if (window.location.pathname.startsWith('/stock/')) {
-                        const waitForStockHandler = (retries) => {
-                            if (typeof window.handleInitialStockUrl === 'function') {
-                                window.handleInitialStockUrl();
-                            } else if (retries < 50) {
-                                setTimeout(() => waitForStockHandler(retries + 1), 200);
-                            }
-                        };
-                        waitForStockHandler(0);
-                    }
-                } else {
-                    window.hideNewDashboard();
-                }
-            });
-        }
-    </script>
+    <!-- Upgrade Modal — must load after react-app.js so window.AppAuth is defined -->
+    <div id="upgrade-modal-root"></div>
+    <script defer src="/dist/src/react-upgrade-modal.js?v=2.0"></script>
 
     <!-- Vercel Analytics -->
     <script defer src="/_vercel/insights/script.js"></script>

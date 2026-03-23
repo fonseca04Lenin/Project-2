@@ -868,25 +868,9 @@ i[class*="fal"],
     display: contents; /* Allow grid items to participate in parent grid */
 }
 
-/* Grid positioning for components */
-#react-watchlist-root {
-    grid-column: 1; /* Left column */
-    grid-row: 2; /* Second row */
-}
-
 .news-section {
     grid-column: 2; /* Right column */
     grid-row: 2; /* Second row */
-}
-
-#ai-advisor-chat-root {
-    grid-column: 1; /* Left column */
-    grid-row: 3; /* Third row */
-}
-
-.market-intelligence-container {
-    grid-column: 2; /* Right column */
-    grid-row: 3; /* Third row */
 }
 
 /* When stock results are shown, adjust grid layout */
@@ -894,14 +878,8 @@ i[class*="fal"],
     grid-template-rows: auto auto auto; /* Three rows when stock results shown */
 }
 
-.dashboard.with-stock-results #react-watchlist-root,
 .dashboard.with-stock-results .news-section {
     grid-row: 2; /* Move to second row when stock results shown */
-}
-
-.dashboard.with-stock-results #ai-advisor-chat-root,
-.dashboard.with-stock-results .market-intelligence-container {
-    grid-row: 3; /* Move to third row when stock results shown */
 }
 
 /* Top row components - Watchlist and News */
@@ -917,39 +895,7 @@ i[class*="fal"],
     height: auto; /* Allow natural height based on content */
 }
 
-/* Bottom row components - AI Chat and Market Intelligence */
-#ai-advisor-chat-root {
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
-    backdrop-filter: blur(20px);
-    border-radius: 0.375rem;
-    padding: 0;
-    border: 1px solid var(--border-color);
-    transition: all 0.4s ease;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-height: 700px; /* Increased height for bottom row components */
-    height: 700px; /* Increased exact height to match */
-}
-
-.market-intelligence-container {
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 100%);
-    backdrop-filter: blur(20px);
-    border-radius: 0.375rem;
-    padding: 2rem;
-    border: 1px solid var(--border-color);
-    transition: all 0.4s ease;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    min-height: 700px; /* Increased height for bottom row components */
-    height: 700px; /* Increased exact height to match */
-}
-
-.watchlist-section:hover, .chart-section:hover, .news-section:hover,
-.market-intelligence-container:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
-    border-color: var(--primary-color);
-}
-
-#ai-advisor-chat-root:hover {
+.watchlist-section:hover, .chart-section:hover, .news-section:hover {
     transform: translateY(-4px);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
     border-color: var(--primary-color);
@@ -1531,11 +1477,6 @@ i[class*="fal"],
         height: auto; /* Allow natural height on mobile */
     }
     
-    #ai-advisor-chat-root, .market-intelligence-container {
-        min-height: 500px; /* Increased height on mobile for better usability */
-        height: auto; /* Allow natural height on mobile */
-    }
-
 /* Old mobile search CSS removed - using React version only */
 
     .stock-header {
@@ -2315,21 +2256,6 @@ i[class*="fal"],
 .close-details-btn.close-details-btn-right i {
   pointer-events: none;
 } 
-
-/* Market Intelligence Styles - inherits from bottom row components */
-.market-intelligence-container {
-    margin-top: 0; /* Remove margin since it's now in grid */
-}
-
-.market-intelligence-container h2 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
 
 .intelligence-tabs {
     display: flex;
@@ -6208,20 +6134,6 @@ body {
     background: #00ff88;
 }
 
-/* Stock Details Page */
-
-/* Container */
-#react-stock-details-page-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 9999;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
 .stock-page-container {
     min-height: 100vh;
     background: linear-gradient(135deg, #0a0b0f 0%, #12141a 50%, #0d0e12 100%);
@@ -7463,27 +7375,23 @@ body[data-theme="light"] .nav-change.negative {
 
 /* Scrollbar Styling */
 .news-content::-webkit-scrollbar,
-.sentiment-content::-webkit-scrollbar,
-#react-stock-details-page-container::-webkit-scrollbar {
+.sentiment-content::-webkit-scrollbar {
     width: 8px;
 }
 
 .news-content::-webkit-scrollbar-track,
-.sentiment-content::-webkit-scrollbar-track,
-#react-stock-details-page-container::-webkit-scrollbar-track {
+.sentiment-content::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.02);
 }
 
 .news-content::-webkit-scrollbar-thumb,
-.sentiment-content::-webkit-scrollbar-thumb,
-#react-stock-details-page-container::-webkit-scrollbar-thumb {
+.sentiment-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.15);
     border-radius: 4px;
 }
 
 .news-content::-webkit-scrollbar-thumb:hover,
-.sentiment-content::-webkit-scrollbar-thumb:hover,
-#react-stock-details-page-container::-webkit-scrollbar-thumb:hover {
+.sentiment-content::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.25);
 }
 
