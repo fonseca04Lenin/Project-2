@@ -6767,6 +6767,7 @@ const AIAssistantView = () => {
     const [renamingThreadId, setRenamingThreadId] = useState(null);
     const [renameValue, setRenameValue] = useState('');
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [hoveredThreadId, setHoveredThreadId] = useState(null);
 
     const messagesEndRef = useRef(null);
     const renameInputRef = useRef(null);
@@ -7008,7 +7009,7 @@ const AIAssistantView = () => {
     const currentThread = threads.find(t => t.thread_id === currentThreadId);
 
     return (
-        <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
 
             {/* ── Thread Sidebar ── */}
             <div style={{
@@ -7064,12 +7065,14 @@ const AIAssistantView = () => {
                                     display: 'flex', alignItems: 'flex-start', gap: '6px',
                                     padding: '8px 10px', cursor: 'pointer', borderRadius: '6px',
                                     margin: '1px 6px', minHeight: '44px',
-                                    background: thread.thread_id === currentThreadId ? 'rgba(0,217,36,0.08)' : 'transparent',
+                                    background: thread.thread_id === currentThreadId
+                                        ? 'rgba(0,217,36,0.08)'
+                                        : hoveredThreadId === thread.thread_id ? 'rgba(255,255,255,0.04)' : 'transparent',
                                     borderLeft: thread.thread_id === currentThreadId ? '2px solid #00D924' : '2px solid transparent',
                                     transition: 'background 0.15s',
                                 }}
-                                onMouseEnter={e => { if (thread.thread_id !== currentThreadId) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                                onMouseLeave={e => { if (thread.thread_id !== currentThreadId) e.currentTarget.style.background = 'transparent'; }}
+                                onMouseEnter={() => setHoveredThreadId(thread.thread_id)}
+                                onMouseLeave={() => setHoveredThreadId(null)}
                             >
                                 {renamingThreadId === thread.thread_id ? (
                                     <input
@@ -7101,10 +7104,10 @@ const AIAssistantView = () => {
                                             )}
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', whiteSpace: 'nowrap' }}>
+                                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', whiteSpace: 'nowrap', display: (hoveredThreadId === thread.thread_id || currentThreadId === thread.thread_id) ? 'none' : 'block' }}>
                                                 {formatThreadDate(thread.last_updated)}
                                             </span>
-                                            <div style={{ display: 'flex', gap: '2px' }}>
+                                            <div style={{ display: (hoveredThreadId === thread.thread_id || currentThreadId === thread.thread_id) ? 'flex' : 'none', gap: '2px' }}>
                                                 <button onClick={e => startRename(thread.thread_id, thread.title || 'New Chat', e)}
                                                     style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px 4px', borderRadius: '3px', fontSize: '10px' }}
                                                     onMouseEnter={e => e.currentTarget.style.color = '#fff'}
