@@ -6,6 +6,7 @@ Handles xAI Grok API integration and conversation management
 import os
 import json
 import time
+import uuid
 import requests as http_requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
@@ -122,10 +123,10 @@ class ChatService:
             '_response_id': data.get('id'),
         }
     
-    def _get_user_context(self, user_id: str) -> Dict[str, Any]:
+    def _get_user_context(self, user_id: str, thread_id: str = None) -> Dict[str, Any]:
         """Get user's watchlist and conversation context"""
         try:
-            logger.info(f"🔍 Getting user context for user: {user_id}")
+            logger.info(f"Getting user context for user: {user_id}")
             
             # Use the same approach as the working API endpoint
             from app.services.watchlist_service import WatchlistService
@@ -203,7 +204,10 @@ class ChatService:
                     })
             
             # Get recent conversation history (last 10 messages for better context)
-            chat_history = self._get_conversation_history(user_id, limit=10)
+            if thread_id:
+                chat_history = self._get_thread_history(user_id, thread_id, limit=10)
+            else:
+                chat_history = self._get_conversation_history(user_id, limit=10)
             
             logger.info(f"Retrieved {len(watchlist_data)} watchlist items for user {user_id}")
             logger.info(f"🔍 Watchlist data: {watchlist_data}")
@@ -283,7 +287,96 @@ class ChatService:
             
         except Exception as e:
             logger.error(f"Failed to save conversation: {e}")
-    
+
+    # ------------------------------------------------------------------
+    # Thread management
+    # ------------------------------------------------------------------
+
+    def _thread_ref(self, user_id: str, thread_id: str):
+        return (
+            self.firestore_client
+            .collection('chat_conversations')
+            .document(user_id)
+            .collection('threads')
+            .document(thread_id)
+        )
+
+    def create_thread(self, user_id: str, title: str = 'New Chat') -> Dict:
+        thread_id = uuid.uuid4().hex[:12]
+        now = datetime.now().isoformat()
+        data = {'title': title, 'created_at': now, 'last_updated': now, 'messages': [], 'preview': ''}
+        self._thread_ref(user_id, thread_id).set(data)
+        return {'thread_id': thread_id, **data}
+
+    def list_threads(self, user_id: str) -> List[Dict]:
+        col = (
+            self.firestore_client
+            .collection('chat_conversations')
+            .document(user_id)
+            .collection('threads')
+        )
+        try:
+            docs = col.order_by('last_updated', direction='DESCENDING').limit(50).stream()
+        except Exception:
+            docs = col.stream()
+        result = []
+        for doc in docs:
+            d = doc.to_dict()
+            result.append({
+                'thread_id': doc.id,
+                'title': d.get('title', 'Chat'),
+                'created_at': d.get('created_at', ''),
+                'last_updated': d.get('last_updated', ''),
+                'preview': d.get('preview', ''),
+            })
+        result.sort(key=lambda x: x['last_updated'], reverse=True)
+        return result
+
+    def delete_thread(self, user_id: str, thread_id: str):
+        self._thread_ref(user_id, thread_id).delete()
+
+    def rename_thread(self, user_id: str, thread_id: str, title: str):
+        self._thread_ref(user_id, thread_id).update({'title': title})
+
+    def _get_thread_history(self, user_id: str, thread_id: str, limit: int = 10) -> List[Dict]:
+        doc = self._thread_ref(user_id, thread_id).get()
+        if not doc.exists:
+            return []
+        messages = doc.to_dict().get('messages', [])
+        return [
+            {'role': m.get('role'), 'content': m.get('content'), 'timestamp': m.get('timestamp', '')}
+            for m in messages[-limit:]
+        ]
+
+    def _save_to_thread(self, user_id: str, thread_id: str, user_message: str, ai_response: str):
+        ref = self._thread_ref(user_id, thread_id)
+        doc = ref.get()
+        now = datetime.now().isoformat()
+
+        if doc.exists:
+            data = doc.to_dict()
+            messages = data.get('messages', [])
+            old_title = data.get('title', 'New Chat')
+        else:
+            messages = []
+            old_title = 'New Chat'
+
+        messages.extend([
+            {'role': 'user', 'content': user_message, 'timestamp': now},
+            {'role': 'assistant', 'content': ai_response, 'timestamp': now},
+        ])
+        if len(messages) > 100:
+            messages = messages[-100:]
+
+        update = {'messages': messages, 'last_updated': now, 'preview': user_message[:80]}
+        if old_title == 'New Chat' and len(messages) <= 2:
+            update['title'] = user_message[:40] + ('...' if len(user_message) > 40 else '')
+
+        if doc.exists:
+            ref.update(update)
+        else:
+            ref.set({**update, 'created_at': now, 'title': update.get('title', 'New Chat')})
+
     def _get_available_functions(self) -> List[Dict]:
         """Define available functions for the AI to call"""
         return [
@@ -950,7 +1043,7 @@ INSTRUCTIONS: Present this as a personalized portfolio analysis. Say things like
                 "message": f"Error executing function: {str(e)}"
             }
     
-    def process_message(self, user_id: str, message: str) -> Dict[str, Any]:
+    def process_message(self, user_id: str, message: str, thread_id: str = None) -> Dict[str, Any]:
         """Process a user message and return AI response"""
         try:
             logger.info(f"Processing message from user {user_id}: {message}")
@@ -963,9 +1056,9 @@ INSTRUCTIONS: Present this as a personalized portfolio analysis. Say things like
                     "error": "AI service unavailable - API key not configured",
                     "response": "I'm currently unavailable. The AI service needs to be configured. Please try again later."
                 }
-            
+
             # Get user context
-            context = self._get_user_context(user_id)
+            context = self._get_user_context(user_id, thread_id=thread_id)
             
             # Serialize context to handle any datetime objects
             serialized_context = serialize_datetime(context)
@@ -1213,14 +1306,17 @@ The analysis should be based on the most recent data you have when the user requ
                 ai_response = "I'm sorry, I didn't receive a response. Please try again."
             
             # Save conversation
-            self._save_conversation(user_id, message, ai_response)
-            
+            if thread_id:
+                self._save_to_thread(user_id, thread_id, message, ai_response)
+            else:
+                self._save_conversation(user_id, message, ai_response)
+
             return {
                 "success": True,
                 "response": ai_response,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)
             return {
@@ -1474,7 +1570,7 @@ The analysis should be based on the most recent data you have when the user requ
             logger.error("_call_grok_api_stream error: %s", e)
             yield f"\n[Stream interrupted: {str(e)[:80]}]"
 
-    def process_message_stream(self, user_id: str, message: str):
+    def process_message_stream(self, user_id: str, message: str, thread_id: str = None):
         """
         Generator version of process_message. Yields text chunks for SSE.
 
@@ -1488,7 +1584,7 @@ The analysis should be based on the most recent data you have when the user requ
         """
         full_response = ''
         try:
-            context = self._get_user_context(user_id)
+            context = self._get_user_context(user_id, thread_id=thread_id)
             serialized_context = serialize_datetime(context)
             system_prompt = self._build_system_prompt(user_id, serialized_context)
 
@@ -1558,7 +1654,10 @@ The analysis should be based on the most recent data you have when the user requ
         finally:
             if full_response:
                 try:
-                    self._save_conversation(user_id, message, full_response)
+                    if thread_id:
+                        self._save_to_thread(user_id, thread_id, message, full_response)
+                    else:
+                        self._save_conversation(user_id, message, full_response)
                 except Exception as e:
                     logger.warning("Failed to save streamed conversation: %s", e)
 

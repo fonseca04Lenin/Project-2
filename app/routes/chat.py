@@ -80,7 +80,8 @@ def chat_endpoint():
 
         from app.services.chat_service import chat_service
 
-        result = chat_service.process_message(user.id, message)
+        thread_id = data.get('thread_id')
+        result = chat_service.process_message(user.id, message, thread_id=thread_id)
 
         if result['success']:
             return jsonify({
@@ -157,9 +158,11 @@ def chat_stream():
 
         from app.services.chat_service import chat_service
 
+        thread_id = data.get('thread_id')
+
         def generate():
             try:
-                for chunk in chat_service.process_message_stream(user.id, message):
+                for chunk in chat_service.process_message_stream(user.id, message, thread_id=thread_id):
                     yield f"data: {json.dumps({'chunk': chunk})}\n\n"
                 yield f"data: {json.dumps({'done': True, 'usage': {'used': usage['used'], 'limit': usage['limit'], 'tier': usage['tier']}})}\n\n"
             except Exception as e:
@@ -179,6 +182,87 @@ def chat_stream():
     except Exception as e:
         logger.error("chat_stream endpoint error: %s", e)
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+
+@chat_bp.route('/chat/threads', methods=['GET'])
+def list_threads():
+    """List all chat threads for the user"""
+    try:
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        from app.services.chat_service import chat_service
+        threads = chat_service.list_threads(user.id)
+        return jsonify({'success': True, 'threads': threads})
+    except Exception as e:
+        logger.error("list_threads error: %s", e)
+        return jsonify({'success': False, 'error': 'Could not list threads'}), 500
+
+
+@chat_bp.route('/chat/threads', methods=['POST'])
+def create_thread():
+    """Create a new chat thread"""
+    try:
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        data = request.get_json(silent=True) or {}
+        title = data.get('title', 'New Chat')
+        from app.services.chat_service import chat_service
+        thread = chat_service.create_thread(user.id, title=title)
+        return jsonify({'success': True, 'thread': thread}), 201
+    except Exception as e:
+        logger.error("create_thread error: %s", e)
+        return jsonify({'success': False, 'error': 'Could not create thread'}), 500
+
+
+@chat_bp.route('/chat/threads/<thread_id>', methods=['DELETE'])
+def delete_thread(thread_id):
+    """Delete a chat thread"""
+    try:
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        from app.services.chat_service import chat_service
+        chat_service.delete_thread(user.id, thread_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error("delete_thread error: %s", e)
+        return jsonify({'success': False, 'error': 'Could not delete thread'}), 500
+
+
+@chat_bp.route('/chat/threads/<thread_id>', methods=['PATCH'])
+def rename_thread(thread_id):
+    """Rename a chat thread"""
+    try:
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        data = request.get_json(silent=True) or {}
+        title = (data.get('title') or '').strip()
+        if not title:
+            return jsonify({'error': 'Title is required'}), 400
+        from app.services.chat_service import chat_service
+        chat_service.rename_thread(user.id, thread_id, title)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error("rename_thread error: %s", e)
+        return jsonify({'success': False, 'error': 'Could not rename thread'}), 500
+
+
+@chat_bp.route('/chat/threads/<thread_id>/history', methods=['GET'])
+def get_thread_history(thread_id):
+    """Get message history for a specific thread"""
+    try:
+        user = authenticate_request()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        from app.services.chat_service import chat_service
+        history = chat_service._get_thread_history(user.id, thread_id, limit=100)
+        return jsonify({'success': True, 'history': history})
+    except Exception as e:
+        logger.error("get_thread_history error: %s", e)
+        return jsonify({'success': False, 'error': 'Could not retrieve thread history'}), 500
 
 
 @chat_bp.route('/chat/history', methods=['GET'])
