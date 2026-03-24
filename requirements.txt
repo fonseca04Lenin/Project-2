@@ -9,3 +9,4 @@ gunicorn==25.1.0
 yfinance==1.2.0
 google-generativeai==0.8.6
 stripe==14.4.1
+websocket-client==1.8.0

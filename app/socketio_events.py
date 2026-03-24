@@ -1,7 +1,10 @@
+import json
 import logging
+import os
 import time
 import threading
 import gc
+from collections import defaultdict
 from datetime import datetime
 
 from flask import request
@@ -19,6 +22,156 @@ from app.services.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Finnhub real-time price feed (WebSocket)
+# ---------------------------------------------------------------------------
+
+# symbol -> {user_id -> original_price}  (used to compute price_change per user)
+symbol_to_users = defaultdict(dict)
+symbol_to_users_lock = threading.Lock()
+
+# throttle: only emit once per second per symbol to avoid flooding
+_last_emitted = {}  # symbol -> (timestamp, price)
+_EMIT_THROTTLE = 1.0
+
+
+def _emit_finnhub_price(symbol, price):
+    """Called from Finnhub WS thread. Emits price to all users watching symbol."""
+    now = time.time()
+    last_ts, _ = _last_emitted.get(symbol, (0, 0))
+    if now - last_ts < _EMIT_THROTTLE:
+        return
+    _last_emitted[symbol] = (now, price)
+
+    with symbol_to_users_lock:
+        user_map = dict(symbol_to_users.get(symbol, {}))
+
+    if not user_map:
+        return
+
+    ts = datetime.now().isoformat()
+    for user_id, original_price in user_map.items():
+        price_change = price_change_pct = 0.0
+        if original_price and original_price > 0:
+            price_change = price - original_price
+            price_change_pct = (price_change / original_price) * 100
+        try:
+            socketio.emit('watchlist_updated', {
+                'prices': [{
+                    'symbol': symbol,
+                    'price': price,
+                    'price_change': round(price_change, 4),
+                    'price_change_percent': round(price_change_pct, 4),
+                    'change_percent': round(price_change_pct, 4),
+                    'priceChangePercent': round(price_change_pct, 4),
+                    'last_updated': ts,
+                    '_fresh': True,
+                }],
+                'timestamp': ts,
+            }, room=f"watchlist_{user_id}")
+        except Exception as e:
+            logger.debug("[Finnhub] Emit error for %s → %s: %s", symbol, user_id, e)
+
+
+class FinnhubPriceFeed:
+    """Persistent WebSocket client for Finnhub real-time trade data."""
+
+    MAX_SYMBOLS = 50  # free tier limit
+
+    def __init__(self):
+        self.api_key = os.getenv('FINNHUB_API_KEY', '')
+        self.available = bool(self.api_key and self.api_key != 'demo')
+        self.ws = None
+        self.connected = False
+        self.subscribed = set()
+        self.latest_prices = {}          # symbol -> latest price (used as fallback by poll loop)
+        self._lock = threading.Lock()
+
+    def start(self):
+        if not self.available:
+            logger.info("[Finnhub] FINNHUB_API_KEY not set — WS feed disabled, using poll fallback")
+            return
+        t = threading.Thread(target=self._run_forever, daemon=True, name="FinnhubWSThread")
+        t.start()
+        logger.info("[Finnhub] WebSocket thread started")
+
+    def _run_forever(self):
+        while True:
+            try:
+                import websocket
+                url = f"wss://ws.finnhub.io?token={self.api_key}"
+                ws = websocket.WebSocketApp(
+                    url,
+                    on_open=self._on_open,
+                    on_message=self._on_message,
+                    on_error=self._on_error,
+                    on_close=self._on_close,
+                )
+                self.ws = ws
+                ws.run_forever(ping_interval=30, ping_timeout=10)
+            except Exception as e:
+                logger.error("[Finnhub] WS connection error: %s", e)
+            self.connected = False
+            logger.info("[Finnhub] Reconnecting in 10s...")
+            time.sleep(10)
+
+    def _on_open(self, ws):
+        self.connected = True
+        logger.info("[Finnhub] WebSocket connected")
+        with self._lock:
+            for sym in list(self.subscribed):
+                self._send(ws, {"type": "subscribe", "symbol": sym})
+
+    def _on_message(self, ws, raw):
+        try:
+            msg = json.loads(raw)
+            if msg.get('type') != 'trade':
+                return
+            for trade in msg.get('data', []):
+                symbol = trade.get('s')
+                price = trade.get('p')
+                if symbol and price:
+                    self.latest_prices[symbol] = float(price)
+                    _emit_finnhub_price(symbol, float(price))
+        except Exception as e:
+            logger.debug("[Finnhub] Message parse error: %s", e)
+
+    def _on_error(self, ws, error):
+        logger.warning("[Finnhub] WS error: %s", error)
+
+    def _on_close(self, ws, code, msg):
+        self.connected = False
+        logger.info("[Finnhub] WS closed (code=%s)", code)
+
+    def _send(self, ws, payload):
+        try:
+            ws.send(json.dumps(payload))
+        except Exception:
+            pass
+
+    def subscribe_symbols(self, symbols):
+        """Subscribe to new symbols (respects MAX_SYMBOLS cap)."""
+        with self._lock:
+            for sym in symbols:
+                if sym in self.subscribed:
+                    continue
+                if len(self.subscribed) >= self.MAX_SYMBOLS:
+                    logger.debug("[Finnhub] Cap reached (%s), skipping %s", self.MAX_SYMBOLS, sym)
+                    break
+                self.subscribed.add(sym)
+                if self.ws and self.connected:
+                    self._send(self.ws, {"type": "subscribe", "symbol": sym})
+
+    def unsubscribe_symbol(self, symbol):
+        """Unsubscribe from a symbol."""
+        with self._lock:
+            self.subscribed.discard(symbol)
+            if self.ws and self.connected:
+                self._send(self.ws, {"type": "unsubscribe", "symbol": symbol})
+
+
+finnhub_feed = FinnhubPriceFeed()
 
 
 def register_socketio_events():
@@ -52,6 +205,17 @@ def register_socketio_events():
                 del active_stocks_timestamps[user_id]
             logger.info("Cleaned up active stocks for user %s", user_id)
 
+            # Remove user from symbol→users index; unsubscribe orphaned symbols
+            with symbol_to_users_lock:
+                orphaned = []
+                for symbol, users in symbol_to_users.items():
+                    users.pop(user_id, None)
+                    if not users:
+                        orphaned.append(symbol)
+                for symbol in orphaned:
+                    del symbol_to_users[symbol]
+                    finnhub_feed.unsubscribe_symbol(symbol)
+
     @socketio.on('join_user_room')
     def handle_join_user_room(data):
         """Join user to their personal room for private updates"""
@@ -66,12 +230,32 @@ def register_socketio_events():
 
     @socketio.on('join_watchlist_updates')
     def handle_join_watchlist_updates(data):
-        """Join user to watchlist updates room"""
+        """Join user to watchlist updates room and subscribe symbols to Finnhub feed."""
         try:
             user_id = data.get('user_id')
-            if user_id:
-                join_room(f"watchlist_{user_id}")
-                logger.info("User %s joined watchlist updates", user_id)
+            if not user_id:
+                return
+            join_room(f"watchlist_{user_id}")
+            logger.info("User %s joined watchlist updates", user_id)
+
+            # Build symbol→users index and subscribe to Finnhub WS
+            try:
+                service = get_watchlist_service_lazy()
+                if service:
+                    watchlist = service.get_watchlist(user_id, limit=None) or []
+                    symbols = []
+                    with symbol_to_users_lock:
+                        for item in watchlist:
+                            symbol = item.get('symbol') or item.get('id')
+                            if symbol:
+                                original_price = float(item.get('original_price') or 0)
+                                symbol_to_users[symbol][user_id] = original_price
+                                symbols.append(symbol)
+                    if symbols:
+                        finnhub_feed.subscribe_symbols(symbols)
+                        logger.info("[Finnhub] Subscribed %s symbols for user %s", len(symbols), user_id)
+            except Exception as e:
+                logger.error("[Finnhub] Error loading watchlist for %s: %s", user_id, e)
         except Exception as e:
             logger.error("Error joining watchlist updates: %s", e)
 
@@ -218,7 +402,26 @@ def update_stock_prices():
             if all_symbols_to_fetch:
                 logger.debug("   Symbols: %s%s", ', '.join(list(all_symbols_to_fetch)[:20]), '...' if len(all_symbols_to_fetch) > 20 else '')
 
+            # Use Finnhub cached prices first (set by WS thread) — avoids hitting Alpaca
+            if finnhub_feed.available and finnhub_feed.latest_prices:
+                for symbol in list(all_symbols_to_fetch):
+                    price = finnhub_feed.latest_prices.get(symbol)
+                    if price and price > 0:
+                        updated_symbols[symbol] = {
+                            'symbol': symbol,
+                            'name': symbol,
+                            'price': price,
+                            'last_updated': datetime.now().isoformat(),
+                            'is_priority': symbol in priority_symbols,
+                        }
+                logger.info("[REALTIME] Finnhub cache covered %s/%s symbols", len(updated_symbols), len(all_symbols_to_fetch))
+
+            symbols_not_covered = [s for s in all_symbols_to_fetch if s not in updated_symbols]
+
             batch_failed_symbols = set()
+            if symbols_not_covered and USE_ALPACA_API and alpaca_api:
+                all_symbols_to_fetch = symbols_not_covered  # only fetch what Finnhub missed
+
             if all_symbols_to_fetch and USE_ALPACA_API and alpaca_api:
                 try:
                     logger.info("[REALTIME] Batch updating %s symbols (%s priority) via Alpaca batch API...", len(all_symbols_to_fetch), len(priority_to_fetch))
@@ -388,8 +591,9 @@ def update_stock_prices():
 
 
 def start_price_updates():
-    """Start the background price update task with proper memory management"""
-    logger.info("Starting memory-optimized price update background task...")
+    """Start price update tasks: Finnhub WS (primary) + poll loop (fallback)"""
+    logger.info("Starting price update tasks...")
+    finnhub_feed.start()
 
     def cleanup_memory():
         """Enhanced periodic memory cleanup"""
