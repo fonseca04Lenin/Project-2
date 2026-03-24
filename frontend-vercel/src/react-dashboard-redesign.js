@@ -1686,7 +1686,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                     </div>
                     <div className="header-search-wrap">
                         <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} hs-icon`}></i>
-                        <div style={{ position: 'relative', flex: 1 }}>
+                        <div style={{ flex: 1 }}>
                             <input
                                 ref={searchInputRef}
                                 type="text"
@@ -1807,10 +1807,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                         <i className="fas fa-robot"></i>
                         <span>Assistant</span>
                     </button>
-                    <div className="market-status-indicator">
-                        <div className={`market-status-dot ${marketStatus.isOpen ? 'open' : 'closed'}`}></div>
-                        <span className="market-status-text">{marketStatus.isOpen ? 'Markets Open' : 'Markets Closed'}</span>
-                    </div>
                     <div className="user-menu-wrapper">
                         <button
                             ref={userMenuBtnRef}
@@ -3001,7 +2997,6 @@ const MarketOverview = ({ marketStatus }) => {
             <div className="market-overview-header">
                 <div className="market-title">
                     <span className="market-label">Markets</span>
-                    <span className={`market-status-dot ${marketStatus?.isOpen ? 'open' : 'closed'}`}></span>
                 </div>
                 {lastUpdate && (
                     <span className="market-update-time">
@@ -7445,24 +7440,6 @@ function formatTimeAgo(date) {
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     return `${Math.floor(diff / 3600)}h ago`;
 }
-
-// Market Status Card Component
-const MarketStatusCard = ({ marketStatus }) => {
-    return (
-        <div className="kpi-card">
-            <div className="kpi-icon market">
-                <i className="fas fa-building"></i>
-            </div>
-            <div className="kpi-content">
-                <p className="kpi-label">Market Status</p>
-                <h2 className="kpi-value">{marketStatus.status}</h2>
-                <span className={`kpi-change ${marketStatus.isOpen ? 'live' : ''}`}>
-                    {marketStatus.isOpen ? 'Live' : 'Closed'}
-                </span>
-            </div>
-        </div>
-    );
-};
 
 // Initialize the redesign (this won't replace the current dashboard, just for testing)
 window.DashboardRedesign = DashboardRedesign;
