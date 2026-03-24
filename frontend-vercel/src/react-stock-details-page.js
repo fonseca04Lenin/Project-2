@@ -23,6 +23,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
+    const [aiInsightPeriod, setAiInsightPeriod] = useState('1mo');
     const chartRootRef = useRef(null);
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -194,31 +195,6 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     })();
                 }
 
-                // Load AI insight
-                setAiInsightLoading(true);
-                setAiInsight(null);
-                setAiInsightUpgradeRequired(false);
-                (async () => {
-                    try {
-                        const authUser = window.AppAuth.getCurrentUser();
-                        const headers = {};
-                        if (authUser) {
-                            const token = await authUser.getIdToken();
-                            headers['Authorization'] = `Bearer ${token}`;
-                        }
-                        const insightResp = await fetch(`${API_BASE_PAGE}/api/stock/${symbol}/ai-insight`, { headers });
-                        if (insightResp.status === 403) {
-                            setAiInsightUpgradeRequired(true);
-                        } else if (insightResp.ok) {
-                            const insightData = await insightResp.json();
-                            setAiInsight(insightData);
-                        }
-                    } catch (error) {
-                        // console.log(`[StockDetailsPage] AI insight API error:`, error);
-                    } finally {
-                        setAiInsightLoading(false);
-                    }
-                })();
 
             } catch (err) {
                 console.error(`[StockDetailsPage] Error:`, err);
@@ -342,6 +318,32 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
             // ignore
         } finally {
             setNewsLoading(false);
+        }
+    };
+
+    const fetchAiInsight = async (period) => {
+        if (aiInsightLoading || !symbol) return;
+        setAiInsightLoading(true);
+        setAiInsight(null);
+        setAiInsightUpgradeRequired(false);
+        try {
+            const authUser = window.AppAuth.getCurrentUser();
+            const headers = {};
+            if (authUser) {
+                const token = await authUser.getIdToken();
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            const insightResp = await fetch(`${API_BASE_PAGE}/api/stock/${symbol}/ai-insight?period=${period}`, { headers });
+            if (insightResp.status === 403) {
+                setAiInsightUpgradeRequired(true);
+            } else if (insightResp.ok) {
+                const insightData = await insightResp.json();
+                setAiInsight(insightData);
+            }
+        } catch (error) {
+            // ignore
+        } finally {
+            setAiInsightLoading(false);
         }
     };
 
@@ -561,16 +563,38 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 
             <main className={`stock-page-main ${isIndex ? 'index-view' : ''}`}>
                 <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}>
-                    {/* AI Insight - 7-Day Overview */}
+                    {/* AI Insight */}
                     <section className="ai-insight-card">
                         <div className="card-header">
                             <i className="fas fa-robot"></i>
-                            <h3>7-Day AI Overview</h3>
+                            <h3>AI Market Overview</h3>
                             {aiInsightLoading && <i className="fas fa-spinner fa-spin loading-indicator"></i>}
                         </div>
                         <div className="card-content">
+                            <div className="insight-controls">
+                                {[
+                                    { value: '1mo', label: '1 Month' },
+                                    { value: '6mo', label: '6 Months' },
+                                    { value: '1y',  label: '1 Year' },
+                                ].map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        className={`insight-period-btn ${aiInsightPeriod === value ? 'active' : ''}`}
+                                        onClick={() => setAiInsightPeriod(value)}
+                                        disabled={aiInsightLoading}
+                                    >{label}</button>
+                                ))}
+                                <button
+                                    className="fetch-news-btn"
+                                    onClick={() => fetchAiInsight(aiInsightPeriod)}
+                                    disabled={aiInsightLoading}
+                                >
+                                    <i className={aiInsightLoading ? 'fas fa-spinner fa-spin' : 'fas fa-robot'}></i>
+                                    {aiInsightLoading ? 'Analyzing...' : 'Get AI Overview'}
+                                </button>
+                            </div>
                             {aiInsightLoading ? (
-                                <p className="loading-text">Analyzing 7-day market conditions...</p>
+                                <p className="loading-text">Analyzing market conditions...</p>
                             ) : aiInsightUpgradeRequired ? (
                                 <div className="insight-upgrade-gate">
                                     <p className="no-data-text">
@@ -587,13 +611,13 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                     {aiInsight.change_percent !== undefined && (
                                         <div className={`insight-badge ${aiInsight.change_percent >= 0 ? 'positive' : 'negative'}`}>
                                             <i className={`fas fa-arrow-${aiInsight.change_percent >= 0 ? 'up' : 'down'}`}></i>
-                                            <span>{aiInsight.change_percent >= 0 ? '+' : ''}{aiInsight.change_percent}% (7 days)</span>
+                                            <span>{aiInsight.change_percent >= 0 ? '+' : ''}{aiInsight.change_percent}% ({aiInsight.period})</span>
                                         </div>
                                     )}
                                     <p className="insight-text">{aiInsight.ai_insight}</p>
                                 </div>
                             ) : (
-                                <p className="no-data-text">AI insight unavailable at this time.</p>
+                                <p className="no-data-text">Select a time period and click "Get AI Overview".</p>
                             )}
                         </div>
                     </section>

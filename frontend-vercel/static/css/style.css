@@ -6639,6 +6639,38 @@ body[data-theme="light"] .nav-change.negative {
 }
 .insight-upgrade-btn:hover { filter: brightness(1.1); }
 
+.insight-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.insight-period-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 5px 14px;
+    color: #aaa;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+.insight-period-btn:hover:not(:disabled) {
+    background: rgba(0,212,170,0.12);
+    border-color: #00D4AA;
+    color: #00D4AA;
+}
+.insight-period-btn.active {
+    background: rgba(0,212,170,0.18);
+    border-color: #00D4AA;
+    color: #00D4AA;
+}
+.insight-period-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Chart Section */
 .chart-section .chart-container {
     padding: 1rem;

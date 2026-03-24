@@ -439,8 +439,7 @@ def get_stock_ai_analysis(symbol):
 
 @chat_bp.route('/stock/<symbol>/ai-insight')
 def get_stock_ai_insight(symbol):
-    """Get AI-generated 7-day overview explaining why a stock is moving (powered by Grok)"""
-    # --- Auth + subscription gate: Pro/Elite only ---
+    """AI-generated stock overview for 7d, 6mo, or 1y."""
     user = authenticate_request()
     if not user:
         return jsonify({'error': 'Authentication required'}), 401
@@ -458,27 +457,40 @@ def get_stock_ai_insight(symbol):
 
     symbol = symbol.upper()
 
+    # Accepted period values
+    period_param = request.args.get('period', '1mo').lower()
+    if period_param not in ('7d', '1mo', '6mo', '1y'):
+        period_param = '1mo'
+
+    period_labels = {'7d': '7 days', '1mo': '1 month', '6mo': '6 months', '1y': '1 year'}
+    period_label = period_labels[period_param]
+
     try:
         import yfinance as yf
 
-        logger.info("[AI Insight] Starting 7-day overview for %s", symbol)
+        logger.info("[AI Insight] Starting %s overview for %s", period_param, symbol)
 
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
 
-            price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('regularMarketPreviousClose') or 0
+            price = (info.get('currentPrice') or info.get('regularMarketPrice')
+                     or info.get('regularMarketPreviousClose') or 0)
             name = info.get('shortName') or info.get('longName') or symbol
 
-            # Always use 7-day history for the weekly overview
-            hist = ticker.history(period='7d')
+            hist = ticker.history(period=period_param)
             if len(hist) >= 2:
-                week_start_price = float(hist['Close'].iloc[0])
-                weekly_change_pct = ((price - week_start_price) / week_start_price) * 100 if week_start_price else 0
+                start_price = float(hist['Close'].iloc[0])
+                change_pct = ((price - start_price) / start_price) * 100 if start_price else 0
+                period_high = float(hist['High'].max())
+                period_low = float(hist['Low'].min())
             else:
-                weekly_change_pct = 0
+                change_pct = 0
+                period_high = price
+                period_low = price
+                start_price = price
 
-            logger.info("[AI Insight] %s: $%.2f 7-day=%+.2f%%", symbol, price, weekly_change_pct)
+            logger.info("[AI Insight] %s: $%.2f %s=%+.2f%%", symbol, price, period_param, change_pct)
 
         except Exception as e:
             import traceback
@@ -492,36 +504,65 @@ def get_stock_ai_insight(symbol):
 
         news_context = ""
         try:
-            news = news_api.get_company_news(symbol, limit=3)
+            news_limit = 3 if period_param == '7d' else 5
+            news = news_api.get_company_news(symbol, limit=news_limit)
             if news:
-                news_context = "\n".join([f"- {n.get('title', '')}" for n in news[:3]])
+                news_context = "\n".join([f"- {n.get('title', '')}" for n in news[:news_limit]])
         except Exception:
             pass
 
-        direction = "up" if weekly_change_pct >= 0 else "down"
-        prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock has moved {direction} {abs(weekly_change_pct):.1f}% over the past 7 days. Focus on the weekly trend, sector dynamics, or macro factors driving this move.
+        direction = "up" if change_pct >= 0 else "down"
+        sign = '+' if change_pct >= 0 else ''
+
+        if period_param == '7d':
+            prompt = f"""Explain in 2-3 short sentences why {name} ({symbol}) stock has moved {direction} {abs(change_pct):.1f}% over the past 7 days. Focus on the weekly trend, sector dynamics, or macro factors driving this move.
 
 Current price: ${price:.2f}
-7-day change: {'+' if weekly_change_pct >= 0 else ''}{weekly_change_pct:.1f}%
+7-day change: {sign}{change_pct:.1f}%
 Recent headlines: {news_context if news_context else "No recent news available"}
 
 Write plain text only. No formatting, no bullet points, no JSON. Complete your sentences."""
+            max_tokens = 300
 
-        logger.debug("[AI Insight] Calling AI gateway for %s", symbol)
+        else:
+            # 1mo, 6mo or 1y — detailed narrative with major events
+            prompt = f"""Write a concise {period_label} overview for {name} ({symbol}) covering the major events and themes that drove the stock's performance during this period.
+
+Performance data:
+- Current price: ${price:.2f}
+- {period_label} change: {sign}{change_pct:.1f}% (from ~${start_price:.2f} to ${price:.2f})
+- {period_label} high: ${period_high:.2f}
+- {period_label} low: ${period_low:.2f}
+Recent headlines: {news_context if news_context else "No recent news available"}
+
+Instructions:
+- Write 4-6 sentences total.
+- Highlight only the 3-4 most significant events or catalysts (earnings, macro shifts, regulatory news, product launches, sector rotations, etc.) that occurred during this period.
+- Include how much the stock rose or declined overall and note any major peaks or troughs.
+- End with a brief statement on current sentiment or outlook.
+- Write plain text only. No bullet points, no headers, no JSON. Complete all sentences."""
+            max_tokens = 500
+
+        logger.debug("[AI Insight] Calling AI gateway for %s (%s)", symbol, period_param)
 
         try:
-            insight_text = ai_generate(prompt, max_tokens=300, temperature=0.5, endpoint='ai_insight')
+            insight_text = ai_generate(prompt, max_tokens=max_tokens, temperature=0.5, endpoint='ai_insight')
         except Exception as gw_err:
             logger.warning("[AI Insight] Gateway failed for %s: %s", symbol, gw_err)
             return jsonify({'symbol': symbol, 'ai_insight': 'AI service temporarily unavailable.'}), 200
 
         if insight_text:
-            logger.info("[AI Insight] Generated for %s: %s...", symbol, insight_text[:80])
+            logger.info("[AI Insight] Generated for %s (%s): %s...", symbol, period_param, insight_text[:80])
             return jsonify({
                 'symbol': symbol,
-                'change_percent': round(weekly_change_pct, 2),
-                'period': '7 days',
-                'ai_insight': insight_text
+                'change_percent': round(change_pct, 2),
+                'period_high': round(period_high, 2),
+                'period_low': round(period_low, 2),
+                'start_price': round(start_price, 2),
+                'current_price': round(price, 2),
+                'period': period_label,
+                'period_param': period_param,
+                'ai_insight': insight_text,
             })
         else:
             logger.warning("[AI Insight] Empty response for %s", symbol)

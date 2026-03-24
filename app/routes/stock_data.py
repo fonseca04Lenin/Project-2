@@ -265,8 +265,8 @@ def get_chart_data(symbol):
         period = '5d'
         interval = '15m'
     elif time_range == '1W' or time_range == '7d':
-        start_date = (now - timedelta(days=7)).strftime("%Y-%m-%d")
-        interval = '1d'
+        period = '5d'
+        interval = '30m'
     elif time_range == '1M' or time_range == '30d':
         start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
         interval = '1d'
