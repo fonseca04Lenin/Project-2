@@ -1,10 +1,8 @@
 // Configuration file for AI Stock Sage Frontend
 // Backend now deployed on Railway
 
-const _isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
 const CONFIG = {
-    API_BASE_URL: _isLocal ? 'http://localhost:5000' : 'https://web-production-2e2e.up.railway.app',
+    API_BASE_URL: 'https://web-production-2e2e.up.railway.app',
 
     // App settings
     APP_NAME: 'AI Stock Sage',
