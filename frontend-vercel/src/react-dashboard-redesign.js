@@ -2753,166 +2753,87 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }) 
     return <canvas ref={canvasRef} className="sparkline-chart" style={{ width: `${width}px`, height: `${height}px` }} />;
 };
 
-// Sector Allocation Pie Chart Component
-const SectorAllocationChart = ({ watchlistData }) => {
-    const canvasRef = useRef(null);
-    const [sectorData, setSectorData] = useState(null);
-    const [sectorAllocation, setSectorAllocation] = useState(null);
-    
-    // Fetch sector information for all stocks
+// Top Movers Widget Component
+const TopMoversWidget = () => {
+    const [movers, setMovers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [tab, setTab] = useState('gainers');
+
     useEffect(() => {
-        if (!watchlistData || watchlistData.length === 0) {
-            setSectorData(null);
-            setSectorAllocation(null);
-            return;
-        }
-        
-        const fetchSectors = async () => {
+        const fetchMovers = async () => {
             try {
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                 const authHeaders = await getAuthHeaders();
-                
-                const symbols = watchlistData.map(stock => stock.symbol).filter(Boolean);
-                if (symbols.length === 0) return;
-                
-                const response = await fetch(`${API_BASE}/api/sectors/batch`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...authHeaders
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ symbols })
+                const res = await fetch(`${API_BASE}/api/market/analysis`, {
+                    headers: authHeaders,
+                    credentials: 'include'
                 });
-                
-                if (response.ok) {
-                    const sectors = await response.json();
-                    setSectorData(sectors);
-                    
-                    // Calculate allocation by portfolio value
-                    const allocation = {};
-                    let totalValue = 0;
-                    
-                    watchlistData.forEach(stock => {
-                        const symbol = stock.symbol;
-                        const price = stock.current_price || stock.price || 0;
-                        const shares = stock.shares || 1; // Default to 1 share if not specified
-                        const value = price * shares;
-                        const sector = sectors[symbol] || 'Other';
-                        
-                        if (!allocation[sector]) {
-                            allocation[sector] = { value: 0, count: 0 };
-                        }
-                        allocation[sector].value += value;
-                        allocation[sector].count += 1;
-                        totalValue += value;
-                    });
-                    
-                    // Convert to percentages
-                    const allocationPercent = {};
-                    Object.keys(allocation).forEach(sector => {
-                        allocationPercent[sector] = {
-                            percentage: totalValue > 0 ? (allocation[sector].value / totalValue) * 100 : 0,
-                            value: allocation[sector].value,
-                            count: allocation[sector].count
-                        };
-                    });
-                    
-                    setSectorAllocation(allocationPercent);
+                if (res.ok) {
+                    const json = await res.json();
+                    setMovers(json.data?.topMovers || []);
                 }
-            } catch (error) {
-                // Silently handle sector fetch errors
-            }
+            } catch (_) {}
+            setLoading(false);
         };
-        
-        fetchSectors();
-    }, [watchlistData]);
-    
-    // Draw pie chart
-    useEffect(() => {
-        if (!sectorAllocation || !canvasRef.current) return;
-        
-        const sectors = Object.keys(sectorAllocation).sort((a, b) => 
-            sectorAllocation[b].percentage - sectorAllocation[a].percentage
-        );
-        
-        if (sectors.length === 0) return;
-        
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        const size = Math.min(canvas.width, canvas.height);
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const radius = size / 2 - 10;
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Colors for sectors - muted, natural palette
-        const colors = [
-            '#8B9DC3', '#6B7FA8', '#5A6B8F', '#4A5A7A',
-            '#5DB896', '#4A9B7F', '#3A7A68', '#2A5A4A',
-            '#9B8BA8', '#7A6B8F', '#6A5A7A', '#5A4A6A'
-        ];
-        
-        let currentAngle = -Math.PI / 2;
-        
-        sectors.forEach((sector, index) => {
-            const percentage = sectorAllocation[sector].percentage;
-            const sliceAngle = (percentage / 100) * 2 * Math.PI;
-            
-            // Draw slice
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
-            ctx.closePath();
-            ctx.fillStyle = colors[index % colors.length];
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            
-            currentAngle += sliceAngle;
-        });
-    }, [sectorAllocation]);
-    
-    if (!watchlistData || watchlistData.length === 0) {
-    return (
-            <div className="sector-chart-empty">
-                <i className="fas fa-chart-pie"></i>
-                <p>Add stocks to see sector allocation</p>
-                    </div>
+        fetchMovers();
+    }, []);
+
+    const gainers = [...movers].filter(m => m.change >= 0).sort((a, b) => b.change - a.change);
+    const losers = [...movers].filter(m => m.change < 0).sort((a, b) => a.change - b.change);
+    const displayed = tab === 'gainers' ? gainers : losers;
+
+    if (loading) {
+        return (
+            <div className="top-movers-loading">
+                <div className="mover-skeleton"></div>
+                <div className="mover-skeleton"></div>
+                <div className="mover-skeleton"></div>
+            </div>
         );
     }
-    
+
     return (
-        <>
-            <canvas ref={canvasRef} className="sector-chart" width="200" height="200" />
-            {sectorAllocation && (
-                <div className="sector-legend">
-                    {Object.keys(sectorAllocation)
-                        .sort((a, b) => sectorAllocation[b].percentage - sectorAllocation[a].percentage)
-                        .map((sector, index) => {
-                            const data = sectorAllocation[sector];
-                            const colors = [
-                                '#8B9DC3', '#6B7FA8', '#5A6B8F', '#4A5A7A',
-                                '#5DB896', '#4A9B7F', '#3A7A68', '#2A5A4A',
-                                '#9B8BA8', '#7A6B8F', '#6A5A7A', '#5A4A6A'
-                            ];
-                            return (
-                                <div key={sector} className="legend-item">
-                                    <span 
-                                        className="legend-dot" 
-                                        style={{ backgroundColor: colors[index % colors.length] }}
-                                    ></span>
-                                    <span className="legend-label">{sector}</span>
-                                    <span className="legend-percentage">{data.percentage.toFixed(1)}%</span>
-                    </div>
-                            );
-                        })}
-                </div>
-            )}
-        </>
+        <div className="top-movers-widget">
+            <div className="mover-tabs">
+                <button
+                    className={`mover-tab ${tab === 'gainers' ? 'active gainers' : ''}`}
+                    onClick={() => setTab('gainers')}
+                >
+                    <i className="fas fa-arrow-up"></i> Gainers
+                </button>
+                <button
+                    className={`mover-tab ${tab === 'losers' ? 'active losers' : ''}`}
+                    onClick={() => setTab('losers')}
+                >
+                    <i className="fas fa-arrow-down"></i> Losers
+                </button>
+            </div>
+            <div className="mover-list">
+                {displayed.length === 0 ? (
+                    <div className="mover-empty">No {tab} data available</div>
+                ) : (
+                    displayed.map((mover, idx) => {
+                        const isPositive = mover.change >= 0;
+                        return (
+                            <div key={mover.symbol} className="top-mover-row">
+                                <span className="mover-rank">{idx + 1}</span>
+                                <div className="mover-info">
+                                    <span className="mover-symbol">{mover.symbol}</span>
+                                    <span className="mover-sector">{mover.sector}</span>
+                                </div>
+                                <SparklineChart symbol={mover.symbol} isPositive={isPositive} width={80} height={32} />
+                                <div className="mover-stats">
+                                    <span className="mover-price">${mover.price.toFixed(2)}</span>
+                                    <span className={`mover-change ${isPositive ? 'positive' : 'negative'}`}>
+                                        {isPositive ? '+' : ''}{mover.change.toFixed(1)}%
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </div>
     );
 };
 
@@ -3230,22 +3151,12 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover, p
                     </div>
                 </div>
 
-                {/* Middle Column - Sector Allocation */}
+                {/* Middle Column - Top Movers */}
                 <div className="main-card enhanced">
                     <div className="card-header">
-                        <h3><i className="fas fa-chart-pie"></i> Sector Allocation</h3>
+                        <h3><i className="fas fa-fire"></i> Top Movers</h3>
                     </div>
-                    <div className="sector-allocation-container">
-                        <SectorAllocationChart watchlistData={watchlistData} />
-                        <div className="sector-legend">
-                            {watchlistData.length > 0 && (
-                                <div className="legend-item">
-                                    <span className="legend-dot"></span>
-                                    <span>Technology</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    <TopMoversWidget />
                 </div>
 
                 {/* Right Column - Market Intelligence Quick Look */}
