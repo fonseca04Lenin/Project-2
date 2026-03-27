@@ -4161,3 +4161,229 @@ input:checked + .slider:before {
 [data-theme="light"] [style*="rgba(255, 255, 255, 0.03)"] {
     color: #333;
 }
+
+
+.dashboard-redesign {
+    background: #0a0a0a;
+}
+
+.loading-container {
+    background: #0a0a0a;
+}
+
+.main-card,
+.main-card.enhanced {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.main-card:hover,
+.main-card.enhanced:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    transform: none;
+    box-shadow: none;
+}
+
+/* KPI cards */
+.kpi-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.kpi-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: none;
+    box-shadow: none;
+}
+
+/* Stock rows */
+.stock-row {
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.stock-row:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.stock-row:focus {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+.stock-row-enhanced {
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.stock-row-enhanced:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: none;
+}
+
+/* Watchlist cards */
+.watchlist-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.watchlist-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: none;
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* News cards */
+.news-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.news-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: none;
+    box-shadow: none;
+}
+
+/* News image - neutral dark instead of green/orange gradient */
+.news-image-container,
+.news-image-placeholder {
+    background: rgba(255, 255, 255, 0.04);
+}
+.news-image-placeholder {
+    color: rgba(255, 255, 255, 0.18);
+}
+
+/* News badge & category - muted */
+.news-badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+}
+.news-category {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* Filter buttons - remove green/orange gradient */
+.filter-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.filter-btn:hover,
+.filter-btn.active {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+/* Insight / intelligence items */
+.insight-item {
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.intel-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.intel-item {
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.intel-count {
+    background: rgba(255, 255, 255, 0.07);
+    border: none;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* Metric items */
+.metric-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.metric-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: none;
+}
+.metric-item.primary {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Action and card buttons */
+.action-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: none;
+}
+.card-action-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Prompt buttons */
+.prompt-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.prompt-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: none;
+}
+
+/* Stock change badges - toned down */
+.stock-change-enhanced.positive {
+    background: rgba(16, 185, 129, 0.08);
+}
+.stock-change-enhanced.negative {
+    background: rgba(239, 68, 68, 0.08);
+}
+.performer-change.positive {
+    background: rgba(0, 217, 36, 0.08);
+}
+.performer-change.negative {
+    background: rgba(239, 68, 68, 0.08);
+}
+
+/* Status indicators - neutral, no colored glow */
+.realtime-status-indicator,
+.realtime-status-indicator.connected,
+.realtime-status-indicator.disconnected {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.realtime-status-indicator.connected .realtime-status-text {
+    color: rgba(255, 255, 255, 0.65);
+}
+.realtime-status-indicator.disconnected .realtime-status-text {
+    color: rgba(255, 255, 255, 0.5);
+}
+.update-rate-badge {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.45);
+}
+.market-status-dot.open {
+    box-shadow: none;
+}
+
+/* Assistant status - no green background */
+.assistant-status {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Modal - flat dark */
+.modal-content {
+    background: #0a0a0a;
+}
+.modal-header {
+    background: transparent;
+}
+
+/* Help modal icons & links */
+.help-icon {
+    background: rgba(255, 255, 255, 0.06);
+}
+.help-email {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.65);
+}
+.help-email:hover {
+    background: rgba(255, 255, 255, 0.07);
+    transform: none;
+}

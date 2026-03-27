@@ -6753,10 +6753,10 @@ body[data-theme="light"] .nav-change.negative {
     padding: 1.25rem 1.5rem;
 }
 
-/* AI Insight Card */
+/* Market Analysis Card */
 .ai-insight-card {
-    background: linear-gradient(135deg, rgba(0, 217, 36, 0.08) 0%, rgba(0, 149, 255, 0.08) 100%);
-    border-color: rgba(0, 217, 36, 0.2);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .loading-text,
