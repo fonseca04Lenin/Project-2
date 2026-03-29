@@ -23,7 +23,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
-    const [aiInsightPeriod, setAiInsightPeriod] = useState('7d');
+    const [aiInsightPeriod, setAiInsightPeriod] = useState('1mo');
     const chartRootRef = useRef(null);
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -57,11 +57,6 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 window.untrackStockView(symbol);
             }
         };
-    }, [symbol]);
-
-    // Auto-fetch 7d market analysis on load
-    useEffect(() => {
-        if (symbol) fetchAiInsight('7d');
     }, [symbol]);
 
     // Load stock data
@@ -568,17 +563,16 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 
             <main className={`stock-page-main ${isIndex ? 'index-view' : ''}`}>
                 <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}>
-                    {/* Market Analysis */}
+                    {/* AI Insight */}
                     <section className="ai-insight-card">
                         <div className="card-header">
-                            <i className="fas fa-chart-line"></i>
-                            <h3>Market Analysis</h3>
+                            <i className="fas fa-robot"></i>
+                            <h3>AI Market Overview</h3>
                             {aiInsightLoading && <i className="fas fa-spinner fa-spin loading-indicator"></i>}
                         </div>
                         <div className="card-content">
                             <div className="insight-controls">
                                 {[
-                                    { value: '7d',  label: '7 Days' },
                                     { value: '1mo', label: '1 Month' },
                                     { value: '6mo', label: '6 Months' },
                                     { value: '1y',  label: '1 Year' },
@@ -586,13 +580,21 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                     <button
                                         key={value}
                                         className={`insight-period-btn ${aiInsightPeriod === value ? 'active' : ''}`}
-                                        onClick={() => { setAiInsightPeriod(value); fetchAiInsight(value); }}
+                                        onClick={() => setAiInsightPeriod(value)}
                                         disabled={aiInsightLoading}
                                     >{label}</button>
                                 ))}
+                                <button
+                                    className="fetch-news-btn"
+                                    onClick={() => fetchAiInsight(aiInsightPeriod)}
+                                    disabled={aiInsightLoading}
+                                >
+                                    <i className={aiInsightLoading ? 'fas fa-spinner fa-spin' : 'fas fa-robot'}></i>
+                                    {aiInsightLoading ? 'Analyzing...' : 'Get AI Overview'}
+                                </button>
                             </div>
                             {aiInsightLoading ? (
-                                <p className="loading-text">Loading analysis...</p>
+                                <p className="loading-text">Analyzing market conditions...</p>
                             ) : aiInsightUpgradeRequired ? (
                                 <div className="insight-upgrade-gate">
                                     <p className="no-data-text">
@@ -615,7 +617,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                     <p className="insight-text">{aiInsight.ai_insight}</p>
                                 </div>
                             ) : (
-                                <p className="no-data-text">Select a time period above to load the analysis.</p>
+                                <p className="no-data-text">Select a time period and click "Get AI Overview".</p>
                             )}
                         </div>
                     </section>
@@ -840,11 +842,6 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             })}
                         </section>
                     )}
-
-                    {/* Per-stock notes — always visible regardless of watchlist status */}
-                    {window.StockNotesSection && React.createElement(window.StockNotesSection, {
-                        symbol: symbol
-                    })}
                 </div>
 
                 {!isIndex && (
