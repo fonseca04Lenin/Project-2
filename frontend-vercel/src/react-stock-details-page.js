@@ -32,6 +32,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     // CEO modal
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
     const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
+    const [showFullDesc, setShowFullDesc] = useState(false);
 
     // Strip titles from CEO names
     const cleanCEOName = (name) => {
@@ -75,6 +76,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
             setStockData(null);
             setChartData(null);
             setNews([]);
+            setShowFullDesc(false);
 
             try {
                 const authHeaders = await window.AppAuth.getAuthHeaders();
@@ -754,7 +756,25 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             <h3><i className={isIndex ? "fas fa-chart-line" : "fas fa-building"}></i> About {stockData.name || symbol}</h3>
                         </div>
                         <div className="about-content">
-                            <p className="description">{stockData.description || (isIndex ? 'Market index tracking major equities.' : 'No description available.')}</p>
+                            {(() => {
+                                const fullDesc = stockData.description || (isIndex ? 'Market index tracking major equities.' : 'No description available.');
+                                const LIMIT = 220;
+                                const isTruncatable = fullDesc.length > LIMIT;
+                                const cutAt = fullDesc.lastIndexOf(' ', LIMIT);
+                                const displayed = (!showFullDesc && isTruncatable)
+                                    ? fullDesc.slice(0, cutAt > 0 ? cutAt : LIMIT) + '…'
+                                    : fullDesc;
+                                return (
+                                    <>
+                                        <p className="description">{displayed}</p>
+                                        {isTruncatable && (
+                                            <button className="description-read-more" onClick={() => setShowFullDesc(p => !p)}>
+                                                {showFullDesc ? 'Show less' : 'Read more'}
+                                            </button>
+                                        )}
+                                    </>
+                                );
+                            })()}
                             {!isIndex && (
                                 <div className="company-details">
                                     <div className="detail-item">

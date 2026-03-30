@@ -6313,7 +6313,7 @@ body {
 
 .stock-page-container {
     min-height: 100vh;
-    background: linear-gradient(135deg, #0a0b0f 0%, #12141a 50%, #0d0e12 100%);
+    background: linear-gradient(135deg, #000000 0%, #0D0D0D 50%, #1A1A1A 100%);
     color: #ffffff;
     display: flex;
     flex-direction: column;
@@ -6630,8 +6630,8 @@ body[data-theme="light"] .nav-change.negative {
     justify-content: space-between;
     align-items: flex-start;
     padding: 1.5rem 2rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 16px;
 }
 
@@ -6712,8 +6712,8 @@ body[data-theme="light"] .nav-change.negative {
 .chart-section,
 .news-section,
 .sentiment-section {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 16px;
     overflow: hidden;
 }
@@ -6724,7 +6724,7 @@ body[data-theme="light"] .nav-change.negative {
     align-items: center;
     gap: 0.75rem;
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .section-header h3,
@@ -6879,20 +6879,21 @@ body[data-theme="light"] .nav-change.negative {
     gap: 0.35rem;
     padding: 1rem;
     background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 107, 53, 0.12);
     border-radius: 10px;
 }
 
 .stat-label {
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.45);
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
 
 .stat-value {
     font-size: 1.1rem;
-    font-weight: 600;
-    color: #ffffff;
+    font-weight: 700;
+    color: #FF6B35;
 }
 
 /* About Section */
@@ -6901,10 +6902,28 @@ body[data-theme="light"] .nav-change.negative {
 }
 
 .description {
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 0.75rem 0;
     font-size: 0.95rem;
     line-height: 1.7;
-    color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.description-read-more {
+    background: none;
+    border: none;
+    color: #FF6B35;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 1.25rem;
+    display: block;
+    opacity: 0.85;
+    transition: opacity 0.2s;
+}
+
+.description-read-more:hover {
+    opacity: 1;
 }
 
 .company-details {

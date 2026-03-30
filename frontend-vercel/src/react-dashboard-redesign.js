@@ -3407,7 +3407,6 @@ const NewsView = () => {
     const [hasMore, setHasMore] = useState(true);
     const [query, setQuery] = useState('');
 
-    const sentinelRef = useRef(null);
     const inFlightRef = useRef(false);   // ref-based guard, never stale
     const pageRef = useRef(1);           // current page, never stale
     const queryRef = useRef('');         // current query, never stale
@@ -3475,46 +3474,6 @@ const NewsView = () => {
         fetchPage(nextPage, true, queryRef.current);
     };
 
-    // Mount observer once — uses loadMoreRef so it never captures stale state
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    loadMoreRef.current();
-                }
-            },
-            { root: null, rootMargin: '200px', threshold: 0 }
-        );
-
-        // Observe whenever sentinelRef is attached (hasMore controls its presence)
-        const checkAndObserve = () => {
-            if (sentinelRef.current) {
-                observer.observe(sentinelRef.current);
-            }
-        };
-
-        // Poll briefly for the sentinel to mount after first render
-        const t = setTimeout(checkAndObserve, 50);
-        return () => {
-            clearTimeout(t);
-            observer.disconnect();
-        };
-    }, []);
-
-    // Re-attach observer when sentinel mounts/unmounts (hasMore toggles it)
-    useEffect(() => {
-        if (!sentinelRef.current) return;
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    loadMoreRef.current();
-                }
-            },
-            { root: null, rootMargin: '200px', threshold: 0 }
-        );
-        observer.observe(sentinelRef.current);
-        return () => observer.disconnect();
-    }, [hasMore]);
 
     const triggerSearch = () => {
         if (loading || loadingMore) return;
@@ -3697,21 +3656,22 @@ const NewsView = () => {
             )}
 
             {!loading && visibleArticles.length > 0 && (
-                <>
-                    <div className="news-infinite-status">
-                        {loadingMore && (
-                            <div className="news-loading-more">
-                                <i className="fas fa-spinner fa-spin"></i>
-                                Loading more news...
-                            </div>
-                        )}
-                        {!loadingMore && !hasMore && (
-                            <div className="news-end-message">No more news to load</div>
-                        )}
-                    </div>
-
-                    {hasMore && <div ref={sentinelRef} className="news-scroll-sentinel" aria-hidden="true" />}
-                </>
+                <div className="news-infinite-status">
+                    {hasMore && (
+                        <button
+                            className="load-more-btn"
+                            onClick={() => loadMoreRef.current()}
+                            disabled={loadingMore}
+                        >
+                            {loadingMore ? (
+                                <><i className="fas fa-spinner fa-spin"></i> Loading...</>
+                            ) : (
+                                <><i className="fas fa-plus"></i> Load More News</>
+                            )}
+                        </button>
+                    )}
+                    {!hasMore && <div className="news-end-message">No more news to load</div>}
+                </div>
             )}
         </div>
     );
