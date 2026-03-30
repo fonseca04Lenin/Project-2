@@ -653,12 +653,6 @@ i[class*="fal"],
   animation: spin 0.8s linear infinite;
 }
 
-.auth-dialog-footer {
-  padding: 1.25rem 1.5rem;
-  text-align: center;
-  border-top: 1px solid #2a2a2a;
-  background-color: #000000;
-}
 
 .auth-switch-text {
   color: #808080;
@@ -778,9 +772,6 @@ i[class*="fal"],
     padding: 1.25rem;
   }
 
-  .auth-dialog-footer {
-    padding: 1.125rem 1.25rem;
-  }
 }
 
 /* Hide the old landing page when React landing page is active */

@@ -122,14 +122,12 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
 
       // Check if username is required for new Google users
       if (result_data.needsUsername) {
-        // // console.log('🆕 New Google user needs username');
         // Show username collection dialog
         showUsernameDialog(result_data.user, idToken);
         return;
       }
 
       // Success - close dialog and trigger main app authentication
-      // // console.log('Google sign-in successful, closing dialog...');
       onOpenChange(false);
       
       // Trigger main app authentication state change
@@ -203,7 +201,6 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       }
 
       // Success - close dialog and trigger main app authentication
-      // // console.log('Username set successfully, closing dialog...');
       onOpenChange(false);
       
       // Trigger main app authentication state change
@@ -276,7 +273,6 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         }
 
         // Success - close dialog and trigger main app authentication
-        // // console.log('Registration successful, closing dialog...');
         onOpenChange(false);
         
         // Clear form
@@ -340,7 +336,6 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         }
 
         // Success - close dialog and trigger main app authentication
-        // // console.log('Login successful, closing dialog...');
         onOpenChange(false);
         
         // Clear form

@@ -1945,10 +1945,6 @@ body[data-theme="light"] .hn-dropdown-item:hover {
    PORTFOLIO PERFORMANCE DASHBOARD STYLES
    ============================================ */
 
-/* Portfolio Summary Card - DEPRECATED, replaced by Market Overview */
-.portfolio-summary-card {
-    display: none;
-}
 
 /* Market Overview Card */
 .market-overview-card {
@@ -2652,10 +2648,6 @@ body[data-theme="light"] .hn-dropdown-item:hover {
 }
 
 @media (max-width: 768px) {
-    .portfolio-summary-card {
-        padding: 1.5rem;
-    }
-    
     .summary-header {
         flex-direction: column;
         align-items: flex-start;
