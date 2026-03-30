@@ -633,6 +633,38 @@ body[data-theme="light"] .hn-dropdown-item:hover {
     color: rgba(255,255,255,0.65);
 }
 
+.suggestion-item.ceo-item .s-symbol {
+    color: #FF6B35;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.suggestion-item.ceo-item .s-symbol i {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.suggestion-item.ceo-item .s-name {
+    color: rgba(255,255,255,0.4);
+}
+
+.suggestion-item.ceo-item:hover .s-symbol,
+.suggestion-item.ceo-item.active .s-symbol {
+    color: #FF6B35;
+}
+
+.suggestions-divider {
+    padding: 4px 12px 2px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.25);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 2px;
+}
+
 .search-no-results {
     display: flex;
     align-items: center;

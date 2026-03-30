@@ -57,6 +57,8 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
     const [suggestions, setSuggestions] = useState([]);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [searchNoResults, setSearchNoResults] = useState(false);
+    const [ceoModalOpen, setCeoModalOpen] = useState(false);
+    const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
     const [toolsOpen, setToolsOpen] = useState(false);
     const [marketsOpen, setMarketsOpen] = useState(false);
     const searchDebounceRef = useRef(null);
@@ -1270,13 +1272,16 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
         if (e.key === 'Enter' && suggestions.length > 0) {
             const idx = highlightedIndex >= 0 ? highlightedIndex : 0;
             const choice = suggestions[idx];
-            if (choice?.symbol) {
+            if (choice?.type === 'ceo') {
+                setSelectedCEO({ name: choice.ceoName, company: choice.companyName, symbol: choice.symbol });
+                setCeoModalOpen(true);
+            } else if (choice?.symbol) {
                 window.openStockDetailsModalReact && window.openStockDetailsModalReact(choice.symbol);
-                setSuggestions([]);
-                setHighlightedIndex(-1);
-                setSearchQuery('');
-                setSearchNoResults(false);
             }
+            setSuggestions([]);
+            setHighlightedIndex(-1);
+            setSearchQuery('');
+            setSearchNoResults(false);
         }
     };
 
@@ -1302,23 +1307,36 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 setSearching(true);
                 const authHeaders = await getAuthHeaders();
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const resp = await fetch(`${API_BASE}/api/search/stocks?q=${encodeURIComponent(value.trim())}`, {
-                    method: 'GET',
-                    headers: authHeaders,
-                    credentials: 'include'
-                });
-                if (resp.ok) {
-                    const data = await resp.json();
+
+                // Fire stock search and CEO search in parallel
+                const [stockResp, ceoResp] = await Promise.allSettled([
+                    fetch(`${API_BASE}/api/search/stocks?q=${encodeURIComponent(value.trim())}`, { method: 'GET', headers: authHeaders, credentials: 'include' }),
+                    fetch(`${API_BASE}/api/search/ceo?q=${encodeURIComponent(value.trim())}`, { method: 'GET', headers: authHeaders, credentials: 'include' })
+                ]);
+
+                let stockResults = [];
+                if (stockResp.status === 'fulfilled' && stockResp.value.ok) {
+                    const data = await stockResp.value.json();
                     const res = data.results || data;
-                    const results = Array.isArray(res) ? res.slice(0, 8) : [];
-                    setSuggestions(results);
-                    setHighlightedIndex(results.length > 0 ? 0 : -1);
-                    setSearchNoResults(results.length === 0);
-                } else {
-                    setSuggestions([]);
-                    setHighlightedIndex(-1);
-                    setSearchNoResults(true);
+                    stockResults = (Array.isArray(res) ? res : []).slice(0, 5).map(s => ({ ...s, type: 'stock' }));
                 }
+
+                let ceoResults = [];
+                if (ceoResp.status === 'fulfilled' && ceoResp.value.ok) {
+                    const data = await ceoResp.value.json();
+                    const res = data.results || data;
+                    ceoResults = (Array.isArray(res) ? res : []).slice(0, 3).map(c => ({
+                        type: 'ceo',
+                        ceoName: c.ceo_name || c.ceoName || c.name || '',
+                        companyName: c.company_name || c.companyName || '',
+                        symbol: c.symbol || ''
+                    })).filter(c => c.ceoName);
+                }
+
+                const combined = [...stockResults, ...ceoResults];
+                setSuggestions(combined);
+                setHighlightedIndex(combined.length > 0 ? 0 : -1);
+                setSearchNoResults(combined.length === 0);
             } catch (_) {
                 setSuggestions([]);
                 setHighlightedIndex(-1);
@@ -1649,7 +1667,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                             <input
                                 ref={searchInputRef}
                                 type="text"
-                                placeholder="Search stocks, ETFs..."
+                                placeholder="Search Stocks, ETFs and CEOs..."
                                 className="hs-input"
                                 value={searchQuery}
                                 onChange={(e) => onSearchInputChange(e.target.value)}
@@ -1666,11 +1684,10 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                             />
                             {searchQuery.trim() && (suggestions.length > 0 || searchNoResults) && (
                                 <div className="search-suggestions" role="listbox">
-                                    {suggestions.length > 0 ? suggestions.map((s, idx) => {
+                                    {suggestions.length > 0 ? (() => {
                                         const q = searchQuery.trim().toUpperCase();
-                                        const sym = s.symbol || '';
-                                        const nm = s.name || '';
                                         const highlightText = (text, query) => {
+                                            if (!text) return React.createElement('span', null, '');
                                             const i = text.toUpperCase().indexOf(query);
                                             if (i === -1) return React.createElement('span', null, text);
                                             return React.createElement(React.Fragment, null,
@@ -1679,25 +1696,59 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                                 text.slice(i + query.length)
                                             );
                                         };
-                                        return React.createElement('div',
-                                            {
-                                                key: `${sym}-${idx}`,
-                                                role: 'option',
-                                                className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
-                                                onMouseEnter: () => setHighlightedIndex(idx),
-                                                onMouseDown: (e) => e.preventDefault(),
-                                                onClick: () => {
-                                                    window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
-                                                    setSuggestions([]);
-                                                    setHighlightedIndex(-1);
-                                                    setSearchQuery('');
-                                                    setSearchNoResults(false);
-                                                }
-                                            },
-                                            React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
-                                            React.createElement('span', { className: 's-name' }, highlightText(nm, q))
-                                        );
-                                    }) : React.createElement('div', { className: 'search-no-results' },
+                                        const firstCeoIdx = suggestions.findIndex(s => s.type === 'ceo');
+                                        return suggestions.map((s, idx) => {
+                                            const showCeoDivider = idx === firstCeoIdx && idx > 0;
+                                            if (s.type === 'ceo') {
+                                                return React.createElement(React.Fragment, { key: `ceo-${s.symbol}-${idx}` },
+                                                    showCeoDivider && React.createElement('div', { className: 'suggestions-divider' }, 'CEOs'),
+                                                    React.createElement('div',
+                                                        {
+                                                            role: 'option',
+                                                            className: `suggestion-item ceo-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                                            onMouseEnter: () => setHighlightedIndex(idx),
+                                                            onMouseDown: (e) => e.preventDefault(),
+                                                            onClick: () => {
+                                                                setSelectedCEO({ name: s.ceoName, company: s.companyName, symbol: s.symbol });
+                                                                setCeoModalOpen(true);
+                                                                setSuggestions([]);
+                                                                setHighlightedIndex(-1);
+                                                                setSearchQuery('');
+                                                                setSearchNoResults(false);
+                                                            }
+                                                        },
+                                                        React.createElement('span', { className: 's-symbol' },
+                                                            React.createElement('i', { className: 'fas fa-user-tie' }),
+                                                            highlightText(s.ceoName, q)
+                                                        ),
+                                                        React.createElement('span', { className: 's-name' },
+                                                            s.companyName + (s.symbol ? ` · ${s.symbol}` : '')
+                                                        )
+                                                    )
+                                                );
+                                            }
+                                            const sym = s.symbol || '';
+                                            const nm = s.name || '';
+                                            return React.createElement('div',
+                                                {
+                                                    key: `${sym}-${idx}`,
+                                                    role: 'option',
+                                                    className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                                    onMouseEnter: () => setHighlightedIndex(idx),
+                                                    onMouseDown: (e) => e.preventDefault(),
+                                                    onClick: () => {
+                                                        window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
+                                                        setSuggestions([]);
+                                                        setHighlightedIndex(-1);
+                                                        setSearchQuery('');
+                                                        setSearchNoResults(false);
+                                                    }
+                                                },
+                                                React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
+                                                React.createElement('span', { className: 's-name' }, highlightText(nm, q))
+                                            );
+                                        });
+                                    })() : React.createElement('div', { className: 'search-no-results' },
                                         React.createElement('i', { className: 'fas fa-search' }),
                                         React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
                                     )}
@@ -2021,6 +2072,15 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                     </div>
                 )}
             </div>
+
+            {/* CEO Details Modal */}
+            {ceoModalOpen && window.CEODetailsModal && React.createElement(window.CEODetailsModal, {
+                isOpen: ceoModalOpen,
+                onClose: () => setCeoModalOpen(false),
+                ceoName: selectedCEO.name,
+                companyName: selectedCEO.company,
+                companySymbol: selectedCEO.symbol
+            })}
 
             {/* Floating Assistant - Hidden when already in assistant view */}
             {activeView !== 'assistant' && (
