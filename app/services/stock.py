@@ -217,89 +217,83 @@ class SmartCache:
             return time.time() - timestamp
 
 # =============================================================================
-# NEWS API (unchanged)
+# NEWS API (Finnhub)
 # =============================================================================
 
 class NewsAPI:
     def __init__(self):
-        self.api_key = os.getenv('NEWS_API_KEY', 'demo')
+        self.api_key = os.getenv('FINNHUB_API_KEY', 'demo')
+        self.base_url = 'https://finnhub.io/api/v1'
+
+    def _format_article(self, article):
+        ts = article.get('datetime', 0)
+        try:
+            published_at = datetime.utcfromtimestamp(ts).strftime('%Y-%m-%dT%H:%M:%SZ') if ts else ''
+        except Exception:
+            published_at = ''
+        return {
+            'title': article.get('headline', ''),
+            'link': article.get('url', ''),
+            'published_at': published_at,
+            'source': article.get('source', 'Finnhub'),
+            'summary': article.get('summary', ''),
+            'image_url': article.get('image', '')
+        }
 
     def get_market_news(self, limit=10, query=None, page=1):
-        """Get general market news using NewsAPI.org"""
+        """Get general market news from Finnhub"""
         try:
-            if query and query.strip():
-                url = 'https://newsapi.org/v2/everything'
-                params = {
-                    'q': query.strip(),
-                    'language': 'en',
-                    'sortBy': 'publishedAt',
-                    'pageSize': limit,
-                    'page': page,
-                    'apiKey': self.api_key
-                }
-            else:
-                url = 'https://newsapi.org/v2/top-headlines'
-                params = {
-                    'category': 'business',
-                    'language': 'en',
-                    'pageSize': limit,
-                    'page': page,
-                    'apiKey': self.api_key
-                }
-
-            response = requests.get(url, params=params, timeout=3)
+            url = f'{self.base_url}/news'
+            params = {'category': 'general', 'token': self.api_key}
+            response = requests.get(url, params=params, timeout=5)
             if response.status_code == 200:
-                articles = response.json().get('articles', [])
-                news_items = []
-                for article in articles:
-                    news_items.append({
-                        'title': article.get('title', ''),
-                        'link': article.get('url', ''),
-                        'published_at': article.get('publishedAt', ''),
-                        'source': article.get('source', {}).get('name', 'NewsAPI'),
-                        'summary': article.get('description', ''),
-                        'image_url': article.get('urlToImage', '')
-                    })
-                return news_items
+                articles = response.json()
+                if not isinstance(articles, list):
+                    return self.get_fallback_news()
+
+                news_items = [self._format_article(a) for a in articles if a.get('headline')]
+
+                if query and query.strip():
+                    q = query.strip().lower()
+                    news_items = [
+                        item for item in news_items
+                        if q in item['title'].lower() or q in item['summary'].lower()
+                    ]
+
+                start = (page - 1) * limit
+                return news_items[start:start + limit]
             else:
-                logger.error("NewsAPI.org error: %s", response.status_code)
+                logger.error("Finnhub news error: %s", response.status_code)
                 return self.get_fallback_news()
         except Exception as e:
             logger.error("Error fetching market news: %s", e)
             return self.get_fallback_news()
 
     def get_company_news(self, symbol, limit=5, page=1):
+        """Get company-specific news from Finnhub"""
         try:
-            stock = yf.Ticker(symbol)
-            info = stock.info
-            company_name = info.get('longName', '') or info.get('shortName', '') or symbol
+            to_date = datetime.now().strftime('%Y-%m-%d')
+            from_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
-            url = 'https://newsapi.org/v2/everything'
+            url = f'{self.base_url}/company-news'
             params = {
-                'q': f'"{company_name}" OR "{symbol}"',
-                'language': 'en',
-                'sortBy': 'publishedAt',
-                'pageSize': limit,
-                'page': page,
-                'apiKey': self.api_key
+                'symbol': symbol,
+                'from': from_date,
+                'to': to_date,
+                'token': self.api_key
             }
-
-            response = requests.get(url, params=params, timeout=3)
+            response = requests.get(url, params=params, timeout=5)
             if response.status_code == 200:
-                articles = response.json().get('articles', [])
-                news_items = []
-                for article in articles:
-                    news_items.append({
-                        'title': article.get('title', ''),
-                        'link': article.get('url', ''),
-                        'published_at': article.get('publishedAt', ''),
-                        'source': article.get('source', {}).get('name', 'NewsAPI'),
-                        'summary': article.get('description', ''),
-                        'image_url': article.get('urlToImage', '')
-                    })
-                return news_items
+                articles = response.json()
+                if not isinstance(articles, list):
+                    return []
+
+                news_items = [self._format_article(a) for a in articles if a.get('headline')]
+
+                start = (page - 1) * limit
+                return news_items[start:start + limit]
             else:
-                logger.error("NewsAPI.org error for %s: %s", symbol, response.status_code)
+                logger.error("Finnhub company news error for %s: %s", symbol, response.status_code)
                 return []
         except Exception as e:
             logger.error("Error fetching company news for %s: %s", symbol, e)
