@@ -240,6 +240,17 @@ class NewsAPI:
             'image_url': article.get('image', '')
         }
 
+    def _dedupe_images(self, news_items):
+        """Clear duplicate image URLs so the frontend falls back to its placeholder."""
+        seen = set()
+        for item in news_items:
+            url = item.get('image_url', '')
+            if url and url in seen:
+                item['image_url'] = ''
+            elif url:
+                seen.add(url)
+        return news_items
+
     def get_market_news(self, limit=10, query=None, page=1):
         """Get general market news from Finnhub"""
         try:
@@ -251,7 +262,9 @@ class NewsAPI:
                 if not isinstance(articles, list):
                     return self.get_fallback_news()
 
-                news_items = [self._format_article(a) for a in articles if a.get('headline')]
+                news_items = self._dedupe_images(
+                    [self._format_article(a) for a in articles if a.get('headline')]
+                )
 
                 if query and query.strip():
                     q = query.strip().lower()
@@ -288,7 +301,9 @@ class NewsAPI:
                 if not isinstance(articles, list):
                     return []
 
-                news_items = [self._format_article(a) for a in articles if a.get('headline')]
+                news_items = self._dedupe_images(
+                    [self._format_article(a) for a in articles if a.get('headline')]
+                )
 
                 start = (page - 1) * limit
                 return news_items[start:start + limit]
