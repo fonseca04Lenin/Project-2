@@ -3501,28 +3501,26 @@ const NewsView = () => {
         fetchPage(1, false, query);
     };
 
-    const visibleArticles = articles;
+    const getImgUrl = (a) => {
+        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') return a.image_url;
+        return null;
+    };
 
     return (
         <div className="news-view">
             <div className="view-header">
                 <h2>Market News</h2>
                 <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
-                    <input 
-                        className="search-input" 
-                        style={{ maxWidth:'240px' }} 
+                    <input
+                        className="search-input"
+                        style={{ maxWidth:'240px' }}
                         value={query}
-                        onChange={(e)=>setQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                triggerSearch();
-                            }
-                        }}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); triggerSearch(); } }}
                         placeholder="Search news" />
-                    <button 
-                        className="search-btn" 
-                        onClick={triggerSearch} 
+                    <button
+                        className="search-btn"
+                        onClick={triggerSearch}
                         disabled={loading || loadingMore}
                     >
                         {query.trim() ? 'Search' : 'Refresh'}
@@ -3530,151 +3528,210 @@ const NewsView = () => {
                     {error && <span style={{ color:'#FF6B35', fontSize:'0.9rem' }}>{error}</span>}
                 </div>
             </div>
-            <div className="news-grid">
-                {(loading ? Array.from({length:1}) : visibleArticles.slice(0,1)).map((a, idx) => {
-                    // Generate fallback image URL using Unsplash Source API (generic financial/stock market image)
-                    const getImageUrl = () => {
-                        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
-                            return a.image_url;
-                        }
-                        // Fallback: Use Unsplash Source API for generic financial images
-                        // Using a 16:9 aspect ratio (1920x1080) which matches typical news image ratios
-                        const seed = a?.title ? encodeURIComponent(a.title.substring(0, 20)) : 'stock-market';
-                        return `https://source.unsplash.com/1920x1080/?finance,stock-market,business,${seed}`;
-                    };
-                    
-                    const articleUrl = a?.url || a?.link;
-                    const handleCardClick = (e) => {
-                        // Don't navigate if clicking on the "Read More" link
-                        if (e.target.closest('.read-more')) {
-                            return;
-                        }
-                        if (articleUrl) {
-                            window.open(articleUrl, '_blank', 'noopener,noreferrer');
-                        }
-                    };
-                    
-                    return (
-                        <div 
-                            key={`feat-${idx}`} 
-                            className="news-card featured"
-                            onClick={handleCardClick}
-                            style={{ cursor: articleUrl ? 'pointer' : 'default' }}
-                        >
-                            <div className="news-image-container">
-                                {loading ? (
-                        <div className="news-image-placeholder">
-                            <i className="fas fa-chart-line"></i>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <img 
-                                            src={getImageUrl()} 
-                                            alt={a?.title || 'News image'}
-                                            className="news-image"
-                                            onError={(e) => {
-                                                // If image fails to load, hide image and show placeholder
-                                                e.target.style.display = 'none';
-                                                const placeholder = e.target.parentElement.querySelector('.news-image-placeholder');
-                                                if (placeholder) {
-                                                    placeholder.style.display = 'flex';
-                                                }
-                                            }}
-                                        />
-                                        <div className="news-image-placeholder" style={{ display: 'none' }}>
-                                            <i className="fas fa-chart-line"></i>
-                                        </div>
-                                    </>
-                                )}
-                        </div>
-                        <div className="news-badge">Featured</div>
-                        <div className="news-content">
-                            <span className="news-category">{loading ? 'Loading…' : (a.source || a.category || 'Top Story')}</span>
-                            <h3>{loading ? 'Loading headline…' : (a.title || '—')}</h3>
-                                <p>{loading ? '' : (a.description || a.summary || '')}</p>
-                            <div className="news-meta">
-                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                    {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
-                            </div>
+
+            <div className="news-editorial">
+                {/* Hero article */}
+                {loading ? (
+                    <div className="news-hero-skeleton">
+                        <div className="news-hero-img-skel skeleton-pulse" />
+                        <div className="news-hero-text-skel">
+                            <div className="skeleton-pulse" style={{height:'12px', width:'72px', marginBottom:'4px'}} />
+                            <div className="skeleton-pulse" style={{height:'30px', width:'92%', marginBottom:'6px'}} />
+                            <div className="skeleton-pulse" style={{height:'30px', width:'68%', marginBottom:'14px'}} />
+                            <div className="skeleton-pulse" style={{height:'13px', width:'100%', marginBottom:'5px'}} />
+                            <div className="skeleton-pulse" style={{height:'13px', width:'80%', marginBottom:'5px'}} />
+                            <div className="skeleton-pulse" style={{height:'13px', width:'60%'}} />
                         </div>
                     </div>
-                    );
-                })}
-
-                {(loading ? Array.from({length:6}) : visibleArticles.slice(1)).map((a, i) => {
-                    // Generate fallback image URL using Unsplash Source API
-                    const getImageUrl = () => {
-                        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
-                            return a.image_url;
-                        }
-                        // Fallback: Use Unsplash Source API for generic financial images
-                        const seed = a?.title ? encodeURIComponent(a.title.substring(0, 20)) : 'stock-market';
-                        return `https://source.unsplash.com/1920x1080/?finance,stock-market,business,${seed}`;
-                    };
-
-                    const articleUrl = a?.url || a?.link;
-                    const handleCardClick = (e) => {
-                        // Don't navigate if clicking on the "Read More" link
-                        if (e.target.closest('.read-more')) {
-                            return;
-                        }
-                        if (articleUrl) {
-                            window.open(articleUrl, '_blank', 'noopener,noreferrer');
-                        }
-                    };
-
+                ) : articles[0] && (() => {
+                    const a = articles[0];
+                    const imgUrl = getImgUrl(a);
+                    const articleUrl = a.url || a.link;
                     return (
-                        <div
-                            key={`card-${a?.url || a?.link || a?.title || i}`}
-                            className="news-card"
-                            onClick={handleCardClick}
+                        <article
+                            className="news-hero"
+                            onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
                             style={{ cursor: articleUrl ? 'pointer' : 'default' }}
                         >
-                            <div className="news-image-container">
-                                {loading ? (
-                                    <div className="news-image-placeholder">
-                                        <i className="fas fa-chart-line"></i>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <img
-                                            src={getImageUrl()}
-                                            alt={a?.title || 'News image'}
-                                            className="news-image"
-                                            onError={(e) => {
-                                                // If image fails to load, hide image and show placeholder
-                                                e.target.style.display = 'none';
-                                                const placeholder = e.target.parentElement.querySelector('.news-image-placeholder');
-                                                if (placeholder) {
-                                                    placeholder.style.display = 'flex';
-                                                }
-                                            }}
-                                        />
-                                        <div className="news-image-placeholder" style={{ display: 'none' }}>
-                                            <i className="fas fa-chart-line"></i>
-                                        </div>
-                                    </>
+                            <div className="news-hero-image">
+                                {imgUrl && (
+                                    <img
+                                        src={imgUrl}
+                                        alt={a.title || 'News'}
+                                        className="news-hero-img"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            const ph = e.target.parentElement.querySelector('.news-img-placeholder');
+                                            if (ph) ph.style.display = 'flex';
+                                        }}
+                                    />
                                 )}
-                            </div>
-                            <div className="news-content">
-                                <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
-                                <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
-                                <p>{loading ? '' : (a.description || '')}</p>
-                                <div className="news-meta">
-                                    <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                    {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                                <div className="news-img-placeholder" style={{ display: imgUrl ? 'none' : 'flex' }}>
+                                    <i className="fas fa-chart-line" />
                                 </div>
                             </div>
-                        </div>
+                            <div className="news-hero-content">
+                                <span className="news-source-tag">{a.source || a.category || 'Market News'}</span>
+                                <h2 className="news-hero-title">{a.title || '—'}</h2>
+                                {(a.description || a.summary) && (
+                                    <p className="news-hero-desc">{a.description || a.summary}</p>
+                                )}
+                                <div className="news-item-meta">
+                                    <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    {articleUrl && (
+                                        <a className="read-more" href={articleUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                            Read More <i className="fas fa-arrow-right" />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        </article>
                     );
-                })}
+                })()}
+
+                <div className="news-section-divider" />
+
+                {/* Two-column body */}
+                <div className="news-body">
+                    {/* Main column: articles 1-4 */}
+                    <div className="news-main-col">
+                        {(loading ? Array.from({length:4}) : articles.slice(1, 5)).map((a, i) => {
+                            if (loading) {
+                                return (
+                                    <div key={i} className="news-list-item">
+                                        <div className="news-list-text">
+                                            <div className="skeleton-pulse" style={{height:'11px', width:'56px', marginBottom:'7px'}} />
+                                            <div className="skeleton-pulse" style={{height:'18px', width:'95%', marginBottom:'5px'}} />
+                                            <div className="skeleton-pulse" style={{height:'18px', width:'72%', marginBottom:'8px'}} />
+                                            <div className="skeleton-pulse" style={{height:'11px', width:'44%'}} />
+                                        </div>
+                                        <div className="news-list-thumb skeleton-pulse" />
+                                    </div>
+                                );
+                            }
+                            if (!a) return null;
+                            const imgUrl = getImgUrl(a);
+                            const articleUrl = a.url || a.link;
+                            return (
+                                <article
+                                    key={a.url || a.title || i}
+                                    className="news-list-item"
+                                    onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
+                                    style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                                >
+                                    <div className="news-list-text">
+                                        <span className="news-source-tag">{a.source || 'News'}</span>
+                                        <h3 className="news-list-title">{a.title || '—'}</h3>
+                                        {(a.description || a.summary) && (
+                                            <p className="news-list-desc">{a.description || a.summary}</p>
+                                        )}
+                                        <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    </div>
+                                    {imgUrl && (
+                                        <div className="news-list-thumb">
+                                            <img
+                                                src={imgUrl}
+                                                alt={a.title || ''}
+                                                className="news-thumb-img"
+                                                onError={(e) => { e.target.parentElement.style.display='none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                </article>
+                            );
+                        })}
+                    </div>
+
+                    {/* Sidebar: articles 5-8 */}
+                    <div className="news-sidebar-col">
+                        {(loading ? Array.from({length:4}) : articles.slice(5, 9)).map((a, i) => {
+                            if (loading) {
+                                return (
+                                    <div key={i} className="news-sidebar-item">
+                                        <div className="news-sidebar-thumb skeleton-pulse" />
+                                        <div className="news-sidebar-text">
+                                            <div className="skeleton-pulse" style={{height:'11px', width:'48px', marginBottom:'5px'}} />
+                                            <div className="skeleton-pulse" style={{height:'15px', width:'100%', marginBottom:'4px'}} />
+                                            <div className="skeleton-pulse" style={{height:'15px', width:'75%'}} />
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            if (!a) return null;
+                            const imgUrl = getImgUrl(a);
+                            const articleUrl = a.url || a.link;
+                            return (
+                                <article
+                                    key={a.url || a.title || i}
+                                    className="news-sidebar-item"
+                                    onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
+                                    style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                                >
+                                    {imgUrl && (
+                                        <div className="news-sidebar-thumb">
+                                            <img
+                                                src={imgUrl}
+                                                alt={a.title || ''}
+                                                className="news-thumb-img"
+                                                onError={(e) => { e.target.parentElement.style.display='none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="news-sidebar-text">
+                                        <span className="news-source-tag">{a.source || 'News'}</span>
+                                        <h4 className="news-sidebar-title">{a.title || '—'}</h4>
+                                        <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Additional articles after load more */}
+                {!loading && articles.length > 9 && (
+                    <div className="news-more-list">
+                        <div className="news-section-divider" />
+                        {articles.slice(9).map((a, i) => {
+                            const imgUrl = getImgUrl(a);
+                            const articleUrl = a.url || a.link;
+                            return (
+                                <article
+                                    key={a.url || a.title || i}
+                                    className="news-list-item"
+                                    onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
+                                    style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                                >
+                                    <div className="news-list-text">
+                                        <span className="news-source-tag">{a.source || 'News'}</span>
+                                        <h3 className="news-list-title">{a.title || '—'}</h3>
+                                        {(a.description || a.summary) && (
+                                            <p className="news-list-desc">{a.description || a.summary}</p>
+                                        )}
+                                        <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    </div>
+                                    {imgUrl && (
+                                        <div className="news-list-thumb">
+                                            <img
+                                                src={imgUrl}
+                                                alt={a.title || ''}
+                                                className="news-thumb-img"
+                                                onError={(e) => { e.target.parentElement.style.display='none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                </article>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
-            {!loading && visibleArticles.length === 0 && !error && (
-                <div className="news-empty-message">No more news to load</div>
+            {!loading && articles.length === 0 && !error && (
+                <div className="news-empty-message">No news articles found</div>
             )}
 
-            {!loading && visibleArticles.length > 0 && (
+            {!loading && articles.length > 0 && (
                 <div className="news-infinite-status">
                     {hasMore && (
                         <button
@@ -3683,9 +3740,9 @@ const NewsView = () => {
                             disabled={loadingMore}
                         >
                             {loadingMore ? (
-                                <><i className="fas fa-spinner fa-spin"></i> Loading...</>
+                                <><i className="fas fa-spinner fa-spin" /> Loading...</>
                             ) : (
-                                <><i className="fas fa-plus"></i> Load More News</>
+                                <><i className="fas fa-plus" /> Load More News</>
                             )}
                         </button>
                     )}
