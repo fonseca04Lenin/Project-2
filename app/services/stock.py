@@ -216,10 +216,6 @@ class SmartCache:
             _, timestamp = self.cache[key]
             return time.time() - timestamp
 
-# =============================================================================
-# NEWS API (Finnhub)
-# =============================================================================
-
 class NewsAPI:
     def __init__(self):
         self.api_key = os.getenv('FINNHUB_API_KEY', 'demo')

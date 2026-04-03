@@ -1311,6 +1311,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
+    const [aiInsightGuest, setAiInsightGuest] = useState(false);
     const chartRootRef = useRef(null);
 
     // CEO Modal State
@@ -1494,14 +1495,18 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 })();
 
                 // Load AI insight in background
-                setAiInsightLoading(true);
                 setAiInsight(null);
                 setAiInsightUpgradeRequired(false);
+                setAiInsightGuest(false);
+                const authUser = window.AppAuth?.getCurrentUser();
+                if (!authUser) {
+                    setAiInsightGuest(true);
+                } else {
+                setAiInsightLoading(true);
                 (async () => {
                     try {
-                        const authUser = window.AppAuth.getCurrentUser();
                         const headers = {};
-                        if (authUser) {
+                        {
                             const token = await authUser.getIdToken();
                             headers['Authorization'] = `Bearer ${token}`;
                         }
@@ -1522,6 +1527,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         setAiInsightLoading(false);
                     }
                 })();
+                } // end else (authenticated)
 
                 console.log(`[StockDetailsModal] State updated for ${symbol}`);
             } catch (err) {
@@ -1966,7 +1972,23 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     }}></i>
                                 )}
                             </div>
-                            {aiInsightLoading ? (
+                            {aiInsightGuest ? (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'rgba(255,255,255,0.65)' }}>
+                                        <i className="fas fa-lock" style={{ marginRight: '6px', color: '#00D924' }}></i>
+                                        Please sign in to use our stock AI overviews that help you understand the stock better.
+                                    </p>
+                                    <button
+                                        onClick={() => window.location.href = '/login'}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #00D924, #00A81E)',
+                                            border: 'none', borderRadius: '8px', padding: '6px 16px',
+                                            color: '#000', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >Sign In</button>
+                                </div>
+                            ) : aiInsightLoading ? (
                                 <p style={{
                                     margin: 0,
                                     fontSize: '0.9rem',

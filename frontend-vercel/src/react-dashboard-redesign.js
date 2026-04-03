@@ -166,10 +166,21 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
         loadPreferences();
         loadSubscriptionInfo();
 
-        // Load profile picture from localStorage
-        const savedProfilePic = localStorage.getItem('profilePicture');
-        if (savedProfilePic) {
-            setProfilePicture(savedProfilePic);
+        // Load profile picture from Firestore
+        if (authCurrentUser?.uid) {
+            (async () => {
+                try {
+                    const authHeaders = await getAuthHeaders(authCurrentUser);
+                    const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                    const res = await fetch(`${API_BASE}/api/user/profile-picture`, { headers: authHeaders, credentials: 'include' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setProfilePicture(data.profile_picture || null);
+                    }
+                } catch (_) {}
+            })();
+        } else {
+            setProfilePicture(null);
         }
 
         // Defer Alpaca status check - only needed when Preferences opens
@@ -1657,7 +1668,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
             <header className="dashboard-header">
                 {/* Logo + Search */}
                 <div className="header-brand">
-                    <div className="header-logo">
+                    <div className="header-logo" onClick={() => handleNavigate('overview')} style={{ cursor: 'pointer' }}>
                         <i className="fas fa-chart-line logo-icon"></i>
                         <span className="logo-name">AI Stock Sage</span>
                     </div>
@@ -2124,7 +2135,28 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                                     const reader = new FileReader();
                                                     reader.onloadend = () => {
                                                         setProfilePicture(reader.result);
-                                                        localStorage.setItem('profilePicture', reader.result);
+                                                        (async () => {
+                                                            try {
+                                                                const authHeaders = await getAuthHeaders(authCurrentUser);
+                                                                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                                                                const res = await fetch(`${API_BASE}/api/user/profile-picture`, {
+                                                                    method: 'POST',
+                                                                    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+                                                                    credentials: 'include',
+                                                                    body: JSON.stringify({ profile_picture: reader.result }),
+                                                                });
+                                                                if (!res.ok) {
+                                                                    const err = await res.json();
+                                                                    if (window.showNotification) window.showNotification(err.error || 'Failed to save picture', 'error');
+                                                                    setProfilePicture(null);
+                                                                    return;
+                                                                }
+                                                            } catch (_) {
+                                                                if (window.showNotification) window.showNotification('Failed to save picture', 'error');
+                                                                setProfilePicture(null);
+                                                                return;
+                                                            }
+                                                        })();
                                                         if (window.showNotification) {
                                                             window.showNotification('Profile picture updated!', 'success');
                                                         }
@@ -2139,7 +2171,17 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                             className="remove-photo-btn"
                                             onClick={() => {
                                                 setProfilePicture(null);
-                                                localStorage.removeItem('profilePicture');
+                                                (async () => {
+                                                    try {
+                                                        const authHeaders = await getAuthHeaders(authCurrentUser);
+                                                        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                                                        await fetch(`${API_BASE}/api/user/profile-picture`, {
+                                                            method: 'DELETE',
+                                                            headers: authHeaders,
+                                                            credentials: 'include',
+                                                        });
+                                                    } catch (_) {}
+                                                })();
                                                 if (window.showNotification) {
                                                     window.showNotification('Profile picture removed', 'success');
                                                 }
@@ -2834,7 +2876,7 @@ const TopMoversWidget = () => {
                     displayed.map((mover, idx) => {
                         const isPositive = mover.change >= 0;
                         return (
-                            <div key={mover.symbol} className="top-mover-row">
+                            <div key={mover.symbol} className="top-mover-row" style={{ cursor: 'pointer' }} onClick={() => window.openStockDetailsModalReact && window.openStockDetailsModalReact(mover.symbol)}>
                                 <span className="mover-rank">{idx + 1}</span>
                                 <div className="mover-info">
                                     <span className="mover-symbol">{mover.symbol}</span>

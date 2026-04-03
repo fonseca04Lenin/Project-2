@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_login import current_user
 
 from app.config import Config
@@ -139,3 +139,64 @@ if Config.DEBUG:
         except Exception as e:
             logger.error("Debug watchlist error for user %s: %s", user.id, e)
             return jsonify({'error': 'Failed to retrieve watchlist'}), 500
+
+
+# --- Profile picture (stored in Firestore) ---
+
+@core_bp.route('/api/user/profile-picture', methods=['GET'])
+def get_profile_picture():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        from app.services.firebase_service import get_firestore_client
+        db = get_firestore_client()
+        if not db:
+            return jsonify({'profile_picture': None}), 200
+        doc = db.collection('users').document(user.id).get()
+        pic = doc.to_dict().get('profile_picture') if doc.exists else None
+        return jsonify({'profile_picture': pic})
+    except Exception as e:
+        logger.error("get_profile_picture error for %s: %s", user.id, e)
+        return jsonify({'profile_picture': None}), 200
+
+
+@core_bp.route('/api/user/profile-picture', methods=['POST'])
+def save_profile_picture():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        data = request.get_json()
+        image_data = data.get('profile_picture') if data else None
+        if not isinstance(image_data, str) or not image_data.startswith('data:image/'):
+            return jsonify({'error': 'Invalid image data'}), 400
+        if len(image_data) > 700_000:  # ~500KB raw image after base64 overhead
+            return jsonify({'error': 'Image too large. Please use an image under 500KB.'}), 400
+        from app.services.firebase_service import get_firestore_client
+        db = get_firestore_client()
+        if not db:
+            return jsonify({'error': 'Database unavailable'}), 503
+        db.collection('users').document(user.id).set({'profile_picture': image_data}, merge=True)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error("save_profile_picture error for %s: %s", user.id, e)
+        return jsonify({'error': 'Failed to save picture'}), 500
+
+
+@core_bp.route('/api/user/profile-picture', methods=['DELETE'])
+def delete_profile_picture():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        from app.services.firebase_service import get_firestore_client
+        from firebase_admin import firestore as fs
+        db = get_firestore_client()
+        if not db:
+            return jsonify({'error': 'Database unavailable'}), 503
+        db.collection('users').document(user.id).update({'profile_picture': fs.DELETE_FIELD})
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error("delete_profile_picture error for %s: %s", user.id, e)
+        return jsonify({'error': 'Failed to delete picture'}), 500
