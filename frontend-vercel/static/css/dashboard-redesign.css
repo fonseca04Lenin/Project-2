@@ -1274,6 +1274,16 @@ body[data-theme="light"] .hn-dropdown-item:hover {
 }
 
 /* News View - Editorial Layout */
+.news-view .view-header {
+    border-bottom: none;
+    padding-bottom: 0.75rem;
+}
+
+.news-view .view-header h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
 .news-editorial {
     max-width: 1200px;
     margin: 0 auto;
@@ -4096,6 +4106,9 @@ input:checked + .slider:before {
 }
 
 /* --- News View (light theme) --- */
+[data-theme="light"] .news-view .view-header {
+    border-bottom: none;
+}
 [data-theme="light"] .news-section-divider {
     background: rgba(0, 0, 0, 0.1);
 }
