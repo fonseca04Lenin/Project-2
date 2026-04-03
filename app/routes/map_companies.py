@@ -1,4 +1,5 @@
 import logging
+import threading
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -96,6 +97,7 @@ MAJOR_COMPANY_SYMBOLS = [
 
 # Cache for company locations (refresh every 24 hours)
 _company_locations_cache = {'data': None, 'timestamp': None}
+_cache_lock = threading.Lock()
 
 
 @map_companies_bp.route('/locations')
@@ -103,14 +105,14 @@ def get_company_locations():
     """Get locations of major publicly traded companies for the map feature"""
     global _company_locations_cache
 
-    cache_valid = (
-        _company_locations_cache['data'] is not None and
-        _company_locations_cache['timestamp'] is not None and
-        (datetime.now() - _company_locations_cache['timestamp']).total_seconds() < 86400
-    )
-
-    if cache_valid:
-        return jsonify(_company_locations_cache['data'])
+    with _cache_lock:
+        cache_valid = (
+            _company_locations_cache['data'] is not None and
+            _company_locations_cache['timestamp'] is not None and
+            (datetime.now() - _company_locations_cache['timestamp']).total_seconds() < 86400
+        )
+        if cache_valid:
+            return jsonify(_company_locations_cache['data'])
 
     try:
         import yfinance as yf
@@ -149,12 +151,13 @@ def get_company_locations():
                     'rawState': state
                 }
             except Exception as e:
-                print(f"Error fetching {symbol}: {e}")
+                logger.warning(f"Error fetching {symbol}: {e}")
                 return None
 
-        symbols_to_fetch = MAJOR_COMPANY_SYMBOLS[:100]
+        seen = set()
+        symbols_to_fetch = [s for s in MAJOR_COMPANY_SYMBOLS if not (s in seen or seen.add(s))]
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=20) as executor:
             future_to_symbol = {executor.submit(fetch_company_info, symbol): symbol for symbol in symbols_to_fetch}
 
             for future in as_completed(future_to_symbol):
@@ -214,6 +217,19 @@ def get_company_locations():
             'Syracuse': (43.0481, -76.1474), 'Wilmington': (39.7391, -75.5398),
             'Plano': (33.0198, -96.6989), 'Fort Worth': (32.7555, -97.3308),
             'San Antonio': (29.4241, -98.4936), 'El Paso': (31.7619, -106.4850),
+            'Round Rock': (30.5083, -97.6789), 'Pleasanton': (37.6624, -121.8747),
+            'Westlake': (33.0126, -97.2064), 'Northbrook': (42.1253, -87.8265),
+            'Lincolnshire': (42.1992, -87.9003), 'Cambridge': (42.3736, -71.1097),
+            'San Mateo': (37.5630, -122.3255), 'Bellevue': (47.6101, -122.2015),
+            'Schaumburg': (42.0334, -88.0834), 'Oklahoma City': (35.4676, -97.5164),
+            'Glendale': (34.1425, -118.2551), 'Toledo': (41.6639, -83.5552),
+            'Bozeman': (45.6770, -111.0429), 'Milpitas': (37.4323, -121.8996),
+            'Alpharetta': (34.0754, -84.2941), 'Raleigh': (35.7796, -78.6382),
+            'Foster City': (37.5585, -122.2711), 'Redwood City': (37.4848, -122.2281),
+            'Franklin': (35.9251, -86.8689), 'Monett': (36.9231, -93.9277),
+            'Newtown': (40.2287, -74.9340), 'Glen Allen': (37.6515, -77.4963),
+            'Bedminster': (40.6843, -74.6549), 'Norwalk': (41.1177, -73.4082),
+            'Mayfield Village': (41.5195, -81.4524), 'Westchester': (41.0035, -73.8232),
         }
 
         for company in companies:
@@ -232,21 +248,20 @@ def get_company_locations():
         companies = [c for c in companies if 'lat' in c and 'lng' in c]
         companies.sort(key=lambda x: x.get('marketCap', 0), reverse=True)
 
-        _company_locations_cache['data'] = {
-            'companies': companies,
-            'count': len(companies),
-            'timestamp': datetime.now().isoformat()
-        }
-        _company_locations_cache['timestamp'] = datetime.now()
+        with _cache_lock:
+            _company_locations_cache['data'] = {
+                'companies': companies,
+                'count': len(companies),
+                'timestamp': datetime.now().isoformat()
+            }
+            _company_locations_cache['timestamp'] = datetime.now()
 
-        print(f"Fetched {len(companies)} company locations, {len(failed)} failed")
+        logger.info(f"Fetched {len(companies)} company locations, {len(failed)} failed")
 
         return jsonify(_company_locations_cache['data'])
 
     except Exception as e:
-        print(f"Error fetching company locations: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception(f"Error fetching company locations: {e}")
         return jsonify({
             'companies': [],
             'count': 0,

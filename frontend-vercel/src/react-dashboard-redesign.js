@@ -5491,11 +5491,21 @@ const MapView = () => {
     const [leafletReady, setLeafletReady] = useState(!!window.L);
     const [selectedSector, setSelectedSector] = useState('All');
     const [showAllNearby, setShowAllNearby] = useState(false);
+    const [radiusMiles, setRadiusMiles] = useState(250);
+    const [dataTimestamp, setDataTimestamp] = useState(null);
+    const [fetchTrigger, setFetchTrigger] = useState(0);
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const markersRef = useRef([]);
     const userMarkerRef = useRef(null);
     const lastGeocodeFetchRef = useRef(0);
+
+    // Refresh company data
+    const refreshCompanyData = () => {
+        setApiCompanies([]);
+        setDataTimestamp(null);
+        setFetchTrigger(prev => prev + 1);
+    };
 
     // Get sector color
     const getSectorColor = (sector) => {
@@ -5929,6 +5939,7 @@ const MapView = () => {
                     const data = await response.json();
                     if (data.companies && data.companies.length > 0) {
                         setApiCompanies(data.companies);
+                        setDataTimestamp(data.timestamp || null);
                         console.log(`Loaded ${data.companies.length} company locations from API`);
                     }
                 }
@@ -5940,7 +5951,7 @@ const MapView = () => {
         };
 
         fetchCompanyLocations();
-    }, []);
+    }, [fetchTrigger]);
 
     // Auto-dismiss error messages after 5 seconds
     useEffect(() => {
@@ -6180,7 +6191,7 @@ const MapView = () => {
         if (!mapInstanceRef.current) return;
 
         if (userLocation) {
-            const nearby = findNearbyCompanies(userLocation.lat, userLocation.lng, 250);
+            const nearby = findNearbyCompanies(userLocation.lat, userLocation.lng, radiusMiles);
             setNearbyCompanies(nearby);
             addCompanyMarkers(nearby);
             updateUserMarker(userLocation.lat, userLocation.lng);
@@ -6192,7 +6203,7 @@ const MapView = () => {
                 userMarkerRef.current = null;
             }
         }
-    }, [filteredCompanyLocations, userLocation, findNearbyCompanies, addCompanyMarkers, updateUserMarker]);
+    }, [filteredCompanyLocations, userLocation, radiusMiles, findNearbyCompanies, addCompanyMarkers, updateUserMarker]);
 
     const nearbyLimit = showAllNearby ? nearbyCompanies.length : 20;
 
@@ -6202,13 +6213,23 @@ const MapView = () => {
                 <div className="map-title">
                     <h2><i className="fas fa-map-marker-alt"></i> Discover Public Companies</h2>
                     <p>Find publicly traded companies near you or search any location</p>
-                    <span className="companies-count">
-                        {loadingCompanies ? (
-                            <><i className="fas fa-spinner fa-spin"></i> Loading companies...</>
-                        ) : (
-                            <><i className="fas fa-building"></i> {companyLocations.length} companies mapped</>
+                    <div className="map-header-meta">
+                        <span className="companies-count">
+                            {loadingCompanies ? (
+                                <><i className="fas fa-spinner fa-spin"></i> Loading companies...</>
+                            ) : (
+                                <><i className="fas fa-building"></i> {companyLocations.length} companies mapped</>
+                            )}
+                        </span>
+                        {dataTimestamp && !loadingCompanies && (
+                            <span className="data-timestamp">
+                                <i className="fas fa-clock"></i> Updated {new Date(dataTimestamp).toLocaleTimeString()}
+                            </span>
                         )}
-                    </span>
+                        <button className="refresh-btn" onClick={refreshCompanyData} disabled={loadingCompanies} title="Refresh company data">
+                            <i className={`fas fa-sync-alt${loadingCompanies ? ' fa-spin' : ''}`}></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -6245,6 +6266,19 @@ const MapView = () => {
                     </button>
                 ))}
             </div>
+
+            {userLocation && (
+                <div className="radius-control">
+                    <span className="radius-label"><i className="fas fa-circle-notch"></i> Radius:</span>
+                    {[50, 100, 250, 500].map(r => (
+                        <button
+                            key={r}
+                            className={`radius-btn${radiusMiles === r ? ' active' : ''}`}
+                            onClick={() => setRadiusMiles(r)}
+                        >{r} mi</button>
+                    ))}
+                </div>
+            )}
 
             {locationError && (
                 <div className="map-error">
@@ -6299,7 +6333,7 @@ const MapView = () => {
                         <h3><i className="fas fa-building"></i> Nearby Companies</h3>
                         <div className="no-results">
                             <i className="fas fa-map-marker-alt"></i>
-                            <p>No companies found within 250 miles{selectedSector !== 'All' ? ` in ${selectedSector}` : ''}.</p>
+                            <p>No companies found within {radiusMiles} miles{selectedSector !== 'All' ? ` in ${selectedSector}` : ''}.</p>
                         </div>
                     </div>
                 )}
@@ -6690,6 +6724,77 @@ const MapView = () => {
                 /* Ensure popups render above everything */
                 .leaflet-popup {
                     z-index: 1000 !important;
+                }
+                .map-header-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    flex-wrap: wrap;
+                    margin-top: 0.5rem;
+                }
+                .map-header-meta .companies-count {
+                    margin-top: 0;
+                }
+                .data-timestamp {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.375rem;
+                    font-size: 0.8125rem;
+                    color: rgba(255, 255, 255, 0.45);
+                }
+                .data-timestamp i {
+                    font-size: 0.75rem;
+                }
+                .refresh-btn {
+                    padding: 0.25rem 0.625rem;
+                    background: rgba(255, 255, 255, 0.07);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 6px;
+                    color: rgba(255, 255, 255, 0.6);
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    font-size: 0.875rem;
+                }
+                .refresh-btn:hover {
+                    background: rgba(0, 217, 36, 0.15);
+                    border-color: #00D924;
+                    color: #00D924;
+                }
+                .refresh-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                .radius-control {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                    flex-wrap: wrap;
+                }
+                .radius-label {
+                    font-size: 0.8125rem;
+                    color: rgba(255, 255, 255, 0.6);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.375rem;
+                }
+                .radius-btn {
+                    padding: 0.3rem 0.75rem;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 20px;
+                    color: rgba(255, 255, 255, 0.7);
+                    font-size: 0.8125rem;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .radius-btn:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                }
+                .radius-btn.active {
+                    background: rgba(0, 217, 36, 0.15);
+                    border-color: #00D924;
+                    color: #00D924;
                 }
                 @media (max-width: 768px) {
                     .map-view {
