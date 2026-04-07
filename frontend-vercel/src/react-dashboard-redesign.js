@@ -1674,7 +1674,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                         <i className="fas fa-chart-line logo-icon"></i>
                         <span className="logo-name">AI Stock Sage</span>
                     </div>
-                    <div className="header-search-wrap">
+                    <div className={`header-search-wrap${searchFocused && !searchQuery.trim() ? ' search-screener-open' : ''}`}>
                         <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} hs-icon`}></i>
                         <div style={{ flex: 1, position: 'relative' }}>
                             <input
