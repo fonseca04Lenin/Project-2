@@ -1675,134 +1675,136 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                         <span className="logo-name">AI Stock Sage</span>
                     </div>
                     <div className={`header-search-wrap${searchFocused && !searchQuery.trim() ? ' search-screener-open' : ''}`}>
-                        <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} hs-icon`}></i>
-                        <div style={{ flex: 1, position: 'relative' }}>
-                            <input
-                                ref={searchInputRef}
-                                type="text"
-                                placeholder="Search Stocks, ETFs and CEOs..."
-                                className="hs-input"
-                                value={searchQuery}
-                                onChange={(e) => onSearchInputChange(e.target.value)}
-                                onKeyDown={handleKeyPress}
-                                onBlur={() => setTimeout(() => {
-                                    setSuggestions([]);
-                                    setHighlightedIndex(-1);
-                                    setSearchNoResults(false);
-                                    setSearchFocused(false);
-                                }, 200)}
-                                onFocus={() => {
-                                    setSearchFocused(true);
-                                    if (searchQuery.trim()) onSearchInputChange(searchQuery);
-                                }}
-                                aria-autocomplete="list"
-                                aria-expanded={suggestions.length > 0 || searchNoResults}
-                                autoComplete="off"
-                            />
-                            {searchQuery.trim() && (suggestions.length > 0 || searchNoResults) && (
-                                <div className="search-suggestions" role="listbox">
-                                    {suggestions.length > 0 ? (() => {
-                                        const q = searchQuery.trim().toUpperCase();
-                                        const highlightText = (text, query) => {
-                                            if (!text) return React.createElement('span', null, '');
-                                            const i = text.toUpperCase().indexOf(query);
-                                            if (i === -1) return React.createElement('span', null, text);
-                                            return React.createElement(React.Fragment, null,
-                                                text.slice(0, i),
-                                                React.createElement('span', { className: 'match-highlight' }, text.slice(i, i + query.length)),
-                                                text.slice(i + query.length)
-                                            );
-                                        };
-                                        const firstCeoIdx = suggestions.findIndex(s => s.type === 'ceo');
-                                        return suggestions.map((s, idx) => {
-                                            const showCeoDivider = idx === firstCeoIdx && idx > 0;
-                                            if (s.type === 'ceo') {
-                                                return React.createElement(React.Fragment, { key: `ceo-${s.symbol}-${idx}` },
-                                                    showCeoDivider && React.createElement('div', { className: 'suggestions-divider' }, 'CEOs'),
-                                                    React.createElement('div',
-                                                        {
-                                                            role: 'option',
-                                                            className: `suggestion-item ceo-item ${idx === highlightedIndex ? 'active' : ''}`,
-                                                            onMouseEnter: () => setHighlightedIndex(idx),
-                                                            onMouseDown: (e) => e.preventDefault(),
-                                                            onClick: () => {
-                                                                setSelectedCEO({ name: s.ceoName, company: s.companyName, symbol: s.symbol });
-                                                                setCeoModalOpen(true);
-                                                                setSuggestions([]);
-                                                                setHighlightedIndex(-1);
-                                                                setSearchQuery('');
-                                                                setSearchNoResults(false);
-                                                                setSearchFocused(false);
-                                                            }
-                                                        },
-                                                        React.createElement('span', { className: 's-symbol' },
-                                                            React.createElement('i', { className: 'fas fa-user-tie' }),
-                                                            highlightText(s.ceoName, q)
-                                                        ),
-                                                        React.createElement('span', { className: 's-name' },
-                                                            s.companyName + (s.symbol ? ` · ${s.symbol}` : '')
-                                                        )
-                                                    )
+                        <div className="hs-input-row">
+                            <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} hs-icon`}></i>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    placeholder="Search Stocks, ETFs and CEOs..."
+                                    className="hs-input"
+                                    value={searchQuery}
+                                    onChange={(e) => onSearchInputChange(e.target.value)}
+                                    onKeyDown={handleKeyPress}
+                                    onBlur={() => setTimeout(() => {
+                                        setSuggestions([]);
+                                        setHighlightedIndex(-1);
+                                        setSearchNoResults(false);
+                                        setSearchFocused(false);
+                                    }, 200)}
+                                    onFocus={() => {
+                                        setSearchFocused(true);
+                                        if (searchQuery.trim()) onSearchInputChange(searchQuery);
+                                    }}
+                                    aria-autocomplete="list"
+                                    aria-expanded={suggestions.length > 0 || searchNoResults}
+                                    autoComplete="off"
+                                />
+                                {searchQuery.trim() && (suggestions.length > 0 || searchNoResults) && (
+                                    <div className="search-suggestions" role="listbox">
+                                        {suggestions.length > 0 ? (() => {
+                                            const q = searchQuery.trim().toUpperCase();
+                                            const highlightText = (text, query) => {
+                                                if (!text) return React.createElement('span', null, '');
+                                                const i = text.toUpperCase().indexOf(query);
+                                                if (i === -1) return React.createElement('span', null, text);
+                                                return React.createElement(React.Fragment, null,
+                                                    text.slice(0, i),
+                                                    React.createElement('span', { className: 'match-highlight' }, text.slice(i, i + query.length)),
+                                                    text.slice(i + query.length)
                                                 );
-                                            }
-                                            const sym = s.symbol || '';
-                                            const nm = s.name || '';
-                                            return React.createElement('div',
-                                                {
-                                                    key: `${sym}-${idx}`,
-                                                    role: 'option',
-                                                    className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
-                                                    onMouseEnter: () => setHighlightedIndex(idx),
-                                                    onMouseDown: (e) => e.preventDefault(),
-                                                    onClick: () => {
-                                                        window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
-                                                        setSuggestions([]);
-                                                        setHighlightedIndex(-1);
-                                                        setSearchQuery('');
-                                                        setSearchNoResults(false);
-                                                        setSearchFocused(false);
-                                                    }
-                                                },
-                                                React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
-                                                React.createElement('span', { className: 's-name' }, highlightText(nm, q))
-                                            );
-                                        });
-                                    })() : React.createElement('div', { className: 'search-no-results' },
-                                        React.createElement('i', { className: 'fas fa-search' }),
-                                        React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
-                                    )}
-                                </div>
-                            )}
-                            {searchFocused && !searchQuery.trim() && (
-                                <div className="search-screener-dropdown">
-                                    <div className="ssd-section-label">Stock screeners</div>
-                                    <div className="ssd-grid">
-                                        {[
-                                            { id: 'daily-price-jumps', label: 'Daily price jumps', fa: 'fas fa-chart-line', color: '#22c55e' },
-                                            { id: 'daily-price-dips', label: 'Daily price dips', fa: 'fas fa-arrow-down', color: '#ef4444' },
-                                            { id: 'upcoming-earnings', label: 'Upcoming earnings', fa: 'fas fa-calendar-alt', color: '#f59e0b' },
-                                            { id: 'analyst-picks', label: 'Analyst picks', fa: 'fas fa-medal', color: '#8b5cf6' },
-                                            { id: 'highest-implied-volatility', label: 'Highest implied volatility', fa: 'fas fa-bolt', color: '#06b6d4' },
-                                        ].map((sc) => React.createElement('button', {
-                                            key: sc.id,
-                                            className: 'ssd-item',
-                                            onMouseDown: (e) => e.preventDefault(),
-                                            onClick: () => {
-                                                setActiveScreener(sc.id);
-                                                handleNavigate('screener');
-                                                setSearchFocused(false);
-                                                setSearchQuery('');
-                                            }
-                                        },
-                                            React.createElement('span', { className: 'ssd-item-icon', style: { background: sc.color + '22', color: sc.color } },
-                                                React.createElement('i', { className: sc.fa })
-                                            ),
-                                            React.createElement('span', { className: 'ssd-item-label' }, sc.label)
-                                        ))}
+                                            };
+                                            const firstCeoIdx = suggestions.findIndex(s => s.type === 'ceo');
+                                            return suggestions.map((s, idx) => {
+                                                const showCeoDivider = idx === firstCeoIdx && idx > 0;
+                                                if (s.type === 'ceo') {
+                                                    return React.createElement(React.Fragment, { key: `ceo-${s.symbol}-${idx}` },
+                                                        showCeoDivider && React.createElement('div', { className: 'suggestions-divider' }, 'CEOs'),
+                                                        React.createElement('div',
+                                                            {
+                                                                role: 'option',
+                                                                className: `suggestion-item ceo-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                                                onMouseEnter: () => setHighlightedIndex(idx),
+                                                                onMouseDown: (e) => e.preventDefault(),
+                                                                onClick: () => {
+                                                                    setSelectedCEO({ name: s.ceoName, company: s.companyName, symbol: s.symbol });
+                                                                    setCeoModalOpen(true);
+                                                                    setSuggestions([]);
+                                                                    setHighlightedIndex(-1);
+                                                                    setSearchQuery('');
+                                                                    setSearchNoResults(false);
+                                                                    setSearchFocused(false);
+                                                                }
+                                                            },
+                                                            React.createElement('span', { className: 's-symbol' },
+                                                                React.createElement('i', { className: 'fas fa-user-tie' }),
+                                                                highlightText(s.ceoName, q)
+                                                            ),
+                                                            React.createElement('span', { className: 's-name' },
+                                                                s.companyName + (s.symbol ? ` · ${s.symbol}` : '')
+                                                            )
+                                                        )
+                                                    );
+                                                }
+                                                const sym = s.symbol || '';
+                                                const nm = s.name || '';
+                                                return React.createElement('div',
+                                                    {
+                                                        key: `${sym}-${idx}`,
+                                                        role: 'option',
+                                                        className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                                        onMouseEnter: () => setHighlightedIndex(idx),
+                                                        onMouseDown: (e) => e.preventDefault(),
+                                                        onClick: () => {
+                                                            window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
+                                                            setSuggestions([]);
+                                                            setHighlightedIndex(-1);
+                                                            setSearchQuery('');
+                                                            setSearchNoResults(false);
+                                                            setSearchFocused(false);
+                                                        }
+                                                    },
+                                                    React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
+                                                    React.createElement('span', { className: 's-name' }, highlightText(nm, q))
+                                                );
+                                            });
+                                        })() : React.createElement('div', { className: 'search-no-results' },
+                                            React.createElement('i', { className: 'fas fa-search' }),
+                                            React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
+                                        )}
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
+                        {searchFocused && !searchQuery.trim() && (
+                            <div className="search-screener-dropdown">
+                                <div className="ssd-section-label">Stock screeners</div>
+                                <div className="ssd-grid">
+                                    {[
+                                        { id: 'daily-price-jumps', label: 'Daily price jumps', fa: 'fas fa-chart-line', color: '#22c55e' },
+                                        { id: 'daily-price-dips', label: 'Daily price dips', fa: 'fas fa-arrow-down', color: '#ef4444' },
+                                        { id: 'upcoming-earnings', label: 'Upcoming earnings', fa: 'fas fa-calendar-alt', color: '#f59e0b' },
+                                        { id: 'analyst-picks', label: 'Analyst picks', fa: 'fas fa-medal', color: '#8b5cf6' },
+                                        { id: 'highest-implied-volatility', label: 'Highest implied volatility', fa: 'fas fa-bolt', color: '#06b6d4' },
+                                    ].map((sc) => React.createElement('button', {
+                                        key: sc.id,
+                                        className: 'ssd-item',
+                                        onMouseDown: (e) => e.preventDefault(),
+                                        onClick: () => {
+                                            setActiveScreener(sc.id);
+                                            handleNavigate('screener');
+                                            setSearchFocused(false);
+                                            setSearchQuery('');
+                                        }
+                                    },
+                                        React.createElement('span', { className: 'ssd-item-icon', style: { background: sc.color + '22', color: sc.color } },
+                                            React.createElement('i', { className: sc.fa })
+                                        ),
+                                        React.createElement('span', { className: 'ssd-item-label' }, sc.label)
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {/* Center Nav */}
