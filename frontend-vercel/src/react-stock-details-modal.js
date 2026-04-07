@@ -9,6 +9,163 @@ if (typeof window.API_BASE_URL === 'undefined') {
 // Use window.API_BASE_URL to avoid const redeclaration errors  
 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
+// Per-Stock Notes Section Component — stores notes independently from watchlist
+const StockNotesSection = ({ symbol }) => {
+    const [note, setNote] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [savedNote, setSavedNote] = useState('');
+    const [hasChanges, setHasChanges] = useState(false);
+
+    useEffect(() => {
+        if (!symbol) return;
+        setIsLoading(true);
+        const fetchNote = async () => {
+            try {
+                const authHeaders = await window.AppAuth.getAuthHeaders();
+                const res = await fetch(`${API_BASE}/api/stock-notes/${symbol}`, {
+                    headers: authHeaders,
+                    credentials: 'include',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setNote(data.note || '');
+                    setSavedNote(data.note || '');
+                }
+            } catch (_) {}
+            setIsLoading(false);
+        };
+        fetchNote();
+    }, [symbol]);
+
+    const handleChange = (e) => {
+        setNote(e.target.value);
+        setHasChanges(true);
+    };
+
+    const saveNote = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
+        try {
+            const authHeaders = await window.AppAuth.getAuthHeaders();
+            const res = await fetch(`${API_BASE}/api/stock-notes/${symbol}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
+                credentials: 'include',
+                body: JSON.stringify({ note }),
+            });
+            if (res.ok) {
+                setSavedNote(note);
+                setHasChanges(false);
+                setIsEditing(false);
+                if (window.showNotification) window.showNotification('Note saved', 'success');
+            } else {
+                throw new Error('Failed');
+            }
+        } catch (_) {
+            if (window.showNotification) window.showNotification('Failed to save note', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleBlur = () => {
+        if (hasChanges && !isSaving) saveNote();
+        else setIsEditing(false);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); saveNote(); }
+        else if (e.key === 'Escape') { setNote(savedNote); setHasChanges(false); setIsEditing(false); }
+    };
+
+    return (
+        <div className="stock-notes-section">
+            <div className="stock-notes-header">
+                <h3>
+                    <i className="fas fa-pencil-alt"></i>
+                    My Notes
+                </h3>
+                {!isEditing && !isLoading && (
+                    <button
+                        className="stock-notes-edit-btn"
+                        onClick={() => setIsEditing(true)}
+                        title="Edit note"
+                    >
+                        <i className="fas fa-pen"></i>
+                        {savedNote ? 'Edit' : 'Add Note'}
+                    </button>
+                )}
+            </div>
+
+            <div className="stock-notes-tip">
+                <i className="fas fa-lightbulb"></i>
+                <span>
+                    Great investors keep notes. Jotting down <strong>why</strong> you're interested in a stock,
+                    key price levels to watch, or earnings dates helps you make more disciplined decisions
+                    and learn from every trade — whether it wins or loses.
+                </span>
+            </div>
+
+            {isLoading ? (
+                <div className="stock-notes-loading">
+                    <i className="fas fa-spinner fa-spin"></i>
+                </div>
+            ) : isEditing ? (
+                <div className="stock-notes-editing">
+                    <textarea
+                        className="stock-notes-textarea"
+                        value={note}
+                        onChange={handleChange}
+                        onKeyDown={handleKeyDown}
+                        placeholder={`Why are you watching ${symbol}? Key levels, thesis, reminders...`}
+                        autoFocus
+                        rows="5"
+                    />
+                    <div className="stock-notes-actions">
+                        <span className="stock-notes-hint">Ctrl+Enter to save · Esc to cancel</span>
+                        <div>
+                            <button
+                                className="btn-secondary"
+                                onClick={() => { setNote(savedNote); setHasChanges(false); setIsEditing(false); }}
+                                disabled={isSaving}
+                                style={{ marginRight: '0.5rem' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={saveNote}
+                                disabled={isSaving || !hasChanges}
+                            >
+                                <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
+                                {isSaving ? ' Saving...' : ' Save'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : savedNote ? (
+                <div
+                    className="stock-notes-content"
+                    onClick={() => setIsEditing(true)}
+                    title="Click to edit"
+                >
+                    <p>{savedNote}</p>
+                </div>
+            ) : (
+                <div
+                    className="stock-notes-empty"
+                    onClick={() => setIsEditing(true)}
+                >
+                    <i className="fas fa-plus-circle"></i>
+                    <span>Click to add your first note about {symbol}</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Watchlist Notes Section Component
 const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
     const [notes, setNotes] = useState(initialNotes);
@@ -2093,6 +2250,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                         )}
 
+                        <StockNotesSection symbol={symbol} />
+
                         {stockData.isInWatchlist && (
                             <WatchlistNotesSection symbol={symbol} initialNotes={stockData.notes || ''} />
                         )}
@@ -2463,6 +2622,7 @@ window.closeStockDetailsModalReact = () => {
 };
 
 // Export components for use in StockDetailsPage
+window.StockNotesSection = StockNotesSection;
 window.WatchlistNotesSection = WatchlistNotesSection;
 window.CEODetailsModal = CEODetailsModal;
 window.StockDetailsModal = StockDetailsModal;

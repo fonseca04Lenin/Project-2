@@ -57,6 +57,8 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
     const [suggestions, setSuggestions] = useState([]);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [searchNoResults, setSearchNoResults] = useState(false);
+    const [searchFocused, setSearchFocused] = useState(false);
+    const [activeScreener, setActiveScreener] = useState(null);
     const [toolsOpen, setToolsOpen] = useState(false);
     const [marketsOpen, setMarketsOpen] = useState(false);
     const searchDebounceRef = useRef(null);
@@ -1686,7 +1688,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                     </div>
                     <div className="header-search-wrap">
                         <i className={`fas ${searching ? 'fa-spinner fa-spin' : 'fa-search'} hs-icon`}></i>
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, position: 'relative' }}>
                             <input
                                 ref={searchInputRef}
                                 type="text"
@@ -1699,8 +1701,12 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                     setSuggestions([]);
                                     setHighlightedIndex(-1);
                                     setSearchNoResults(false);
-                                }, 150)}
-                                onFocus={() => { if (searchQuery.trim()) onSearchInputChange(searchQuery); }}
+                                    setSearchFocused(false);
+                                }, 200)}
+                                onFocus={() => {
+                                    setSearchFocused(true);
+                                    if (searchQuery.trim()) onSearchInputChange(searchQuery);
+                                }}
                                 aria-autocomplete="list"
                                 aria-expanded={suggestions.length > 0 || searchNoResults}
                                 autoComplete="off"
@@ -1733,6 +1739,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                                     setHighlightedIndex(-1);
                                                     setSearchQuery('');
                                                     setSearchNoResults(false);
+                                                    setSearchFocused(false);
                                                 }
                                             },
                                             React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
@@ -1742,6 +1749,33 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                         React.createElement('i', { className: 'fas fa-search' }),
                                         React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
                                     )}
+                                </div>
+                            )}
+                            {searchFocused && !searchQuery.trim() && (
+                                <div className="search-screener-dropdown">
+                                    <div className="ssd-section-label">Stock screeners</div>
+                                    <div className="ssd-grid">
+                                        {[
+                                            { id: 'daily-price-jumps', label: 'Daily price jumps', icon: '📈', color: '#22c55e' },
+                                            { id: 'daily-price-dips', label: 'Daily price dips', icon: '📉', color: '#ef4444' },
+                                            { id: 'upcoming-earnings', label: 'Upcoming earnings', icon: '📅', color: '#f59e0b' },
+                                            { id: 'analyst-picks', label: 'Analyst picks', icon: '⭐', color: '#8b5cf6' },
+                                            { id: 'highest-implied-volatility', label: 'Highest implied volatility', icon: '⚡', color: '#06b6d4' },
+                                        ].map((sc) => React.createElement('button', {
+                                            key: sc.id,
+                                            className: 'ssd-item',
+                                            onMouseDown: (e) => e.preventDefault(),
+                                            onClick: () => {
+                                                setActiveScreener(sc.id);
+                                                handleNavigate('screener');
+                                                setSearchFocused(false);
+                                                setSearchQuery('');
+                                            }
+                                        },
+                                            React.createElement('span', { className: 'ssd-item-icon', style: { background: sc.color + '22', color: sc.color } }, sc.icon),
+                                            React.createElement('span', { className: 'ssd-item-label' }, sc.label)
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -2000,6 +2034,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
             {/* Main Content Area */}
             <div className="dashboard-content">
                 {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={handleNavigate} onStockHover={handleStockHover} preferences={preferences} />}
+                {activeView === 'screener' && <ScreenerView screenerType={activeScreener} onNavigate={handleNavigate} onChangeScreener={(t) => setActiveScreener(t)} />}
                 {activeView === 'watchlist' && isGuest && (
                     <div className="guest-locked-view">
                         <i className="fas fa-lock"></i>
@@ -3393,6 +3428,140 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
                 <div ref={sentinelRef} style={{ height: '1px', marginTop: '1rem' }} />
             )}
         </div>
+    );
+};
+
+// Screener View Component
+const SCREENER_META = {
+    'daily-price-jumps':           { label: 'Daily Price Jumps',           icon: '📈', metricKey: 'change_pct',           metricLabel: '1D % Chg', color: '#22c55e' },
+    'daily-price-dips':            { label: 'Daily Price Dips',            icon: '📉', metricKey: 'change_pct',           metricLabel: '1D % Chg', color: '#ef4444' },
+    'upcoming-earnings':           { label: 'Upcoming Earnings',           icon: '📅', metricKey: 'earnings_date',        metricLabel: 'Earnings Date', color: '#f59e0b' },
+    'analyst-picks':               { label: 'Analyst Picks',               icon: '⭐', metricKey: 'buy_score',            metricLabel: 'Buy Score', color: '#8b5cf6' },
+    'highest-implied-volatility':  { label: 'Highest Implied Volatility',  icon: '⚡', metricKey: 'implied_volatility',   metricLabel: 'Est. IV', color: '#06b6d4' },
+};
+
+const ScreenerView = ({ screenerType, onNavigate, onChangeScreener }) => {
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const currentType = screenerType || 'daily-price-jumps';
+    const meta = SCREENER_META[currentType] || SCREENER_META['daily-price-jumps'];
+
+    const fetchScreener = async (type) => {
+        setLoading(true);
+        setError('');
+        setResults([]);
+        try {
+            const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+            const res = await fetch(`${API_BASE}/api/screener/${type}`);
+            if (!res.ok) throw new Error('Failed to load screener data');
+            const data = await res.json();
+            setResults(data.results || []);
+        } catch (e) {
+            setError('Could not load screener data. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchScreener(currentType); }, [currentType]);
+
+    const formatMetric = (row) => {
+        const key = meta.metricKey;
+        const val = row[key];
+        if (val === undefined || val === null) return '—';
+        if (key === 'change_pct') {
+            const n = parseFloat(val);
+            return React.createElement('span', { style: { color: n >= 0 ? '#22c55e' : '#ef4444', fontWeight: 600 } },
+                (n >= 0 ? '+' : '') + n.toFixed(2) + '%'
+            );
+        }
+        if (key === 'implied_volatility') return val + '%';
+        if (key === 'buy_score') return (parseFloat(val) * 100).toFixed(0) + '%';
+        if (key === 'earnings_date') return val;
+        return String(val);
+    };
+
+    const formatVol = (v) => {
+        if (!v) return '—';
+        if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+        if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+        if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+        return String(v);
+    };
+
+    return React.createElement('div', { className: 'screener-view' },
+        React.createElement('div', { className: 'screener-sidebar' },
+            React.createElement('div', { className: 'screener-sidebar-title' }, 'Stock Screeners'),
+            Object.entries(SCREENER_META).map(([id, m]) =>
+                React.createElement('button', {
+                    key: id,
+                    className: `screener-sidebar-item ${id === currentType ? 'active' : ''}`,
+                    onClick: () => { onChangeScreener(id); }
+                },
+                    React.createElement('span', { className: 'screener-sidebar-icon', style: { color: m.color } }, m.icon),
+                    React.createElement('span', null, m.label)
+                )
+            )
+        ),
+        React.createElement('div', { className: 'screener-main' },
+            React.createElement('div', { className: 'screener-header' },
+                React.createElement('div', { className: 'screener-title-row' },
+                    React.createElement('span', { className: 'screener-title-icon' }, meta.icon),
+                    React.createElement('div', null,
+                        React.createElement('h2', { className: 'screener-title' }, meta.label),
+                        React.createElement('p', { className: 'screener-subtitle' },
+                            loading ? 'Loading...' : `${results.length} results · Updated just now`
+                        )
+                    )
+                )
+            ),
+            loading ? React.createElement('div', { className: 'screener-loading' },
+                React.createElement('i', { className: 'fas fa-spinner fa-spin' }),
+                React.createElement('span', null, 'Loading screener data...')
+            ) : error ? React.createElement('div', { className: 'screener-error' }, error)
+            : React.createElement('div', { className: 'screener-table-wrap' },
+                React.createElement('table', { className: 'screener-table' },
+                    React.createElement('thead', null,
+                        React.createElement('tr', null,
+                            React.createElement('th', null, '#'),
+                            React.createElement('th', null, 'Symbol'),
+                            currentType !== 'upcoming-earnings' && React.createElement('th', null, 'Price'),
+                            React.createElement('th', null, meta.metricLabel),
+                            currentType !== 'upcoming-earnings' && React.createElement('th', null, 'Volume'),
+                            React.createElement('th', null, 'Watch'),
+                        )
+                    ),
+                    React.createElement('tbody', null,
+                        results.map((row, i) =>
+                            React.createElement('tr', { key: row.symbol || i, className: 'screener-row' },
+                                React.createElement('td', { className: 'screener-rank' }, i + 1),
+                                React.createElement('td', { className: 'screener-symbol-cell' },
+                                    React.createElement('button', {
+                                        className: 'screener-symbol-btn',
+                                        onClick: () => window.openStockDetailsModalReact && window.openStockDetailsModalReact(row.symbol)
+                                    },
+                                        React.createElement('span', { className: 'screener-sym' }, row.symbol),
+                                        React.createElement('span', { className: 'screener-name' }, row.name || row.symbol)
+                                    )
+                                ),
+                                currentType !== 'upcoming-earnings' && React.createElement('td', { className: 'screener-price' },
+                                    row.price ? '$' + parseFloat(row.price).toFixed(2) : '—'
+                                ),
+                                React.createElement('td', { className: 'screener-metric' }, formatMetric(row)),
+                                currentType !== 'upcoming-earnings' && React.createElement('td', { className: 'screener-volume' }, formatVol(row.volume)),
+                                React.createElement('td', null,
+                                    React.createElement('button', {
+                                        className: 'screener-watch-btn',
+                                        onClick: () => window.openStockDetailsModalReact && window.openStockDetailsModalReact(row.symbol)
+                                    }, React.createElement('i', { className: 'fas fa-plus' }))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
     );
 };
 

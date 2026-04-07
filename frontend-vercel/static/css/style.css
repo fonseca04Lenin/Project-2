@@ -2080,6 +2080,183 @@ i[class*="fal"],
   gap: 0.5rem;
 }
 
+/* ── Stock Notes Section ─────────────────────────────────────────── */
+.stock-notes-section {
+  margin-top: 1.5rem;
+  background: rgba(255,255,255,0.04);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.stock-notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.stock-notes-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.stock-notes-header h3 i {
+  color: #facc15;
+}
+
+.stock-notes-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.07);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stock-notes-edit-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--text-primary);
+}
+
+.stock-notes-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: rgba(250, 204, 21, 0.06);
+  border: 1px solid rgba(250, 204, 21, 0.18);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.5;
+  margin-bottom: 0.85rem;
+}
+
+.stock-notes-tip i {
+  color: #facc15;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.stock-notes-tip strong {
+  color: rgba(255,255,255,0.85);
+}
+
+.stock-notes-loading {
+  text-align: center;
+  padding: 1rem 0;
+  color: var(--text-muted);
+}
+
+.stock-notes-content {
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: 0.95rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.stock-notes-content:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.1);
+}
+
+.stock-notes-content p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.stock-notes-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+  padding: 1rem 0;
+  border-radius: 0.5rem;
+  border: 1px dashed rgba(255,255,255,0.12);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.stock-notes-empty:hover {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.22);
+  color: var(--text-secondary);
+}
+
+.stock-notes-textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.625rem;
+  background: var(--bg-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.stock-notes-textarea:focus {
+  outline: none;
+  border-color: #facc15;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.1);
+}
+
+.stock-notes-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+}
+
+.stock-notes-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.stock-notes-actions .btn-primary,
+.stock-notes-actions .btn-secondary {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stock-notes-actions .btn-primary:disabled,
+.stock-notes-actions .btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* ── End Stock Notes Section ─────────────────────────────────────── */
+
 .btn-icon {
   background: transparent;
   border: 1px solid var(--border-color);
