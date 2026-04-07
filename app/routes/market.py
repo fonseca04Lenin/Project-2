@@ -623,6 +623,125 @@ def get_sectors_batch():
     return jsonify(sectors)
 
 
+@market_bp.route('/screener/<screener_type>', methods=['GET'])
+def stock_screener(screener_type):
+    """Return a ranked list of stocks for a given screener category."""
+    STOCK_UNIVERSE = [
+        'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'TSLA', 'AVGO',
+        'JPM', 'LLY', 'V', 'UNH', 'XOM', 'MA', 'JNJ', 'PG', 'COST', 'HD',
+        'ABBV', 'MRK', 'CVX', 'CRM', 'NFLX', 'AMD', 'PEP', 'KO', 'WMT',
+        'TMO', 'DIS', 'CSCO', 'ADBE', 'ORCL', 'INTC', 'QCOM', 'BAC', 'GS',
+        'MS', 'BLK', 'SPGI', 'AMT', 'NEE', 'SO', 'CAT', 'DE', 'RTX', 'BA',
+        'F', 'GM', 'UBER', 'LYFT', 'SHOP', 'SQ', 'PYPL', 'COIN', 'MSTR',
+    ]
+
+    try:
+        import yfinance as yf
+
+        if screener_type == 'upcoming-earnings':
+            earnings_raw = finnhub_api.get_earnings_calendar()
+            if not earnings_raw:
+                earnings_raw = _get_fallback_earnings()
+                return jsonify({'screener': screener_type, 'results': earnings_raw})
+            results = []
+            for item in (earnings_raw or [])[:20]:
+                results.append({
+                    'symbol': item.get('symbol', ''),
+                    'name': item.get('symbol', ''),
+                    'earnings_date': item.get('date', item.get('earnings_date', '')),
+                    'estimate': item.get('epsEstimate', item.get('estimate')),
+                    'hour': item.get('hour', ''),
+                })
+            results.sort(key=lambda x: x['earnings_date'])
+            return jsonify({'screener': screener_type, 'results': results[:20]})
+
+        # For price-based screeners fetch 2d of data in batch
+        data = yf.download(STOCK_UNIVERSE, period='2d', progress=False, threads=True)
+        closes = data.get('Close', data.get('Adj Close'))
+        volumes = data.get('Volume')
+
+        if closes is None:
+            return jsonify({'error': 'Could not fetch market data'}), 502
+
+        results = []
+        for symbol in STOCK_UNIVERSE:
+            try:
+                sym_closes = closes[symbol].dropna() if symbol in closes.columns else None
+                if sym_closes is None or len(sym_closes) < 2:
+                    continue
+                prev = float(sym_closes.iloc[-2])
+                curr = float(sym_closes.iloc[-1])
+                if prev == 0:
+                    continue
+                change_pct = round((curr - prev) / prev * 100, 2)
+                vol = 0
+                if volumes is not None and symbol in volumes.columns:
+                    vol_vals = volumes[symbol].dropna()
+                    if len(vol_vals) > 0:
+                        vol = int(vol_vals.iloc[-1])
+                results.append({
+                    'symbol': symbol,
+                    'name': symbol,
+                    'price': round(curr, 2),
+                    'change_pct': change_pct,
+                    'volume': vol,
+                })
+            except Exception:
+                continue
+
+        if screener_type == 'daily-price-jumps':
+            results.sort(key=lambda x: x['change_pct'], reverse=True)
+        elif screener_type == 'daily-price-dips':
+            results.sort(key=lambda x: x['change_pct'])
+        elif screener_type == 'analyst-picks':
+            # Enrich with finnhub consensus, keep buy-rated stocks
+            enriched = []
+            for r in results:
+                try:
+                    recs = finnhub_api.get_recommendation_trends(r['symbol'])
+                    if recs:
+                        latest = recs[0]
+                        strong_buy = latest.get('strongBuy', 0)
+                        buy = latest.get('buy', 0)
+                        hold = latest.get('hold', 0)
+                        sell = latest.get('sell', 0)
+                        strong_sell = latest.get('strongSell', 0)
+                        total = strong_buy + buy + hold + sell + strong_sell
+                        buy_score = (strong_buy * 2 + buy) / max(total, 1)
+                        r['buy_score'] = round(buy_score, 2)
+                        r['consensus'] = 'BUY' if (strong_buy + buy) > (hold + sell + strong_sell) else 'HOLD'
+                        enriched.append(r)
+                except Exception:
+                    continue
+            enriched.sort(key=lambda x: x.get('buy_score', 0), reverse=True)
+            return jsonify({'screener': screener_type, 'results': enriched[:20]})
+        elif screener_type == 'highest-implied-volatility':
+            # Use beta as IV proxy since full options chain is slow
+            iv_results = []
+            tickers = yf.Tickers(' '.join(STOCK_UNIVERSE[:25]))
+            for symbol in STOCK_UNIVERSE[:25]:
+                try:
+                    info = tickers.tickers[symbol].info
+                    beta = info.get('beta', None)
+                    if beta is not None:
+                        row = next((r for r in results if r['symbol'] == symbol), None)
+                        if row:
+                            row['implied_volatility'] = round(abs(beta) * 30, 1)
+                            iv_results.append(row)
+                except Exception:
+                    continue
+            iv_results.sort(key=lambda x: x.get('implied_volatility', 0), reverse=True)
+            return jsonify({'screener': screener_type, 'results': iv_results[:20]})
+        else:
+            return jsonify({'error': f'Unknown screener type: {screener_type}'}), 400
+
+        return jsonify({'screener': screener_type, 'results': results[:20]})
+
+    except Exception as e:
+        logger.error("Screener error (%s): %s", screener_type, e)
+        return jsonify({'error': 'Failed to fetch screener data', 'detail': str(e)}), 500
+
+
 @market_bp.route('/stocks/correlation', methods=['POST'])
 def get_stock_correlation():
     """Calculate correlation matrix for a set of stocks using 90 days of historical data"""
