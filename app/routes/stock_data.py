@@ -199,6 +199,122 @@ def search_stocks():
         })
 
 
+_CEO_INDEX = [
+    {"ceo_name": "Tim Cook", "company_name": "Apple Inc.", "symbol": "AAPL"},
+    {"ceo_name": "Satya Nadella", "company_name": "Microsoft Corporation", "symbol": "MSFT"},
+    {"ceo_name": "Sundar Pichai", "company_name": "Alphabet Inc.", "symbol": "GOOGL"},
+    {"ceo_name": "Andy Jassy", "company_name": "Amazon.com Inc.", "symbol": "AMZN"},
+    {"ceo_name": "Elon Musk", "company_name": "Tesla Inc.", "symbol": "TSLA"},
+    {"ceo_name": "Mark Zuckerberg", "company_name": "Meta Platforms Inc.", "symbol": "META"},
+    {"ceo_name": "Jensen Huang", "company_name": "NVIDIA Corporation", "symbol": "NVDA"},
+    {"ceo_name": "Jamie Dimon", "company_name": "JPMorgan Chase & Co.", "symbol": "JPM"},
+    {"ceo_name": "Warren Buffett", "company_name": "Berkshire Hathaway Inc.", "symbol": "BRK-B"},
+    {"ceo_name": "Brian Moynihan", "company_name": "Bank of America Corporation", "symbol": "BAC"},
+    {"ceo_name": "Reed Hastings", "company_name": "Netflix Inc.", "symbol": "NFLX"},
+    {"ceo_name": "Ted Sarandos", "company_name": "Netflix Inc.", "symbol": "NFLX"},
+    {"ceo_name": "Lisa Su", "company_name": "Advanced Micro Devices Inc.", "symbol": "AMD"},
+    {"ceo_name": "Pat Gelsinger", "company_name": "Intel Corporation", "symbol": "INTC"},
+    {"ceo_name": "Bob Iger", "company_name": "The Walt Disney Company", "symbol": "DIS"},
+    {"ceo_name": "Doug McMillon", "company_name": "Walmart Inc.", "symbol": "WMT"},
+    {"ceo_name": "Mary Barra", "company_name": "General Motors Company", "symbol": "GM"},
+    {"ceo_name": "Jim Farley", "company_name": "Ford Motor Company", "symbol": "F"},
+    {"ceo_name": "David Zaslav", "company_name": "Warner Bros. Discovery", "symbol": "WBD"},
+    {"ceo_name": "Arvind Krishna", "company_name": "International Business Machines Corporation", "symbol": "IBM"},
+    {"ceo_name": "Safra Catz", "company_name": "Oracle Corporation", "symbol": "ORCL"},
+    {"ceo_name": "Marc Benioff", "company_name": "Salesforce Inc.", "symbol": "CRM"},
+    {"ceo_name": "Shantanu Narayen", "company_name": "Adobe Inc.", "symbol": "ADBE"},
+    {"ceo_name": "Dara Khosrowshahi", "company_name": "Uber Technologies Inc.", "symbol": "UBER"},
+    {"ceo_name": "Brian Chesky", "company_name": "Airbnb Inc.", "symbol": "ABNB"},
+    {"ceo_name": "Tony Xu", "company_name": "DoorDash Inc.", "symbol": "DASH"},
+    {"ceo_name": "Whitney Wolfe Herd", "company_name": "Bumble Inc.", "symbol": "BMBL"},
+    {"ceo_name": "Ryan Cohen", "company_name": "GameStop Corp.", "symbol": "GME"},
+    {"ceo_name": "Dave Calhoun", "company_name": "The Boeing Company", "symbol": "BA"},
+    {"ceo_name": "Kelly Ortberg", "company_name": "The Boeing Company", "symbol": "BA"},
+    {"ceo_name": "James Quincey", "company_name": "The Coca-Cola Company", "symbol": "KO"},
+    {"ceo_name": "Ramon Laguarta", "company_name": "PepsiCo Inc.", "symbol": "PEP"},
+    {"ceo_name": "Andi Owen", "company_name": "MillerKnoll Inc.", "symbol": "MLKN"},
+    {"ceo_name": "Charles Scharf", "company_name": "Wells Fargo & Company", "symbol": "WFC"},
+    {"ceo_name": "Jane Fraser", "company_name": "Citigroup Inc.", "symbol": "C"},
+    {"ceo_name": "James Gorman", "company_name": "Morgan Stanley", "symbol": "MS"},
+    {"ceo_name": "David Solomon", "company_name": "The Goldman Sachs Group Inc.", "symbol": "GS"},
+    {"ceo_name": "Larry Fink", "company_name": "BlackRock Inc.", "symbol": "BLK"},
+    {"ceo_name": "Vlad Tenev", "company_name": "Robinhood Markets Inc.", "symbol": "HOOD"},
+    {"ceo_name": "Sam Altman", "company_name": "OpenAI", "symbol": ""},
+    {"ceo_name": "George Kurtz", "company_name": "CrowdStrike Holdings Inc.", "symbol": "CRWD"},
+    {"ceo_name": "Nikesh Arora", "company_name": "Palo Alto Networks Inc.", "symbol": "PANW"},
+    {"ceo_name": "Hock Tan", "company_name": "Broadcom Inc.", "symbol": "AVGO"},
+    {"ceo_name": "Cristiano Amon", "company_name": "Qualcomm Inc.", "symbol": "QCOM"},
+    {"ceo_name": "Chuck Robbins", "company_name": "Cisco Systems Inc.", "symbol": "CSCO"},
+    {"ceo_name": "Jayshree Ullal", "company_name": "Arista Networks Inc.", "symbol": "ANET"},
+    {"ceo_name": "John Donahoe", "company_name": "Nike Inc.", "symbol": "NKE"},
+    {"ceo_name": "Elliott Hill", "company_name": "Nike Inc.", "symbol": "NKE"},
+    {"ceo_name": "Brian Cornell", "company_name": "Target Corporation", "symbol": "TGT"},
+    {"ceo_name": "Andy Jassy", "company_name": "Amazon Web Services", "symbol": "AMZN"},
+    {"ceo_name": "Piyush Gupta", "company_name": "DBS Group Holdings", "symbol": "DBSDY"},
+    {"ceo_name": "Tobi Lutke", "company_name": "Shopify Inc.", "symbol": "SHOP"},
+    {"ceo_name": "Harley Finkelstein", "company_name": "Shopify Inc.", "symbol": "SHOP"},
+    {"ceo_name": "Frank Slootman", "company_name": "Snowflake Inc.", "symbol": "SNOW"},
+    {"ceo_name": "Sridhar Ramaswamy", "company_name": "Snowflake Inc.", "symbol": "SNOW"},
+    {"ceo_name": "George Jaber", "company_name": "Palantir Technologies Inc.", "symbol": "PLTR"},
+    {"ceo_name": "Alex Karp", "company_name": "Palantir Technologies Inc.", "symbol": "PLTR"},
+    {"ceo_name": "Peter Thiel", "company_name": "Palantir Technologies Inc.", "symbol": "PLTR"},
+    {"ceo_name": "Bill McDermott", "company_name": "ServiceNow Inc.", "symbol": "NOW"},
+    {"ceo_name": "Aneel Bhusri", "company_name": "Workday Inc.", "symbol": "WDAY"},
+    {"ceo_name": "Zoom", "company_name": "Zoom Video Communications Inc.", "symbol": "ZM"},
+    {"ceo_name": "Eric Yuan", "company_name": "Zoom Video Communications Inc.", "symbol": "ZM"},
+    {"ceo_name": "Olivier Le Peuch", "company_name": "SLB", "symbol": "SLB"},
+    {"ceo_name": "Ryan Petersen", "company_name": "Flexport", "symbol": ""},
+    {"ceo_name": "Patrick Collison", "company_name": "Stripe", "symbol": ""},
+    {"ceo_name": "Daniel Ek", "company_name": "Spotify Technology S.A.", "symbol": "SPOT"},
+    {"ceo_name": "Robert Ford", "company_name": "Abbott Laboratories", "symbol": "ABT"},
+    {"ceo_name": "Chris Wanstrath", "company_name": "GitHub", "symbol": ""},
+    {"ceo_name": "Thomas Kurian", "company_name": "Google Cloud", "symbol": "GOOGL"},
+    {"ceo_name": "Adam Selipsky", "company_name": "Amazon Web Services", "symbol": "AMZN"},
+    {"ceo_name": "Reshma Kewalramani", "company_name": "Vertex Pharmaceuticals Inc.", "symbol": "VRTX"},
+    {"ceo_name": "Albert Bourla", "company_name": "Pfizer Inc.", "symbol": "PFE"},
+    {"ceo_name": "Joaquin Duato", "company_name": "Johnson & Johnson", "symbol": "JNJ"},
+    {"ceo_name": "Giovanni Caforio", "company_name": "Bristol-Myers Squibb Company", "symbol": "BMY"},
+    {"ceo_name": "Christopher Boerner", "company_name": "Bristol-Myers Squibb Company", "symbol": "BMY"},
+    {"ceo_name": "Stephane Bancel", "company_name": "Moderna Inc.", "symbol": "MRNA"},
+    {"ceo_name": "Kevin Johnson", "company_name": "Starbucks Corporation", "symbol": "SBUX"},
+    {"ceo_name": "Laxman Narasimhan", "company_name": "Starbucks Corporation", "symbol": "SBUX"},
+    {"ceo_name": "Brian Niccol", "company_name": "Starbucks Corporation", "symbol": "SBUX"},
+    {"ceo_name": "David Ricks", "company_name": "Eli Lilly and Company", "symbol": "LLY"},
+    {"ceo_name": "Vas Narasimhan", "company_name": "Novartis AG", "symbol": "NVS"},
+    {"ceo_name": "Pascal Soriot", "company_name": "AstraZeneca PLC", "symbol": "AZN"},
+    {"ceo_name": "Emma Walmsley", "company_name": "GSK plc", "symbol": "GSK"},
+    {"ceo_name": "Elon Musk", "company_name": "SpaceX", "symbol": ""},
+    {"ceo_name": "Elon Musk", "company_name": "X Corp.", "symbol": ""},
+]
+
+
+@stock_data_bp.route('/search/ceo', methods=['GET'])
+def search_ceo():
+    """Search CEOs by name with fuzzy matching"""
+    query = request.args.get('q', '').strip().lower()
+    if not query or len(query) < 2:
+        return jsonify([])
+
+    results = []
+    for entry in _CEO_INDEX:
+        name_lower = entry['ceo_name'].lower()
+        if query in name_lower or name_lower.startswith(query):
+            results.append(entry)
+        elif all(part in name_lower for part in query.split()):
+            results.append(entry)
+
+    # Deduplicate by (ceo_name, symbol) while preserving order
+    seen = set()
+    deduped = []
+    for r in results:
+        key = (r['ceo_name'], r['symbol'])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(r)
+
+    return jsonify(deduped[:5])
+
+
 @stock_data_bp.route('/search/companies', methods=['GET'])
 def search_companies():
     """Search companies by name with enhanced results and rate limiting protection"""

@@ -59,6 +59,8 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
     const [searchNoResults, setSearchNoResults] = useState(false);
     const [searchFocused, setSearchFocused] = useState(false);
     const [activeScreener, setActiveScreener] = useState(null);
+    const [ceoModalOpen, setCeoModalOpen] = useState(false);
+    const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
     const [toolsOpen, setToolsOpen] = useState(false);
     const [marketsOpen, setMarketsOpen] = useState(false);
     const searchDebounceRef = useRef(null);
@@ -166,10 +168,21 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
         loadPreferences();
         loadSubscriptionInfo();
 
-        // Load profile picture from localStorage
-        const savedProfilePic = localStorage.getItem('profilePicture');
-        if (savedProfilePic) {
-            setProfilePicture(savedProfilePic);
+        // Load profile picture from Firestore
+        if (authCurrentUser?.uid) {
+            (async () => {
+                try {
+                    const authHeaders = await getAuthHeaders(authCurrentUser);
+                    const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                    const res = await fetch(`${API_BASE}/api/user/profile-picture`, { headers: authHeaders, credentials: 'include' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setProfilePicture(data.profile_picture || null);
+                    }
+                } catch (_) {}
+            })();
+        } else {
+            setProfilePicture(null);
         }
 
         // Defer Alpaca status check - only needed when Preferences opens
@@ -294,8 +307,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
             });
             
             socketRef.current.on('connect', () => {
-                // // console.log('WebSocket connected for real-time updates');
-                // // console.log('📡 WebSocket will update ALL stocks in your watchlist automatically');
                 setSocketConnected(true);
                 
                 // Join watchlist updates room when user is available
@@ -327,19 +338,11 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 const currentTime = new Date().toLocaleTimeString();
                 
                 // Real-time price update received - ALWAYS use fresh prices
-                // // console.log(`\n${'='.repeat(60)}`);
-                // // console.log(`📡 UPDATE #${updateCount} @ ${currentTime}`);
-                // // console.log(`   Time since last update: ${timeSinceLastUpdate}s`);
-                // // console.log(`   Stocks updated: ${data.prices?.length || 0}`);
-                // // console.log(`   Backend cycle: #${data.cycle || '?'}`);
                 
                 if (data.prices && data.prices.length > 0) {
                     const symbols = data.prices.map(p => p.symbol).join(', ');
-                    // // console.log(`   Symbols: ${symbols}`);
                     const sample = data.prices[0];
-                    // // console.log(`   Sample: ${sample.symbol} = $${sample.price} (${sample.change_percent >= 0 ? '+' : ''}${sample.change_percent?.toFixed(2)}%)`);
                 }
-                // // console.log(`${'='.repeat(60)}\n`);
                 
                 lastUpdateTime = now;
                 if (data.prices && Array.isArray(data.prices)) {
@@ -442,22 +445,18 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
             });
             
             socketRef.current.on('disconnect', () => {
-                // // console.log('WebSocket disconnected - falling back to HTTP polling');
                 setSocketConnected(false);
             });
             
             socketRef.current.on('connect_error', (error) => {
-                // // console.log('WebSocket connection error:', error);
                 setSocketConnected(false);
             });
             
             socketRef.current.on('reconnect', (attemptNumber) => {
-                // // console.log(`WebSocket reconnected after ${attemptNumber} attempts`);
                 setSocketConnected(true);
             });
             
             socketRef.current.on('reconnect_attempt', () => {
-                // // console.log('Attempting to reconnect WebSocket...');
             });
         }
         
@@ -699,8 +698,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
         // Backend sends updates every 30s via WebSocket
         // This eliminates race conditions and respects rate limits
 
-        // // console.log(`WebSocket-only mode active for ${watchlistData.length} stocks`);
-        // // console.log(`   Updates via WebSocket every 30s from backend`);
 
         return () => {
             clearTimeout(observeTimeout);
@@ -826,9 +823,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 userId: getCurrentUser()?.uid
             };
             localStorage.setItem(WATCHLIST_CACHE_KEY, JSON.stringify(cacheData));
-            // // console.log('Saved watchlist to localStorage cache');
         } catch (error) {
-            // // console.warn('Failed to save watchlist to cache:', error);
         }
     };
 
@@ -836,7 +831,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
         try {
             const cachedData = localStorage.getItem(WATCHLIST_CACHE_KEY);
             if (!cachedData) {
-                // // console.log('📭 No watchlist cache found');
                 return null;
             }
 
@@ -847,22 +841,18 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
             // Check if cache is for current user
             const currentUserId = getCurrentUser()?.uid;
             if (cache.userId !== currentUserId) {
-                // // console.log('👤 Cache is for different user, ignoring');
                 localStorage.removeItem(WATCHLIST_CACHE_KEY);
                 return null;
             }
 
             // Check if cache is expired
             if (cacheAge > WATCHLIST_CACHE_EXPIRY) {
-                // // console.log('Watchlist cache expired, removing');
                 localStorage.removeItem(WATCHLIST_CACHE_KEY);
                 return null;
             }
 
-            // // console.log(`📖 Loaded watchlist from cache (${Math.round(cacheAge / 1000 / 60)} minutes old)`);
             return cache.data;
         } catch (error) {
-            // // console.warn('Failed to load watchlist from cache:', error);
             return null;
         }
     };
@@ -870,28 +860,21 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
     const clearWatchlistCache = () => {
         try {
             localStorage.removeItem(WATCHLIST_CACHE_KEY);
-            // // console.log('🗑️ Cleared watchlist cache');
         } catch (error) {
-            // // console.warn('Failed to clear watchlist cache:', error);
         }
     };
 
     const loadWatchlistData = async () => {
         // Prevent multiple simultaneous requests
         if (isLoadingRef.current) {
-            // // console.log('Watchlist request already in progress, skipping duplicate request');
             return;
         }
 
         try {
             isLoadingRef.current = true;
-            // // console.log('\n' + '='.repeat(80));
-            // // console.log('LOADING WATCHLIST DATA');
-            // // console.log('='.repeat(80));
 
             // Check if user is authenticated before making request
             if (!getCurrentUser()) {
-                // // console.log('User not authenticated');
                 // User not authenticated, cannot load watchlist
                 clearWatchlistCache(); // Clear cache for logged out user
                 setWatchlistData([]);
@@ -899,12 +882,10 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 return;
             }
 
-            // // console.log('User authenticated:', window.firebaseAuth.currentUser.uid);
 
             // Try to load from cache first for immediate display
             const cachedWatchlist = loadWatchlistFromCache();
             if (cachedWatchlist && cachedWatchlist.length > 0) {
-                // // console.log(`Displaying ${cachedWatchlist.length} cached watchlist items immediately`);
                 // Mark cached items to show they need refresh
                 const cachedWithFlag = cachedWatchlist.map(item => ({
                     ...item,
@@ -960,12 +941,10 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
             if (response.ok) {
                 let data = await response.json();
                 
-                // // console.log('📦 RECEIVED FROM API:', data.length, 'stocks');
                 
                 // Log all symbols received
                 if (Array.isArray(data) && data.length > 0) {
                     const symbols = data.map(s => s.symbol || s.id || 'NO_SYMBOL');
-                    // // console.log('STOCKS RECEIVED FROM BACKEND:');
                     // symbols.forEach((sym, i) => // console.log(`   ${i + 1}. ${sym}`));
                 }
                 
@@ -1050,9 +1029,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                         };
                     });
                     
-                    // // console.log('SET WATCHLIST DATA:', formattedData.length, 'stocks');
-                    // // console.log('   Sample stock:', formattedData[0]);
-                    // // console.log('='.repeat(80) + '\n');
 
                     // Remove cached flags since we now have fresh data
                     const freshData = formattedData.map(item => ({
@@ -1114,7 +1090,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                     return true;
                                 }
                             } catch (e) {
-                                // // console.warn(`Failed to fetch price for ${symbol}:`, e);
                             }
                             // Clear loading state on failure so price shows as $0.00
                             setWatchlistData(prev => prev.map(s =>
@@ -1131,11 +1106,9 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                             });
                     }
                 } else {
-                    // // console.warn('Watchlist data is empty or not an array');
                     // Don't clear watchlist if we have cached data
                     const cachedData = loadWatchlistFromCache();
                     if (cachedData && cachedData.length > 0) {
-                        // // console.log('Using cached watchlist data instead of clearing');
                         setWatchlistData(cachedData);
                     } else {
                         setWatchlistData([]);
@@ -1165,7 +1138,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 // Don't clear watchlist if we have cached data
                 const cachedData = loadWatchlistFromCache();
                 if (cachedData && cachedData.length > 0) {
-                    // // console.log('Keeping cached watchlist data due to API error');
                     setWatchlistData(cachedData);
                 } else {
                     setWatchlistData([]);
@@ -1313,13 +1285,16 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
         if (e.key === 'Enter' && suggestions.length > 0) {
             const idx = highlightedIndex >= 0 ? highlightedIndex : 0;
             const choice = suggestions[idx];
-            if (choice?.symbol) {
+            if (choice?.type === 'ceo') {
+                setSelectedCEO({ name: choice.ceoName, company: choice.companyName, symbol: choice.symbol });
+                setCeoModalOpen(true);
+            } else if (choice?.symbol) {
                 window.openStockDetailsModalReact && window.openStockDetailsModalReact(choice.symbol);
-                setSuggestions([]);
-                setHighlightedIndex(-1);
-                setSearchQuery('');
-                setSearchNoResults(false);
             }
+            setSuggestions([]);
+            setHighlightedIndex(-1);
+            setSearchQuery('');
+            setSearchNoResults(false);
         }
     };
 
@@ -1345,23 +1320,36 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 setSearching(true);
                 const authHeaders = await getAuthHeaders();
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
-                const resp = await fetch(`${API_BASE}/api/search/stocks?q=${encodeURIComponent(value.trim())}`, {
-                    method: 'GET',
-                    headers: authHeaders,
-                    credentials: 'include'
-                });
-                if (resp.ok) {
-                    const data = await resp.json();
+
+                // Fire stock search and CEO search in parallel
+                const [stockResp, ceoResp] = await Promise.allSettled([
+                    fetch(`${API_BASE}/api/search/stocks?q=${encodeURIComponent(value.trim())}`, { method: 'GET', headers: authHeaders, credentials: 'include' }),
+                    fetch(`${API_BASE}/api/search/ceo?q=${encodeURIComponent(value.trim())}`, { method: 'GET', headers: authHeaders, credentials: 'include' })
+                ]);
+
+                let stockResults = [];
+                if (stockResp.status === 'fulfilled' && stockResp.value.ok) {
+                    const data = await stockResp.value.json();
                     const res = data.results || data;
-                    const results = Array.isArray(res) ? res.slice(0, 8) : [];
-                    setSuggestions(results);
-                    setHighlightedIndex(results.length > 0 ? 0 : -1);
-                    setSearchNoResults(results.length === 0);
-                } else {
-                    setSuggestions([]);
-                    setHighlightedIndex(-1);
-                    setSearchNoResults(true);
+                    stockResults = (Array.isArray(res) ? res : []).slice(0, 5).map(s => ({ ...s, type: 'stock' }));
                 }
+
+                let ceoResults = [];
+                if (ceoResp.status === 'fulfilled' && ceoResp.value.ok) {
+                    const data = await ceoResp.value.json();
+                    const res = data.results || data;
+                    ceoResults = (Array.isArray(res) ? res : []).slice(0, 3).map(c => ({
+                        type: 'ceo',
+                        ceoName: c.ceo_name || c.ceoName || c.name || '',
+                        companyName: c.company_name || c.companyName || '',
+                        symbol: c.symbol || ''
+                    })).filter(c => c.ceoName);
+                }
+
+                const combined = [...stockResults, ...ceoResults];
+                setSuggestions(combined);
+                setHighlightedIndex(combined.length > 0 ? 0 : -1);
+                setSearchNoResults(combined.length === 0);
             } catch (_) {
                 setSuggestions([]);
                 setHighlightedIndex(-1);
@@ -1682,7 +1670,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
             <header className="dashboard-header">
                 {/* Logo + Search */}
                 <div className="header-brand">
-                    <div className="header-logo">
+                    <div className="header-logo" onClick={() => handleNavigate('overview')} style={{ cursor: 'pointer' }}>
                         <i className="fas fa-chart-line logo-icon"></i>
                         <span className="logo-name">AI Stock Sage</span>
                     </div>
@@ -1692,7 +1680,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                             <input
                                 ref={searchInputRef}
                                 type="text"
-                                placeholder="Search stocks, ETFs..."
+                                placeholder="Search Stocks, ETFs and CEOs..."
                                 className="hs-input"
                                 value={searchQuery}
                                 onChange={(e) => onSearchInputChange(e.target.value)}
@@ -1713,11 +1701,10 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                             />
                             {searchQuery.trim() && (suggestions.length > 0 || searchNoResults) && (
                                 <div className="search-suggestions" role="listbox">
-                                    {suggestions.length > 0 ? suggestions.map((s, idx) => {
+                                    {suggestions.length > 0 ? (() => {
                                         const q = searchQuery.trim().toUpperCase();
-                                        const sym = s.symbol || '';
-                                        const nm = s.name || '';
                                         const highlightText = (text, query) => {
+                                            if (!text) return React.createElement('span', null, '');
                                             const i = text.toUpperCase().indexOf(query);
                                             if (i === -1) return React.createElement('span', null, text);
                                             return React.createElement(React.Fragment, null,
@@ -1726,26 +1713,61 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                                 text.slice(i + query.length)
                                             );
                                         };
-                                        return React.createElement('div',
-                                            {
-                                                key: `${sym}-${idx}`,
-                                                role: 'option',
-                                                className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
-                                                onMouseEnter: () => setHighlightedIndex(idx),
-                                                onMouseDown: (e) => e.preventDefault(),
-                                                onClick: () => {
-                                                    window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
-                                                    setSuggestions([]);
-                                                    setHighlightedIndex(-1);
-                                                    setSearchQuery('');
-                                                    setSearchNoResults(false);
-                                                    setSearchFocused(false);
-                                                }
-                                            },
-                                            React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
-                                            React.createElement('span', { className: 's-name' }, highlightText(nm, q))
-                                        );
-                                    }) : React.createElement('div', { className: 'search-no-results' },
+                                        const firstCeoIdx = suggestions.findIndex(s => s.type === 'ceo');
+                                        return suggestions.map((s, idx) => {
+                                            const showCeoDivider = idx === firstCeoIdx && idx > 0;
+                                            if (s.type === 'ceo') {
+                                                return React.createElement(React.Fragment, { key: `ceo-${s.symbol}-${idx}` },
+                                                    showCeoDivider && React.createElement('div', { className: 'suggestions-divider' }, 'CEOs'),
+                                                    React.createElement('div',
+                                                        {
+                                                            role: 'option',
+                                                            className: `suggestion-item ceo-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                                            onMouseEnter: () => setHighlightedIndex(idx),
+                                                            onMouseDown: (e) => e.preventDefault(),
+                                                            onClick: () => {
+                                                                setSelectedCEO({ name: s.ceoName, company: s.companyName, symbol: s.symbol });
+                                                                setCeoModalOpen(true);
+                                                                setSuggestions([]);
+                                                                setHighlightedIndex(-1);
+                                                                setSearchQuery('');
+                                                                setSearchNoResults(false);
+                                                                setSearchFocused(false);
+                                                            }
+                                                        },
+                                                        React.createElement('span', { className: 's-symbol' },
+                                                            React.createElement('i', { className: 'fas fa-user-tie' }),
+                                                            highlightText(s.ceoName, q)
+                                                        ),
+                                                        React.createElement('span', { className: 's-name' },
+                                                            s.companyName + (s.symbol ? ` · ${s.symbol}` : '')
+                                                        )
+                                                    )
+                                                );
+                                            }
+                                            const sym = s.symbol || '';
+                                            const nm = s.name || '';
+                                            return React.createElement('div',
+                                                {
+                                                    key: `${sym}-${idx}`,
+                                                    role: 'option',
+                                                    className: `suggestion-item ${idx === highlightedIndex ? 'active' : ''}`,
+                                                    onMouseEnter: () => setHighlightedIndex(idx),
+                                                    onMouseDown: (e) => e.preventDefault(),
+                                                    onClick: () => {
+                                                        window.openStockDetailsModalReact && window.openStockDetailsModalReact(sym);
+                                                        setSuggestions([]);
+                                                        setHighlightedIndex(-1);
+                                                        setSearchQuery('');
+                                                        setSearchNoResults(false);
+                                                        setSearchFocused(false);
+                                                    }
+                                                },
+                                                React.createElement('span', { className: 's-symbol' }, highlightText(sym, q)),
+                                                React.createElement('span', { className: 's-name' }, highlightText(nm, q))
+                                            );
+                                        });
+                                    })() : React.createElement('div', { className: 'search-no-results' },
                                         React.createElement('i', { className: 'fas fa-search' }),
                                         React.createElement('span', null, `No results for "${searchQuery.trim()}"`)
                                     )}
@@ -2098,6 +2120,15 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                 )}
             </div>
 
+            {/* CEO Details Modal */}
+            {ceoModalOpen && window.CEODetailsModal && React.createElement(window.CEODetailsModal, {
+                isOpen: ceoModalOpen,
+                onClose: () => setCeoModalOpen(false),
+                ceoName: selectedCEO.name,
+                companyName: selectedCEO.company,
+                companySymbol: selectedCEO.symbol
+            })}
+
             {/* Floating Assistant - Hidden when already in assistant view */}
             {activeView !== 'assistant' && (
                     <button className="floating-ai-btn" onClick={() => handleNavigate('assistant')}>
@@ -2140,7 +2171,28 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                                     const reader = new FileReader();
                                                     reader.onloadend = () => {
                                                         setProfilePicture(reader.result);
-                                                        localStorage.setItem('profilePicture', reader.result);
+                                                        (async () => {
+                                                            try {
+                                                                const authHeaders = await getAuthHeaders(authCurrentUser);
+                                                                const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                                                                const res = await fetch(`${API_BASE}/api/user/profile-picture`, {
+                                                                    method: 'POST',
+                                                                    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+                                                                    credentials: 'include',
+                                                                    body: JSON.stringify({ profile_picture: reader.result }),
+                                                                });
+                                                                if (!res.ok) {
+                                                                    const err = await res.json();
+                                                                    if (window.showNotification) window.showNotification(err.error || 'Failed to save picture', 'error');
+                                                                    setProfilePicture(null);
+                                                                    return;
+                                                                }
+                                                            } catch (_) {
+                                                                if (window.showNotification) window.showNotification('Failed to save picture', 'error');
+                                                                setProfilePicture(null);
+                                                                return;
+                                                            }
+                                                        })();
                                                         if (window.showNotification) {
                                                             window.showNotification('Profile picture updated!', 'success');
                                                         }
@@ -2155,7 +2207,17 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                             className="remove-photo-btn"
                                             onClick={() => {
                                                 setProfilePicture(null);
-                                                localStorage.removeItem('profilePicture');
+                                                (async () => {
+                                                    try {
+                                                        const authHeaders = await getAuthHeaders(authCurrentUser);
+                                                        const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
+                                                        await fetch(`${API_BASE}/api/user/profile-picture`, {
+                                                            method: 'DELETE',
+                                                            headers: authHeaders,
+                                                            credentials: 'include',
+                                                        });
+                                                    } catch (_) {}
+                                                })();
                                                 if (window.showNotification) {
                                                     window.showNotification('Profile picture removed', 'success');
                                                 }
@@ -2850,7 +2912,7 @@ const TopMoversWidget = () => {
                     displayed.map((mover, idx) => {
                         const isPositive = mover.change >= 0;
                         return (
-                            <div key={mover.symbol} className="top-mover-row">
+                            <div key={mover.symbol} className="top-mover-row" style={{ cursor: 'pointer' }} onClick={() => window.openStockDetailsModalReact && window.openStockDetailsModalReact(mover.symbol)}>
                                 <span className="mover-rank">{idx + 1}</span>
                                 <div className="mover-info">
                                     <span className="mover-symbol">{mover.symbol}</span>
@@ -3576,7 +3638,6 @@ const NewsView = () => {
     const [hasMore, setHasMore] = useState(true);
     const [query, setQuery] = useState('');
 
-    const sentinelRef = useRef(null);
     const inFlightRef = useRef(false);   // ref-based guard, never stale
     const pageRef = useRef(1);           // current page, never stale
     const queryRef = useRef('');         // current query, never stale
@@ -3644,46 +3705,6 @@ const NewsView = () => {
         fetchPage(nextPage, true, queryRef.current);
     };
 
-    // Mount observer once — uses loadMoreRef so it never captures stale state
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    loadMoreRef.current();
-                }
-            },
-            { root: null, rootMargin: '200px', threshold: 0 }
-        );
-
-        // Observe whenever sentinelRef is attached (hasMore controls its presence)
-        const checkAndObserve = () => {
-            if (sentinelRef.current) {
-                observer.observe(sentinelRef.current);
-            }
-        };
-
-        // Poll briefly for the sentinel to mount after first render
-        const t = setTimeout(checkAndObserve, 50);
-        return () => {
-            clearTimeout(t);
-            observer.disconnect();
-        };
-    }, []);
-
-    // Re-attach observer when sentinel mounts/unmounts (hasMore toggles it)
-    useEffect(() => {
-        if (!sentinelRef.current) return;
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    loadMoreRef.current();
-                }
-            },
-            { root: null, rootMargin: '200px', threshold: 0 }
-        );
-        observer.observe(sentinelRef.current);
-        return () => observer.disconnect();
-    }, [hasMore]);
 
     const triggerSearch = () => {
         if (loading || loadingMore) return;
@@ -3692,28 +3713,26 @@ const NewsView = () => {
         fetchPage(1, false, query);
     };
 
-    const visibleArticles = articles;
+    const getImgUrl = (a) => {
+        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') return a.image_url;
+        return null;
+    };
 
     return (
         <div className="news-view">
             <div className="view-header">
                 <h2>Market News</h2>
                 <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
-                    <input 
-                        className="search-input" 
-                        style={{ maxWidth:'240px' }} 
+                    <input
+                        className="search-input"
+                        style={{ maxWidth:'240px' }}
                         value={query}
-                        onChange={(e)=>setQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                triggerSearch();
-                            }
-                        }}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); triggerSearch(); } }}
                         placeholder="Search news" />
-                    <button 
-                        className="search-btn" 
-                        onClick={triggerSearch} 
+                    <button
+                        className="search-btn"
+                        onClick={triggerSearch}
                         disabled={loading || loadingMore}
                     >
                         {query.trim() ? 'Search' : 'Refresh'}
@@ -3721,166 +3740,226 @@ const NewsView = () => {
                     {error && <span style={{ color:'#FF6B35', fontSize:'0.9rem' }}>{error}</span>}
                 </div>
             </div>
-            <div className="news-grid">
-                {(loading ? Array.from({length:1}) : visibleArticles.slice(0,1)).map((a, idx) => {
-                    // Generate fallback image URL using Unsplash Source API (generic financial/stock market image)
-                    const getImageUrl = () => {
-                        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
-                            return a.image_url;
-                        }
-                        // Fallback: Use Unsplash Source API for generic financial images
-                        // Using a 16:9 aspect ratio (1920x1080) which matches typical news image ratios
-                        const seed = a?.title ? encodeURIComponent(a.title.substring(0, 20)) : 'stock-market';
-                        return `https://source.unsplash.com/1920x1080/?finance,stock-market,business,${seed}`;
-                    };
-                    
-                    const articleUrl = a?.url || a?.link;
-                    const handleCardClick = (e) => {
-                        // Don't navigate if clicking on the "Read More" link
-                        if (e.target.closest('.read-more')) {
-                            return;
-                        }
-                        if (articleUrl) {
-                            window.open(articleUrl, '_blank', 'noopener,noreferrer');
-                        }
-                    };
-                    
-                    return (
-                        <div 
-                            key={`feat-${idx}`} 
-                            className="news-card featured"
-                            onClick={handleCardClick}
-                            style={{ cursor: articleUrl ? 'pointer' : 'default' }}
-                        >
-                            <div className="news-image-container">
-                                {loading ? (
-                        <div className="news-image-placeholder">
-                            <i className="fas fa-chart-line"></i>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <img 
-                                            src={getImageUrl()} 
-                                            alt={a?.title || 'News image'}
-                                            className="news-image"
-                                            onError={(e) => {
-                                                // If image fails to load, hide image and show placeholder
-                                                e.target.style.display = 'none';
-                                                const placeholder = e.target.parentElement.querySelector('.news-image-placeholder');
-                                                if (placeholder) {
-                                                    placeholder.style.display = 'flex';
-                                                }
-                                            }}
-                                        />
-                                        <div className="news-image-placeholder" style={{ display: 'none' }}>
-                                            <i className="fas fa-chart-line"></i>
-                                        </div>
-                                    </>
-                                )}
-                        </div>
-                        <div className="news-badge">Featured</div>
-                        <div className="news-content">
-                            <span className="news-category">{loading ? 'Loading…' : (a.source || a.category || 'Top Story')}</span>
-                            <h3>{loading ? 'Loading headline…' : (a.title || '—')}</h3>
-                                <p>{loading ? '' : (a.description || a.summary || '')}</p>
-                            <div className="news-meta">
-                                <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                    {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
-                            </div>
+
+            <div className="news-editorial">
+                {/* Hero article */}
+                {loading ? (
+                    <div className="news-hero-skeleton">
+                        <div className="news-hero-img-skel skeleton-pulse" />
+                        <div className="news-hero-text-skel">
+                            <div className="skeleton-pulse" style={{height:'12px', width:'72px', marginBottom:'4px'}} />
+                            <div className="skeleton-pulse" style={{height:'30px', width:'92%', marginBottom:'6px'}} />
+                            <div className="skeleton-pulse" style={{height:'30px', width:'68%', marginBottom:'14px'}} />
+                            <div className="skeleton-pulse" style={{height:'13px', width:'100%', marginBottom:'5px'}} />
+                            <div className="skeleton-pulse" style={{height:'13px', width:'80%', marginBottom:'5px'}} />
+                            <div className="skeleton-pulse" style={{height:'13px', width:'60%'}} />
                         </div>
                     </div>
-                    );
-                })}
-
-                {(loading ? Array.from({length:6}) : visibleArticles.slice(1)).map((a, i) => {
-                    // Generate fallback image URL using Unsplash Source API
-                    const getImageUrl = () => {
-                        if (a?.image_url && a.image_url !== 'null' && a.image_url.trim() !== '') {
-                            return a.image_url;
-                        }
-                        // Fallback: Use Unsplash Source API for generic financial images
-                        const seed = a?.title ? encodeURIComponent(a.title.substring(0, 20)) : 'stock-market';
-                        return `https://source.unsplash.com/1920x1080/?finance,stock-market,business,${seed}`;
-                    };
-
-                    const articleUrl = a?.url || a?.link;
-                    const handleCardClick = (e) => {
-                        // Don't navigate if clicking on the "Read More" link
-                        if (e.target.closest('.read-more')) {
-                            return;
-                        }
-                        if (articleUrl) {
-                            window.open(articleUrl, '_blank', 'noopener,noreferrer');
-                        }
-                    };
-
+                ) : articles[0] && (() => {
+                    const a = articles[0];
+                    const imgUrl = getImgUrl(a);
+                    const articleUrl = a.url || a.link;
                     return (
-                        <div
-                            key={`card-${a?.url || a?.link || a?.title || i}`}
-                            className="news-card"
-                            onClick={handleCardClick}
+                        <article
+                            className="news-hero"
+                            onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
                             style={{ cursor: articleUrl ? 'pointer' : 'default' }}
                         >
-                            <div className="news-image-container">
-                                {loading ? (
-                                    <div className="news-image-placeholder">
-                                        <i className="fas fa-chart-line"></i>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <img
-                                            src={getImageUrl()}
-                                            alt={a?.title || 'News image'}
-                                            className="news-image"
-                                            onError={(e) => {
-                                                // If image fails to load, hide image and show placeholder
-                                                e.target.style.display = 'none';
-                                                const placeholder = e.target.parentElement.querySelector('.news-image-placeholder');
-                                                if (placeholder) {
-                                                    placeholder.style.display = 'flex';
-                                                }
-                                            }}
-                                        />
-                                        <div className="news-image-placeholder" style={{ display: 'none' }}>
-                                            <i className="fas fa-chart-line"></i>
-                                        </div>
-                                    </>
+                            <div className="news-hero-image">
+                                {imgUrl && (
+                                    <img
+                                        src={imgUrl}
+                                        alt={a.title || 'News'}
+                                        className="news-hero-img"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            const ph = e.target.parentElement.querySelector('.news-img-placeholder');
+                                            if (ph) ph.style.display = 'flex';
+                                        }}
+                                    />
                                 )}
-                            </div>
-                            <div className="news-content">
-                                <span className="news-category">{loading ? 'Loading…' : (a.source || 'News')}</span>
-                                <h3>{loading ? 'Loading…' : (a.title || '—')}</h3>
-                                <p>{loading ? '' : (a.description || '')}</p>
-                                <div className="news-meta">
-                                    <span><i className="fas fa-clock"></i> {loading ? '' : (a.published_at || a.publishedAt || '')}</span>
-                                    {(a?.url || a?.link) && <a className="read-more" href={a.url || a.link} target="_blank" rel="noopener noreferrer">Read More <i className="fas fa-arrow-right"></i></a>}
+                                <div className="news-img-placeholder" style={{ display: imgUrl ? 'none' : 'flex' }}>
+                                    <i className="fas fa-chart-line" />
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {!loading && visibleArticles.length === 0 && !error && (
-                <div className="news-empty-message">No more news to load</div>
-            )}
-
-            {!loading && visibleArticles.length > 0 && (
-                <>
-                    <div className="news-infinite-status">
-                        {loadingMore && (
-                            <div className="news-loading-more">
-                                <i className="fas fa-spinner fa-spin"></i>
-                                Loading more news...
+                            <div className="news-hero-content">
+                                <span className="news-source-tag">{a.source || a.category || 'Market News'}</span>
+                                <h2 className="news-hero-title">{a.title || '—'}</h2>
+                                {(a.description || a.summary) && (
+                                    <p className="news-hero-desc">{a.description || a.summary}</p>
+                                )}
+                                <div className="news-item-meta">
+                                    <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    {articleUrl && (
+                                        <a className="read-more" href={articleUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                            Read More <i className="fas fa-arrow-right" />
+                                        </a>
+                                    )}
+                                </div>
                             </div>
-                        )}
-                        {!loadingMore && !hasMore && (
-                            <div className="news-end-message">No more news to load</div>
-                        )}
+                        </article>
+                    );
+                })()}
+
+                <div className="news-section-divider" />
+
+                {/* Two-column body */}
+                <div className="news-body">
+                    {/* Main column: articles 1-4 */}
+                    <div className="news-main-col">
+                        {(loading ? Array.from({length:4}) : articles.slice(1, 5)).map((a, i) => {
+                            if (loading) {
+                                return (
+                                    <div key={i} className="news-list-item">
+                                        <div className="news-list-text">
+                                            <div className="skeleton-pulse" style={{height:'11px', width:'56px', marginBottom:'7px'}} />
+                                            <div className="skeleton-pulse" style={{height:'18px', width:'95%', marginBottom:'5px'}} />
+                                            <div className="skeleton-pulse" style={{height:'18px', width:'72%', marginBottom:'8px'}} />
+                                            <div className="skeleton-pulse" style={{height:'11px', width:'44%'}} />
+                                        </div>
+                                        <div className="news-list-thumb skeleton-pulse" />
+                                    </div>
+                                );
+                            }
+                            if (!a) return null;
+                            const imgUrl = getImgUrl(a);
+                            const articleUrl = a.url || a.link;
+                            return (
+                                <article
+                                    key={a.url || a.title || i}
+                                    className="news-list-item"
+                                    onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
+                                    style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                                >
+                                    <div className="news-list-text">
+                                        <span className="news-source-tag">{a.source || 'News'}</span>
+                                        <h3 className="news-list-title">{a.title || '—'}</h3>
+                                        {(a.description || a.summary) && (
+                                            <p className="news-list-desc">{a.description || a.summary}</p>
+                                        )}
+                                        <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    </div>
+                                    {imgUrl && (
+                                        <div className="news-list-thumb">
+                                            <img
+                                                src={imgUrl}
+                                                alt={a.title || ''}
+                                                className="news-thumb-img"
+                                                onError={(e) => { e.target.parentElement.style.display='none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                </article>
+                            );
+                        })}
                     </div>
 
-                    {hasMore && <div ref={sentinelRef} className="news-scroll-sentinel" aria-hidden="true" />}
-                </>
+                    {/* Sidebar: articles 5-8 */}
+                    <div className="news-sidebar-col">
+                        {(loading ? Array.from({length:4}) : articles.slice(5, 9)).map((a, i) => {
+                            if (loading) {
+                                return (
+                                    <div key={i} className="news-sidebar-item">
+                                        <div className="news-sidebar-thumb skeleton-pulse" />
+                                        <div className="news-sidebar-text">
+                                            <div className="skeleton-pulse" style={{height:'11px', width:'48px', marginBottom:'5px'}} />
+                                            <div className="skeleton-pulse" style={{height:'15px', width:'100%', marginBottom:'4px'}} />
+                                            <div className="skeleton-pulse" style={{height:'15px', width:'75%'}} />
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            if (!a) return null;
+                            const imgUrl = getImgUrl(a);
+                            const articleUrl = a.url || a.link;
+                            return (
+                                <article
+                                    key={a.url || a.title || i}
+                                    className="news-sidebar-item"
+                                    onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
+                                    style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                                >
+                                    {imgUrl && (
+                                        <div className="news-sidebar-thumb">
+                                            <img
+                                                src={imgUrl}
+                                                alt={a.title || ''}
+                                                className="news-thumb-img"
+                                                onError={(e) => { e.target.parentElement.style.display='none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="news-sidebar-text">
+                                        <span className="news-source-tag">{a.source || 'News'}</span>
+                                        <h4 className="news-sidebar-title">{a.title || '—'}</h4>
+                                        <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Additional articles after load more */}
+                {!loading && articles.length > 9 && (
+                    <div className="news-more-list">
+                        <div className="news-section-divider" />
+                        {articles.slice(9).map((a, i) => {
+                            const imgUrl = getImgUrl(a);
+                            const articleUrl = a.url || a.link;
+                            return (
+                                <article
+                                    key={a.url || a.title || i}
+                                    className="news-list-item"
+                                    onClick={() => articleUrl && window.open(articleUrl, '_blank', 'noopener,noreferrer')}
+                                    style={{ cursor: articleUrl ? 'pointer' : 'default' }}
+                                >
+                                    <div className="news-list-text">
+                                        <span className="news-source-tag">{a.source || 'News'}</span>
+                                        <h3 className="news-list-title">{a.title || '—'}</h3>
+                                        {(a.description || a.summary) && (
+                                            <p className="news-list-desc">{a.description || a.summary}</p>
+                                        )}
+                                        <span className="news-time"><i className="fas fa-clock" /> {a.published_at || a.publishedAt || ''}</span>
+                                    </div>
+                                    {imgUrl && (
+                                        <div className="news-list-thumb">
+                                            <img
+                                                src={imgUrl}
+                                                alt={a.title || ''}
+                                                className="news-thumb-img"
+                                                onError={(e) => { e.target.parentElement.style.display='none'; }}
+                                            />
+                                        </div>
+                                    )}
+                                </article>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {!loading && articles.length === 0 && !error && (
+                <div className="news-empty-message">No news articles found</div>
+            )}
+
+            {!loading && articles.length > 0 && (
+                <div className="news-infinite-status">
+                    {hasMore && (
+                        <button
+                            className="load-more-btn"
+                            onClick={() => loadMoreRef.current()}
+                            disabled={loadingMore}
+                        >
+                            {loadingMore ? (
+                                <><i className="fas fa-spinner fa-spin" /> Loading...</>
+                            ) : (
+                                <><i className="fas fa-plus" /> Load More News</>
+                            )}
+                        </button>
+                    )}
+                    {!hasMore && <div className="news-end-message">No more news to load</div>}
+                </div>
             )}
         </div>
     );
@@ -5582,11 +5661,21 @@ const MapView = () => {
     const [leafletReady, setLeafletReady] = useState(!!window.L);
     const [selectedSector, setSelectedSector] = useState('All');
     const [showAllNearby, setShowAllNearby] = useState(false);
+    const [radiusMiles, setRadiusMiles] = useState(250);
+    const [dataTimestamp, setDataTimestamp] = useState(null);
+    const [fetchTrigger, setFetchTrigger] = useState(0);
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const markersRef = useRef([]);
     const userMarkerRef = useRef(null);
     const lastGeocodeFetchRef = useRef(0);
+
+    // Refresh company data
+    const refreshCompanyData = () => {
+        setApiCompanies([]);
+        setDataTimestamp(null);
+        setFetchTrigger(prev => prev + 1);
+    };
 
     // Get sector color
     const getSectorColor = (sector) => {
@@ -6020,6 +6109,7 @@ const MapView = () => {
                     const data = await response.json();
                     if (data.companies && data.companies.length > 0) {
                         setApiCompanies(data.companies);
+                        setDataTimestamp(data.timestamp || null);
                         console.log(`Loaded ${data.companies.length} company locations from API`);
                     }
                 }
@@ -6031,7 +6121,7 @@ const MapView = () => {
         };
 
         fetchCompanyLocations();
-    }, []);
+    }, [fetchTrigger]);
 
     // Auto-dismiss error messages after 5 seconds
     useEffect(() => {
@@ -6271,7 +6361,7 @@ const MapView = () => {
         if (!mapInstanceRef.current) return;
 
         if (userLocation) {
-            const nearby = findNearbyCompanies(userLocation.lat, userLocation.lng, 250);
+            const nearby = findNearbyCompanies(userLocation.lat, userLocation.lng, radiusMiles);
             setNearbyCompanies(nearby);
             addCompanyMarkers(nearby);
             updateUserMarker(userLocation.lat, userLocation.lng);
@@ -6283,7 +6373,7 @@ const MapView = () => {
                 userMarkerRef.current = null;
             }
         }
-    }, [filteredCompanyLocations, userLocation, findNearbyCompanies, addCompanyMarkers, updateUserMarker]);
+    }, [filteredCompanyLocations, userLocation, radiusMiles, findNearbyCompanies, addCompanyMarkers, updateUserMarker]);
 
     const nearbyLimit = showAllNearby ? nearbyCompanies.length : 20;
 
@@ -6293,13 +6383,23 @@ const MapView = () => {
                 <div className="map-title">
                     <h2><i className="fas fa-map-marker-alt"></i> Discover Public Companies</h2>
                     <p>Find publicly traded companies near you or search any location</p>
-                    <span className="companies-count">
-                        {loadingCompanies ? (
-                            <><i className="fas fa-spinner fa-spin"></i> Loading companies...</>
-                        ) : (
-                            <><i className="fas fa-building"></i> {companyLocations.length} companies mapped</>
+                    <div className="map-header-meta">
+                        <span className="companies-count">
+                            {loadingCompanies ? (
+                                <><i className="fas fa-spinner fa-spin"></i> Loading companies...</>
+                            ) : (
+                                <><i className="fas fa-building"></i> {companyLocations.length} companies mapped</>
+                            )}
+                        </span>
+                        {dataTimestamp && !loadingCompanies && (
+                            <span className="data-timestamp">
+                                <i className="fas fa-clock"></i> Updated {new Date(dataTimestamp).toLocaleTimeString()}
+                            </span>
                         )}
-                    </span>
+                        <button className="refresh-btn" onClick={refreshCompanyData} disabled={loadingCompanies} title="Refresh company data">
+                            <i className={`fas fa-sync-alt${loadingCompanies ? ' fa-spin' : ''}`}></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -6336,6 +6436,19 @@ const MapView = () => {
                     </button>
                 ))}
             </div>
+
+            {userLocation && (
+                <div className="radius-control">
+                    <span className="radius-label"><i className="fas fa-circle-notch"></i> Radius:</span>
+                    {[50, 100, 250, 500].map(r => (
+                        <button
+                            key={r}
+                            className={`radius-btn${radiusMiles === r ? ' active' : ''}`}
+                            onClick={() => setRadiusMiles(r)}
+                        >{r} mi</button>
+                    ))}
+                </div>
+            )}
 
             {locationError && (
                 <div className="map-error">
@@ -6390,7 +6503,7 @@ const MapView = () => {
                         <h3><i className="fas fa-building"></i> Nearby Companies</h3>
                         <div className="no-results">
                             <i className="fas fa-map-marker-alt"></i>
-                            <p>No companies found within 250 miles{selectedSector !== 'All' ? ` in ${selectedSector}` : ''}.</p>
+                            <p>No companies found within {radiusMiles} miles{selectedSector !== 'All' ? ` in ${selectedSector}` : ''}.</p>
                         </div>
                     </div>
                 )}
@@ -6781,6 +6894,77 @@ const MapView = () => {
                 /* Ensure popups render above everything */
                 .leaflet-popup {
                     z-index: 1000 !important;
+                }
+                .map-header-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    flex-wrap: wrap;
+                    margin-top: 0.5rem;
+                }
+                .map-header-meta .companies-count {
+                    margin-top: 0;
+                }
+                .data-timestamp {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.375rem;
+                    font-size: 0.8125rem;
+                    color: rgba(255, 255, 255, 0.45);
+                }
+                .data-timestamp i {
+                    font-size: 0.75rem;
+                }
+                .refresh-btn {
+                    padding: 0.25rem 0.625rem;
+                    background: rgba(255, 255, 255, 0.07);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 6px;
+                    color: rgba(255, 255, 255, 0.6);
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    font-size: 0.875rem;
+                }
+                .refresh-btn:hover {
+                    background: rgba(0, 217, 36, 0.15);
+                    border-color: #00D924;
+                    color: #00D924;
+                }
+                .refresh-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                .radius-control {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                    flex-wrap: wrap;
+                }
+                .radius-label {
+                    font-size: 0.8125rem;
+                    color: rgba(255, 255, 255, 0.6);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.375rem;
+                }
+                .radius-btn {
+                    padding: 0.3rem 0.75rem;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    border-radius: 20px;
+                    color: rgba(255, 255, 255, 0.7);
+                    font-size: 0.8125rem;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .radius-btn:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                }
+                .radius-btn.active {
+                    background: rgba(0, 217, 36, 0.15);
+                    border-color: #00D924;
+                    color: #00D924;
                 }
                 @media (max-width: 768px) {
                     .map-view {

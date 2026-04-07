@@ -320,6 +320,9 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
     );
 };
 
+// In-memory cache for CEO data
+const ceoCache = new Map();
+
 // CEO Details Modal Component - Bloomberg Terminal Style
 const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol }) => {
     const [ceoData, setCeoData] = useState(null);
@@ -332,100 +335,136 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
         if (!isOpen || !ceoName || ceoName === '-') return;
 
         const fetchCEOData = async () => {
+            const cacheKey = `${ceoName}::${companySymbol}`;
+            if (ceoCache.has(cacheKey)) {
+                setCeoData(ceoCache.get(cacheKey));
+                return;
+            }
+
             setLoading(true);
 
-            // Helper function to remove titles from names
             const removeTitles = (name) => {
                 if (!name) return name;
-                // Remove common titles: Mr, Ms, Mrs, Dr, Prof, etc.
                 return name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
             };
 
-            // Helper function to extract first and last name only (skip middle names/initials)
             const getFirstLastName = (name) => {
                 if (!name) return name;
-                // First remove titles
                 let cleanName = removeTitles(name);
-                // Split by spaces and filter out single letter middle initials
                 const parts = cleanName.split(/\s+/).filter(part => part.length > 0);
-
-                if (parts.length <= 2) {
-                    // Already first and last name only
-                    return cleanName;
-                } else {
-                    // Take first and last, skip middle names/initials
-                    return `${parts[0]} ${parts[parts.length - 1]}`;
-                }
+                if (parts.length <= 2) return cleanName;
+                return `${parts[0]} ${parts[parts.length - 1]}`;
             };
 
+            const parseEducation = (wikitext, nameHint) => {
+                const education = [];
+                const educationPatterns = [
+                    /\|\s*alma[_\s]mater\s*=\s*([^\n\|]+)/gi,
+                    /\|\s*education\s*=\s*([^\n\|]+)/gi,
+                    /\|\s*alma_mater\s*=\s*([^\n\|]+)/gi
+                ];
+                for (const pattern of educationPatterns) {
+                    const matches = wikitext.matchAll(pattern);
+                    for (const match of matches) {
+                        if (!match[1]) continue;
+                        let eduText = match[1].trim();
+                        eduText = eduText.replace(/\[\[([^\|\]]+\|)?([^\]]+)\]\]/g, '$2');
+                        eduText = eduText.replace(/\{\{[^}]+\}\}/g, '');
+                        eduText = eduText.replace(/<ref[^>]*>.*?<\/ref>/gi, '');
+                        eduText = eduText.replace(/<[^>]+>/g, '');
+                        eduText = eduText.replace(/&nbsp;/g, ' ');
+                        const schools = eduText.split(/(?:<br\s*\/?>|\\n|\n|;)/i);
+                        for (let school of schools) {
+                            school = school.trim();
+                            if (!school || school.length < 3) continue;
+                            let degreeType = null;
+                            let degreeName = null;
+                            let schoolName = school;
+                            const degreePatterns = [
+                                { pattern: /\b(Ph\.?D\.?|Doctor of Philosophy|Doctorate)\b/i, type: 'PhD' },
+                                { pattern: /\b(M\.?B\.?A\.?|Master of Business Administration)\b/i, type: 'Masters', name: 'MBA' },
+                                { pattern: /\b(M\.?S\.?|M\.?Sc\.?|Master of Science)\b/i, type: 'Masters', name: 'Master of Science' },
+                                { pattern: /\b(M\.?A\.?|Master of Arts)\b/i, type: 'Masters', name: 'Master of Arts' },
+                                { pattern: /\b(M\.?Eng\.?|Master of Engineering)\b/i, type: 'Masters', name: 'Master of Engineering' },
+                                { pattern: /\b(Master'?s?|M\.)\b/i, type: 'Masters' },
+                                { pattern: /\b(B\.?S\.?|B\.?Sc\.?|Bachelor of Science)\b/i, type: 'Bachelors', name: 'Bachelor of Science' },
+                                { pattern: /\b(B\.?A\.?|Bachelor of Arts)\b/i, type: 'Bachelors', name: 'Bachelor of Arts' },
+                                { pattern: /\b(B\.?Eng\.?|Bachelor of Engineering)\b/i, type: 'Bachelors', name: 'Bachelor of Engineering' },
+                                { pattern: /\b(B\.?B\.?A\.?|Bachelor of Business Administration)\b/i, type: 'Bachelors', name: 'BBA' },
+                                { pattern: /\b(Bachelor'?s?|B\.)\b/i, type: 'Bachelors' }
+                            ];
+                            for (const deg of degreePatterns) {
+                                const m = school.match(deg.pattern);
+                                if (m) {
+                                    degreeType = deg.type;
+                                    degreeName = deg.name || m[0].trim();
+                                    break;
+                                }
+                            }
+                            if (!degreeName) {
+                                const degreeNameMatch = school.match(/,\s*([A-Z][^,\(]+?)(?:\(|$)/);
+                                if (degreeNameMatch) degreeName = degreeNameMatch[1].trim();
+                            }
+                            schoolName = school
+                                .replace(/\([^)]*\)/g, '')
+                                .replace(/,\s*(19|20)\d{2}/, '')
+                                .replace(/[,\-–]\s*(Ph\.?D\.?|M\.?B\.?A\.?|M\.?S\.?|B\.?S\.?|B\.?A\.?|Master'?s?|Bachelor'?s?|Doctorate).*$/i, '')
+                                .trim();
+                            if (schoolName.match(/^(at|in|from)\s+/i)) {
+                                schoolName = schoolName.replace(/^(at|in|from)\s+/i, '').trim();
+                            }
+                            if (schoolName && schoolName.length > 2 && !schoolName.match(/^(and|or|the)$/i)) {
+                                education.push({ school: schoolName, degree: degreeName, degreeType });
+                            }
+                        }
+                    }
+                }
+                return education;
+            };
+
+            const searchName = getFirstLastName(ceoName);
+
             try {
-                // Try multiple search strategies to find the CEO's personal page
-                let pageData = null;
+                // Strategy 1: name + CEO
+                let searchData = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchName + ' CEO')}&format=json&origin=*&srlimit=3`
+                ).then(r => r.json());
 
-                // Use simplified name (first and last only) for better Wikipedia search results
-                const searchName = getFirstLastName(ceoName);
-                const displayName = removeTitles(ceoName);
-
-                // Strategy 1: Search for CEO name + "business executive" or "executive"
-                const executiveQuery = encodeURIComponent(`${searchName} CEO`);
-                let searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${executiveQuery}&format=json&origin=*&srlimit=3`;
-
-                let searchResponse = await fetch(searchUrl);
-                let searchData = await searchResponse.json();
-
-                // Filter results to find a person (not company)
                 let personPage = searchData.query.search.find(result => {
                     const snippet = result.snippet.toLowerCase();
                     const title = result.title.toLowerCase();
-                    // Look for indicators this is a person page, not a company
                     return (
-                        (snippet.includes('born') ||
-                         snippet.includes('american') ||
-                         snippet.includes('businessman') ||
-                         snippet.includes('executive') ||
-                         snippet.includes('served as') ||
-                         snippet.includes('ceo')) &&
-                        !title.includes('corporation') &&
-                        !title.includes('company') &&
-                        !title.includes('inc.')
+                        (snippet.includes('born') || snippet.includes('american') || snippet.includes('businessman') ||
+                         snippet.includes('executive') || snippet.includes('served as') || snippet.includes('ceo')) &&
+                        !title.includes('corporation') && !title.includes('company') && !title.includes('inc.')
                     );
                 });
 
-                // Strategy 2: If no result, try just the simplified name
-                if (!personPage && searchData.query.search.length === 0) {
-                    const nameQuery = encodeURIComponent(searchName);
-                    searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${nameQuery}&format=json&origin=*&srlimit=5`;
-
-                    searchResponse = await fetch(searchUrl);
-                    searchData = await searchResponse.json();
-
+                // Strategy 2: just the name
+                if (!personPage) {
+                    searchData = await fetch(
+                        `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchName)}&format=json&origin=*&srlimit=5`
+                    ).then(r => r.json());
                     personPage = searchData.query.search.find(result => {
                         const snippet = result.snippet.toLowerCase();
                         const title = result.title.toLowerCase();
                         return (
-                            (snippet.includes('born') ||
-                             snippet.includes('businessman') ||
-                             snippet.includes('executive') ||
-                             snippet.includes('ceo')) &&
-                            !title.includes('corporation') &&
-                            !title.includes('company')
+                            (snippet.includes('born') || snippet.includes('businessman') ||
+                             snippet.includes('executive') || snippet.includes('ceo')) &&
+                            !title.includes('corporation') && !title.includes('company')
                         );
                     });
                 }
 
-                // Strategy 3: Try with "business" keyword
-                if (!personPage && searchData.query.search.length === 0) {
-                    const businessQuery = encodeURIComponent(`${searchName} business`);
-                    searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${businessQuery}&format=json&origin=*&srlimit=5`;
-
-                    searchResponse = await fetch(searchUrl);
-                    searchData = await searchResponse.json();
-
+                // Strategy 3: name + business
+                if (!personPage) {
+                    searchData = await fetch(
+                        `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchName + ' business')}&format=json&origin=*&srlimit=5`
+                    ).then(r => r.json());
+                    const nameParts = searchName.toLowerCase().split(' ');
                     personPage = searchData.query.search.find(result => {
                         const snippet = result.snippet.toLowerCase();
                         const title = result.title.toLowerCase();
-                        const nameParts = searchName.toLowerCase().split(' ');
-                        // Check if title contains both first and last name
                         return (
                             nameParts.every(part => title.includes(part)) &&
                             (snippet.includes('born') || snippet.includes('ceo') || snippet.includes('executive'))
@@ -433,12 +472,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     });
                 }
 
-                // Strategy 4: If still no result, use first result that closely matches the name
+                // Strategy 4: title match fallback
                 if (!personPage && searchData.query.search.length > 0) {
                     const nameParts = searchName.toLowerCase().split(' ');
                     personPage = searchData.query.search.find(result => {
                         const title = result.title.toLowerCase();
-                        // Both first and last name must be in title
                         return nameParts.every(part => title.includes(part));
                     });
                 }
@@ -446,146 +484,32 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 if (personPage) {
                     const pageId = personPage.pageid;
 
-                    // Fetch page content with image, categories, and extract for biography
-                    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|categories&exintro=1&explaintext=1&piprop=original&pageids=${pageId}&format=json&origin=*`;
-                    const contentResponse = await fetch(contentUrl);
-                    const contentData = await contentResponse.json();
-                    const page = contentData.query.pages[pageId];
+                    // Parallel: REST summary (bio + thumbnail) + wikitext (education + categories)
+                    const [summaryResult, wikitextResult] = await Promise.allSettled([
+                        fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(personPage.title)}`).then(r => r.json()),
+                        fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions|categories&rvprop=content&rvslots=main&pageids=${pageId}&cllimit=20&format=json&origin=*`).then(r => r.json())
+                    ]);
 
-                    // Make a separate API call to get wikitext for education parsing
-                    let education = [];
-                    try {
-                        const wikitextUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&pageids=${pageId}&format=json&origin=*`;
-                        const wikitextResponse = await fetch(wikitextUrl);
-                        const wikitextData = await wikitextResponse.json();
-                        const wikitextPage = wikitextData.query.pages[pageId];
-                        
-                        // Support both old format (revisions[0]['*']) and new format (revisions[0].slots.main['*'])
-                        let wikitext = null;
-                        if (wikitextPage.revisions && wikitextPage.revisions[0]) {
-                            if (wikitextPage.revisions[0].slots && wikitextPage.revisions[0].slots.main && wikitextPage.revisions[0].slots.main['*']) {
-                                // New API format
-                                wikitext = wikitextPage.revisions[0].slots.main['*'];
-                            } else if (wikitextPage.revisions[0]['*']) {
-                                // Old API format (backwards compatibility)
-                                wikitext = wikitextPage.revisions[0]['*'];
-                            }
-                        }
-                        
-                        console.log('[CEO Modal] Wikitext found:', !!wikitext);
-                        if (wikitext) {
-                            console.log('[CEO Modal] Wikitext length:', wikitext.length);
-                            console.log('[CEO Modal] Wikitext sample (first 1000 chars):', wikitext.substring(0, 1000));
-                        }
-                        
-                        if (wikitext) {
-                            console.log('[CEO Modal] Parsing education for:', ceoName);
-                            console.log('[CEO Modal] Wikitext length:', wikitext.length);
-
-                            // Parse infobox for education/alma_mater
-                            const educationPatterns = [
-                                /\|\s*alma[_\s]mater\s*=\s*([^\n\|]+)/gi,
-                                /\|\s*education\s*=\s*([^\n\|]+)/gi,
-                                /\|\s*alma_mater\s*=\s*([^\n\|]+)/gi
-                            ];
-
-                            for (const pattern of educationPatterns) {
-                                const matches = wikitext.matchAll(pattern);
-                                for (const match of matches) {
-                                    if (match[1]) {
-                                        console.log('[CEO Modal] Found education match:', match[1]);
-                                        // Clean up the education text
-                                        let eduText = match[1].trim();
-                                        // Remove wiki markup
-                                        eduText = eduText.replace(/\[\[([^\|\]]+\|)?([^\]]+)\]\]/g, '$2');
-                                        eduText = eduText.replace(/\{\{[^}]+\}\}/g, '');
-                                        eduText = eduText.replace(/<ref[^>]*>.*?<\/ref>/gi, '');
-                                        eduText = eduText.replace(/<[^>]+>/g, '');
-                                        eduText = eduText.replace(/&nbsp;/g, ' ');
-                                        console.log('[CEO Modal] Cleaned education text:', eduText);
-
-                                        // Split by <br>, line breaks, or semicolons
-                                        const schools = eduText.split(/(?:<br\s*\/?>|\\n|\n|;)/i);
-
-                                        for (let school of schools) {
-                                            school = school.trim();
-                                            if (!school || school.length < 3) continue;
-
-                                            // Parse degree information
-                                            let degreeType = null;
-                                            let degreeName = null;
-                                            let schoolName = school;
-
-                                            // Detect degree types
-                                            const degreePatterns = [
-                                                { pattern: /\b(Ph\.?D\.?|Doctor of Philosophy|Doctorate)\b/i, type: 'PhD' },
-                                                { pattern: /\b(M\.?B\.?A\.?|Master of Business Administration)\b/i, type: 'Masters', name: 'MBA' },
-                                                { pattern: /\b(M\.?S\.?|M\.?Sc\.?|Master of Science)\b/i, type: 'Masters', name: 'Master of Science' },
-                                                { pattern: /\b(M\.?A\.?|Master of Arts)\b/i, type: 'Masters', name: 'Master of Arts' },
-                                                { pattern: /\b(M\.?Eng\.?|Master of Engineering)\b/i, type: 'Masters', name: 'Master of Engineering' },
-                                                { pattern: /\b(Master'?s?|M\.)\b/i, type: 'Masters' },
-                                                { pattern: /\b(B\.?S\.?|B\.?Sc\.?|Bachelor of Science)\b/i, type: 'Bachelors', name: 'Bachelor of Science' },
-                                                { pattern: /\b(B\.?A\.?|Bachelor of Arts)\b/i, type: 'Bachelors', name: 'Bachelor of Arts' },
-                                                { pattern: /\b(B\.?Eng\.?|Bachelor of Engineering)\b/i, type: 'Bachelors', name: 'Bachelor of Engineering' },
-                                                { pattern: /\b(B\.?B\.?A\.?|Bachelor of Business Administration)\b/i, type: 'Bachelors', name: 'BBA' },
-                                                { pattern: /\b(Bachelor'?s?|B\.)\b/i, type: 'Bachelors' }
-                                            ];
-
-                                            for (const deg of degreePatterns) {
-                                                const match = school.match(deg.pattern);
-                                                if (match) {
-                                                    degreeType = deg.type;
-                                                    if (deg.name) {
-                                                        degreeName = deg.name;
-                                                    } else if (match[0]) {
-                                                        degreeName = match[0].trim();
-                                                    }
-                                                    break;
-                                                }
-                                            }
-
-                                            // Try to extract specific degree name if present (in parentheses or after comma)
-                                            if (!degreeName) {
-                                                const degreeNameMatch = school.match(/,\s*([A-Z][^,\(]+?)(?:\(|$)/);
-                                                if (degreeNameMatch) {
-                                                    degreeName = degreeNameMatch[1].trim();
-                                                }
-                                            }
-
-                                            // Extract school name (remove degree info)
-                                            schoolName = school
-                                                .replace(/\([^)]*\)/g, '') // Remove parentheses
-                                                .replace(/,\s*(19|20)\d{2}/, '') // Remove years
-                                                .replace(/[,\-–]\s*(Ph\.?D\.?|M\.?B\.?A\.?|M\.?S\.?|B\.?S\.?|B\.?A\.?|Master'?s?|Bachelor'?s?|Doctorate).*$/i, '')
-                                                .trim();
-
-                                            // Clean up school name
-                                            if (schoolName.match(/^(at|in|from)\s+/i)) {
-                                                schoolName = schoolName.replace(/^(at|in|from)\s+/i, '').trim();
-                                            }
-
-                                            // Only add if we have a meaningful school name
-                                            if (schoolName && schoolName.length > 2 && !schoolName.match(/^(and|or|the)$/i)) {
-                                                education.push({
-                                                    school: schoolName,
-                                                    degree: degreeName,
-                                                    degreeType: degreeType
-                                                });
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (eduError) {
-                        console.error('Error parsing education:', eduError);
+                    let biography = null;
+                    let imageUrl = null;
+                    if (summaryResult.status === 'fulfilled') {
+                        const summary = summaryResult.value;
+                        biography = summary.extract || null;
+                        imageUrl = summary.thumbnail?.source || null;
                     }
 
-                    console.log('[CEO Modal] Final education data:', education);
-                    console.log('[CEO Modal] Education count:', education.length);
+                    let education = [];
+                    let categories = [];
+                    if (wikitextResult.status === 'fulfilled') {
+                        const wikitextPage = wikitextResult.value.query.pages[pageId];
+                        categories = wikitextPage.categories || [];
+                        let wikitext = null;
+                        if (wikitextPage.revisions && wikitextPage.revisions[0]) {
+                            wikitext = wikitextPage.revisions[0].slots?.main?.['*'] || wikitextPage.revisions[0]['*'] || null;
+                        }
+                        if (wikitext) education = parseEducation(wikitext, searchName);
+                    }
 
-                    // Verify this is a person's page, not a company
-                    const categories = page.categories || [];
                     const isPersonPage = categories.some(cat =>
                         cat.title.toLowerCase().includes('living people') ||
                         cat.title.toLowerCase().includes('births') ||
@@ -593,49 +517,40 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         cat.title.toLowerCase().includes('chief executive')
                     );
 
-                    // Extract clean biography (first paragraph only to avoid company info)
-                    let biography = page.extract || 'No biography available.';
-
-                    // If extract contains company description, try to get just personal info
-                    const firstParagraph = biography.split('\n\n')[0];
-
-                    // Verify the biography is about the person (contains birth/personal info)
+                    const firstParagraph = (biography || '').split('\n\n')[0];
                     const isPersonalBio = firstParagraph.toLowerCase().includes('born') ||
                                          firstParagraph.toLowerCase().includes('is a') ||
                                          firstParagraph.toLowerCase().includes('is an');
+                    const finalBio = isPersonalBio ? firstParagraph : (biography || null);
 
-                    // Use simplified display name (first and last only, no titles)
-                    const finalDisplayName = searchName;
-
-                    const ceoDataObj = {
-                        name: finalDisplayName,
-                        biography: isPersonalBio ? firstParagraph : biography,
-                        imageUrl: page.original?.source || null,
+                    const result = {
+                        name: searchName,
+                        biography: finalBio,
+                        imageUrl,
                         wikipediaUrl: `https://en.wikipedia.org/?curid=${pageId}`,
                         found: true,
                         verified: isPersonPage,
-                        education: education
+                        education
                     };
-
-                    console.log('[CEO Modal] Setting CEO data:', ceoDataObj);
-                    setCeoData(ceoDataObj);
+                    ceoCache.set(cacheKey, result);
+                    setCeoData(result);
                 } else {
-                    // No Wikipedia page found - show basic info
-                    setCeoData({
+                    const result = {
                         name: searchName,
-                        biography: `${searchName} serves as Chief Executive Officer of ${companyName} (${companySymbol}). Additional biographical information is not currently available from Wikipedia. For more details about the company leadership, please visit the company's official website or investor relations page.`,
+                        biography: null,
                         imageUrl: null,
                         wikipediaUrl: null,
                         found: false,
                         verified: false,
                         education: []
-                    });
+                    };
+                    ceoCache.set(cacheKey, result);
+                    setCeoData(result);
                 }
             } catch (err) {
-                console.error('Error fetching CEO data:', err);
                 setCeoData({
                     name: searchName,
-                    biography: `${searchName} serves as Chief Executive Officer of ${companyName} (${companySymbol}).`,
+                    biography: null,
                     imageUrl: null,
                     wikipediaUrl: null,
                     found: false,
@@ -682,7 +597,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     setYoutubeSearchUrl(data.search_url);
                 }
             } catch (err) {
-                console.error('Error fetching YouTube videos:', err);
                 setYoutubeSearchUrl(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`);
             } finally {
                 setYoutubeLoading(false);
@@ -910,7 +824,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         )
                     ),
                     // Biography Section
-                    React.createElement('div', {
+                    ceoData.biography && React.createElement('div', {
                         style: {
                             marginBottom: '1.5rem'
                         }
@@ -936,11 +850,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         }, ceoData.biography)
                     ),
                     // Education Section
-                    (() => {
-                        console.log('[CEO Modal] Rendering - ceoData.education:', ceoData.education);
-                        console.log('[CEO Modal] Rendering - has education:', ceoData.education && ceoData.education.length > 0);
-                        return ceoData.education && ceoData.education.length > 0;
-                    })() && React.createElement('div', {
+                    ceoData.education && ceoData.education.length > 0 && React.createElement('div', {
                         style: {
                             marginBottom: '1.5rem'
                         }
@@ -1401,6 +1311,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
+    const [aiInsightGuest, setAiInsightGuest] = useState(false);
     const chartRootRef = useRef(null);
 
     // CEO Modal State
@@ -1584,14 +1495,18 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 })();
 
                 // Load AI insight in background
-                setAiInsightLoading(true);
                 setAiInsight(null);
                 setAiInsightUpgradeRequired(false);
+                setAiInsightGuest(false);
+                const authUser = window.AppAuth?.getCurrentUser();
+                if (!authUser) {
+                    setAiInsightGuest(true);
+                } else {
+                setAiInsightLoading(true);
                 (async () => {
                     try {
-                        const authUser = window.AppAuth.getCurrentUser();
                         const headers = {};
-                        if (authUser) {
+                        {
                             const token = await authUser.getIdToken();
                             headers['Authorization'] = `Bearer ${token}`;
                         }
@@ -1612,6 +1527,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         setAiInsightLoading(false);
                     }
                 })();
+                } // end else (authenticated)
 
                 console.log(`[StockDetailsModal] State updated for ${symbol}`);
             } catch (err) {
@@ -2056,7 +1972,23 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     }}></i>
                                 )}
                             </div>
-                            {aiInsightLoading ? (
+                            {aiInsightGuest ? (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'rgba(255,255,255,0.65)' }}>
+                                        <i className="fas fa-lock" style={{ marginRight: '6px', color: '#00D924' }}></i>
+                                        Please sign in to use our stock AI overviews that help you understand the stock better.
+                                    </p>
+                                    <button
+                                        onClick={() => window.location.href = '/login'}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #00D924, #00A81E)',
+                                            border: 'none', borderRadius: '8px', padding: '6px 16px',
+                                            color: '#000', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >Sign In</button>
+                                </div>
+                            ) : aiInsightLoading ? (
                                 <p style={{
                                     margin: 0,
                                     fontSize: '0.9rem',

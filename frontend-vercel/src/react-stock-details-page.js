@@ -23,7 +23,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const [aiInsight, setAiInsight] = useState(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
-    const [aiInsightPeriod, setAiInsightPeriod] = useState('1mo');
+    const [aiInsightPeriod, setAiInsightPeriod] = useState('7d');
     const chartRootRef = useRef(null);
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -32,6 +32,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     // CEO modal
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
     const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
+    const [showFullDesc, setShowFullDesc] = useState(false);
 
     // Strip titles from CEO names
     const cleanCEOName = (name) => {
@@ -59,6 +60,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         };
     }, [symbol]);
 
+    // Auto-fetch 7d market analysis on load
+    useEffect(() => {
+        if (symbol) fetchAiInsight('7d');
+    }, [symbol]);
+
     // Load stock data
     useEffect(() => {
         if (!symbol) return;
@@ -70,6 +76,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
             setStockData(null);
             setChartData(null);
             setNews([]);
+            setShowFullDesc(false);
 
             try {
                 const authHeaders = await window.AppAuth.getAuthHeaders();
@@ -563,16 +570,17 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 
             <main className={`stock-page-main ${isIndex ? 'index-view' : ''}`}>
                 <div className={`stock-page-primary ${isIndex ? 'full-width' : ''}`}>
-                    {/* AI Insight */}
+                    {/* Market Analysis */}
                     <section className="ai-insight-card">
                         <div className="card-header">
-                            <i className="fas fa-robot"></i>
-                            <h3>AI Market Overview</h3>
+                            <i className="fas fa-chart-line"></i>
+                            <h3>Market Analysis</h3>
                             {aiInsightLoading && <i className="fas fa-spinner fa-spin loading-indicator"></i>}
                         </div>
                         <div className="card-content">
                             <div className="insight-controls">
                                 {[
+                                    { value: '7d',  label: '7 Days' },
                                     { value: '1mo', label: '1 Month' },
                                     { value: '6mo', label: '6 Months' },
                                     { value: '1y',  label: '1 Year' },
@@ -580,21 +588,13 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                     <button
                                         key={value}
                                         className={`insight-period-btn ${aiInsightPeriod === value ? 'active' : ''}`}
-                                        onClick={() => setAiInsightPeriod(value)}
+                                        onClick={() => { setAiInsightPeriod(value); fetchAiInsight(value); }}
                                         disabled={aiInsightLoading}
                                     >{label}</button>
                                 ))}
-                                <button
-                                    className="fetch-news-btn"
-                                    onClick={() => fetchAiInsight(aiInsightPeriod)}
-                                    disabled={aiInsightLoading}
-                                >
-                                    <i className={aiInsightLoading ? 'fas fa-spinner fa-spin' : 'fas fa-robot'}></i>
-                                    {aiInsightLoading ? 'Analyzing...' : 'Get AI Overview'}
-                                </button>
                             </div>
                             {aiInsightLoading ? (
-                                <p className="loading-text">Analyzing market conditions...</p>
+                                <p className="loading-text">Loading analysis...</p>
                             ) : aiInsightUpgradeRequired ? (
                                 <div className="insight-upgrade-gate">
                                     <p className="no-data-text">
@@ -617,7 +617,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                     <p className="insight-text">{aiInsight.ai_insight}</p>
                                 </div>
                             ) : (
-                                <p className="no-data-text">Select a time period and click "Get AI Overview".</p>
+                                <p className="no-data-text">Select a time period above to load the analysis.</p>
                             )}
                         </div>
                     </section>
@@ -756,7 +756,25 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             <h3><i className={isIndex ? "fas fa-chart-line" : "fas fa-building"}></i> About {stockData.name || symbol}</h3>
                         </div>
                         <div className="about-content">
-                            <p className="description">{stockData.description || (isIndex ? 'Market index tracking major equities.' : 'No description available.')}</p>
+                            {(() => {
+                                const fullDesc = stockData.description || (isIndex ? 'Market index tracking major equities.' : 'No description available.');
+                                const LIMIT = 220;
+                                const isTruncatable = fullDesc.length > LIMIT;
+                                const cutAt = fullDesc.lastIndexOf(' ', LIMIT);
+                                const displayed = (!showFullDesc && isTruncatable)
+                                    ? fullDesc.slice(0, cutAt > 0 ? cutAt : LIMIT) + '…'
+                                    : fullDesc;
+                                return (
+                                    <>
+                                        <p className="description">{displayed}</p>
+                                        {isTruncatable && (
+                                            <button className="description-read-more" onClick={() => setShowFullDesc(p => !p)}>
+                                                {showFullDesc ? 'Show less' : 'Read more'}
+                                            </button>
+                                        )}
+                                    </>
+                                );
+                            })()}
                             {!isIndex && (
                                 <div className="company-details">
                                     <div className="detail-item">
@@ -842,6 +860,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             })}
                         </section>
                     )}
+
+                    {/* Per-stock notes — always visible regardless of watchlist status */}
+                    {window.StockNotesSection && React.createElement(window.StockNotesSection, {
+                        symbol: symbol
+                    })}
                 </div>
 
                 {!isIndex && (
