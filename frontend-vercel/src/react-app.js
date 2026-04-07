@@ -51,6 +51,7 @@ const DASHBOARD_VIEWS = new Set([
     'assistant',
     'aisuite',
     'paper',
+    'screener',
 ]);
 
 function normalizeDashboardView(view) {
