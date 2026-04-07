@@ -1778,11 +1778,11 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                     <div className="ssd-section-label">Stock screeners</div>
                                     <div className="ssd-grid">
                                         {[
-                                            { id: 'daily-price-jumps', label: 'Daily price jumps', icon: '📈', color: '#22c55e' },
-                                            { id: 'daily-price-dips', label: 'Daily price dips', icon: '📉', color: '#ef4444' },
-                                            { id: 'upcoming-earnings', label: 'Upcoming earnings', icon: '📅', color: '#f59e0b' },
-                                            { id: 'analyst-picks', label: 'Analyst picks', icon: '⭐', color: '#8b5cf6' },
-                                            { id: 'highest-implied-volatility', label: 'Highest implied volatility', icon: '⚡', color: '#06b6d4' },
+                                            { id: 'daily-price-jumps', label: 'Daily price jumps', fa: 'fas fa-chart-line', color: '#22c55e' },
+                                            { id: 'daily-price-dips', label: 'Daily price dips', fa: 'fas fa-arrow-down', color: '#ef4444' },
+                                            { id: 'upcoming-earnings', label: 'Upcoming earnings', fa: 'fas fa-calendar-alt', color: '#f59e0b' },
+                                            { id: 'analyst-picks', label: 'Analyst picks', fa: 'fas fa-medal', color: '#8b5cf6' },
+                                            { id: 'highest-implied-volatility', label: 'Highest implied volatility', fa: 'fas fa-bolt', color: '#06b6d4' },
                                         ].map((sc) => React.createElement('button', {
                                             key: sc.id,
                                             className: 'ssd-item',
@@ -1794,7 +1794,9 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                                 setSearchQuery('');
                                             }
                                         },
-                                            React.createElement('span', { className: 'ssd-item-icon', style: { background: sc.color + '22', color: sc.color } }, sc.icon),
+                                            React.createElement('span', { className: 'ssd-item-icon', style: { background: sc.color + '22', color: sc.color } },
+                                                React.createElement('i', { className: sc.fa })
+                                            ),
                                             React.createElement('span', { className: 'ssd-item-label' }, sc.label)
                                         ))}
                                     </div>
@@ -3495,11 +3497,11 @@ const WatchlistView = ({ watchlistData, onOpenDetails, onRemove, onAdd, selected
 
 // Screener View Component
 const SCREENER_META = {
-    'daily-price-jumps':           { label: 'Daily Price Jumps',           icon: '📈', metricKey: 'change_pct',           metricLabel: '1D % Chg', color: '#22c55e' },
-    'daily-price-dips':            { label: 'Daily Price Dips',            icon: '📉', metricKey: 'change_pct',           metricLabel: '1D % Chg', color: '#ef4444' },
-    'upcoming-earnings':           { label: 'Upcoming Earnings',           icon: '📅', metricKey: 'earnings_date',        metricLabel: 'Earnings Date', color: '#f59e0b' },
-    'analyst-picks':               { label: 'Analyst Picks',               icon: '⭐', metricKey: 'buy_score',            metricLabel: 'Buy Score', color: '#8b5cf6' },
-    'highest-implied-volatility':  { label: 'Highest Implied Volatility',  icon: '⚡', metricKey: 'implied_volatility',   metricLabel: 'Est. IV', color: '#06b6d4' },
+    'daily-price-jumps':           { label: 'Daily Price Jumps',           fa: 'fas fa-chart-line',    metricKey: 'change_pct',         metricLabel: '1D % Chg',     color: '#22c55e' },
+    'daily-price-dips':            { label: 'Daily Price Dips',            fa: 'fas fa-arrow-down',    metricKey: 'change_pct',         metricLabel: '1D % Chg',     color: '#ef4444' },
+    'upcoming-earnings':           { label: 'Upcoming Earnings',           fa: 'fas fa-calendar-alt',  metricKey: 'earnings_date',      metricLabel: 'Earnings Date', color: '#f59e0b' },
+    'analyst-picks':               { label: 'Analyst Picks',               fa: 'fas fa-medal',         metricKey: 'buy_score',          metricLabel: 'Buy Score',    color: '#8b5cf6' },
+    'highest-implied-volatility':  { label: 'Highest Implied Volatility',  fa: 'fas fa-bolt',          metricKey: 'implied_volatility', metricLabel: 'Est. IV',      color: '#06b6d4' },
 };
 
 const ScreenerView = ({ screenerType, onNavigate, onChangeScreener }) => {
@@ -3561,7 +3563,9 @@ const ScreenerView = ({ screenerType, onNavigate, onChangeScreener }) => {
                     className: `screener-sidebar-item ${id === currentType ? 'active' : ''}`,
                     onClick: () => { onChangeScreener(id); }
                 },
-                    React.createElement('span', { className: 'screener-sidebar-icon', style: { color: m.color } }, m.icon),
+                    React.createElement('span', { className: 'screener-sidebar-icon', style: { color: m.color } },
+                        React.createElement('i', { className: m.fa })
+                    ),
                     React.createElement('span', null, m.label)
                 )
             )
@@ -3569,7 +3573,9 @@ const ScreenerView = ({ screenerType, onNavigate, onChangeScreener }) => {
         React.createElement('div', { className: 'screener-main' },
             React.createElement('div', { className: 'screener-header' },
                 React.createElement('div', { className: 'screener-title-row' },
-                    React.createElement('span', { className: 'screener-title-icon' }, meta.icon),
+                    React.createElement('span', { className: 'screener-title-icon', style: { color: meta.color } },
+                        React.createElement('i', { className: meta.fa })
+                    ),
                     React.createElement('div', null,
                         React.createElement('h2', { className: 'screener-title' }, meta.label),
                         React.createElement('p', { className: 'screener-subtitle' },
