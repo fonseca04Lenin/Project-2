@@ -1891,7 +1891,9 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                             {profilePicture ? (
                                                 <img src={profilePicture} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                                             ) : (
-                                                <i className="fas fa-user"></i>
+                                                <span className="user-avatar-initials">
+                                                    {userData.name ? userData.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase() : '?'}
+                                                </span>
                                             )}
                                         </div>
                                         <div>
@@ -7395,52 +7397,6 @@ const AIAssistantView = () => {
                 overflow: 'hidden',
             }}>
 
-            {/* Header */}
-            <div style={{
-                textAlign: 'center',
-                marginBottom: '2rem'
-            }}>
-                <div style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, #00D924, #00a81c)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 1rem',
-                    boxShadow: '0 8px 24px rgba(0, 217, 36, 0.3)'
-                }}>
-                    <i className="fas fa-robot" style={{ fontSize: '1.75rem', color: '#fff' }}></i>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}>
-                    <h2 style={{
-                        fontSize: '1.75rem',
-                        fontWeight: '700',
-                        color: '#fff',
-                        marginBottom: '0.5rem'
-                    }}>{currentThread && currentThread.title !== 'New Chat' ? currentThread.title : 'AI Stock Assistant'}</h2>
-                    <button
-                        onClick={() => setShowInfoModal(true)}
-                        title="How it works"
-                        style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            color: 'rgba(255,255,255,0.4)', fontSize: '1rem',
-                            padding: '0', marginBottom: '0.4rem', lineHeight: 1,
-                            transition: 'color 0.2s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#00D924'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
-                    >
-                        <i className="fas fa-info-circle"></i>
-                    </button>
-                </div>
-                <p style={{
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    fontSize: '0.9375rem'
-                }}>Ask about markets, stocks, or your watchlist</p>
-            </div>
-
             {/* Info Modal */}
             {showInfoModal && (
                 <div
@@ -7501,6 +7457,40 @@ const AIAssistantView = () => {
                 flexDirection: 'column',
                 gap: '1rem'
             }}>
+                {/* Header — scrolls away naturally */}
+                <div style={{ textAlign: 'center', padding: '1rem 0 0.5rem', flexShrink: 0 }}>
+                    <div style={{
+                        width: '36px', height: '36px', borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #00D924, #00a81c)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 0.5rem',
+                        boxShadow: '0 4px 12px rgba(0, 217, 36, 0.25)'
+                    }}>
+                        <i className="fas fa-robot" style={{ fontSize: '1rem', color: '#fff' }}></i>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                        <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#fff', margin: 0 }}>
+                            {currentThread && currentThread.title !== 'New Chat' ? currentThread.title : 'AI Stock Assistant'}
+                        </h2>
+                        <button
+                            onClick={() => setShowInfoModal(true)}
+                            title="How it works"
+                            style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem',
+                                padding: '0', lineHeight: 1, transition: 'color 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#00D924'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.35)'}
+                        >
+                            <i className="fas fa-info-circle"></i>
+                        </button>
+                    </div>
+                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem', margin: '0.25rem 0 0' }}>
+                        Ask about markets, stocks, or your watchlist
+                    </p>
+                </div>
+
                 {loadingHistory && (
                     <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '13px', padding: '40px 0' }}>
                         <i className="fas fa-circle-notch fa-spin" style={{ marginRight: '8px' }}></i>Loading conversation...
@@ -7547,15 +7537,15 @@ const AIAssistantView = () => {
                                     <>
                                         <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{cleanText}</p>
                                         {citationEntries.length > 0 && (
-                                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                                                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: '0.4rem' }}>Sources</span>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)', display: 'block', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sources</span>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                                                     {citationEntries.map(([num, url]) => (
                                                         <a key={num} href={url} target="_blank" rel="noopener noreferrer" style={{
                                                             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                            width: '22px', height: '22px', borderRadius: '50%',
-                                                            background: 'rgba(0,217,36,0.12)', border: '1px solid rgba(0,217,36,0.3)',
-                                                            color: '#00D924', fontSize: '0.68rem', fontWeight: '600',
+                                                            width: '16px', height: '16px', borderRadius: '50%',
+                                                            background: 'rgba(0,217,36,0.07)', border: '1px solid rgba(0,217,36,0.18)',
+                                                            color: 'rgba(0,217,36,0.6)', fontSize: '0.55rem', fontWeight: '600',
                                                             textDecoration: 'none', flexShrink: 0
                                                         }}>{num}</a>
                                                     ))}
