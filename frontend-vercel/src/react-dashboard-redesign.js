@@ -1888,8 +1888,8 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }) => 
                                 <div className="user-dropdown-header">
                                     <div className="user-info">
                                         <div className="user-avatar">
-                                            {profilePicture ? (
-                                                <img src={profilePicture} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                            {(profilePicture || authCurrentUser?.photoURL) ? (
+                                                <img src={profilePicture || authCurrentUser.photoURL} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                                             ) : (
                                                 <span className="user-avatar-initials">
                                                     {userData.name ? userData.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase() : '?'}

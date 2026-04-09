@@ -831,9 +831,6 @@ i[class*="fal"],
 }
 
 .watchlist-section:hover, .chart-section:hover, .news-section:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
-    border-color: var(--primary-color);
 }
 
 /* Watchlist container scrolling - optimized height to reduce empty space */

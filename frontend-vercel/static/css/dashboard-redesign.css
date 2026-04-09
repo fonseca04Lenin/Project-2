@@ -719,10 +719,16 @@ body[data-theme="light"] .hn-dropdown-item:hover {
 
 /* ── Search Screener Dropdown ── */
 .search-screener-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
     padding: 0.7rem 0.75rem 0.75rem;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    border-radius: 0 0 10px 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
     background: #0a0a0a;
+    z-index: 40;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
 }
 
 .ssd-section-label {
