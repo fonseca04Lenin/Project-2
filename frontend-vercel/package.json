@@ -5,6 +5,7 @@
   "main": "index.html",
   "scripts": {
     "build": "node build.js",
+    "typecheck": "tsc --noEmit",
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
@@ -18,7 +19,10 @@
   "author": "Elvin",
   "license": "MIT",
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "esbuild": "^0.25.0",
+    "typescript": "^6.0.2",
     "vercel": "^32.0.0"
   },
   "dependencies": {

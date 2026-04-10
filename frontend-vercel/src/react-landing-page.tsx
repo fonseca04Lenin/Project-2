@@ -1,8 +1,7 @@
-"use strict";
-
+export {};
 const { useState, useEffect } = React;
 
-function navigateApp(path, state = {}, replace = false) {
+function navigateApp(path: string, state: Record<string, unknown> = {}, replace = false) {
   window.dispatchEvent(new CustomEvent('app:navigate', {
     detail: { path, state, replace }
   }));
@@ -31,7 +30,7 @@ function LandingHeader() {
             <span className="landing-brand-text">AI Stock Sage</span>
           </div>
         </div>
-        
+
         <div className="landing-header-right">
           <nav className="landing-nav" style={{ display: 'none' }}>
             <a href="#features" className="landing-nav-link">Features</a>
@@ -45,8 +44,15 @@ function LandingHeader() {
   );
 }
 
+interface AuthDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: string;
+  onModeChange: (mode: string) => void;
+}
+
 // Auth Dialog Component
-function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
+function AuthDialog({ open, onOpenChange, mode, onModeChange }: AuthDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -62,8 +68,8 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
     }
   }, [open, mode]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.currentTarget;
     setFormData(prev => ({ ...prev, [name]: value }));
     setError("");
   };
@@ -83,14 +89,14 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
     setError("");
 
     try {
-      const authClient = getAuthClient();
+      const authClient = getAuthClient() as any;
       if (!authClient) {
         throw new Error("Firebase authentication not available. Please refresh the page.");
       }
 
       // Create Google provider
-      const provider = new window.firebase.auth.GoogleAuthProvider();
-      
+      const provider = new (window as any).firebase.auth.GoogleAuthProvider();
+
       // Add scopes if needed
       provider.addScope('email');
       provider.addScope('profile');
@@ -101,7 +107,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
 
       // Get ID token and send to backend
       const idToken = await user.getIdToken();
-      
+
       const response = await fetch(`${getBackendUrl()}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -115,7 +121,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       });
 
       const result_data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(result_data.error || 'Google sign-in failed');
       }
@@ -129,17 +135,17 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
 
       // Success - close dialog and trigger main app authentication
       onOpenChange(false);
-      
+
       // Trigger main app authentication state change
       setTimeout(() => {
         emitAuthenticatedUser();
       }, 100);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google sign-in error:', error);
-      
+
       let errorMessage = error.message || 'Google sign-in failed';
-      
+
       if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = 'Sign-in was cancelled. Please try again.';
       } else if (error.code === 'auth/popup-blocked') {
@@ -147,7 +153,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       } else if (error.code === 'auth/account-exists-with-different-credential') {
         errorMessage = 'An account already exists with this email using a different sign-in method.';
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -155,32 +161,32 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
   };
 
   // Username collection dialog for Google users
-  const showUsernameDialog = (user, idToken) => {
+  const showUsernameDialog = (user: any, idToken: string) => {
     const username = prompt(`Welcome ${user.name}! Please choose a username (3-20 characters):`);
-    
+
     if (!username) {
       setError('Username is required to complete sign-up');
       return;
     }
-    
+
     if (username.length < 3) {
       setError('Username must be at least 3 characters long');
       return;
     }
-    
+
     if (username.length > 20) {
       setError('Username must be less than 20 characters');
       return;
     }
-    
+
     // Set username via API
     setUsernameForGoogleUser(idToken, username);
   };
 
-  const setUsernameForGoogleUser = async (idToken, username) => {
+  const setUsernameForGoogleUser = async (idToken: string, username: string) => {
     setIsLoading(true);
     setError("");
-    
+
     try {
       const response = await fetch(`${getBackendUrl()}/api/auth/set-username`, {
         method: 'POST',
@@ -195,20 +201,20 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       });
 
       const result = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(result.error || 'Failed to set username');
       }
 
       // Success - close dialog and trigger main app authentication
       onOpenChange(false);
-      
+
       // Trigger main app authentication state change
       setTimeout(() => {
         emitAuthenticatedUser();
       }, 100);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Set username error:', error);
       setError(error.message || 'Failed to set username. Please try again.');
     } finally {
@@ -216,13 +222,13 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      const authClient = getAuthClient();
+      const authClient = getAuthClient() as any;
       if (!authClient) {
         throw new Error("Firebase authentication not available. Please refresh the page.");
       }
@@ -244,7 +250,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
           formData.email,
           formData.password
         );
-        
+
         // Update display name
         await userCredential.user.updateProfile({
           displayName: formData.name
@@ -252,7 +258,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
 
         // Get ID token and send to backend
         const idToken = await userCredential.user.getIdToken();
-        
+
         const response = await fetch(`${getBackendUrl()}/api/auth/register`, {
           method: 'POST',
           headers: {
@@ -267,23 +273,23 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         });
 
         const result = await response.json();
-        
+
         if (!response.ok) {
           throw new Error(result.error || 'Registration failed');
         }
 
         // Success - close dialog and trigger main app authentication
         onOpenChange(false);
-        
+
         // Clear form
         setFormData({ name: '', email: '', password: '' });
         setError('');
-        
+
         // Trigger main app authentication state change
         setTimeout(() => {
           emitAuthenticatedUser();
         }, 100);
-        
+
       } else {
         // Validate form data
         if (!formData.email.trim()) {
@@ -294,13 +300,13 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         }
 
         // Sign in with Firebase Auth
-        let userCredential;
+        let userCredential: any;
         try {
           userCredential = await authClient.signInWithEmailAndPassword(
             formData.email,
             formData.password
           );
-        } catch (authError) {
+        } catch (authError: any) {
           // Handle specific Firebase auth errors
           if (authError.code === 'auth/invalid-login-credentials') {
             throw new Error("Invalid email or password. If you signed up with Google, please use the 'Continue with Google' button.");
@@ -317,7 +323,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
 
         // Get ID token and send to backend
         const idToken = await userCredential.user.getIdToken();
-        
+
         const response = await fetch(`${getBackendUrl()}/api/auth/login`, {
           method: 'POST',
           headers: {
@@ -330,29 +336,29 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         });
 
         const result = await response.json();
-        
+
         if (!response.ok) {
           throw new Error(result.error || 'Login failed');
         }
 
         // Success - close dialog and trigger main app authentication
         onOpenChange(false);
-        
+
         // Clear form
         setFormData({ name: '', email: '', password: '' });
         setError('');
-        
+
         // Trigger main app authentication state change
         setTimeout(() => {
           emitAuthenticatedUser();
         }, 100);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth error:', error);
-      
+
       // Handle specific Firebase errors
       let errorMessage = error.message || 'Authentication failed';
-      
+
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'This email is already registered. Please sign in instead.';
       } else if (error.code === 'auth/weak-password') {
@@ -366,7 +372,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later.';
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -380,8 +386,8 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
       <div className="auth-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="auth-dialog-header">
           <h2>{mode === "signup" ? "Create Account" : "Sign In"}</h2>
-          <button 
-            className="auth-dialog-close" 
+          <button
+            className="auth-dialog-close"
             onClick={() => onOpenChange(false)}
             aria-label="Close"
           >
@@ -390,13 +396,13 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
         </div>
 
         <div className="auth-dialog-tabs">
-          <button 
+          <button
             className={`auth-tab ${mode === "signin" ? "active" : ""}`}
             onClick={() => onModeChange("signin")}
           >
             Sign In
           </button>
-          <button 
+          <button
             className={`auth-tab ${mode === "signup" ? "active" : ""}`}
             onClick={() => onModeChange("signup")}
           >
@@ -443,7 +449,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
               onChange={handleInputChange}
               placeholder="Enter your password"
               required
-              minLength="6"
+              minLength={6}
             />
             <div className="auth-field-footer">
               <a href="#forgot" className="forgot-password-link">Forgot Password?</a>
@@ -456,8 +462,8 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
             </div>
           )}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="auth-submit-btn"
             disabled={isLoading}
           >
@@ -475,7 +481,7 @@ function AuthDialog({ open, onOpenChange, mode, onModeChange }) {
             <span className="auth-divider-text">or</span>
           </div>
 
-          <button 
+          <button
             type="button"
             className="auth-google-btn"
             onClick={handleGoogleSignIn}
@@ -500,7 +506,7 @@ function HeroSection() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState("signup");
 
-  const handleAuthClick = (mode) => {
+  const handleAuthClick = (mode: string) => {
     setAuthMode(mode);
     setAuthOpen(true);
   };
@@ -551,11 +557,11 @@ function HeroSection() {
         </div>
       </section>
 
-      <AuthDialog 
-        open={authOpen} 
-        onOpenChange={setAuthOpen} 
-        mode={authMode} 
-        onModeChange={setAuthMode} 
+      <AuthDialog
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        mode={authMode}
+        onModeChange={setAuthMode}
       />
     </>
   );

@@ -1,4 +1,5 @@
-const {
+export {};
+import {
     BrowserRouter,
     Navigate,
     Routes,
@@ -6,11 +7,12 @@ const {
     useLocation,
     useNavigate,
     useParams,
-} = require('react-router-dom');
-const AuthContext = React.createContext({ authReady: false, currentUser: null });
-const authStateRef = { current: { authReady: false, currentUser: null } };
+} from 'react-router-dom';
 
-window.AppAuth = window.AppAuth || {};
+const AuthContext = React.createContext<{ authReady: boolean; currentUser: FirebaseUser | null }>({ authReady: false, currentUser: null });
+const authStateRef: { current: { authReady: boolean; currentUser: FirebaseUser | null } } = { current: { authReady: false, currentUser: null } };
+
+window.AppAuth = window.AppAuth || ({} as any);
 window.AppAuth.useAuth = function useSharedAuth() {
     return React.useContext(AuthContext);
 };
@@ -23,10 +25,10 @@ window.AppAuth.isReady = function isReady() {
 window.AppAuth.getClient = function getClient() {
     return window.firebaseAuth || null;
 };
-window.AppAuth.getAuthHeaders = async function getAuthHeaders(user = null) {
+window.AppAuth.getAuthHeaders = async function getAuthHeaders(user: FirebaseUser | null = null) {
     const activeUser = user || authStateRef.current.currentUser;
     if (!activeUser) {
-        return {};
+        return {} as Record<string, string>;
     }
     const token = await activeUser.getIdToken();
     return {
@@ -54,19 +56,23 @@ const DASHBOARD_VIEWS = new Set([
     'screener',
 ]);
 
-function normalizeDashboardView(view) {
+function normalizeDashboardView(view: string) {
     return DASHBOARD_VIEWS.has(view) ? view : 'overview';
 }
 
-class AppErrorBoundary extends React.Component {
-    constructor(props) {
+interface ErrorBoundaryState {
+    hasError: boolean;
+}
+
+class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+    constructor(props: { children: React.ReactNode }) {
         super(props);
         this.state = { hasError: false };
     }
-    static getDerivedStateFromError() {
+    static getDerivedStateFromError(): ErrorBoundaryState {
         return { hasError: true };
     }
-    componentDidCatch(error, info) {
+    componentDidCatch(error: Error, info: React.ErrorInfo) {
         console.error('[AppErrorBoundary]', error, info);
     }
     render() {
@@ -86,9 +92,9 @@ class AppErrorBoundary extends React.Component {
     }
 }
 
-function AuthProvider({ children }) {
+function AuthProvider({ children }: { children: React.ReactNode }) {
     const [authReady, setAuthReady] = React.useState(false);
-    const [currentUser, setCurrentUser] = React.useState(() => window.firebaseAuth?.currentUser || null);
+    const [currentUser, setCurrentUser] = React.useState<FirebaseUser | null>(() => window.firebaseAuth?.currentUser || null);
 
     React.useEffect(() => {
         if (!window.firebaseAuth) {
@@ -126,7 +132,7 @@ function StockRoute() {
     const location = useLocation();
     const params = useParams();
     const symbol = (params.symbol || '').toUpperCase();
-    const isFromWatchlist = Boolean(location.state && location.state.isFromWatchlist);
+    const isFromWatchlist = Boolean(location.state && (location.state as Record<string, unknown>).isFromWatchlist);
 
     return React.createElement(window.StockDetailsPage, {
         symbol,
@@ -142,7 +148,7 @@ function DashboardRoute() {
 
     return React.createElement(window.DashboardRedesign, {
         routeView,
-        onRouteChange: (view) => navigate(`/app/${normalizeDashboardView(view)}`),
+        onRouteChange: (view: string) => navigate(`/app/${normalizeDashboardView(view)}`),
     });
 }
 
@@ -188,8 +194,8 @@ function AppRouter() {
     }, [location.pathname, location.search]);
 
     React.useEffect(() => {
-        const handleAppNavigate = (event) => {
-            const detail = event.detail || {};
+        const handleAppNavigate = (event: Event) => {
+            const detail = (event as CustomEvent).detail || {};
             const path = detail.path || '/';
             const state = detail.state || undefined;
             const replace = Boolean(detail.replace);

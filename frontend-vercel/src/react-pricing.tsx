@@ -1,3 +1,4 @@
+export {};
 // Pricing Page Component
 // Full standalone pricing page with Stripe checkout integration
 
@@ -5,7 +6,29 @@ const { useState, useEffect } = React;
 
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
 
-const PLAN_DATA = [
+interface PlanFeature {
+    text: string;
+    included: boolean;
+}
+
+interface PlanData {
+    id: string;
+    label: string;
+    monthlyPrice: number;
+    yearlyPrice: number;
+    yearlyMonthly?: number;
+    savings?: string;
+    description: string;
+    badge?: string;
+    badgeColor?: string;
+    features: PlanFeature[];
+    cta: string;
+    highlight: boolean;
+    monthlyPriceId: string | null;
+    yearlyPriceId: string | null;
+}
+
+const PLAN_DATA: PlanData[] = [
     {
         id: 'free',
         label: 'Free',
@@ -101,11 +124,11 @@ const FAQS = [
 
 const PricingPage = () => {
     const { currentUser } = window.AppAuth.useAuth();
-    const [billing, setBilling] = useState('yearly');
-    const [loading, setLoading] = useState(null);
+    const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly');
+    const [loading, setLoading] = useState<string | null>(null);
     const [error, setError] = useState('');
-    const [currentTier, setCurrentTier] = useState(null);
-    const [openFaq, setOpenFaq] = useState(null);
+    const [currentTier, setCurrentTier] = useState<string | null>(null);
+    const [openFaq, setOpenFaq] = useState<number | null>(null);
 
     useEffect(() => {
         const loadSub = async () => {
@@ -143,7 +166,7 @@ const PricingPage = () => {
         }
     }, [currentUser]);
 
-    const handleCta = async (plan) => {
+    const handleCta = async (plan: PlanData) => {
         if (plan.id === 'free') {
             window.location.href = '/';
             return;
@@ -205,7 +228,7 @@ const PricingPage = () => {
         }
     };
 
-    const getCtaLabel = (plan) => {
+    const getCtaLabel = (plan: PlanData) => {
         if (plan.id === 'free') return 'Get Started Free';
         if (currentTier === plan.id) return 'Manage Subscription';
         return plan.cta;
@@ -266,7 +289,7 @@ const PricingPage = () => {
                                 <><span className="ppp-amount">$0</span><span className="ppp-period">/forever</span></>
                             ) : billing === 'yearly' ? (
                                 <>
-                                    <span className="ppp-amount">${plan.yearlyMonthly.toFixed(2)}</span>
+                                    <span className="ppp-amount">${plan.yearlyMonthly!.toFixed(2)}</span>
                                     <span className="ppp-period">/mo</span>
                                     <div className="ppp-billed">Billed ${plan.yearlyPrice}/year — save {plan.savings}</div>
                                 </>
