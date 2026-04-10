@@ -1,29 +1,56 @@
-// React AI Investment Advisor Chat Component
+export {};
 
 const { useState, useEffect, useRef, useCallback } = React;
 
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
 
+interface ChatMessage {
+    id: number;
+    type: 'user' | 'ai' | 'assistant' | 'error';
+    content: string;
+    timestamp: Date;
+}
+
+interface Thread {
+    thread_id: string;
+    title?: string;
+    preview?: string;
+    last_updated?: string;
+}
+
+interface RateLimitInfo {
+    can_send: boolean;
+    used_today?: number;
+    daily_limit?: number;
+    tier?: string;
+}
+
+interface UsageInfo {
+    used: number;
+    limit: number | null;
+    tier: string;
+}
+
 const AIAdvisorChat = () => {
     const { currentUser } = window.AppAuth.useAuth();
-    const [messages, setMessages] = useState([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isOnline, setIsOnline] = useState(true);
-    const [rateLimitInfo, setRateLimitInfo] = useState(null);
-    const [usageInfo, setUsageInfo] = useState(null);
+    const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(null);
+    const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
 
     // Thread state
-    const [threads, setThreads] = useState([]);
-    const [currentThreadId, setCurrentThreadId] = useState(null);
+    const [threads, setThreads] = useState<Thread[]>([]);
+    const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [renamingThreadId, setRenamingThreadId] = useState(null);
+    const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState('');
     const [loadingHistory, setLoadingHistory] = useState(false);
 
-    const messagesEndRef = useRef(null);
-    const chatInputRef = useRef(null);
-    const renameInputRef = useRef(null);
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
+    const renameInputRef = useRef<HTMLInputElement | null>(null);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,7 +86,7 @@ const AIAdvisorChat = () => {
         }
     }, [renamingThreadId]);
 
-    const getAuthHeaders = async (user) => {
+    const getAuthHeaders = async (user?: FirebaseUser | null): Promise<Record<string, string>> => {
         const activeUser = user || currentUser;
         if (!activeUser) return { 'Content-Type': 'application/json' };
         const token = await activeUser.getIdToken();
@@ -70,7 +97,7 @@ const AIAdvisorChat = () => {
         };
     };
 
-    const testAPIConnection = async (user) => {
+    const testAPIConnection = async (user: FirebaseUser) => {
         try {
             const headers = await getAuthHeaders(user);
             const res = await fetch(`${API_BASE_URL}/api/chat/status`, { headers });
@@ -82,20 +109,20 @@ const AIAdvisorChat = () => {
             if (data.rate_limit) {
                 setUsageInfo({ used: data.rate_limit.used_today || 0, limit: data.rate_limit.daily_limit, tier: data.rate_limit.tier || 'free' });
             }
-        } catch (e) {
+        } catch {
             setIsOnline(false);
         }
     };
 
     // ---- Thread management ----
 
-    const loadThreads = async (user) => {
+    const loadThreads = async (user: FirebaseUser) => {
         try {
             const headers = await getAuthHeaders(user);
             const res = await fetch(`${API_BASE_URL}/api/chat/threads`, { headers });
             const data = await res.json();
             if (data.success) {
-                const list = data.threads || [];
+                const list: Thread[] = data.threads || [];
                 setThreads(list);
                 if (list.length > 0) {
                     await switchThread(list[0].thread_id, user);
@@ -104,12 +131,12 @@ const AIAdvisorChat = () => {
                     await createThread(user);
                 }
             }
-        } catch (e) {
-            console.error('Failed to load threads', e);
+        } catch (err) {
+            console.error('Failed to load threads', err);
         }
     };
 
-    const createThread = async (user) => {
+    const createThread = async (user?: FirebaseUser | null) => {
         try {
             const headers = await getAuthHeaders(user);
             const res = await fetch(`${API_BASE_URL}/api/chat/threads`, {
@@ -119,17 +146,17 @@ const AIAdvisorChat = () => {
             });
             const data = await res.json();
             if (data.success) {
-                const thread = data.thread;
+                const thread = data.thread as Thread;
                 setThreads(prev => [thread, ...prev]);
                 setCurrentThreadId(thread.thread_id);
                 setMessages([]);
             }
-        } catch (e) {
-            console.error('Failed to create thread', e);
+        } catch (err) {
+            console.error('Failed to create thread', err);
         }
     };
 
-    const switchThread = async (threadId, user) => {
+    const switchThread = async (threadId: string, user?: FirebaseUser | null) => {
         if (threadId === currentThreadId && !user) return;
         setCurrentThreadId(threadId);
         setLoadingHistory(true);
@@ -138,7 +165,7 @@ const AIAdvisorChat = () => {
             const res = await fetch(`${API_BASE_URL}/api/chat/threads/${threadId}/history`, { headers });
             const data = await res.json();
             if (data.success) {
-                const msgs = (data.history || []).map((m, i) => ({
+                const msgs: ChatMessage[] = (data.history || []).map((m: { role: string; content: string; timestamp?: string }, i: number) => ({
                     id: i,
                     type: m.role === 'user' ? 'user' : 'ai',
                     content: m.content,
@@ -146,14 +173,14 @@ const AIAdvisorChat = () => {
                 }));
                 setMessages(msgs);
             }
-        } catch (e) {
-            console.error('Failed to load thread history', e);
+        } catch (err) {
+            console.error('Failed to load thread history', err);
         } finally {
             setLoadingHistory(false);
         }
     };
 
-    const deleteThread = async (threadId, e) => {
+    const deleteThread = async (threadId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         try {
             const headers = await getAuthHeaders();
@@ -167,18 +194,18 @@ const AIAdvisorChat = () => {
                     await createThread();
                 }
             }
-        } catch (e) {
-            console.error('Failed to delete thread', e);
+        } catch (err) {
+            console.error('Failed to delete thread', err);
         }
     };
 
-    const startRename = (threadId, currentTitle, e) => {
+    const startRename = (threadId: string, currentTitle: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setRenamingThreadId(threadId);
         setRenameValue(currentTitle);
     };
 
-    const commitRename = async (threadId) => {
+    const commitRename = async (threadId: string) => {
         const title = renameValue.trim();
         setRenamingThreadId(null);
         if (!title) return;
@@ -188,8 +215,8 @@ const AIAdvisorChat = () => {
                 method: 'PATCH', headers, body: JSON.stringify({ title }),
             });
             setThreads(prev => prev.map(t => t.thread_id === threadId ? { ...t, title } : t));
-        } catch (e) {
-            console.error('Failed to rename thread', e);
+        } catch (err) {
+            console.error('Failed to rename thread', err);
         }
     };
 
@@ -216,7 +243,7 @@ const AIAdvisorChat = () => {
         }
 
         setInputValue('');
-        const userMessage = { id: Date.now(), type: 'user', content: message, timestamp: new Date() };
+        const userMessage: ChatMessage = { id: Date.now(), type: 'user', content: message, timestamp: new Date() };
         setMessages(prev => [...prev, userMessage]);
         setIsTyping(true);
 
@@ -235,7 +262,7 @@ const AIAdvisorChat = () => {
             setIsTyping(false);
 
             if (data.success) {
-                const aiMessage = { id: Date.now() + 1, type: 'ai', content: data.response, timestamp: new Date() };
+                const aiMessage: ChatMessage = { id: Date.now() + 1, type: 'ai', content: data.response, timestamp: new Date() };
                 setMessages(prev => [...prev, aiMessage]);
 
                 // Auto-update thread title from first message
@@ -256,12 +283,12 @@ const AIAdvisorChat = () => {
 
                 if (data.usage) {
                     setUsageInfo(data.usage);
-                    const { used, limit, tier } = data.usage;
+                    const { used, limit, tier } = data.usage as UsageInfo;
                     if (tier === 'free' && limit !== null && used === limit - 1) {
-                        setRateLimitInfo(prev => ({ ...(prev || {}), can_send: true, used_today: used, daily_limit: limit }));
+                        setRateLimitInfo(prev => ({ ...(prev ?? {} as RateLimitInfo), can_send: true, used_today: used, daily_limit: limit }));
                     }
                     if (limit !== null && used >= limit) {
-                        setRateLimitInfo(prev => ({ ...(prev || {}), can_send: false, used_today: used, daily_limit: limit, tier }));
+                        setRateLimitInfo(prev => ({ ...(prev ?? {} as RateLimitInfo), can_send: false, used_today: used, daily_limit: limit, tier }));
                         setIsOnline(false);
                     }
                 }
@@ -270,18 +297,18 @@ const AIAdvisorChat = () => {
                     if (data.rate_limit.can_send === false) setIsOnline(false);
                 }
 
-                const responseText = data.response.toLowerCase();
+                const responseText = (data.response as string).toLowerCase();
                 if (responseText.includes('successfully added') || responseText.includes('successfully removed') ||
                     (responseText.includes('added') && responseText.includes('watchlist')) ||
                     (responseText.includes('removed') && responseText.includes('watchlist'))) {
                     window.dispatchEvent(new CustomEvent('watchlistChanged', { detail: { action: 'add' } }));
-                    if (window.refreshWatchlist) setTimeout(() => window.refreshWatchlist(), 500);
+                    if (window.refreshWatchlist) setTimeout(() => window.refreshWatchlist!(), 500);
                 }
             } else {
                 if (data.error === 'daily_limit_reached' || response.status === 429) {
                     const reason = data.message || `You've used all your free AI messages for today. Upgrade for more.`;
                     if (data.usage) setUsageInfo(data.usage);
-                    setRateLimitInfo(prev => ({ ...(prev || {}), can_send: false }));
+                    setRateLimitInfo(prev => ({ ...(prev ?? {} as RateLimitInfo), can_send: false }));
                     setIsOnline(false);
                     if (window.showUpgradeModal) window.showUpgradeModal(reason);
                     else showError(reason);
@@ -292,26 +319,26 @@ const AIAdvisorChat = () => {
                 const lower = String(errMsg).toLowerCase();
                 if (lower.includes('ai service unavailable') || lower.includes('quota') || lower.includes('usage limit')) setIsOnline(false);
             }
-        } catch (error) {
+        } catch (error: any) {
             setIsTyping(false);
             showError(`Failed to connect to AI service: ${error.message}`);
         }
     };
 
-    const showError = (message) => {
+    const showError = (message: string) => {
         setMessages(prev => [...prev, { id: Date.now(), type: 'error', content: message, timestamp: new Date() }]);
     };
 
-    const handleSuggestionClick = (suggestion) => {
+    const handleSuggestionClick = (suggestion: string) => {
         setInputValue(suggestion);
         chatInputRef.current?.focus();
     };
 
-    const handleKeyPress = (e) => {
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     };
 
-    const quickSuggestions = [
+    const quickSuggestions: { text: string; message: string }[] = [
         { text: "Analyze my portfolio", message: "Analyze my watchlist performance and show me which stocks are doing best" },
         { text: "Find stocks under $100", message: "What are some good stocks under $100 that I should consider?" },
         { text: "Compare AAPL vs MSFT vs GOOGL", message: "Compare Apple, Microsoft, and Google - which is the best investment right now?" },
@@ -320,13 +347,13 @@ const AIAdvisorChat = () => {
         { text: "Latest news on my stocks", message: "Show me the latest news about stocks in my watchlist" }
     ];
 
-    const escapeHtml = (str) => {
+    const escapeHtml = (str: string): string => {
         const div = document.createElement('div');
         div.appendChild(document.createTextNode(str));
         return div.innerHTML;
     };
 
-    const formatMessage = (content) => {
+    const formatMessage = (content: string): string => {
         const escaped = escapeHtml(content);
         return escaped
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -334,12 +361,12 @@ const AIAdvisorChat = () => {
             .replace(/\n/g, '<br>');
     };
 
-    const formatThreadDate = (iso) => {
+    const formatThreadDate = (iso?: string): string => {
         if (!iso) return '';
         try {
             const d = new Date(iso);
             const now = new Date();
-            const diffMs = now - d;
+            const diffMs = now.getTime() - d.getTime();
             const diffDays = Math.floor(diffMs / 86400000);
             if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             if (diffDays === 1) return 'Yesterday';
@@ -494,16 +521,16 @@ const AIAdvisorChat = () => {
                     <div className="ai-daily-usage-bar">
                         <div className="usage-bar-track">
                             <div className="usage-bar-fill"
-                                style={{ width: `${Math.min((usageInfo.used / usageInfo.limit) * 100, 100)}%` }}></div>
+                                style={{ width: `${Math.min((usageInfo.used / usageInfo.limit!) * 100, 100)}%` }}></div>
                         </div>
                         <div className="usage-bar-label">
                             <span>{usageInfo.used}/{usageInfo.limit} free messages today</span>
-                            {usageInfo.used >= usageInfo.limit ? (
+                            {usageInfo.used >= usageInfo.limit! ? (
                                 <button className="usage-upgrade-btn"
                                     onClick={() => window.showUpgradeModal && window.showUpgradeModal('Upgrade to Pro for 50 messages/day.')}>
                                     Upgrade for more
                                 </button>
-                            ) : usageInfo.used >= usageInfo.limit - 1 ? (
+                            ) : usageInfo.used >= usageInfo.limit! - 1 ? (
                                 <button className="usage-upgrade-btn warning"
                                     onClick={() => window.showUpgradeModal && window.showUpgradeModal('You have 1 message left today. Upgrade to Pro for 50 messages/day.')}>
                                     1 left — Upgrade

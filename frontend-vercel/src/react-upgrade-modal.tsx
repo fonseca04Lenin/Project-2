@@ -1,3 +1,4 @@
+export {};
 // Upgrade Modal — shown when a user hits a paywall
 // Mounts into #upgrade-modal-root or can be triggered via window.showUpgradeModal()
 
@@ -5,7 +6,22 @@ const { useState, useEffect, useCallback } = React;
 
 const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
 
-const PLANS = [
+interface Plan {
+    id: string;
+    label: string;
+    badge: string;
+    badgeColor: string;
+    monthlyPrice: number;
+    yearlyPrice: number;
+    yearlyMonthly: number;
+    savings: string;
+    features: string[];
+    monthlyPriceId: string;
+    yearlyPriceId: string;
+    highlight: boolean;
+}
+
+const PLANS: Plan[] = [
     {
         id: 'pro',
         label: 'Pro',
@@ -49,9 +65,15 @@ const PLANS = [
     },
 ];
 
-const UpgradeModal = ({ isOpen, onClose, reason }) => {
-    const [billing, setBilling] = useState('yearly'); // 'monthly' | 'yearly'
-    const [loading, setLoading] = useState(null); // plan id or null
+interface UpgradeModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    reason?: string;
+}
+
+const UpgradeModal = ({ isOpen, onClose, reason }: UpgradeModalProps) => {
+    const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly');
+    const [loading, setLoading] = useState<string | null>(null);
     const [error, setError] = useState('');
 
     useEffect(() => {
@@ -63,7 +85,7 @@ const UpgradeModal = ({ isOpen, onClose, reason }) => {
         return () => { document.body.style.overflow = ''; };
     }, [isOpen]);
 
-    const handleUpgrade = useCallback(async (plan) => {
+    const handleUpgrade = useCallback(async (plan: Plan) => {
         const priceId = billing === 'yearly' ? plan.yearlyPriceId : plan.monthlyPriceId;
         if (!priceId) {
             setError('Pricing not configured. Please contact support.');

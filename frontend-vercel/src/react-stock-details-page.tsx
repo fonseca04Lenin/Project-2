@@ -1,30 +1,96 @@
-// Stock Details Page
+export {};
+
 const { useState, useEffect, useCallback, useRef } = React;
 
 const API_BASE_PAGE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
-const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) => {
-    const [stockData, setStockData] = useState(null);
+interface StockData {
+    symbol?: string;
+    name?: string;
+    price?: number;
+    percentageChange?: number;
+    priceChangePercent?: number;
+    priceChange?: number;
+    marketCap?: number | string;
+    peRatio?: number | string;
+    dividendYield?: number | string;
+    high52Week?: number;
+    low52Week?: number;
+    volume?: number;
+    description?: string;
+    ceo?: string;
+    headquarters?: string;
+    website?: string;
+    sector?: string;
+    industry?: string;
+    isInWatchlist?: boolean;
+    dateAdded?: string;
+    originalPrice?: number;
+    category?: string;
+    notes?: string;
+    date_added?: string;
+    original_price?: number;
+    price_change?: number;
+    percentage_change?: number;
+}
+
+interface NewsArticle {
+    link?: string;
+    url?: string;
+    title: string;
+    source?: string;
+    published_at?: string;
+    publishedAt?: string;
+    image_url?: string;
+    urlToImage?: string;
+}
+
+interface StocktwitMessage {
+    id?: string | number;
+    body: string;
+    sentiment?: string;
+    time_ago?: string;
+    likes_count?: number;
+    replies_count?: number;
+    user?: {
+        username?: string;
+        avatar_url?: string;
+        official?: boolean;
+    };
+}
+
+interface AiInsight {
+    ai_insight?: string;
+    change_percent?: number;
+    period?: string;
+}
+
+const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }: {
+    symbol: string;
+    isFromWatchlist?: boolean;
+    onNavigateBack?: () => void;
+}) => {
+    const [stockData, setStockData] = useState<StockData | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [chartData, setChartData] = useState(null);
-    const [news, setNews] = useState([]);
+    const [error, setError] = useState<string | null>(null);
+    const [chartData, setChartData] = useState<unknown[] | null>(null);
+    const [news, setNews] = useState<NewsArticle[]>([]);
     const [newsLoading, setNewsLoading] = useState(false);
     const [newsPage, setNewsPage] = useState(1);
     const [newsHasMore, setNewsHasMore] = useState(true);
     const [newsLoadingMore, setNewsLoadingMore] = useState(false);
-    const newsContainerRef = useRef(null);
-    const [stocktwits, setStocktwits] = useState([]);
+    const newsContainerRef = useRef<HTMLDivElement | null>(null);
+    const [stocktwits, setStocktwits] = useState<StocktwitMessage[]>([]);
     const [stocktwitsLoading, setStocktwitsLoading] = useState(false);
     const [stocktwitsLoadingMore, setStocktwitsLoadingMore] = useState(false);
-    const [stocktwitsCursor, setStocktwitsCursor] = useState(null);
+    const [stocktwitsCursor, setStocktwitsCursor] = useState<string | null>(null);
     const [stocktwitsHasMore, setStocktwitsHasMore] = useState(true);
-    const sentimentContainerRef = useRef(null);
-    const [aiInsight, setAiInsight] = useState(null);
+    const sentimentContainerRef = useRef<HTMLDivElement | null>(null);
+    const [aiInsight, setAiInsight] = useState<AiInsight | null>(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
     const [aiInsightPeriod, setAiInsightPeriod] = useState('7d');
-    const chartRootRef = useRef(null);
+    const chartRootRef = useRef<ReturnType<typeof ReactDOM.createRoot> | null>(null);
     const [addingToWatchlist, setAddingToWatchlist] = useState(false);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
     const isIndex = symbol && symbol.startsWith('^');
@@ -35,8 +101,8 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     const [showFullDesc, setShowFullDesc] = useState(false);
 
     // Strip titles from CEO names
-    const cleanCEOName = (name) => {
-        if (!name || name === '-') return name;
+    const cleanCEOName = (name?: string): string => {
+        if (!name || name === '-') return name || '';
         let cleaned = name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
         const parts = cleaned.split(/\s+/).filter(part => part.length > 0);
         if (parts.length > 2) {
@@ -70,7 +136,6 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         if (!symbol) return;
 
         const fetchData = async () => {
-            // console.log(`[StockDetailsPage] Loading data for ${symbol}`);
             setLoading(true);
             setError(null);
             setStockData(null);
@@ -87,7 +152,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     const url = useWatchlistEndpoint
                         ? `${API_BASE_PAGE}/api/watchlist/${symbol}/details`
                         : `${API_BASE_PAGE}/api/company/${symbol}`;
-                    const opts = useWatchlistEndpoint
+                    const opts: RequestInit = useWatchlistEndpoint
                         ? { method: 'GET', headers: authHeaders, credentials: 'include' }
                         : { credentials: 'include' };
                     const response = await fetch(url, opts);
@@ -119,8 +184,8 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                         if (chartResp.ok) {
                             return await chartResp.json();
                         }
-                    } catch (error) {
-                        // console.log(`[StockDetailsPage] Chart API error:`, error);
+                    } catch {
+                        // ignore
                     }
                     return null;
                 })();
@@ -139,13 +204,12 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                         });
                         if (watchlistResp.ok) {
                             const watchlistData = await watchlistResp.json();
-                            const inWatchlist = Array.isArray(watchlistData) && watchlistData.some(item => item.symbol === symbol);
+                            const inWatchlist = Array.isArray(watchlistData) && watchlistData.some((item: { symbol: string }) => item.symbol === symbol);
                             setIsInWatchlist(inWatchlist);
                         } else {
                             setIsInWatchlist(false);
                         }
-                    } catch (watchlistErr) {
-                        // console.log('[StockDetailsPage] Could not check watchlist status:', watchlistErr);
+                    } catch {
                         setIsInWatchlist(false);
                     }
                 } else {
@@ -170,14 +234,14 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                             setNews(newsData);
                             setNewsHasMore(newsRespData.hasMore);
                         }
-                    } catch (error) {
-                        // console.log(`[StockDetailsPage] News API error:`, error);
+                    } catch {
+                        // ignore
                     } finally {
                         setNewsLoading(false);
                     }
                 })();
 
-                // Load Stocktwits (skip for indices, they don't have Stocktwits feeds)
+                // Load Stocktwits (skip for indices)
                 if (!symbol.startsWith('^')) {
                     setStocktwitsLoading(true);
                     setStocktwits([]);
@@ -194,16 +258,15 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                 setStocktwitsCursor(stocktwitsData.cursor || null);
                                 setStocktwitsHasMore(stocktwitsData.has_more !== false);
                             }
-                        } catch (error) {
-                            // console.log(`[StockDetailsPage] Stocktwits API error:`, error);
+                        } catch {
+                            // ignore
                         } finally {
                             setStocktwitsLoading(false);
                         }
                     })();
                 }
 
-
-            } catch (err) {
+            } catch (err: any) {
                 console.error(`[StockDetailsPage] Error:`, err);
                 setError(err.message || 'Failed to load stock details');
             } finally {
@@ -238,7 +301,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 return;
             }
 
-            if (chartData.length === 0) {
+            if (!chartData || chartData.length === 0) {
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>No chart data available</p></div>';
                 return;
             }
@@ -252,10 +315,9 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                     symbol: symbol,
                     data: chartData,
                     isModal: false,
-                    onClose: null
+                    onClose: undefined
                 }));
-            } catch (error) {
-                console.error(`[StockDetailsPage] Chart render error:`, error);
+            } catch {
                 chartContainer.innerHTML = `<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Error rendering chart</p></div>`;
             }
         };
@@ -269,7 +331,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         };
     }, [chartData, symbol]);
 
-    const formatMarketCap = (value) => {
+    const formatMarketCap = (value?: number | string): string => {
         if (!value || value === '-') return '-';
         if (typeof value === 'number') {
             if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
@@ -280,7 +342,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         return value.toString();
     };
 
-    const formatDate = (dateString) => {
+    const formatDate = (dateString?: string): string => {
         if (!dateString) return '-';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
@@ -290,11 +352,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
         });
     };
 
-    const formatTimeAgo = (dateString) => {
+    const formatTimeAgo = (dateString?: string): string => {
         if (!dateString) return '';
         const date = new Date(dateString);
         const now = new Date();
-        const diffMs = now - date;
+        const diffMs = now.getTime() - date.getTime();
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
@@ -321,21 +383,21 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 setNews(newsRespData.articles || []);
                 setNewsHasMore(newsRespData.hasMore);
             }
-        } catch (error) {
+        } catch {
             // ignore
         } finally {
             setNewsLoading(false);
         }
     };
 
-    const fetchAiInsight = async (period) => {
+    const fetchAiInsight = async (period: string) => {
         if (aiInsightLoading || !symbol) return;
         setAiInsightLoading(true);
         setAiInsight(null);
         setAiInsightUpgradeRequired(false);
         try {
             const authUser = window.AppAuth.getCurrentUser();
-            const headers = {};
+            const headers: Record<string, string> = {};
             if (authUser) {
                 const token = await authUser.getIdToken();
                 headers['Authorization'] = `Bearer ${token}`;
@@ -347,7 +409,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 const insightData = await insightResp.json();
                 setAiInsight(insightData);
             }
-        } catch (error) {
+        } catch {
             // ignore
         } finally {
             setAiInsightLoading(false);
@@ -372,8 +434,8 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 }
                 setNewsHasMore(newsRespData.hasMore && newArticles.length > 0);
             }
-        } catch (error) {
-            // console.log(`[StockDetailsPage] Error loading more news:`, error);
+        } catch {
+            // ignore
         } finally {
             setNewsLoadingMore(false);
         }
@@ -400,16 +462,16 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 }
                 setStocktwitsHasMore(stocktwitsData.has_more !== false && newMessages.length > 0);
             }
-        } catch (error) {
-            // console.log(`[StockDetailsPage] Error loading more stocktwits:`, error);
+        } catch {
+            // ignore
         } finally {
             setStocktwitsLoadingMore(false);
         }
     };
 
     // Handle scroll for infinite loading in sentiment section
-    const handleSentimentScroll = useCallback((e) => {
-        const container = e.target;
+    const handleSentimentScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const container = e.currentTarget;
         const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
         if (scrollBottom < 100 && stocktwitsHasMore && !stocktwitsLoadingMore) {
             loadMoreStocktwits();
@@ -425,18 +487,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
     };
 
     const handleAddToWatchlist = async () => {
-        // console.log('[StockDetailsPage] Add to watchlist clicked for:', symbol);
-        // console.log('[StockDetailsPage] Current state - isInWatchlist:', isInWatchlist, 'addingToWatchlist:', addingToWatchlist);
-
-        if (isInWatchlist || addingToWatchlist) {
-            // console.log('[StockDetailsPage] Returning early - already in watchlist or adding');
-            return;
-        }
+        if (isInWatchlist || addingToWatchlist) return;
 
         setAddingToWatchlist(true);
         try {
             const authHeaders = await window.AppAuth.getAuthHeaders();
-            // console.log('[StockDetailsPage] Auth headers obtained:', !!authHeaders);
 
             const response = await fetch(`${API_BASE_PAGE}/api/watchlist`, {
                 method: 'POST',
@@ -445,15 +500,11 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                 body: JSON.stringify({ symbol })
             });
 
-            // console.log('[StockDetailsPage] Watchlist API response status:', response.status);
-
             if (response.ok) {
                 setIsInWatchlist(true);
-                // console.log('[StockDetailsPage] Successfully added to watchlist');
                 if (window.showNotification) {
                     window.showNotification(`${symbol} added to watchlist`, 'success');
                 }
-                // Notify other components
                 try {
                     window.dispatchEvent(new CustomEvent('watchlistChanged'));
                 } catch (_) {}
@@ -463,7 +514,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 if (window.showNotification) {
-                    window.showNotification(errorData.error || `Failed to add ${symbol}`, 'error');
+                    window.showNotification((errorData as any).error || `Failed to add ${symbol}`, 'error');
                 }
             }
         } catch (err) {
@@ -514,15 +565,6 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 
     const priceChangePercent = stockData.percentageChange || stockData.priceChangePercent || 0;
     const isPositive = priceChangePercent >= 0;
-
-    // Debug logging for price change
-    // console.log('[StockDetailsPage] Stock data received:', {
-    //     symbol: stockData.symbol,
-    //     price: stockData.price,
-    //     percentageChange: stockData.percentageChange,
-    //     priceChangePercent: stockData.priceChangePercent,
-    //     calculatedPercent: priceChangePercent
-    // });
 
     return (
         <div className="stock-page-container">
@@ -680,7 +722,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                                     <img
                                                         src={article.image_url || article.urlToImage}
                                                         alt=""
-                                                        onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                                                        onError={(e) => { const el = e.target as HTMLElement; if (el.parentElement) el.parentElement.style.display = 'none'; }}
                                                     />
                                                 </div>
                                             )}
@@ -841,9 +883,9 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                 </div>
                                 <div className="watchlist-stat">
                                     <span className="stat-label">Change Since Added</span>
-                                    <span className={`stat-value ${stockData.priceChange >= 0 ? 'positive' : 'negative'}`}>
-                                        <i className={`fas fa-arrow-${stockData.priceChange >= 0 ? 'up' : 'down'}`}></i>
-                                        {stockData.priceChange >= 0 ? '+' : ''}${stockData.priceChange?.toFixed(2)} ({stockData.percentageChange?.toFixed(2)}%)
+                                    <span className={`stat-value ${(stockData.priceChange ?? 0) >= 0 ? 'positive' : 'negative'}`}>
+                                        <i className={`fas fa-arrow-${(stockData.priceChange ?? 0) >= 0 ? 'up' : 'down'}`}></i>
+                                        {(stockData.priceChange ?? 0) >= 0 ? '+' : ''}${stockData.priceChange?.toFixed(2)} ({stockData.percentageChange?.toFixed(2)}%)
                                     </span>
                                 </div>
                                 {stockData.category && (
@@ -903,7 +945,7 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                                             src={message.user.avatar_url.replace('http://', 'https://')}
                                                             alt=""
                                                             className="avatar"
-                                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                                            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                                                         />
                                                     ) : (
                                                         <div className="avatar-placeholder">
@@ -923,12 +965,12 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
                                                 </div>
                                                 <p className="tweet-body">{message.body}</p>
                                                 <div className="tweet-footer">
-                                                    {(message.likes_count > 0 || message.replies_count > 0) && (
+                                                    {((message.likes_count ?? 0) > 0 || (message.replies_count ?? 0) > 0) && (
                                                         <div className="tweet-stats">
-                                                            {message.likes_count > 0 && (
+                                                            {(message.likes_count ?? 0) > 0 && (
                                                                 <span><i className="fas fa-heart"></i> {message.likes_count}</span>
                                                             )}
-                                                            {message.replies_count > 0 && (
+                                                            {(message.replies_count ?? 0) > 0 && (
                                                                 <span><i className="fas fa-reply"></i> {message.replies_count}</span>
                                                             )}
                                                         </div>
@@ -989,5 +1031,3 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }) =
 };
 
 window.StockDetailsPage = StockDetailsPage;
-
-// console.log('[StockDetailsPage] Component loaded');

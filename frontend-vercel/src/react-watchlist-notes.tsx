@@ -1,7 +1,13 @@
+export {};
 // React Watchlist Notes Editor Component
 const { useState, useEffect, useCallback } = React;
 
-const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
+interface WatchlistNotesEditorProps {
+    symbol: string;
+    initialNotes?: string;
+}
+
+const WatchlistNotesEditor = ({ symbol, initialNotes = '' }: WatchlistNotesEditorProps) => {
     const [notes, setNotes] = useState(initialNotes);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -13,6 +19,45 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
         setHasChanges(false);
     }, [initialNotes]);
 
+    const saveNotes = async () => {
+        if (!symbol || isSaving) return;
+
+        setIsSaving(true);
+        try {
+            const authHeaders = await window.AppAuth.getAuthHeaders();
+
+            // Get API base URL from config
+            const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
+
+            const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/notes`, {
+                method: 'PUT',
+                headers: authHeaders,
+                credentials: 'include',
+                body: JSON.stringify({ notes })
+            });
+
+            if (response.ok) {
+                await response.json();
+                setHasChanges(false);
+                setIsEditing(false);
+
+                // Show success message
+                if (window.showNotification) {
+                    window.showNotification('Notes saved successfully', 'success');
+                }
+            } else {
+                throw new Error('Failed to save notes');
+            }
+        } catch (error) {
+            console.error('Error saving notes:', error);
+            if (window.showNotification) {
+                window.showNotification('Failed to save notes', 'error');
+            }
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     // Auto-save on blur with debounce
     const handleBlur = useCallback(() => {
         if (hasChanges && !isSaving) {
@@ -22,51 +67,12 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
         }
     }, [hasChanges, isSaving]);
 
-    const handleChange = (e) => {
-        setNotes(e.target.value);
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setNotes(e.currentTarget.value);
         setHasChanges(true);
     };
 
-    const saveNotes = async () => {
-        if (!symbol || isSaving) return;
-
-        setIsSaving(true);
-        try {
-            const authHeaders = await window.AppAuth.getAuthHeaders();
-            
-            // Get API base URL from config
-            const API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
-            
-            const response = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}/notes`, {
-                method: 'PUT',
-                headers: authHeaders,
-                credentials: 'include',
-                body: JSON.stringify({ notes })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setHasChanges(false);
-                setIsEditing(false);
-                
-                // Show success message
-                if (window.showToast) {
-                    window.showToast('Notes saved successfully', 'success');
-                }
-            } else {
-                throw new Error('Failed to save notes');
-            }
-        } catch (error) {
-            console.error('Error saving notes:', error);
-            if (window.showToast) {
-                window.showToast('Failed to save notes', 'error');
-            }
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // Save on Cmd/Ctrl + Enter
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
             e.preventDefault();
@@ -89,8 +95,8 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
                         <i className="fas fa-sticky-note"></i>
                         Notes
                     </h4>
-                    <button 
-                        className="btn-icon btn-icon-sm" 
+                    <button
+                        className="btn-icon btn-icon-sm"
                         onClick={() => setIsEditing(true)}
                         title="Add notes"
                     >
@@ -113,8 +119,8 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
                         <i className="fas fa-sticky-note"></i>
                         Notes
                     </h4>
-                    <button 
-                        className="btn-icon btn-icon-sm" 
+                    <button
+                        className="btn-icon btn-icon-sm"
                         onClick={() => setIsEditing(true)}
                         title="Edit notes"
                     >
@@ -143,8 +149,8 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
                             Unsaved changes
                         </span>
                     )}
-                    <button 
-                        className="btn-icon btn-icon-sm" 
+                    <button
+                        className="btn-icon btn-icon-sm"
                         onClick={handleBlur}
                         disabled={isSaving}
                         title="Save notes (Ctrl+Enter)"
@@ -161,7 +167,7 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
                 onKeyDown={handleKeyDown}
                 placeholder="Add your notes here... (Press Ctrl+Enter to save, Esc to cancel)"
                 autoFocus
-                rows="4"
+                rows={4}
             />
             <div className="watchlist-notes-hint">
                 <small>
@@ -174,14 +180,14 @@ const WatchlistNotesEditor = ({ symbol, initialNotes = '' }) => {
 };
 
 // Function to render the notes editor
-window.renderWatchlistNotes = (symbol, notes) => {
+window.renderWatchlistNotes = (symbol: string, notes: string) => {
     const container = document.getElementById('watchlistNotesEditor');
     if (!container) return;
 
     const root = ReactDOM.createRoot(container);
-    root.render(React.createElement(WatchlistNotesEditor, { 
-        symbol, 
-        initialNotes: notes 
+    root.render(React.createElement(WatchlistNotesEditor, {
+        symbol,
+        initialNotes: notes
     }));
 };
 

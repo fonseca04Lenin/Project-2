@@ -1,3 +1,4 @@
+export {};
 /**
  * Modern Interactive Stock Chart Component
  * Enhanced with Candlestick, Volume, Indicators
@@ -10,19 +11,19 @@ const { useState, useEffect, useRef, useCallback } = React;
 // UTILITY FUNCTIONS
 // ============================================================================
 
-const formatPrice = (price) => {
+const formatPrice = (price: number) => {
     if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return price.toFixed(2);
 };
 
-const formatVolume = (volume) => {
+const formatVolume = (volume: number) => {
     if (volume >= 1e9) return (volume / 1e9).toFixed(2) + 'B';
     if (volume >= 1e6) return (volume / 1e6).toFixed(2) + 'M';
     if (volume >= 1e3) return (volume / 1e3).toFixed(1) + 'K';
     return volume.toString();
 };
 
-const formatDateForRange = (dateString, range) => {
+const formatDateForRange = (dateString: string, range: string) => {
     const date = new Date(dateString);
     if (range === '1D' || range === '5D' || range === '1W') {
         return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -34,8 +35,8 @@ const formatDateForRange = (dateString, range) => {
 };
 
 // Calculate Simple Moving Average
-const calculateSMA = (data, period) => {
-    const sma = [];
+const calculateSMA = (data: ChartDataPoint[], period: number): (number | null)[] => {
+    const sma: (number | null)[] = [];
     for (let i = 0; i < data.length; i++) {
         if (i < period - 1) {
             sma.push(null);
@@ -74,29 +75,51 @@ const CHART_COLORS = {
 };
 
 // ============================================================================
+// TYPES
+// ============================================================================
+
+interface ChartDataPoint {
+    date: Date;
+    formattedDate: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+    price: number;
+    index: number;
+    [key: string]: unknown;
+}
+
+// ============================================================================
 // MAIN CHART COMPONENT
 // ============================================================================
 
-window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
+window.StockChart = ({ symbol, data, isModal = false, onClose }: {
+    symbol: string;
+    data?: unknown;
+    isModal?: boolean;
+    onClose?: () => void;
+}) => {
     // State
-    const [chartData, setChartData] = useState([]);
+    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
     const [priceChange, setPriceChange] = useState({ value: 0, percentage: 0 });
     const [timeRange, setTimeRange] = useState(window.__defaultTimeRange || '1D');
     const [chartType, setChartType] = useState('line'); // 'line' | 'candle'
     const [isLoadingNewData, setIsLoadingNewData] = useState(false);
     const [showVolume, setShowVolume] = useState(true);
     const [showSMA, setShowSMA] = useState({ sma20: false, sma50: false, sma200: false });
-    const [hoveredData, setHoveredData] = useState(null);
-    const [currentPrice, setCurrentPrice] = useState(null);
+    const [hoveredData, setHoveredData] = useState<ChartDataPoint | null>(null);
+    const [currentPrice, setCurrentPrice] = useState<number | null>(null);
 
     // Refs
-    const chartRef = useRef(null);
-    const volumeChartRef = useRef(null);
-    const chartInstanceRef = useRef(null);
-    const volumeChartInstanceRef = useRef(null);
-    const containerRef = useRef(null);
+    const chartRef = useRef<HTMLCanvasElement | null>(null);
+    const volumeChartRef = useRef<HTMLCanvasElement | null>(null);
+    const chartInstanceRef = useRef<any>(null);
+    const volumeChartInstanceRef = useRef<any>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
 
     // Time range options
     const timeRanges = ['1D', '5D', '1W', '1M', '3M', '6M', 'YTD', '1Y', '5Y', 'ALL'];
@@ -105,12 +128,12 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     // DATA PROCESSING
     // ========================================================================
 
-    const processData = useCallback((rawData) => {
+    const processData = useCallback((rawData: unknown[]): ChartDataPoint[] => {
         if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
             return [];
         }
 
-        return rawData.map((item, index) => ({
+        return rawData.map((item: any, index) => ({
             ...item,
             date: new Date(item.date),
             formattedDate: formatDateForRange(item.date, timeRange),
@@ -151,7 +174,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     // DATA FETCHING
     // ========================================================================
 
-    const fetchChartData = async (range) => {
+    const fetchChartData = async (range: string) => {
         setIsLoadingNewData(true);
         try {
             const apiBase = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
@@ -184,7 +207,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
         }
     };
 
-    const handleTimeRangeChange = (newRange) => {
+    const handleTimeRangeChange = (newRange: string) => {
         if (newRange !== timeRange) {
             setTimeRange(newRange);
             fetchChartData(newRange);
@@ -198,7 +221,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     useEffect(() => {
         if (chartData.length === 0 || !chartRef.current) return;
 
-        const ChartLib = window.Chart || (typeof Chart !== 'undefined' ? Chart : null);
+        const ChartLib = (window as any).Chart || (typeof (window as any).Chart !== 'undefined' ? (window as any).Chart : null);
         if (!ChartLib) {
             console.error('[StockChart] Chart.js not available');
             return;
@@ -209,7 +232,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
         const mainColor = isPositiveOverall ? CHART_COLORS.positive : CHART_COLORS.negative;
 
         // Prepare datasets
-        const datasets = [];
+        const datasets: any[] = [];
 
         if (chartType === 'line') {
             // Line chart dataset
@@ -361,7 +384,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                         padding: 12,
                         displayColors: false,
                         callbacks: {
-                            title: (context) => {
+                            title: (context: any) => {
                                 const idx = context[0].dataIndex;
                                 const item = chartData[idx];
                                 return item ? new Date(item.date).toLocaleDateString('en-US', {
@@ -371,7 +394,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                                     year: 'numeric'
                                 }) : '';
                             },
-                            label: (context) => {
+                            label: (context: any) => {
                                 const idx = context.dataIndex;
                                 const item = chartData[idx];
                                 if (!item) return '';
@@ -423,13 +446,13 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                         ticks: {
                             color: CHART_COLORS.textSecondary,
                             font: { size: 11 },
-                            callback: (value) => '$' + formatPrice(value)
+                            callback: (value: number) => '$' + formatPrice(value)
                         },
                         min: minPrice - padding,
                         max: maxPrice + padding
                     }
                 },
-                onHover: (event, elements) => {
+                onHover: (event: any, elements: any[]) => {
                     if (elements.length > 0) {
                         const idx = elements[0].index;
                         setHoveredData(chartData[idx]);
@@ -458,7 +481,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
     useEffect(() => {
         if (!showVolume || chartData.length === 0 || !volumeChartRef.current) return;
 
-        const ChartLib = window.Chart || (typeof Chart !== 'undefined' ? Chart : null);
+        const ChartLib = (window as any).Chart || (typeof (window as any).Chart !== 'undefined' ? (window as any).Chart : null);
         if (!ChartLib) return;
 
         const ctx = volumeChartRef.current.getContext('2d');
@@ -497,7 +520,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                         borderColor: CHART_COLORS.border,
                         borderWidth: 1,
                         callbacks: {
-                            label: (context) => `Volume: ${formatVolume(context.parsed.y)}`
+                            label: (context: any) => `Volume: ${formatVolume(context.parsed.y)}`
                         }
                     }
                 },
@@ -516,7 +539,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                         ticks: {
                             color: CHART_COLORS.textSecondary,
                             font: { size: 10 },
-                            callback: (value) => formatVolume(value),
+                            callback: (value: number) => formatVolume(value),
                             maxTicksLimit: 3
                         }
                     }
@@ -808,7 +831,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                     style: { fontSize: '12px', color: CHART_COLORS.textSecondary, marginRight: '4px' }
                 }, 'MA:'),
                 ['20', '50', '200'].map(period => {
-                    const key = `sma${period}`;
+                    const key = `sma${period}` as keyof typeof showSMA;
                     const isActive = showSMA[key];
                     const color = period === '20' ? CHART_COLORS.sma20 : period === '50' ? CHART_COLORS.sma50 : CHART_COLORS.sma200;
                     return React.createElement('button', {
@@ -943,7 +966,7 @@ window.StockChart = ({ symbol, data, isModal = false, onClose }) => {
                 React.createElement('div', {
                     key: 'value',
                     style: { fontSize: '13px', fontWeight: '600', color: CHART_COLORS.textPrimary }
-                }, key === 'volume' ? formatVolume(displayData[key]) : `$${formatPrice(displayData[key])}`)
+                }, key === 'volume' ? formatVolume(displayData[key] as number) : `$${formatPrice(displayData[key] as number)}`)
             ])
         ))
     ]);
@@ -961,5 +984,3 @@ if (typeof document !== 'undefined' && !document.getElementById('chart-spin-styl
     `;
     document.head.appendChild(style);
 }
-
-// console.log('[StockChart] Enhanced chart component loaded with candlestick, volume, and indicators');

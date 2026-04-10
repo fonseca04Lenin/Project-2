@@ -1,16 +1,17 @@
-// React Stock Details Modal Component
+export {};
 const { useState, useEffect, useCallback, useRef } = React;
 
-// Avoid duplicate declaration of API_BASE_URL
 if (typeof window.API_BASE_URL === 'undefined') {
     window.API_BASE_URL = window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app';
 }
 
-// Use window.API_BASE_URL to avoid const redeclaration errors  
 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
-// Per-Stock Notes Section Component — stores notes independently from watchlist
-const StockNotesSection = ({ symbol }) => {
+interface StockNotesSectionProps {
+    symbol: string;
+}
+
+const StockNotesSection = ({ symbol }: StockNotesSectionProps) => {
     const [note, setNote] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -39,7 +40,7 @@ const StockNotesSection = ({ symbol }) => {
         fetchNote();
     }, [symbol]);
 
-    const handleChange = (e) => {
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setNote(e.target.value);
         setHasChanges(true);
     };
@@ -75,7 +76,7 @@ const StockNotesSection = ({ symbol }) => {
         else setIsEditing(false);
     };
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); saveNote(); }
         else if (e.key === 'Escape') { setNote(savedNote); setHasChanges(false); setIsEditing(false); }
     };
@@ -121,7 +122,7 @@ const StockNotesSection = ({ symbol }) => {
                         onKeyDown={handleKeyDown}
                         placeholder={`Why are you watching ${symbol}? Key levels, thesis, reminders...`}
                         autoFocus
-                        rows="5"
+                        rows={5}
                     />
                     <div className="stock-notes-actions">
                         <span className="stock-notes-hint">Ctrl+Enter to save · Esc to cancel</span>
@@ -166,20 +167,23 @@ const StockNotesSection = ({ symbol }) => {
     );
 };
 
-// Watchlist Notes Section Component
-const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
+interface WatchlistNotesSectionProps {
+    symbol: string;
+    initialNotes?: string;
+}
+
+const WatchlistNotesSection = ({ symbol, initialNotes = '' }: WatchlistNotesSectionProps) => {
     const [notes, setNotes] = useState(initialNotes);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
-    // Update notes when initialNotes changes
     useEffect(() => {
         setNotes(initialNotes || '');
         setHasChanges(false);
     }, [initialNotes]);
 
-    const handleChange = (e) => {
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setNotes(e.target.value);
         setHasChanges(true);
     };
@@ -198,18 +202,17 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                 credentials: 'include',
                 body: JSON.stringify({ notes })
             });
-            
+
             if (response.ok) {
                 setHasChanges(false);
                 setIsEditing(false);
-                // Show success notification
                 if (window.showNotification) {
                     window.showNotification('Notes saved successfully', 'success');
                 }
             } else {
                 throw new Error('Failed to save notes');
             }
-        } catch (err) {
+        } catch (err: any) {
             if (window.showNotification) {
                 window.showNotification('Failed to save notes', 'error');
             }
@@ -226,7 +229,7 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
         }
     };
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
             saveNotes();
@@ -246,7 +249,7 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                         Notes
                     </h4>
                 </div>
-                <div 
+                <div
                     className="watchlist-notes-empty"
                     onClick={() => setIsEditing(true)}
                     style={{ cursor: 'pointer' }}
@@ -266,7 +269,7 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                         Notes
                     </h4>
                 </div>
-                <div 
+                <div
                     className="watchlist-notes-content"
                     onClick={() => setIsEditing(true)}
                     style={{ cursor: 'pointer' }}
@@ -292,10 +295,10 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                 onKeyDown={handleKeyDown}
                 placeholder="Add your notes here..."
                 autoFocus
-                rows="5"
+                rows={5}
             />
             <div className="watchlist-notes-actions">
-                <button 
+                <button
                     className="btn-secondary"
                     onClick={() => {
                         setNotes(initialNotes || '');
@@ -307,7 +310,7 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
                 >
                     Cancel
                 </button>
-                <button 
+                <button
                     className="btn-primary"
                     onClick={saveNotes}
                     disabled={isSaving || !hasChanges}
@@ -320,14 +323,20 @@ const WatchlistNotesSection = ({ symbol, initialNotes = '' }) => {
     );
 };
 
-// In-memory cache for CEO data
-const ceoCache = new Map();
+const ceoCache: Map<string, any> = new Map();
 
-// CEO Details Modal Component - Bloomberg Terminal Style
-const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol }) => {
-    const [ceoData, setCeoData] = useState(null);
+interface CEODetailsModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    ceoName: string;
+    companyName: string;
+    companySymbol: string;
+}
+
+const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol }: CEODetailsModalProps) => {
+    const [ceoData, setCeoData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const [youtubeVideos, setYoutubeVideos] = useState([]);
+    const [youtubeVideos, setYoutubeVideos] = useState<any[]>([]);
     const [youtubeLoading, setYoutubeLoading] = useState(false);
     const [youtubeSearchUrl, setYoutubeSearchUrl] = useState('');
 
@@ -343,12 +352,12 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
 
             setLoading(true);
 
-            const removeTitles = (name) => {
+            const removeTitles = (name: string): string => {
                 if (!name) return name;
                 return name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
             };
 
-            const getFirstLastName = (name) => {
+            const getFirstLastName = (name: string): string => {
                 if (!name) return name;
                 let cleanName = removeTitles(name);
                 const parts = cleanName.split(/\s+/).filter(part => part.length > 0);
@@ -356,8 +365,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 return `${parts[0]} ${parts[parts.length - 1]}`;
             };
 
-            const parseEducation = (wikitext, nameHint) => {
-                const education = [];
+            const parseEducation = (wikitext: string, nameHint: string): any[] => {
+                const education: any[] = [];
                 const educationPatterns = [
                     /\|\s*alma[_\s]mater\s*=\s*([^\n\|]+)/gi,
                     /\|\s*education\s*=\s*([^\n\|]+)/gi,
@@ -377,8 +386,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         for (let school of schools) {
                             school = school.trim();
                             if (!school || school.length < 3) continue;
-                            let degreeType = null;
-                            let degreeName = null;
+                            let degreeType: string | null = null;
+                            let degreeName: string | null = null;
                             let schoolName = school;
                             const degreePatterns = [
                                 { pattern: /\b(Ph\.?D\.?|Doctor of Philosophy|Doctorate)\b/i, type: 'PhD' },
@@ -392,7 +401,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 { pattern: /\b(B\.?Eng\.?|Bachelor of Engineering)\b/i, type: 'Bachelors', name: 'Bachelor of Engineering' },
                                 { pattern: /\b(B\.?B\.?A\.?|Bachelor of Business Administration)\b/i, type: 'Bachelors', name: 'BBA' },
                                 { pattern: /\b(Bachelor'?s?|B\.)\b/i, type: 'Bachelors' }
-                            ];
+                            ] as Array<{ pattern: RegExp; type: string; name?: string }>;
                             for (const deg of degreePatterns) {
                                 const m = school.match(deg.pattern);
                                 if (m) {
@@ -425,12 +434,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
             const searchName = getFirstLastName(ceoName);
 
             try {
-                // Strategy 1: name + CEO
-                let searchData = await fetch(
+                let searchData: any = await fetch(
                     `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchName + ' CEO')}&format=json&origin=*&srlimit=3`
                 ).then(r => r.json());
 
-                let personPage = searchData.query.search.find(result => {
+                let personPage: any = searchData.query.search.find((result: any) => {
                     const snippet = result.snippet.toLowerCase();
                     const title = result.title.toLowerCase();
                     return (
@@ -440,12 +448,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     );
                 });
 
-                // Strategy 2: just the name
                 if (!personPage) {
                     searchData = await fetch(
                         `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchName)}&format=json&origin=*&srlimit=5`
                     ).then(r => r.json());
-                    personPage = searchData.query.search.find(result => {
+                    personPage = searchData.query.search.find((result: any) => {
                         const snippet = result.snippet.toLowerCase();
                         const title = result.title.toLowerCase();
                         return (
@@ -456,61 +463,58 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     });
                 }
 
-                // Strategy 3: name + business
                 if (!personPage) {
                     searchData = await fetch(
                         `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchName + ' business')}&format=json&origin=*&srlimit=5`
                     ).then(r => r.json());
                     const nameParts = searchName.toLowerCase().split(' ');
-                    personPage = searchData.query.search.find(result => {
+                    personPage = searchData.query.search.find((result: any) => {
                         const snippet = result.snippet.toLowerCase();
                         const title = result.title.toLowerCase();
                         return (
-                            nameParts.every(part => title.includes(part)) &&
+                            nameParts.every((part: string) => title.includes(part)) &&
                             (snippet.includes('born') || snippet.includes('ceo') || snippet.includes('executive'))
                         );
                     });
                 }
 
-                // Strategy 4: title match fallback
                 if (!personPage && searchData.query.search.length > 0) {
                     const nameParts = searchName.toLowerCase().split(' ');
-                    personPage = searchData.query.search.find(result => {
+                    personPage = searchData.query.search.find((result: any) => {
                         const title = result.title.toLowerCase();
-                        return nameParts.every(part => title.includes(part));
+                        return nameParts.every((part: string) => title.includes(part));
                     });
                 }
 
                 if (personPage) {
                     const pageId = personPage.pageid;
 
-                    // Parallel: REST summary (bio + thumbnail) + wikitext (education + categories)
                     const [summaryResult, wikitextResult] = await Promise.allSettled([
                         fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(personPage.title)}`).then(r => r.json()),
                         fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions|categories&rvprop=content&rvslots=main&pageids=${pageId}&cllimit=20&format=json&origin=*`).then(r => r.json())
                     ]);
 
-                    let biography = null;
-                    let imageUrl = null;
+                    let biography: string | null = null;
+                    let imageUrl: string | null = null;
                     if (summaryResult.status === 'fulfilled') {
-                        const summary = summaryResult.value;
+                        const summary: any = summaryResult.value;
                         biography = summary.extract || null;
                         imageUrl = summary.thumbnail?.source || null;
                     }
 
-                    let education = [];
-                    let categories = [];
+                    let education: any[] = [];
+                    let categories: any[] = [];
                     if (wikitextResult.status === 'fulfilled') {
-                        const wikitextPage = wikitextResult.value.query.pages[pageId];
+                        const wikitextPage: any = (wikitextResult.value as any).query.pages[pageId];
                         categories = wikitextPage.categories || [];
-                        let wikitext = null;
+                        let wikitext: string | null = null;
                         if (wikitextPage.revisions && wikitextPage.revisions[0]) {
                             wikitext = wikitextPage.revisions[0].slots?.main?.['*'] || wikitextPage.revisions[0]['*'] || null;
                         }
                         if (wikitext) education = parseEducation(wikitext, searchName);
                     }
 
-                    const isPersonPage = categories.some(cat =>
+                    const isPersonPage = categories.some((cat: any) =>
                         cat.title.toLowerCase().includes('living people') ||
                         cat.title.toLowerCase().includes('births') ||
                         cat.title.toLowerCase().includes('businesspeople') ||
@@ -547,7 +551,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     ceoCache.set(cacheKey, result);
                     setCeoData(result);
                 }
-            } catch (err) {
+            } catch (err: any) {
                 setCeoData({
                     name: searchName,
                     biography: null,
@@ -572,8 +576,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
             setYoutubeLoading(true);
             setYoutubeVideos([]);
 
-            // Hjelper function to get clean name for search
-            const getSearchName = (name) => {
+            const getSearchName = (name: string): string => {
                 if (!name) return name;
                 let cleanName = name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
                 const parts = cleanName.split(/\s+/).filter(part => part.length > 0);
@@ -584,7 +587,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
             };
 
             const searchName = getSearchName(ceoName);
-            const searchQuery = `Who is ${searchName} ${companySymbol} CEO`;    
+            const searchQuery = `Who is ${searchName} ${companySymbol} CEO`;
 
             try {
                 const response = await fetch(`${API_BASE}/api/youtube/search?q=${encodeURIComponent(searchQuery)}&max_results=6`);
@@ -596,7 +599,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 if (data.search_url) {
                     setYoutubeSearchUrl(data.search_url);
                 }
-            } catch (err) {
+            } catch (err: any) {
                 setYoutubeSearchUrl(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`);
             } finally {
                 setYoutubeLoading(false);
@@ -606,9 +609,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
         fetchYoutubeVideos();
     }, [isOpen, ceoName]);
 
-    // Handle ESC key to close modal
     useEffect(() => {
-        const handleEscape = (e) => {
+        const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
                 onClose();
             }
@@ -619,7 +621,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
 
     if (!isOpen) return null;
 
-    // Bloomberg Terminal Colors - Green Theme
     const colors = {
         bg: '#0a1410',
         surface: '#0f1f1a',
@@ -650,7 +651,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
     },
         React.createElement('div', {
             className: 'modal-content ceo-modal bloomberg-dialog',
-            onClick: (e) => e.stopPropagation(),
+            onClick: (e: React.MouseEvent) => e.stopPropagation(),
             style: {
                 background: colors.bg,
                 border: `2px solid ${colors.border}`,
@@ -662,7 +663,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 fontFamily: "'Courier New', Courier, monospace"
             }
         },
-            // Terminal Header
             React.createElement('div', {
                 style: {
                     background: colors.surface,
@@ -674,7 +674,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                 }
             },
                 React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '1rem' } },
-                    // Back arrow
                     React.createElement('button', {
                         onClick: onClose,
                         style: {
@@ -690,11 +689,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             alignItems: 'center',
                             gap: '0.5rem'
                         },
-                        onMouseOver: (e) => {
+                        onMouseOver: (e: React.MouseEvent<HTMLButtonElement>) => {
                             e.currentTarget.style.background = 'rgba(0, 255, 136, 0.1)';
                             e.currentTarget.style.borderColor = colors.primary;
                         },
-                        onMouseOut: (e) => {
+                        onMouseOut: (e: React.MouseEvent<HTMLButtonElement>) => {
                             e.currentTarget.style.background = 'transparent';
                             e.currentTarget.style.borderColor = colors.border;
                         },
@@ -732,14 +731,13 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                         transition: 'color 0.2s',
                         fontFamily: "'Courier New', Courier, monospace"
                     },
-                    onMouseOver: (e) => e.currentTarget.style.color = colors.primary,
-                    onMouseOut: (e) => e.currentTarget.style.color = colors.text,
+                    onMouseOver: (e: React.MouseEvent<HTMLButtonElement>) => e.currentTarget.style.color = colors.primary,
+                    onMouseOut: (e: React.MouseEvent<HTMLButtonElement>) => e.currentTarget.style.color = colors.text,
                     title: 'Close [ESC]'
                 },
                     '×'
                 )
             ),
-            // Modal Body
             React.createElement('div', {
                 style: {
                     flex: 1,
@@ -766,7 +764,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     React.createElement('p', { style: { margin: 0, color: colors.text, letterSpacing: '0.1em' } }, 'LOADING EXECUTIVE DATA...')
                 ),
                 !loading && ceoData && React.createElement('div', { className: 'ceo-details-terminal' },
-                    // Photo and Name Section
                     React.createElement('div', {
                         style: {
                             display: 'flex',
@@ -776,7 +773,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             borderBottom: `1px solid ${colors.border}`
                         }
                     },
-                        // Photo
                         React.createElement('div', {
                             style: {
                                 position: 'relative',
@@ -807,7 +803,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 }
                             }, React.createElement('i', { className: 'fas fa-user' }))
                         ),
-                        // Info fields
                         React.createElement('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' } },
                             React.createElement('div', null,
                                 React.createElement('span', { style: { color: colors.secondary, fontSize: '0.85rem', letterSpacing: '0.05em' } }, 'NAME: '),
@@ -823,7 +818,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             )
                         )
                     ),
-                    // Biography Section
                     ceoData.biography && React.createElement('div', {
                         style: {
                             marginBottom: '1.5rem'
@@ -849,7 +843,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             }
                         }, ceoData.biography)
                     ),
-                    // Education Section
                     ceoData.education && ceoData.education.length > 0 && React.createElement('div', {
                         style: {
                             marginBottom: '1.5rem'
@@ -872,7 +865,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 gap: '1rem'
                             }
                         },
-                            ceoData.education.map((edu, index) =>
+                            ceoData.education.map((edu: any, index: number) =>
                                 React.createElement('div', {
                                     key: index,
                                     style: {
@@ -975,7 +968,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             )
                         )
                     ),
-                    // Wikipedia Link
                     ceoData.wikipediaUrl && React.createElement('div', {
                         style: {
                             marginTop: '2rem',
@@ -1001,11 +993,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 letterSpacing: '0.05em',
                                 transition: 'all 0.2s'
                             },
-                            onMouseOver: (e) => {
+                            onMouseOver: (e: React.MouseEvent<HTMLAnchorElement>) => {
                                 e.currentTarget.style.background = 'rgba(0, 255, 136, 0.1)';
                                 e.currentTarget.style.borderColor = colors.primary;
                             },
-                            onMouseOut: (e) => {
+                            onMouseOut: (e: React.MouseEvent<HTMLAnchorElement>) => {
                                 e.currentTarget.style.background = 'transparent';
                                 e.currentTarget.style.borderColor = colors.border;
                             }
@@ -1015,7 +1007,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.75rem' } })
                         )
                     ),
-                    // YoukTube Videos Section - "Who is [CEO Name]"
                     React.createElement('div', {
                         style: {
                             marginTop: '2rem',
@@ -1052,8 +1043,8 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                     alignItems: 'center',
                                     gap: '0.25rem'
                                 },
-                                onMouseOver: (e) => e.currentTarget.style.color = colors.primary,
-                                onMouseOut: (e) => e.currentTarget.style.color = colors.text
+                                onMouseOver: (e: React.MouseEvent<HTMLAnchorElement>) => e.currentTarget.style.color = colors.primary,
+                                onMouseOut: (e: React.MouseEvent<HTMLAnchorElement>) => e.currentTarget.style.color = colors.text
                             },
                                 'View all on YouTube',
                                 React.createElement('i', { className: 'fas fa-external-link-alt', style: { fontSize: '0.6rem' } })
@@ -1078,7 +1069,7 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                 gap: '1rem'
                             }
                         },
-                            youtubeVideos.map((video, index) =>
+                            youtubeVideos.map((video: any, index: number) =>
                                 React.createElement('a', {
                                     key: video.id || index,
                                     href: video.url,
@@ -1093,20 +1084,19 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                         overflow: 'hidden',
                                         transition: 'all 0.2s'
                                     },
-                                    onMouseOver: (e) => {
+                                    onMouseOver: (e: React.MouseEvent<HTMLAnchorElement>) => {
                                         e.currentTarget.style.borderColor = colors.primary;
                                         e.currentTarget.style.transform = 'translateY(-2px)';
                                     },
-                                    onMouseOut: (e) => {
+                                    onMouseOut: (e: React.MouseEvent<HTMLAnchorElement>) => {
                                         e.currentTarget.style.borderColor = colors.border;
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }
                                 },
-                                    // Video Thumbnailss
                                     React.createElement('div', {
                                         style: {
                                             position: 'relative',
-                                            paddingTop: '56.25%', // 16:9 aspect ratio
+                                            paddingTop: '56.25%',
                                             background: '#000'
                                         }
                                     },
@@ -1122,7 +1112,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                                 objectFit: 'cover'
                                             }
                                         }),
-                                        // Play button overlay
                                         React.createElement('div', {
                                             style: {
                                                 position: 'absolute',
@@ -1148,7 +1137,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                             })
                                         )
                                     ),
-                                    // Video Info
                                     React.createElement('div', {
                                         style: {
                                             padding: '0.75rem'
@@ -1205,11 +1193,11 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                                     letterSpacing: '0.05em',
                                     transition: 'all 0.2s'
                                 },
-                                onMouseOver: (e) => {
+                                onMouseOver: (e: React.MouseEvent<HTMLAnchorElement>) => {
                                     e.currentTarget.style.background = 'rgba(255, 0, 0, 0.2)';
                                     e.currentTarget.style.borderColor = '#FF0000';
                                 },
-                                onMouseOut: (e) => {
+                                onMouseOut: (e: React.MouseEvent<HTMLAnchorElement>) => {
                                     e.currentTarget.style.background = 'rgba(255, 0, 0, 0.1)';
                                     e.currentTarget.style.borderColor = 'rgba(255, 0, 0, 0.3)';
                                 }
@@ -1225,7 +1213,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                             }, 'No videos available')
                         )
                     ),
-                    // Warning for limited info
                     !ceoData.found && React.createElement('div', {
                         style: {
                             marginTop: '1.5rem',
@@ -1242,7 +1229,6 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
                     )
                 )
             ),
-            // Terminal Footer
             React.createElement('div', {
                 style: {
                     background: colors.surface,
@@ -1295,35 +1281,38 @@ const CEODetailsModal = ({ isOpen, onClose, ceoName, companyName, companySymbol 
     );
 };
 
-const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false }) => {
-    const [stockData, setStockData] = useState(null);
+interface StockDetailsModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    symbol: string;
+    isFromWatchlist?: boolean;
+}
+
+const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false }: StockDetailsModalProps) => {
+    const [stockData, setStockData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [chartData, setChartData] = useState(null);
-    const [news, setNews] = useState([]);
+    const [error, setError] = useState<string | null>(null);
+    const [chartData, setChartData] = useState<any>(null);
+    const [news, setNews] = useState<any[]>([]);
     const [newsLoading, setNewsLoading] = useState(false);
     const [newsPage, setNewsPage] = useState(1);
     const [newsHasMore, setNewsHasMore] = useState(true);
     const [newsLoadingMore, setNewsLoadingMore] = useState(false);
-    const newsContainerRef = useRef(null);
-    const [stocktwits, setStocktwits] = useState([]);
+    const newsContainerRef = useRef<HTMLDivElement>(null);
+    const [stocktwits, setStocktwits] = useState<any[]>([]);
     const [stocktwitsLoading, setStocktwitsLoading] = useState(false);
-    const [aiInsight, setAiInsight] = useState(null);
+    const [aiInsight, setAiInsight] = useState<any>(null);
     const [aiInsightLoading, setAiInsightLoading] = useState(false);
     const [aiInsightUpgradeRequired, setAiInsightUpgradeRequired] = useState(false);
     const [aiInsightGuest, setAiInsightGuest] = useState(false);
-    const chartRootRef = useRef(null);
+    const chartRootRef = useRef<any>(null);
 
-    // CEO Modal State
     const [ceoModalOpen, setCeoModalOpen] = useState(false);
     const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
 
-    // Helper function to clean CEO name (remove titles, extract first and last name)
-    const cleanCEOName = (name) => {
+    const cleanCEOName = (name: string): string => {
         if (!name || name === '-') return name;
-        // Remove titles
         let cleaned = name.replace(/^(Mr\.?|Ms\.?|Mrs\.?|Miss\.?|Dr\.?|Prof\.?|Professor\.?)\s+/gi, '').trim();
-        // Extract first and last name only
         const parts = cleaned.split(/\s+/).filter(part => part.length > 0);
         if (parts.length > 2) {
             return `${parts[0]} ${parts[parts.length - 1]}`;
@@ -1331,31 +1320,26 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         return cleaned;
     };
 
-    // Update global modalState when stockData changes
     useEffect(() => {
         if (stockData) {
             modalState.stockData = stockData;
         }
     }, [stockData]);
 
-    // Track stock view for priority real-time updates
     useEffect(() => {
         if (!isOpen || !symbol) return;
-        
-        // Track stock view for priority updates
-        if (typeof window.trackStockView === 'function') {
-            window.trackStockView(symbol);
+
+        if (typeof (window as any).trackStockView === 'function') {
+            (window as any).trackStockView(symbol);
         }
-        
+
         return () => {
-            // Untrack when modal closes
-            if (typeof window.untrackStockView === 'function') {
-                window.untrackStockView(symbol);
+            if (typeof (window as any).untrackStockView === 'function') {
+                (window as any).untrackStockView(symbol);
             }
         };
     }, [isOpen, symbol]);
 
-    // Fetch stock details
     useEffect(() => {
         if (!isOpen || !symbol) return;
 
@@ -1370,7 +1354,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             setNews([]);
 
             try {
-                // Auth headers timing
                 console.time(`StockDetailsModal-${symbol}-auth-headers`);
                 const authHeaders = await window.AppAuth.getAuthHeaders();
                 console.timeEnd(`StockDetailsModal-${symbol}-auth-headers`);
@@ -1378,15 +1361,14 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                 const useWatchlistEndpoint = isFromWatchlist;
 
-                // Details API call
                 console.time(`StockDetailsModal-${symbol}-details-api`);
                 const detailPromise = (async () => {
                     const url = useWatchlistEndpoint
                         ? `${API_BASE}/api/watchlist/${symbol}/details`
                         : `${API_BASE}/api/company/${symbol}`;
                     const opts = useWatchlistEndpoint
-                        ? { method: 'GET', headers: authHeaders, credentials: 'include' }
-                        : { credentials: 'include' };
+                        ? { method: 'GET', headers: authHeaders, credentials: 'include' as RequestCredentials }
+                        : { credentials: 'include' as RequestCredentials };
                     console.log(`[StockDetailsModal] Fetching details from: ${url}`);
                     const response = await fetch(url, opts);
                     if (!response.ok) {
@@ -1409,7 +1391,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     return { ...data, isInWatchlist: false };
                 })();
 
-                // Chart API call
                 console.time(`StockDetailsModal-${symbol}-chart-api`);
                 const chartPromise = (async () => {
                     try {
@@ -1423,13 +1404,12 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             return chartData;
                         }
                         console.log(`[StockDetailsModal] Chart API failed for ${symbol}, status: ${chartResp.status}`);
-                    } catch (error) {
+                    } catch (error: any) {
                         console.log(`[StockDetailsModal] Chart API error for ${symbol}:`, error);
                     }
                     return null;
                 })();
 
-                // Load details and chart first (critical for modal display)
                 console.time(`StockDetailsModal-${symbol}-news-api`);
                 console.log(`[StockDetailsModal] Loading core data for ${symbol}`);
                 const [details, chartDataResp] = await Promise.all([detailPromise, chartPromise]);
@@ -1442,7 +1422,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 setStockData(details);
                 if (chartDataResp) setChartData(chartDataResp);
 
-                // Load news in background after modal is displayed
                 setNewsLoading(true);
                 setNewsPage(1);
                 setNewsHasMore(true);
@@ -1463,7 +1442,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         } else {
                             console.log(`[StockDetailsModal] News API failed for ${symbol}, status: ${newsResp.status}`);
                         }
-                    } catch (error) {
+                    } catch (error: any) {
                         console.log(`[StockDetailsModal] News API error for ${symbol}:`, error);
                     } finally {
                         setNewsLoading(false);
@@ -1471,7 +1450,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     }
                 })();
 
-                // Load Stocktwits social sentiment in background
                 setStocktwitsLoading(true);
                 setStocktwits([]);
                 (async () => {
@@ -1487,14 +1465,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         } else {
                             console.log(`[StockDetailsModal] Stocktwits API failed for ${symbol}, status: ${stocktwitsResp.status}`);
                         }
-                    } catch (error) {
+                    } catch (error: any) {
                         console.log(`[StockDetailsModal] Stocktwits API error for ${symbol}:`, error);
                     } finally {
                         setStocktwitsLoading(false);
                     }
                 })();
 
-                // Load AI insight in background
                 setAiInsight(null);
                 setAiInsightUpgradeRequired(false);
                 setAiInsightGuest(false);
@@ -1505,7 +1482,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 setAiInsightLoading(true);
                 (async () => {
                     try {
-                        const headers = {};
+                        const headers: Record<string, string> = {};
                         {
                             const token = await authUser.getIdToken();
                             headers['Authorization'] = `Bearer ${token}`;
@@ -1521,16 +1498,16 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                         } else {
                             console.log(`[StockDetailsModal] AI insight API failed for ${symbol}, status: ${insightResp.status}`);
                         }
-                    } catch (error) {
+                    } catch (error: any) {
                         console.log(`[StockDetailsModal] AI insight API error for ${symbol}:`, error);
                     } finally {
                         setAiInsightLoading(false);
                     }
                 })();
-                } // end else (authenticated)
+                }
 
                 console.log(`[StockDetailsModal] State updated for ${symbol}`);
-            } catch (err) {
+            } catch (err: any) {
                 console.error(`[StockDetailsModal] Error loading data for ${symbol}:`, err);
                 setError(err.message || 'Failed to load stock details');
             } finally {
@@ -1543,7 +1520,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         fetchData();
     }, [isOpen, symbol, isFromWatchlist]);
 
-    // Real-time price updates when modal is open with rate limiting
     const priceUpdateRef = useRef({
         lastCallTime: 0,
         rateLimitCooldown: false,
@@ -1560,29 +1536,25 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             const now = Date.now();
             const ref = priceUpdateRef.current;
 
-            // Prevent concurrent updates
             if (ref.isUpdating) {
                 console.log(`[StockDetailsModal] Skipping price update for ${symbol} - already updating`);
                 return;
             }
 
-            // Check if we're in rate limit cooldown
             if (ref.rateLimitCooldown && now < ref.rateLimitUntil) {
                 console.log(`[StockDetailsModal] Skipping price update for ${symbol} - in rate limit cooldown`);
-                return; // Skip this update
+                return;
             }
 
-            // Reset cooldown if time has passed
             if (ref.rateLimitCooldown && now >= ref.rateLimitUntil) {
                 console.log(`[StockDetailsModal] Rate limit cooldown ended for ${symbol}`);
                 ref.rateLimitCooldown = false;
             }
 
-            // Throttle: minimum 5 seconds between calls
             const minDelay = 5000;
             if (now - ref.lastCallTime < minDelay) {
                 console.log(`[StockDetailsModal] Skipping price update for ${symbol} - throttled (${now - ref.lastCallTime}ms since last call)`);
-                return; // Skip if too soon
+                return;
             }
 
             ref.isUpdating = true;
@@ -1590,13 +1562,11 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             console.log(`[StockDetailsModal] Starting backend price update for ${symbol}`);
 
             try {
-                // Use backend API for price updates (handles CORS and Alpaca/Yahoo fallback)
                 const API_BASE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
                 const authStart = performance.now();
                 const authHeaders = await window.AppAuth.getAuthHeaders();
                 const authTime = performance.now() - authStart;
                 console.log(`[StockDetailsModal] Auth headers fetched for ${symbol}: ${authTime.toFixed(2)}ms`);
-
                 console.log(`[StockDetailsModal] Fetching price data for ${symbol}`);
                 const response = await fetch(`${API_BASE}/api/search`, {
                     method: 'POST',
@@ -1610,7 +1580,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
                 ref.lastCallTime = Date.now();
 
-                // Handle rate limit response
                 if (response.status === 429) {
                     const retryAfter = response.headers.get('Retry-After');
                     const cooldownSeconds = retryAfter ? parseInt(retryAfter) : 60;
@@ -1623,7 +1592,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 if (response.ok) {
                     const stockData = await response.json();
                     console.log(`[StockDetailsModal] Price data received for ${symbol}: $${stockData.price}`);
-                    setStockData(prev => prev ? {
+                    setStockData((prev: any) => prev ? {
                         ...prev,
                         price: stockData.price,
                         priceChange: stockData.priceChange || 0,
@@ -1634,7 +1603,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 } else {
                     console.log(`[StockDetailsModal] Price API failed for ${symbol}, status: ${response.status}`);
                 }
-            } catch (e) {
+            } catch (e: any) {
                 console.error(`[StockDetailsModal] Error updating price for ${symbol}:`, e);
             } finally {
                 ref.isUpdating = false;
@@ -1643,25 +1612,19 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             }
         };
 
-        // REMOVED: Modal price updates - rely on WebSocket updates instead
-        // Backend WebSocket pushes updates every 30s to all connected clients
-        // Modal will display most recent data from WebSocket
         console.log(`[StockDetailsModal] Price updates via WebSocket only for ${symbol}`);
         console.log(`   Backend updates every 30s - no separate modal polling needed`);
 
         return () => {
-            // No cleanup needed - WebSocket handles updates
         };
     }, [isOpen, symbol]);
 
-    // Render chart when chartData is available
     useEffect(() => {
         if (!chartData || !symbol) return;
 
         console.time(`StockDetailsModal-${symbol}-chart-render`);
         console.log(`[StockDetailsModal] Starting chart render for ${symbol}`);
 
-        // Try to find container with retry logic
         let retryCount = 0;
         const maxRetries = 10;
 
@@ -1680,10 +1643,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
             console.log(`[StockDetailsModal] Chart container found for ${symbol}, clearing and rendering`);
 
-            // Clear container
             chartContainer.innerHTML = '';
 
-            // Check if Chart.js and StockChart are available
             if (!window.StockChart) {
                 console.log(`[StockDetailsModal] StockChart component not available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart component not loaded. Please refresh the page.</p></div>';
@@ -1691,7 +1652,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 return;
             }
 
-            if (!window.Chart && typeof Chart === 'undefined') {
+            if (!(window as any).Chart && typeof (window as any).Chart === 'undefined') {
                 console.log(`[StockDetailsModal] Chart.js library not available for ${symbol}`);
                 chartContainer.innerHTML = '<div class="loading-state"><i class="fas fa-exclamation-circle"></i><p>Chart.js library not loaded. Please refresh the page.</p></div>';
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
@@ -1705,10 +1666,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 return;
             }
 
-            // Render chart using ReactDOM.createRoot
             try {
                 console.log(`[StockDetailsModal] Creating React root and rendering chart for ${symbol}`);
-                // Create or reuse the root
                 if (!chartRootRef.current) {
                     chartRootRef.current = ReactDOM.createRoot(chartContainer);
                 }
@@ -1717,12 +1676,12 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                     symbol: symbol,
                     data: chartData,
                     isModal: true,
-                    onClose: null
+                    onClose: undefined
                 }));
 
                 console.log(`[StockDetailsModal] Chart render completed for ${symbol}`);
                 console.timeEnd(`StockDetailsModal-${symbol}-chart-render`);
-            } catch (error) {
+            } catch (error: any) {
                 console.error(`[StockDetailsModal] Chart render error for ${symbol}:`, error);
                 const errorText = document.createTextNode('Error rendering chart: ' + error.message);
                 const errorP = document.createElement('p');
@@ -1737,7 +1696,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
             }
         };
 
-        // Start the retry process
         findAndRenderChart();
 
         return () => {
@@ -1748,9 +1706,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         };
     }, [chartData, symbol]);
 
-    // Handle escape key
     useEffect(() => {
-        const handleEscape = (e) => {
+        const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
                 onClose();
             }
@@ -1759,7 +1716,6 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         return () => document.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
 
-    // Prevent body scroll when modal is open
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -1773,7 +1729,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
 
     if (!isOpen) return null;
 
-    const formatMarketCap = (value) => {
+    const formatMarketCap = (value: any): string => {
         if (!value || value === '-') return '-';
         if (typeof value === 'number') {
             if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
@@ -1784,7 +1740,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
         return value.toString();
     };
 
-    const formatDate = (dateString) => {
+    const formatDate = (dateString: any): string => {
         if (!dateString) return '-';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
@@ -1810,14 +1766,13 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 setNewsHasMore(newsRespData.hasMore);
                 setNewsPage(1);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.log(`[StockDetailsModal] News fetch error:`, error);
         } finally {
             setNewsLoading(false);
         }
     };
 
-    // Load more news for lazy loading
     const loadMoreNews = async () => {
         if (newsLoadingMore || !newsHasMore || !symbol) return;
 
@@ -1835,20 +1790,20 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                 console.log(`[StockDetailsModal] Loaded ${newArticles.length} more articles for ${symbol}`);
 
                 if (newArticles.length > 0) {
-                    setNews(prev => [...prev, ...newArticles]);
+                    setNews((prev: any[]) => [...prev, ...newArticles]);
                     setNewsPage(nextPage);
                 }
                 setNewsHasMore(newsRespData.hasMore && newArticles.length > 0);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.log(`[StockDetailsModal] Error loading more news for ${symbol}:`, error);
         } finally {
             setNewsLoadingMore(false);
         }
     };
 
-    const handleNewsScroll = (e) => {
-        const container = e.target;
+    const handleNewsScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const container = e.target as HTMLDivElement;
         const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
 
         if (scrollBottom < 50 && newsHasMore && !newsLoadingMore) {
@@ -1859,8 +1814,8 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     return (
         <div className="stock-details-modal-overlay" onClick={onClose}>
             <div className="stock-details-modal-content" onClick={(e) => e.stopPropagation()}>
-                <button 
-                    className="close-modal-btn" 
+                <button
+                    className="close-modal-btn"
                     onClick={onClose}
                     aria-label="Close modal"
                 >
@@ -1918,15 +1873,15 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                                 Change Since Added
                                             </span>
                                             <span className={`info-value ${stockData.priceChange >= 0 ? 'positive' : 'negative'}`}>
-                                                <i 
+                                                <i
                                                     className={stockData.priceChange >= 0 ? 'fas fa-arrow-trend-up' : 'fas fa-arrow-trend-down'}
-                                                    style={{ 
-                                                        marginRight: '6px', 
+                                                    style={{
+                                                        marginRight: '6px',
                                                         fontSize: '16px',
                                                         fontWeight: '700',
                                                         color: stockData.priceChange >= 0 ? '#00D924' : '#ef4444',
-                                                        textShadow: stockData.priceChange >= 0 
-                                                            ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
+                                                        textShadow: stockData.priceChange >= 0
+                                                            ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)'
                                                             : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
                                                         display: 'inline-block',
                                                         lineHeight: '1'
@@ -2002,7 +1957,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                         AI Market Insights are available on Pro and Elite plans.
                                     </p>
                                     <button
-                                        onClick={() => window.showUpgradeModal && window.showUpgradeModal('Unlock AI Market Insights with Pro or Elite.')}
+                                        onClick={() => (window as any).showUpgradeModal && (window as any).showUpgradeModal('Unlock AI Market Insights with Pro or Elite.')}
                                         style={{
                                             background: 'linear-gradient(135deg, #00D4AA, #00A878)',
                                             border: 'none', borderRadius: '8px', padding: '6px 16px',
@@ -2092,7 +2047,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                             </div>
                             <div>
                                 <strong data-icon="dividend">Dividend Yield:</strong> <span>
-                                    {stockData.dividendYield && stockData.dividendYield !== '-' 
+                                    {stockData.dividendYield && stockData.dividendYield !== '-'
                                         ? (typeof stockData.dividendYield === 'number' ? (stockData.dividendYield * 100).toFixed(2) + '%' : stockData.dividendYield)
                                         : '-'
                                     }
@@ -2121,7 +2076,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     </div>
                                     <div>
                                         <strong data-icon="dollar">Original Price:</strong> <span>
-                                            {stockData.originalPrice !== null && stockData.originalPrice !== undefined 
+                                            {stockData.originalPrice !== null && stockData.originalPrice !== undefined
                                                 ? `$${typeof stockData.originalPrice === 'number' ? stockData.originalPrice.toFixed(2) : stockData.originalPrice}`
                                                 : '-'
                                             }
@@ -2129,18 +2084,18 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     </div>
                                     <div>
                                         <strong data-icon="trend">Price Change:</strong> <span className={`${stockData.priceChange !== null && stockData.priceChange !== undefined && stockData.priceChange >= 0 ? 'positive' : 'negative'}`}>
-                                            {stockData.priceChange !== null && stockData.priceChange !== undefined ? 
+                                            {stockData.priceChange !== null && stockData.priceChange !== undefined ?
                                                 <span>
-                                                    <i 
+                                                    <i
                                                         className={stockData.priceChange >= 0 ? 'fas fa-arrow-trend-up' : 'fas fa-arrow-trend-down'}
-                                                        style={{ 
+                                                        style={{
                                                             marginRight: '6px',
                                                             fontSize: '14px',
                                                             fontWeight: '700',
                                                             color: stockData.priceChange >= 0 ? '#00D924' : '#ef4444',
-                                                            textShadow: stockData.priceChange >= 0 
-                                                                ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
-                                                                : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
+                                                            textShadow: stockData.priceChange >= 0
+                                                                ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)'
+                                                            : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
                                                             display: 'inline-block',
                                                             lineHeight: '1'
                                                         }}
@@ -2153,17 +2108,17 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     </div>
                                     <div>
                                         <strong data-icon="percent">Percentage Change:</strong> <span className={`${stockData.percentageChange !== null && stockData.percentageChange !== undefined && stockData.percentageChange >= 0 ? 'positive' : 'negative'}`}>
-                                            {stockData.percentageChange !== null && stockData.percentageChange !== undefined ? 
+                                            {stockData.percentageChange !== null && stockData.percentageChange !== undefined ?
                                                 <span>
-                                                    <i 
+                                                    <i
                                                         className={stockData.percentageChange >= 0 ? 'fas fa-arrow-trend-up' : 'fas fa-arrow-trend-down'}
-                                                        style={{ 
+                                                        style={{
                                                             marginRight: '6px',
                                                             fontSize: '14px',
                                                             fontWeight: '700',
                                                             color: stockData.percentageChange >= 0 ? '#00D924' : '#ef4444',
-                                                            textShadow: stockData.percentageChange >= 0 
-                                                                ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)' 
+                                                            textShadow: stockData.percentageChange >= 0
+                                                                ? '0 0 8px rgba(0, 217, 36, 0.6), 0 0 12px rgba(0, 217, 36, 0.4)'
                                                                 : '0 0 8px rgba(239, 68, 68, 0.6), 0 0 12px rgba(239, 68, 68, 0.4)',
                                                             display: 'inline-block',
                                                             lineHeight: '1'
@@ -2252,7 +2207,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                             overflowY: 'auto'
                                         }}
                                     >
-                                        {news.map((article, index) => (
+                                        {news.map((article: any, index: number) => (
                                             <a
                                                 key={`${article.link}-${index}`}
                                                 href={article.link || article.url}
@@ -2339,7 +2294,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                     maxHeight: '400px',
                                     overflowY: 'auto'
                                 }}>
-                                    {stocktwits.map((message, index) => (
+                                    {stocktwits.map((message: any, index: number) => (
                                         <div
                                             key={message.id || index}
                                             className="stocktwits-message"
@@ -2370,7 +2325,7 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
                                                             borderRadius: '50%'
                                                         }}
                                                         onError={(e) => {
-                                                            e.target.style.display = 'none';
+                                                            (e.target as HTMLImageElement).style.display = 'none';
                                                         }}
                                                     />
                                                 ) : (
@@ -2483,18 +2438,23 @@ const StockDetailsModal = ({ isOpen, onClose, symbol, isFromWatchlist = false })
     );
 };
 
-// Global modal state
-let modalState = {
+interface ModalState {
+    isOpen: boolean;
+    symbol: string | null;
+    isFromWatchlist: boolean;
+    stockData: any;
+}
+
+let modalState: ModalState = {
     isOpen: false,
     symbol: null,
     isFromWatchlist: false,
     stockData: null
 };
 
-let modalContainer = null;
-let modalRoot = null;
+let modalContainer: HTMLDivElement | null = null;
+let modalRoot: any = null;
 
-// Initialize modal container
 const initModal = () => {
     if (!modalContainer) {
         modalContainer = document.createElement('div');
@@ -2504,8 +2464,7 @@ const initModal = () => {
     }
 };
 
-// Open modal function - now redirects to full page
-window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
+window.openStockDetailsModalReact = (symbol: string, isFromWatchlist: boolean = false) => {
     console.log(`[StockDetailsModal] Redirecting to stock page for ${symbol}`);
     window.dispatchEvent(new CustomEvent('app:navigate', {
         detail: {
@@ -2515,13 +2474,13 @@ window.openStockDetailsModalReact = (symbol, isFromWatchlist = false) => {
     }));
 };
 
-// Legacy modal open function (for cases where modal is specifically needed)
-window.openStockDetailsModalLegacy = (symbol, isFromWatchlist = false) => {
+window.openStockDetailsModalLegacy = (symbol: string, isFromWatchlist: boolean = false) => {
     console.log(`[StockDetailsModal] Opening legacy modal for ${symbol}`);
     initModal();
-    modalState = { isOpen: true, symbol, isFromWatchlist };
+    modalState = { isOpen: true, symbol, isFromWatchlist, stockData: null };
     modalRoot.render(React.createElement(StockDetailsModal, {
         ...modalState,
+        symbol: modalState.symbol!,
         onClose: () => {
             modalState.isOpen = false;
             if (modalRoot) {
@@ -2536,7 +2495,6 @@ window.openStockDetailsModalLegacy = (symbol, isFromWatchlist = false) => {
     }));
 };
 
-// Close modal function
 window.closeStockDetailsModalReact = () => {
     if (modalRoot) {
         modalRoot.render(null);
@@ -2548,15 +2506,13 @@ window.closeStockDetailsModalReact = () => {
     }
     modalState.isOpen = false;
 
-    // Show search bar again
-    const searchSection = document.querySelector('.search-section');
+    const searchSection = document.querySelector('.search-section') as HTMLElement | null;
     if (searchSection) searchSection.style.display = 'block';
 };
 
-// Export components for use in StockDetailsPage
 window.StockNotesSection = StockNotesSection;
 window.WatchlistNotesSection = WatchlistNotesSection;
 window.CEODetailsModal = CEODetailsModal;
-window.StockDetailsModal = StockDetailsModal;
+window.StockDetailsModal = StockDetailsModal as unknown as React.ComponentType<Record<string, unknown>>;
 
 console.log('[StockDetailsModal] Components loaded and exported');
