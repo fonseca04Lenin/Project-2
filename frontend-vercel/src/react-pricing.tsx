@@ -1,6 +1,6 @@
 export {};
-// Pricing Page Component
-// Full standalone pricing page with Stripe checkout integration
+// Pricing Page — editorial / terminal aesthetic
+// Matches AIStockSage dashboard design language
 
 const { useState, useEffect } = React;
 
@@ -14,16 +14,15 @@ interface PlanFeature {
 interface PlanData {
     id: string;
     label: string;
+    accentColor: string;
     monthlyPrice: number;
     yearlyPrice: number;
     yearlyMonthly?: number;
     savings?: string;
-    description: string;
-    badge?: string;
-    badgeColor?: string;
+    tagline: string;
+    popular?: boolean;
     features: PlanFeature[];
     cta: string;
-    highlight: boolean;
     monthlyPriceId: string | null;
     yearlyPriceId: string | null;
 }
@@ -32,9 +31,10 @@ const PLAN_DATA: PlanData[] = [
     {
         id: 'free',
         label: 'Free',
+        accentColor: 'rgba(255,255,255,0.15)',
         monthlyPrice: 0,
         yearlyPrice: 0,
-        description: 'Get started with AI stock insights',
+        tagline: 'Explore the platform at no cost.',
         features: [
             { text: '5 AI chat messages per day', included: true },
             { text: 'Watchlist & portfolio tracking', included: true },
@@ -45,21 +45,20 @@ const PLAN_DATA: PlanData[] = [
             { text: 'Portfolio Health Score', included: false },
             { text: 'Sector Rotation tracker', included: false },
         ],
-        cta: 'Get Started Free',
-        highlight: false,
+        cta: 'Get Started',
         monthlyPriceId: null,
         yearlyPriceId: null,
     },
     {
         id: 'pro',
         label: 'Pro',
+        accentColor: '#00D924',
         monthlyPrice: 12,
         yearlyPrice: 99,
         yearlyMonthly: 8.25,
         savings: '31%',
-        description: 'For serious investors who want an edge',
-        badge: 'Most Popular',
-        badgeColor: '#00D4AA',
+        tagline: 'For investors who want a real edge.',
+        popular: true,
         features: [
             { text: '50 AI chat messages per day', included: true },
             { text: 'Watchlist & portfolio tracking', included: true },
@@ -71,20 +70,18 @@ const PLAN_DATA: PlanData[] = [
             { text: 'Sector Rotation tracker', included: true },
         ],
         cta: 'Start 7-Day Free Trial',
-        highlight: true,
         monthlyPriceId: window.STRIPE_CONFIG?.PRO_MONTHLY || '',
         yearlyPriceId: window.STRIPE_CONFIG?.PRO_YEARLY || '',
     },
     {
         id: 'elite',
         label: 'Elite',
+        accentColor: '#FFB800',
         monthlyPrice: 24,
         yearlyPrice: 199,
         yearlyMonthly: 16.58,
         savings: '31%',
-        description: 'For professionals who need unlimited AI power',
-        badge: 'Best Value',
-        badgeColor: '#FFB800',
+        tagline: 'Unlimited AI. No ceiling.',
         features: [
             { text: 'Unlimited AI chat messages', included: true },
             { text: 'Everything in Pro', included: true },
@@ -93,7 +90,6 @@ const PLAN_DATA: PlanData[] = [
             { text: 'Premium support', included: true },
         ],
         cta: 'Start 7-Day Free Trial',
-        highlight: false,
         monthlyPriceId: window.STRIPE_CONFIG?.ELITE_MONTHLY || '',
         yearlyPriceId: window.STRIPE_CONFIG?.ELITE_YEARLY || '',
     },
@@ -102,23 +98,23 @@ const PLAN_DATA: PlanData[] = [
 const FAQS = [
     {
         q: 'Can I cancel anytime?',
-        a: 'Yes. Cancel from your account settings with one click. You keep access until the end of your billing period. No questions asked.',
+        a: 'Yes. Cancel from your account settings with one click. You keep access until the end of your billing period.',
     },
     {
         q: 'What happens after the 7-day trial?',
-        a: "Your card is charged at the end of the trial period. We'll send a reminder email 24 hours before. Cancel before then and you won't be charged.",
+        a: "Your card is charged at the end of the trial. We send a reminder 24 hours before. Cancel beforehand and you won't be charged.",
     },
     {
         q: 'Do daily AI message limits reset?',
-        a: 'Yes — limits reset every day at midnight UTC. Free users get 5 messages, Pro users get 50.',
+        a: 'Limits reset every day at midnight UTC. Free users get 5 messages, Pro users get 50. Elite has no limit.',
     },
     {
         q: 'Is my payment secure?',
-        a: 'All payments are processed by Stripe, a PCI-DSS Level 1 certified payment processor. We never store your card details.',
+        a: 'All payments are processed by Stripe, PCI-DSS Level 1 certified. We never store your card details.',
     },
     {
         q: 'Can I switch plans?',
-        a: 'Yes, upgrade or downgrade at any time from your account settings. Prorated credits apply automatically.',
+        a: 'Yes — upgrade or downgrade at any time from account settings. Prorated credits apply automatically.',
     },
 ];
 
@@ -144,24 +140,20 @@ const PricingPage = () => {
                 // ignore
             }
         };
-
         loadSub();
     }, [currentUser]);
 
-    // Check for checkout=success in URL — reload subscription to reflect new tier
     useEffect(() => {
         if (window.location.search.includes('checkout=success')) {
-            const clean = window.location.pathname;
-            window.history.replaceState({}, document.title, clean);
-            // Re-fetch subscription so the UI reflects the new plan immediately
+            window.history.replaceState({}, document.title, window.location.pathname);
             if (currentUser) {
-                currentUser.getIdToken(/* forceRefresh */ true).then(token =>
-                    fetch(`${API_BASE_URL}/api/billing/subscription`, {
+                currentUser.getIdToken(true)
+                    .then(token => fetch(`${API_BASE_URL}/api/billing/subscription`, {
                         headers: { 'Authorization': `Bearer ${token}` },
-                    })
-                ).then(res => res.json()).then(data => {
-                    setCurrentTier(data.tier || 'free');
-                }).catch(() => {});
+                    }))
+                    .then(res => res.json())
+                    .then(data => setCurrentTier(data.tier || 'free'))
+                    .catch(() => {});
             }
         }
     }, [currentUser]);
@@ -179,13 +171,11 @@ const PricingPage = () => {
         }
 
         if (!currentUser) {
-            // Redirect to sign-in, then back to pricing
             window.location.href = '/?redirect=pricing';
             return;
         }
 
         if (currentTier === plan.id) {
-            // Open customer portal to manage subscription
             setLoading(plan.id);
             try {
                 const token = await currentUser.getIdToken();
@@ -229,40 +219,36 @@ const PricingPage = () => {
     };
 
     const getCtaLabel = (plan: PlanData) => {
-        if (plan.id === 'free') return 'Get Started Free';
+        if (plan.id === 'free') return 'Get Started';
         if (currentTier === plan.id) return 'Manage Subscription';
         return plan.cta;
     };
 
     return (
         <div className="pricing-page">
+
             {/* Hero */}
             <div className="pricing-hero">
-                <div className="pricing-hero-tag">
-                    <i className="fas fa-bolt"></i> AI-Powered Stock Intelligence
-                </div>
-                <h1>Invest smarter with AI on your side</h1>
-                <p>Real-time market insights, personalized portfolio analysis, and AI-generated investment theses — all in one platform.</p>
+                <h1 className="pricing-headline">
+                    Intelligence that<br />pays for itself.
+                </h1>
+                <p className="pricing-sub">
+                    Real-time market data, AI-generated insights, and portfolio analysis —<br />
+                    built for investors who take precision seriously.
+                </p>
             </div>
 
-            {/* Billing toggle */}
-            <div className="pricing-billing-toggle">
+            {/* Billing toggle — editorial tab style */}
+            <div className="pricing-toggle-wrap">
                 <button
-                    className={`billing-toggle-btn ${billing === 'monthly' ? 'active' : ''}`}
+                    className={`ptoggle-btn ${billing === 'monthly' ? 'active' : ''}`}
                     onClick={() => setBilling('monthly')}
                 >Monthly</button>
+                <span className="ptoggle-sep">/</span>
                 <button
-                    className={`billing-toggle-btn ${billing === 'yearly' ? 'active' : ''}`}
+                    className={`ptoggle-btn ${billing === 'yearly' ? 'active' : ''}`}
                     onClick={() => setBilling('yearly')}
-                >
-                    Annual <span className="billing-save-chip">Save up to 25%</span>
-                </button>
-            </div>
-
-            {/* Trial banner */}
-            <div className="pricing-trial-banner">
-                <i className="fas fa-gift"></i>
-                All paid plans include a <strong>7-day free trial</strong> — no charge until the trial ends.
+                >Annual <span className="ptoggle-save">— save 31%</span></button>
             </div>
 
             {/* Plans grid */}
@@ -270,52 +256,68 @@ const PricingPage = () => {
                 {PLAN_DATA.map((plan) => (
                     <div
                         key={plan.id}
-                        className={`pricing-plan-card ${plan.highlight ? 'highlighted' : ''} ${currentTier === plan.id ? 'current' : ''}`}
+                        className={`pricing-plan-card ${currentTier === plan.id ? 'current' : ''}`}
+                        style={{ '--accent': plan.accentColor } as any}
                     >
-                        {plan.badge && (
-                            <div className="pricing-plan-badge" style={{ background: plan.badgeColor }}>
-                                {plan.badge}
-                            </div>
-                        )}
-                        {currentTier === plan.id && (
-                            <div className="pricing-current-chip">Your Plan</div>
-                        )}
+                        {/* Top accent rule */}
+                        <div className="plan-accent-rule" />
 
-                        <div className="pricing-plan-label">{plan.label}</div>
-                        <p className="pricing-plan-desc">{plan.description}</p>
+                        {/* Header row */}
+                        <div className="plan-header-row">
+                            <span className="plan-tier-name">{plan.label}</span>
+                            {plan.popular && <span className="plan-popular-mark">— recommended</span>}
+                            {currentTier === plan.id && <span className="plan-current-mark">active</span>}
+                        </div>
 
-                        <div className="pricing-plan-price">
+                        <p className="plan-tagline">{plan.tagline}</p>
+
+                        {/* Price */}
+                        <div className="plan-price-block">
                             {plan.monthlyPrice === 0 ? (
-                                <><span className="ppp-amount">$0</span><span className="ppp-period">/forever</span></>
+                                <div className="plan-price-line">
+                                    <span className="plan-price-num">$0</span>
+                                    <span className="plan-price-period"> / forever</span>
+                                </div>
                             ) : billing === 'yearly' ? (
                                 <>
-                                    <span className="ppp-amount">${plan.yearlyMonthly!.toFixed(2)}</span>
-                                    <span className="ppp-period">/mo</span>
-                                    <div className="ppp-billed">Billed ${plan.yearlyPrice}/year — save {plan.savings}</div>
+                                    <div className="plan-price-line">
+                                        <span className="plan-price-num">${plan.yearlyMonthly!.toFixed(2)}</span>
+                                        <span className="plan-price-period"> / mo</span>
+                                    </div>
+                                    <div className="plan-billed-note">
+                                        billed ${plan.yearlyPrice} annually &mdash; {plan.savings} off
+                                    </div>
                                 </>
                             ) : (
-                                <>
-                                    <span className="ppp-amount">${plan.monthlyPrice}</span>
-                                    <span className="ppp-period">/mo</span>
-                                </>
+                                <div className="plan-price-line">
+                                    <span className="plan-price-num">${plan.monthlyPrice}</span>
+                                    <span className="plan-price-period"> / mo</span>
+                                </div>
                             )}
                         </div>
 
+                        {/* CTA */}
                         <button
-                            className={`pricing-cta-btn ${plan.highlight ? 'primary' : plan.id === 'free' ? 'ghost' : 'secondary'}`}
+                            className={`plan-cta-btn ${plan.id === 'pro' ? 'cta-primary' : plan.id === 'elite' ? 'cta-amber' : 'cta-ghost'}`}
                             onClick={() => handleCta(plan)}
                             disabled={loading !== null}
                         >
                             {loading === plan.id
-                                ? <><i className="fas fa-spinner fa-spin"></i> Redirecting...</>
+                                ? <><i className="fas fa-circle-notch fa-spin" style={{ marginRight: 7 }}></i>Redirecting</>
                                 : getCtaLabel(plan)
                             }
                         </button>
 
-                        <ul className="pricing-feature-list">
+                        {plan.id !== 'free' && (
+                            <p className="plan-trial-note">7-day free trial. No charge until it ends.</p>
+                        )}
+
+                        {/* Feature list */}
+                        <div className="plan-divider" />
+                        <ul className="plan-feature-list">
                             {plan.features.map((f, i) => (
-                                <li key={i} className={f.included ? '' : 'excluded'}>
-                                    <i className={`fas ${f.included ? 'fa-check' : 'fa-times'}`}></i>
+                                <li key={i} className={f.included ? 'feat-in' : 'feat-out'}>
+                                    <span className="feat-mark">{f.included ? '—' : '·'}</span>
                                     {f.text}
                                 </li>
                             ))}
@@ -325,198 +327,404 @@ const PricingPage = () => {
             </div>
 
             {error && (
-                <p className="pricing-error">
+                <p className="pricing-error-msg">
                     <i className="fas fa-exclamation-circle"></i> {error}
                 </p>
             )}
 
-            {/* Social proof */}
-            <div className="pricing-social-proof">
-                <div className="sp-stat"><span>10,000+</span><label>Active investors</label></div>
-                <div className="sp-divider"></div>
-                <div className="sp-stat"><span>4.8★</span><label>Average rating</label></div>
-                <div className="sp-divider"></div>
-                <div className="sp-stat"><span>$0</span><label>To get started</label></div>
-            </div>
-
             {/* FAQ */}
             <div className="pricing-faq">
-                <h3>Frequently Asked Questions</h3>
+                <div className="faq-heading-row">
+                    <span className="faq-label">FAQ</span>
+                    <div className="faq-heading-rule" />
+                </div>
                 {FAQS.map((faq, i) => (
                     <div key={i} className={`faq-item ${openFaq === i ? 'open' : ''}`}>
-                        <button className="faq-question" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
-                            {faq.q}
-                            <i className={`fas fa-chevron-${openFaq === i ? 'up' : 'down'}`}></i>
+                        <button
+                            className="faq-q"
+                            onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                        >
+                            <span className="faq-num">{String(i + 1).padStart(2, '0')}</span>
+                            <span className="faq-q-text">{faq.q}</span>
+                            <i className={`fas fa-chevron-${openFaq === i ? 'up' : 'down'} faq-chevron`}></i>
                         </button>
-                        {openFaq === i && <div className="faq-answer">{faq.a}</div>}
+                        {openFaq === i && (
+                            <div className="faq-a">{faq.a}</div>
+                        )}
                     </div>
                 ))}
             </div>
 
             {/* Trust footer */}
-            <div className="pricing-trust-footer">
-                <i className="fas fa-lock"></i> Payments secured by Stripe &nbsp;·&nbsp;
-                <i className="fas fa-shield-alt"></i> Cancel anytime &nbsp;·&nbsp;
+            <div className="pricing-trust-line">
+                <i className="fas fa-lock"></i> Payments secured by Stripe
+                <span className="trust-sep">·</span>
+                <i className="fas fa-times-circle"></i> Cancel anytime
+                <span className="trust-sep">·</span>
                 <i className="fas fa-headset"></i> Support included
             </div>
 
             <style>{`
                 .pricing-page {
-                    max-width: 1100px;
+                    max-width: 1060px;
                     margin: 0 auto;
-                    padding: 40px 20px 60px;
+                    padding: 56px 24px 72px;
                     color: #fff;
+                }
+
+                /* ── Hero ── */
+                .pricing-hero {
+                    margin-bottom: 48px;
+                }
+                .pricing-headline {
+                    font-size: clamp(32px, 5vw, 52px);
+                    font-weight: 400;
+                    font-style: italic;
+                    line-height: 1.15;
+                    letter-spacing: -0.5px;
+                    margin: 0 0 16px;
+                    color: #fff;
+                }
+                .pricing-sub {
+                    font-size: 14px;
+                    color: rgba(255,255,255,0.45);
+                    line-height: 1.7;
+                    margin: 0;
+                    font-style: normal;
+                }
+
+                /* ── Billing toggle ── */
+                .pricing-toggle-wrap {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    margin-bottom: 36px;
+                }
+                .ptoggle-btn {
+                    background: none;
+                    border: none;
+                    padding: 0 0 4px;
+                    font-size: 13px;
+                    font-weight: 600;
                     font-family: inherit;
+                    color: rgba(255,255,255,0.35);
+                    cursor: pointer;
+                    border-bottom: 1px solid transparent;
+                    transition: color 0.15s, border-color 0.15s;
+                    letter-spacing: 0.01em;
                 }
-                .pricing-hero { text-align: center; margin-bottom: 36px; }
-                .pricing-hero-tag {
-                    display: inline-flex; align-items: center; gap: 6px;
-                    background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.25);
-                    color: #00D4AA; border-radius: 20px; padding: 5px 14px;
-                    font-size: 12px; font-weight: 700; text-transform: uppercase;
-                    letter-spacing: 0.5px; margin-bottom: 16px;
+                .ptoggle-btn.active {
+                    color: #fff;
+                    border-bottom-color: #00D924;
                 }
-                .pricing-hero h1 { font-size: clamp(26px, 4vw, 38px); font-weight: 800; margin: 0 0 12px; }
-                .pricing-hero p { font-size: 16px; color: rgba(255,255,255,0.6); max-width: 540px; margin: 0 auto; }
-
-                .pricing-billing-toggle {
-                    display: flex; justify-content: center; gap: 4px;
-                    background: rgba(255,255,255,0.06); border-radius: 12px; padding: 4px;
-                    width: fit-content; margin: 0 auto 20px;
+                .ptoggle-sep {
+                    color: rgba(255,255,255,0.2);
+                    font-size: 13px;
+                    user-select: none;
                 }
-                .billing-toggle-btn {
-                    padding: 9px 20px; border: none; border-radius: 10px;
-                    background: transparent; color: rgba(255,255,255,0.55);
-                    cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;
-                    display: flex; align-items: center; gap: 8px;
-                }
-                .billing-toggle-btn.active { background: rgba(255,255,255,0.12); color: #fff; }
-                .billing-save-chip {
-                    background: rgba(0,212,170,0.2); color: #00D4AA;
-                    border-radius: 20px; padding: 2px 8px; font-size: 11px;
+                .ptoggle-save {
+                    color: #00D924;
+                    font-weight: 400;
+                    font-style: italic;
                 }
 
-                .pricing-trial-banner {
-                    text-align: center; font-size: 13px; color: rgba(255,255,255,0.55);
-                    margin-bottom: 32px; display: flex; align-items: center;
-                    justify-content: center; gap: 8px;
-                }
-                .pricing-trial-banner i { color: #00D4AA; }
-                .pricing-trial-banner strong { color: rgba(255,255,255,0.85); }
-
+                /* ── Plans grid ── */
                 .pricing-plans-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                    gap: 20px;
-                    margin-bottom: 40px;
-                }
-
-                .pricing-plan-card {
-                    background: rgba(255,255,255,0.04);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 18px; padding: 28px 24px; position: relative;
-                    display: flex; flex-direction: column;
-                    transition: border-color 0.2s, box-shadow 0.2s;
-                }
-                .pricing-plan-card:hover { border-color: rgba(255,255,255,0.16); }
-                .pricing-plan-card.highlighted {
-                    border-color: #00D4AA;
-                    background: rgba(0,212,170,0.05);
-                    box-shadow: 0 0 40px rgba(0,212,170,0.08);
-                }
-                .pricing-plan-card.current { border-color: #FFB800; }
-
-                .pricing-plan-badge {
-                    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-                    border-radius: 20px; padding: 3px 14px; font-size: 11px;
-                    font-weight: 700; color: #000; white-space: nowrap;
-                }
-                .pricing-current-chip {
-                    position: absolute; top: -12px; right: 16px;
-                    background: #FFB800; border-radius: 20px; padding: 3px 10px;
-                    font-size: 11px; font-weight: 700; color: #000;
-                }
-
-                .pricing-plan-label { font-size: 20px; font-weight: 800; margin-bottom: 6px; margin-top: 8px; }
-                .pricing-plan-desc { font-size: 13px; color: rgba(255,255,255,0.5); margin: 0 0 20px; }
-
-                .pricing-plan-price { margin-bottom: 20px; }
-                .ppp-amount { font-size: 38px; font-weight: 800; }
-                .ppp-period { font-size: 15px; color: rgba(255,255,255,0.45); margin-left: 2px; }
-                .ppp-billed { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
-
-                .pricing-cta-btn {
-                    width: 100%; padding: 13px; border-radius: 10px; border: none;
-                    font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s;
-                    margin-bottom: 24px;
-                }
-                .pricing-cta-btn.primary {
-                    background: linear-gradient(135deg, #00D4AA, #00A878); color: #000;
-                }
-                .pricing-cta-btn.primary:hover { filter: brightness(1.08); }
-                .pricing-cta-btn.secondary {
-                    background: rgba(255,255,255,0.1); color: #fff;
-                    border: 1px solid rgba(255,255,255,0.18);
-                }
-                .pricing-cta-btn.secondary:hover { background: rgba(255,255,255,0.16); }
-                .pricing-cta-btn.ghost {
-                    background: transparent; color: rgba(255,255,255,0.55);
-                    border: 1px solid rgba(255,255,255,0.12);
-                }
-                .pricing-cta-btn.ghost:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); }
-                .pricing-cta-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-                .pricing-feature-list { list-style: none; padding: 0; margin: 0; }
-                .pricing-feature-list li {
-                    font-size: 13px; color: rgba(255,255,255,0.7);
-                    padding: 6px 0; display: flex; align-items: flex-start; gap: 9px;
-                    border-bottom: 1px solid rgba(255,255,255,0.04);
-                }
-                .pricing-feature-list li:last-child { border-bottom: none; }
-                .pricing-feature-list li i { flex-shrink: 0; margin-top: 2px; font-size: 11px; }
-                .pricing-feature-list li i.fa-check { color: #00D4AA; }
-                .pricing-feature-list li i.fa-times { color: rgba(255,255,255,0.2); }
-                .pricing-feature-list li.excluded { color: rgba(255,255,255,0.3); }
-
-                .pricing-error {
-                    text-align: center; color: #FF6B6B; font-size: 13px;
-                    display: flex; align-items: center; justify-content: center; gap: 6px;
-                    margin-bottom: 24px;
-                }
-
-                .pricing-social-proof {
-                    display: flex; justify-content: center; align-items: center;
-                    gap: 32px; padding: 28px; margin-bottom: 40px;
-                    background: rgba(255,255,255,0.03); border-radius: 16px;
+                    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+                    gap: 1px;
+                    background: rgba(255,255,255,0.06);
                     border: 1px solid rgba(255,255,255,0.06);
+                    border-radius: 12px;
+                    overflow: hidden;
+                    margin-bottom: 48px;
                 }
-                .sp-stat { text-align: center; }
-                .sp-stat span { display: block; font-size: 24px; font-weight: 800; color: #fff; }
-                .sp-stat label { font-size: 12px; color: rgba(255,255,255,0.4); }
-                .sp-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.08); }
 
-                .pricing-faq { max-width: 680px; margin: 0 auto 48px; }
-                .pricing-faq h3 { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 24px; }
+                /* ── Plan card ── */
+                .pricing-plan-card {
+                    background: #080808;
+                    padding: 28px 24px 24px;
+                    display: flex;
+                    flex-direction: column;
+                    position: relative;
+                }
+                .pricing-plan-card.current {
+                    background: #0a0a0a;
+                }
+
+                .plan-accent-rule {
+                    position: absolute;
+                    top: 0; left: 0; right: 0;
+                    height: 2px;
+                    background: var(--accent, rgba(255,255,255,0.1));
+                }
+
+                .plan-header-row {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    margin-bottom: 6px;
+                }
+                .plan-tier-name {
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 2px;
+                    color: rgba(255,255,255,0.9);
+                }
+                .plan-popular-mark {
+                    font-size: 11px;
+                    font-style: italic;
+                    color: #00D924;
+                    font-weight: 400;
+                }
+                .plan-current-mark {
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    color: #FFB800;
+                    font-weight: 700;
+                    padding: 2px 7px;
+                    border: 1px solid rgba(255,184,0,0.3);
+                    border-radius: 3px;
+                }
+
+                .plan-tagline {
+                    font-size: 12px;
+                    color: rgba(255,255,255,0.35);
+                    margin: 0 0 20px;
+                    font-style: italic;
+                    line-height: 1.5;
+                }
+
+                /* ── Price ── */
+                .plan-price-block {
+                    margin-bottom: 20px;
+                }
+                .plan-price-line {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 2px;
+                }
+                .plan-price-num {
+                    font-size: 44px;
+                    font-weight: 400;
+                    font-style: italic;
+                    letter-spacing: -2px;
+                    line-height: 1;
+                    color: #fff;
+                }
+                .plan-price-period {
+                    font-size: 13px;
+                    color: rgba(255,255,255,0.35);
+                    font-style: normal;
+                }
+                .plan-billed-note {
+                    font-size: 11px;
+                    color: rgba(255,255,255,0.3);
+                    margin-top: 4px;
+                    font-style: italic;
+                }
+
+                /* ── CTA buttons ── */
+                .plan-cta-btn {
+                    width: 100%;
+                    padding: 11px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-weight: 700;
+                    font-family: inherit;
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    margin-bottom: 8px;
+                    letter-spacing: 0.01em;
+                }
+                .cta-primary {
+                    background: #00D924;
+                    border: 1px solid #00D924;
+                    color: #000;
+                }
+                .cta-primary:hover:not(:disabled) {
+                    background: #00f028;
+                    border-color: #00f028;
+                }
+                .cta-amber {
+                    background: transparent;
+                    border: 1px solid rgba(255,184,0,0.5);
+                    color: #FFB800;
+                }
+                .cta-amber:hover:not(:disabled) {
+                    background: rgba(255,184,0,0.08);
+                    border-color: #FFB800;
+                }
+                .cta-ghost {
+                    background: transparent;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    color: rgba(255,255,255,0.45);
+                }
+                .cta-ghost:hover:not(:disabled) {
+                    border-color: rgba(255,255,255,0.2);
+                    color: rgba(255,255,255,0.7);
+                }
+                .plan-cta-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                .plan-trial-note {
+                    font-size: 11px;
+                    color: rgba(255,255,255,0.25);
+                    margin: 0 0 20px;
+                    font-style: italic;
+                    text-align: center;
+                }
+
+                /* ── Feature list ── */
+                .plan-divider {
+                    border: none;
+                    border-top: 1px solid rgba(255,255,255,0.06);
+                    margin: 0 0 16px;
+                }
+                .plan-feature-list {
+                    list-style: none;
+                    padding: 0;
+                    margin: 0;
+                    flex: 1;
+                }
+                .plan-feature-list li {
+                    font-size: 12.5px;
+                    line-height: 1.5;
+                    padding: 5px 0;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                    color: rgba(255,255,255,0.55);
+                }
+                .plan-feature-list li.feat-in {
+                    color: rgba(255,255,255,0.7);
+                }
+                .plan-feature-list li.feat-out {
+                    color: rgba(255,255,255,0.2);
+                }
+                .feat-mark {
+                    flex-shrink: 0;
+                    font-size: 12px;
+                    color: inherit;
+                    width: 10px;
+                    text-align: center;
+                    margin-top: 1px;
+                }
+                .feat-in .feat-mark {
+                    color: var(--accent, rgba(255,255,255,0.4));
+                }
+
+                /* ── Error ── */
+                .pricing-error-msg {
+                    text-align: center;
+                    color: #FF6B6B;
+                    font-size: 13px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    margin-bottom: 24px;
+                }
+
+                /* ── FAQ ── */
+                .pricing-faq {
+                    max-width: 660px;
+                    margin: 0 auto 56px;
+                }
+                .faq-heading-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    margin-bottom: 24px;
+                }
+                .faq-label {
+                    font-size: 10px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 3px;
+                    color: rgba(255,255,255,0.3);
+                    white-space: nowrap;
+                }
+                .faq-heading-rule {
+                    flex: 1;
+                    height: 1px;
+                    background: rgba(255,255,255,0.06);
+                }
                 .faq-item {
-                    border-bottom: 1px solid rgba(255,255,255,0.07);
+                    border-bottom: 1px solid rgba(255,255,255,0.06);
                 }
-                .faq-question {
-                    width: 100%; background: none; border: none; color: #fff;
-                    font-size: 14px; font-weight: 600; cursor: pointer;
-                    padding: 16px 0; display: flex; justify-content: space-between;
-                    align-items: center; gap: 12px; text-align: left;
+                .faq-q {
+                    width: 100%;
+                    background: none;
+                    border: none;
+                    color: rgba(255,255,255,0.8);
+                    font-family: inherit;
+                    font-size: 13px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    padding: 15px 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    text-align: left;
+                    transition: color 0.15s;
                 }
-                .faq-question i { color: rgba(255,255,255,0.4); font-size: 12px; flex-shrink: 0; }
-                .faq-answer {
-                    font-size: 13px; color: rgba(255,255,255,0.55);
-                    padding: 0 0 16px; line-height: 1.6;
+                .faq-q:hover {
+                    color: #fff;
+                }
+                .faq-num {
+                    font-size: 10px;
+                    font-style: italic;
+                    color: rgba(255,255,255,0.2);
+                    flex-shrink: 0;
+                    font-weight: 400;
+                    width: 20px;
+                }
+                .faq-q-text {
+                    flex: 1;
+                }
+                .faq-chevron {
+                    font-size: 10px;
+                    color: rgba(255,255,255,0.25);
+                    flex-shrink: 0;
+                }
+                .faq-a {
+                    font-size: 12.5px;
+                    color: rgba(255,255,255,0.45);
+                    line-height: 1.7;
+                    padding: 0 0 16px 34px;
                 }
 
-                .pricing-trust-footer {
-                    text-align: center; font-size: 12px; color: rgba(255,255,255,0.3);
-                    display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px;
+                /* ── Trust footer ── */
+                .pricing-trust-line {
+                    text-align: center;
+                    font-size: 11px;
+                    color: rgba(255,255,255,0.2);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                    gap: 8px;
                 }
-                .pricing-trust-footer i { color: rgba(255,255,255,0.4); }
+                .trust-sep {
+                    color: rgba(255,255,255,0.1);
+                }
+
+                @media (max-width: 680px) {
+                    .pricing-plans-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    .pricing-headline {
+                        font-size: 30px;
+                    }
+                    .plan-price-num {
+                        font-size: 36px;
+                    }
+                }
             `}</style>
         </div>
     );
