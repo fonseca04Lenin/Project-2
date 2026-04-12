@@ -31,13 +31,31 @@ def get_market_news():
         return jsonify({'error': 'Could not fetch market news'}), 500
 
 
+# Major index symbols → human-readable news search terms.
+# Finnhub company-news doesn't cover these; market news with a name query works.
+_INDEX_NEWS_QUERIES = {
+    '^GSPC': 'S&P 500',
+    '^IXIC': 'Nasdaq Composite',
+    '^DJI': 'Dow Jones',
+    'GSPC': 'S&P 500',
+    'IXIC': 'Nasdaq Composite',
+    'DJI': 'Dow Jones',
+}
+
+
 @news_social_bp.route('/news/company/<symbol>')
 def get_company_news(symbol):
     try:
         symbol = symbol.upper()
         page = request.args.get('page', 1, type=int)
         limit = request.args.get('limit', 5, type=int)
-        news = news_api.get_company_news(symbol, limit=limit, page=page)
+
+        index_query = _INDEX_NEWS_QUERIES.get(symbol)
+        if index_query:
+            news = news_api.get_market_news(limit=limit, query=index_query, page=page)
+        else:
+            news = news_api.get_company_news(symbol, limit=limit, page=page)
+
         return jsonify({
             'articles': news,
             'page': page,
