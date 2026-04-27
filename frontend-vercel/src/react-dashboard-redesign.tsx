@@ -1663,7 +1663,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
             {isGuest && (
                 <div className="guest-banner">
                     <span>
-                        <i className="fas fa-eye"></i> You're browsing as a guest. Sign in to save your watchlist, set alerts, and use AI chat.
+                        <i className="fas fa-eye"></i> You're browsing as a guest. Sign in to save your watchlist, keep research notes, and use AI research tools.
                     </span>
                     <button
                         className="guest-banner-btn"
@@ -1691,7 +1691,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                                 <input
                                     ref={searchInputRef as React.RefObject<HTMLInputElement>}
                                     type="text"
-                                    placeholder="Search Stocks, ETFs and CEOs..."
+                                    placeholder="Search stocks, ETFs, and companies..."
                                     className="hs-input"
                                     value={searchQuery}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchInputChange(e.target.value)}
@@ -1820,23 +1820,23 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                 {/* Center Nav */}
                 <nav className="header-nav">
                     <button
-                        className={`hn-item ${activeView === 'overview' ? 'active' : ''}`}
-                        onClick={() => handleNavigate('overview')}
-                    >Overview</button>
-                    <button
                         className={`hn-item ${activeView === 'watchlist' ? 'active' : ''}`}
                         onClick={() => handleNavigate('watchlist')}
                     >Watchlist</button>
                     <button
                         className={`hn-item ${activeView === 'intelligence' ? 'active' : ''}`}
                         onClick={() => handleNavigate('intelligence')}
-                    >Intelligence</button>
+                    >Research</button>
+                    <button
+                        className={`hn-item ${activeView === 'overview' ? 'active' : ''}`}
+                        onClick={() => handleNavigate('overview')}
+                    >Overview</button>
                     <div className="hn-dropdown-wrapper">
                         <button
                             className={`hn-item hn-dropdown-btn ${['news', 'whatswhat', 'map'].includes(activeView) ? 'active' : ''}`}
                             onClick={() => { setMarketsOpen(v => !v); setToolsOpen(false); }}
                         >
-                            Markets <i className={`fas fa-chevron-down hn-chevron ${marketsOpen ? 'hn-chevron-open' : ''}`}></i>
+                            Market Context <i className={`fas fa-chevron-down hn-chevron ${marketsOpen ? 'hn-chevron-open' : ''}`}></i>
                         </button>
                         {marketsOpen && (
                             <div className="hn-dropdown">
@@ -1857,12 +1857,12 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                             className={`hn-item hn-dropdown-btn ${['aisuite', 'paper'].includes(activeView) ? 'active' : ''}`}
                             onClick={() => { setToolsOpen(v => !v); setMarketsOpen(false); }}
                         >
-                            Tools <i className={`fas fa-chevron-down hn-chevron ${toolsOpen ? 'hn-chevron-open' : ''}`}></i>
+                            More Tools <i className={`fas fa-chevron-down hn-chevron ${toolsOpen ? 'hn-chevron-open' : ''}`}></i>
                         </button>
                         {toolsOpen && (
                             <div className="hn-dropdown">
                                 <button className="hn-dropdown-item" onClick={() => { handleNavigate('aisuite'); setToolsOpen(false); }}>
-                                    <i className="fas fa-brain"></i> AI Suite
+                                    <i className="fas fa-brain"></i> Research Tools
                                 </button>
                                 <button className="hn-dropdown-item" onClick={() => { handleNavigate('paper'); setToolsOpen(false); }}>
                                     <i className="fas fa-flask"></i> Paper Trading
@@ -1875,7 +1875,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                 <div className="header-actions">
                     <button className="assistant-cta-btn" onClick={() => handleNavigate('assistant')}>
                         <i className="fas fa-robot"></i>
-                        <span>Assistant</span>
+                        <span>Ask AI</span>
                     </button>
                     <div className="user-menu-wrapper">
                         <button

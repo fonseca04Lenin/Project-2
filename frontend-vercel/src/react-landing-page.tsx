@@ -32,11 +32,10 @@ function LandingHeader() {
         </div>
 
         <div className="landing-header-right">
-          <nav className="landing-nav" style={{ display: 'none' }}>
+          <nav className="landing-nav">
+            <a href="#workflow" className="landing-nav-link">Workflow</a>
             <a href="#features" className="landing-nav-link">Features</a>
-            <a href="#platform" className="landing-nav-link">Platform</a>
-            <a href="#performance" className="landing-nav-link">Performance</a>
-            <a href="#access" className="landing-nav-link">Access</a>
+            <a href="#pricing" className="landing-nav-link">Pricing</a>
           </nav>
         </div>
       </div>
@@ -513,35 +512,43 @@ function HeroSection() {
 
   return (
     <>
-      <section className="stock-watchlist-hero">
+      <section className="stock-watchlist-hero" id="workflow">
         <div className="stock-watchlist-container">
+          <div className="hero-eyebrow">AI-powered stock research and watchlists for retail investors</div>
           <h1 className="stock-watchlist-title">
-            AI Stock Sage
+            Build a smarter watchlist.
+            <br />
+            Research every idea faster.
           </h1>
 
           <p className="stock-watchlist-subtitle">
-            THE FUTURE OF MARKET INTELLIGENCE
+            AI STOCK SAGE
           </p>
 
           <p className="stock-watchlist-description">
-            A precision-built platform for high-performing traders and investors. Experience{" "}
-            <span className="stock-watchlist-highlight">40% faster</span> information retrieval
-            with real-time data visualization and a streamlined interface. This is not just another trading app—it's a
-            digital command center for the ambitious.
+            Start with the stocks you actually care about, then turn that list into a live research system with{" "}
+            <span className="stock-watchlist-highlight">AI briefs, thesis generation, market news,</span> and a fast dashboard
+            built for everyday investors.
           </p>
+
+          <div className="hero-proof-points">
+            <span>Watchlists that persist</span>
+            <span>AI research on demand</span>
+            <span>News and catalysts in one place</span>
+          </div>
 
           <div className="stock-watchlist-actions">
             <button
               onClick={() => handleAuthClick("signup")}
               className="stock-watchlist-btn stock-watchlist-btn-primary"
             >
-              Get Started
+              Build My Watchlist
             </button>
             <button
               onClick={() => handleAuthClick("signin")}
               className="stock-watchlist-btn stock-watchlist-btn-secondary"
             >
-              Sign In
+              Open My Research
             </button>
             <button
               onClick={() => {
@@ -550,8 +557,12 @@ function HeroSection() {
               }}
               className="stock-watchlist-btn stock-watchlist-btn-ghost"
             >
-              Continue as Guest
+              Preview the Dashboard
             </button>
+          </div>
+
+          <div className="hero-microcopy">
+            Follow names, track catalysts, and keep your investment thinking organized in one place.
           </div>
 
         </div>
@@ -572,36 +583,38 @@ function AIUsageSection() {
   const features = [
     {
       number: "01",
-      title: "Real-Time Data",
-      desc: "Every price, every tick. Zero lag between the market and your screen."
+      title: "Start With Your Watchlist",
+      desc: "Save the stocks you are studying and keep price action, notes, and context tied to the same names."
     },
     {
       number: "02",
-      title: "AI Analysis",
-      desc: "Pattern recognition trained on decades of market behavior — delivered in seconds."
+      title: "Turn It Into Research",
+      desc: "Generate daily briefs, thesis drafts, and AI answers based on the names already on your radar."
     },
     {
       number: "03",
-      title: "Direct AI Advisor",
-      desc: "Ask anything. Get a straight answer. No fluff, no filler, no delay."
+      title: "Track The Market Around It",
+      desc: "Pull in news, movers, and market context without leaving the same workflow."
     },
     {
       number: "04",
-      title: "Risk Intelligence",
-      desc: "Know your exposure before the market moves against you."
+      title: "Test Ideas Before Real Capital",
+      desc: "Use paper trading as a support tool for conviction building, not the center of the product."
     }
   ];
 
   return (
-    <section className="ai-section">
+    <section className="ai-section" id="features">
       <div className="ai-section-inner">
         <div className="ai-section-left">
-          <span className="ai-section-eyebrow">Intelligence Layer</span>
+          <span className="ai-section-eyebrow">Research Workflow</span>
           <h2 className="ai-section-headline">
-            Built for those<br />who move first.
+            Research starts with a watchlist,
+            <br />
+            not a blank screen.
           </h2>
           <p className="ai-section-aside">
-            Every feature is designed around one principle: speed of insight.
+            The product works best when watchlist, AI analysis, and market context reinforce each other.
           </p>
         </div>
         <div className="ai-section-right">
@@ -620,6 +633,49 @@ function AIUsageSection() {
   );
 }
 
+function FeaturePrioritySection() {
+  const cards = [
+    {
+      title: "Watchlist-first dashboard",
+      body: "Organize the stocks you follow, revisit them quickly, and keep your research anchored to a personal list instead of scattered tabs."
+    },
+    {
+      title: "AI research layer",
+      body: "Use Morning Brief, Thesis Builder, and the assistant to get faster first drafts and clearer follow-up questions."
+    },
+    {
+      title: "Market context",
+      body: "Move from a saved ticker to news, price action, and broader market signals without breaking the workflow."
+    },
+    {
+      title: "Paper trading support",
+      body: "Pressure-test ideas after research. It stays visible, but it no longer leads the story."
+    }
+  ];
+
+  return (
+    <section className="priority-section" id="pricing">
+      <div className="priority-shell">
+        <div className="priority-intro">
+          <span className="priority-eyebrow">What matters first</span>
+          <h2 className="priority-title">The product now leads with research, not noise.</h2>
+          <p className="priority-copy">
+            The strongest use case here is simple: keep a focused watchlist, understand each stock faster, and stay current without stitching together five separate tools.
+          </p>
+        </div>
+        <div className="priority-grid">
+          {cards.map((card) => (
+            <article className="priority-card" key={card.title}>
+              <h3>{card.title}</h3>
+              <p>{card.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // Main Landing Page Component
 function StockWatchlistLandingPage() {
   return (
@@ -627,6 +683,7 @@ function StockWatchlistLandingPage() {
       <LandingHeader />
       <HeroSection />
       <AIUsageSection />
+      <FeaturePrioritySection />
     </div>
   );
 }
