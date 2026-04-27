@@ -172,7 +172,7 @@ html, body {
     min-height: 100vh;
 }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background-color: var(--rh__neutral-bg1);
     color: var(--text-primary);
     min-height: 100vh;
@@ -2982,7 +2982,7 @@ i[class*="fal"],
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-feature-settings: 'tnum' 1, 'cv01' 1, 'cv02' 1, 'cv03' 1, 'cv04' 1;
     background-color: var(--rh__neutral-bg1);
     color: var(--text-primary);
