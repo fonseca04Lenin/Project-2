@@ -32,10 +32,11 @@ function LandingHeader() {
         </div>
 
         <div className="landing-header-right">
-          <nav className="landing-nav">
-            <a href="#approach" className="landing-nav-link">Approach</a>
-            <a href="#features" className="landing-nav-link">Platform</a>
-            <a href="#discipline" className="landing-nav-link">Discipline</a>
+          <nav className="landing-nav" style={{ display: 'none' }}>
+            <a href="#features" className="landing-nav-link">Features</a>
+            <a href="#platform" className="landing-nav-link">Platform</a>
+            <a href="#performance" className="landing-nav-link">Performance</a>
+            <a href="#access" className="landing-nav-link">Access</a>
           </nav>
         </div>
       </div>
@@ -512,70 +513,47 @@ function HeroSection() {
 
   return (
     <>
-      <section className="stock-watchlist-hero prestige-hero" id="approach">
-        <div className="stock-watchlist-container prestige-shell">
-          <div className="prestige-hero-grid">
-            <div className="prestige-copy">
-              <p className="prestige-kicker">AI Stock Sage</p>
-              <h1 className="stock-watchlist-title prestige-title">
-                A more disciplined way
-                <br />
-                to follow quality businesses.
-              </h1>
+      <section className="stock-watchlist-hero">
+        <div className="stock-watchlist-container">
+          <h1 className="stock-watchlist-title">
+            AI Stock Sage
+          </h1>
 
-              <p className="stock-watchlist-description prestige-description">
-                AI Stock Sage is a research-led watchlist for retail investors who prefer judgment over noise.
-                Keep a focused list of names, review the market around them, and use AI to accelerate first-pass research
-                without turning the product into a casino.
-              </p>
+          <p className="stock-watchlist-subtitle">
+            THE FUTURE OF MARKET INTELLIGENCE
+          </p>
 
-              <div className="prestige-actions">
-                <button
-                  onClick={() => handleAuthClick("signup")}
-                  className="stock-watchlist-btn stock-watchlist-btn-primary prestige-btn-primary"
-                >
-                  Open Your Watchlist
-                </button>
-                <button
-                  onClick={() => handleAuthClick("signin")}
-                  className="stock-watchlist-btn stock-watchlist-btn-secondary prestige-btn-secondary"
-                >
-                  Sign In
-                </button>
-              </div>
+          <p className="stock-watchlist-description">
+            A precision-built platform for high-performing traders and investors. Experience{" "}
+            <span className="stock-watchlist-highlight">40% faster</span> information retrieval
+            with real-time data visualization and a streamlined interface. This is not just another trading app—it's a
+            digital command center for the ambitious.
+          </p>
 
-              <div className="prestige-footnote">
-                Built for investors who want research, context, and continuity around the stocks they follow.
-              </div>
-            </div>
-
-            <aside className="prestige-panel">
-              <div className="prestige-panel-topline">Research brief</div>
-              <div className="prestige-panel-rule"></div>
-              <div className="prestige-panel-block">
-                <span className="prestige-panel-label">Core use case</span>
-                <p>Maintain a deliberate watchlist and revisit each position with current market context, notes, and AI-assisted analysis.</p>
-              </div>
-              <div className="prestige-panel-block">
-                <span className="prestige-panel-label">Primary tools</span>
-                <ul className="prestige-panel-list">
-                  <li>Persistent watchlist</li>
-                  <li>Morning brief and thesis builder</li>
-                  <li>News, catalysts, and price tracking</li>
-                </ul>
-              </div>
-              <div className="prestige-panel-meta">
-                <div>
-                  <span className="prestige-meta-value">01</span>
-                  <span className="prestige-meta-label">watchlist first</span>
-                </div>
-                <div>
-                  <span className="prestige-meta-value">02</span>
-                  <span className="prestige-meta-label">research before action</span>
-                </div>
-              </div>
-            </aside>
+          <div className="stock-watchlist-actions">
+            <button
+              onClick={() => handleAuthClick("signup")}
+              className="stock-watchlist-btn stock-watchlist-btn-primary"
+            >
+              Get Started
+            </button>
+            <button
+              onClick={() => handleAuthClick("signin")}
+              className="stock-watchlist-btn stock-watchlist-btn-secondary"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => {
+                window.__guestMode = true;
+                navigateApp('/app/overview');
+              }}
+              className="stock-watchlist-btn stock-watchlist-btn-ghost"
+            >
+              Continue as Guest
+            </button>
           </div>
+
         </div>
       </section>
 
@@ -594,38 +572,36 @@ function AIUsageSection() {
   const features = [
     {
       number: "01",
-      title: "A watchlist with memory",
-      desc: "Keep the companies you follow in one place, along with the notes, price levels, and context that make them worth revisiting."
+      title: "Real-Time Data",
+      desc: "Every price, every tick. Zero lag between the market and your screen."
     },
     {
       number: "02",
-      title: "AI as a research assistant",
-      desc: "Use briefs, thesis drafts, and direct prompts to accelerate your reading, not to outsource your conviction."
+      title: "AI Analysis",
+      desc: "Pattern recognition trained on decades of market behavior — delivered in seconds."
     },
     {
       number: "03",
-      title: "Market context without clutter",
-      desc: "Review news, movers, and surrounding market conditions without scattering your process across disconnected tools."
+      title: "Direct AI Advisor",
+      desc: "Ask anything. Get a straight answer. No fluff, no filler, no delay."
     },
     {
       number: "04",
-      title: "Simulation kept in its place",
-      desc: "Paper trading remains available as a secondary tool, after the research work has already been done."
+      title: "Risk Intelligence",
+      desc: "Know your exposure before the market moves against you."
     }
   ];
 
   return (
-    <section className="ai-section" id="features">
+    <section className="ai-section">
       <div className="ai-section-inner">
         <div className="ai-section-left">
-          <span className="ai-section-eyebrow">The Platform</span>
+          <span className="ai-section-eyebrow">Intelligence Layer</span>
           <h2 className="ai-section-headline">
-            The platform is organized
-            <br />
-            around investor discipline.
+            Built for those<br />who move first.
           </h2>
           <p className="ai-section-aside">
-            The strongest investing tools make it easier to return to the same names with better context, better notes, and less distraction.
+            Every feature is designed around one principle: speed of insight.
           </p>
         </div>
         <div className="ai-section-right">
@@ -644,49 +620,6 @@ function AIUsageSection() {
   );
 }
 
-function FeaturePrioritySection() {
-  const cards = [
-    {
-      title: "Fewer gimmicks, more continuity",
-      body: "The watchlist is the center of gravity. The rest of the product exists to deepen the quality of attention around it."
-    },
-    {
-      title: "AI in a supporting role",
-      body: "The AI layer speeds up reading and synthesis, but the product still signals seriousness rather than prediction theater."
-    },
-    {
-      title: "A calmer information surface",
-      body: "Context arrives in a measured way: market news, price movement, and research tools are present without shouting over one another."
-    },
-    {
-      title: "Built for repeat use",
-      body: "The design is meant to feel reliable over time, closer to a private research desk than a hype-driven finance app."
-    }
-  ];
-
-  return (
-    <section className="priority-section" id="discipline">
-      <div className="priority-shell">
-        <div className="priority-intro">
-          <span className="priority-eyebrow">Design Principle</span>
-          <h2 className="priority-title">Prestige comes from restraint.</h2>
-          <p className="priority-copy">
-            The public face of the product should suggest patience, judgment, and continuity. That means cleaner language, quieter layout decisions, and a product story centered on research rather than stimulation.
-          </p>
-        </div>
-        <div className="priority-grid">
-          {cards.map((card) => (
-            <article className="priority-card" key={card.title}>
-              <h3>{card.title}</h3>
-              <p>{card.body}</p>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // Main Landing Page Component
 function StockWatchlistLandingPage() {
   return (
@@ -694,7 +627,6 @@ function StockWatchlistLandingPage() {
       <LandingHeader />
       <HeroSection />
       <AIUsageSection />
-      <FeaturePrioritySection />
     </div>
   );
 }

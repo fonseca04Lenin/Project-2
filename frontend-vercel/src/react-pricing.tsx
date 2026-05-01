@@ -34,10 +34,10 @@ const PLAN_DATA: PlanData[] = [
         accentColor: 'rgba(255,255,255,0.15)',
         monthlyPrice: 0,
         yearlyPrice: 0,
-        tagline: 'Start your watchlist and research workflow for free.',
+        tagline: 'Explore the platform at no cost.',
         features: [
             { text: '5 AI chat messages per day', included: true },
-            { text: 'Watchlist and research dashboard', included: true },
+            { text: 'Watchlist & portfolio tracking', included: true },
             { text: 'Real-time market data', included: true },
             { text: 'Price alerts', included: true },
             { text: 'Morning Brief', included: false },
@@ -57,11 +57,11 @@ const PLAN_DATA: PlanData[] = [
         yearlyPrice: 99,
         yearlyMonthly: 8.25,
         savings: '31%',
-        tagline: 'For retail investors who want faster research.',
+        tagline: 'For investors who want a real edge.',
         popular: true,
         features: [
             { text: '50 AI chat messages per day', included: true },
-            { text: 'Watchlist and research dashboard', included: true },
+            { text: 'Watchlist & portfolio tracking', included: true },
             { text: 'Real-time market data', included: true },
             { text: 'Price alerts', included: true },
             { text: 'Morning Brief — personalized daily AI brief', included: true },
@@ -81,7 +81,7 @@ const PLAN_DATA: PlanData[] = [
         yearlyPrice: 199,
         yearlyMonthly: 16.58,
         savings: '31%',
-        tagline: 'Unlimited AI research for heavy users.',
+        tagline: 'Unlimited AI. No ceiling.',
         features: [
             { text: 'Unlimited AI chat messages', included: true },
             { text: 'Everything in Pro', included: true },
@@ -230,13 +230,11 @@ const PricingPage = () => {
             {/* Hero */}
             <div className="pricing-hero">
                 <h1 className="pricing-headline">
-                    Research faster.
-                    <br />
-                    Stay closer to your watchlist.
+                    Intelligence that<br />pays for itself.
                 </h1>
                 <p className="pricing-sub">
-                    AI Stock Sage gives retail investors a watchlist-first research workflow with market data,
-                    AI briefs, thesis tools, and price tracking in one place.
+                    Real-time market data, AI-generated insights, and portfolio analysis —<br />
+                    built for investors who take precision seriously.
                 </p>
             </div>
 
