@@ -227,21 +227,32 @@ def check_and_increment_analysis_usage(user_id: str) -> dict:
         return {'allowed': True, 'used': 0, 'limit': limit, 'tier': tier, 'upgrade_required': False}
 
 
-def check_ai_suite_access(user_id: str) -> dict:
-    """
-    Gate for AI Suite features (Morning Brief, Thesis, Health Score, Sector Rotation).
-    Returns dict with: allowed, tier, upgrade_required.
+def check_ai_suite_access(user_id: str, endpoint: str = '') -> dict:
+    from google.cloud.firestore_v1 import Increment
 
-    CALL THIS before processing any AI suite request.
-    """
     sub = get_user_subscription(user_id)
     tier = sub['tier']
-    allowed = PLANS.get(tier, PLANS['free'])['ai_suite']
-    return {
-        'allowed': allowed,
-        'tier': tier,
-        'upgrade_required': not allowed,
-    }
+
+    if PLANS.get(tier, PLANS['free'])['ai_suite']:
+        return {'allowed': True, 'tier': tier, 'upgrade_required': False, 'is_free_use': False}
+
+    if not endpoint:
+        return {'allowed': False, 'tier': tier, 'upgrade_required': True, 'is_free_use': False}
+
+    today = _today_utc()
+    field = f'ai_suite_{endpoint}_{today}'
+    try:
+        db = _get_db()
+        ref = db.collection('daily_usage').document(user_id)
+        doc = ref.get()
+        used = int(((doc.to_dict() or {}) if doc.exists else {}).get(field, 0))
+        if used >= 1:
+            return {'allowed': False, 'tier': tier, 'upgrade_required': True, 'is_free_use': True}
+        ref.set({field: Increment(1)}, merge=True)
+        return {'allowed': True, 'tier': tier, 'upgrade_required': False, 'is_free_use': True}
+    except Exception as e:
+        logger.error("Error checking ai suite usage for %s/%s: %s", user_id, endpoint, e)
+        return {'allowed': True, 'tier': tier, 'upgrade_required': False, 'is_free_use': True}
 
 
 # ---------------------------------------------------------------------------

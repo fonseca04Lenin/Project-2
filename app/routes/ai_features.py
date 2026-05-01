@@ -49,13 +49,12 @@ def morning_brief():
         return jsonify({'error': 'Authentication required'}), 401
 
     from app.services.subscription_service import check_ai_suite_access
-    access = check_ai_suite_access(user.id)
+    access = check_ai_suite_access(user.id, 'morning_brief')
     if not access['allowed']:
-        return jsonify({
-            'error': 'upgrade_required',
-            'message': 'Morning Brief is a Pro feature. Upgrade to unlock personalized daily briefings.',
-            'tier': access['tier'],
-        }), 403
+        msg = ("You've used your free Morning Brief for today. Upgrade to Pro for unlimited access."
+               if access.get('is_free_use') else
+               "Upgrade to Pro to unlock unlimited Morning Briefs.")
+        return jsonify({'error': 'upgrade_required', 'message': msg, 'tier': access['tier']}), 403
 
     force_refresh = request.args.get('refresh') == '1'
     cache_key = f'morning_brief_{user.id}'
@@ -183,13 +182,12 @@ def thesis_builder():
         return jsonify({'error': 'Authentication required'}), 401
 
     from app.services.subscription_service import check_ai_suite_access
-    access = check_ai_suite_access(user.id)
+    access = check_ai_suite_access(user.id, 'thesis')
     if not access['allowed']:
-        return jsonify({
-            'error': 'upgrade_required',
-            'message': 'Thesis Builder is a Pro feature. Upgrade to generate AI investment theses.',
-            'tier': access['tier'],
-        }), 403
+        msg = ("You've used your free Thesis Builder for today. Upgrade to Pro for unlimited access."
+               if access.get('is_free_use') else
+               "Upgrade to Pro to unlock unlimited Thesis Builder analyses.")
+        return jsonify({'error': 'upgrade_required', 'message': msg, 'tier': access['tier']}), 403
 
     body = request.get_json(silent=True) or {}
     symbol = (body.get('symbol') or '').upper().strip()
@@ -312,13 +310,12 @@ def health_score():
         return jsonify({'error': 'Authentication required'}), 401
 
     from app.services.subscription_service import check_ai_suite_access
-    access = check_ai_suite_access(user.id)
+    access = check_ai_suite_access(user.id, 'health_score')
     if not access['allowed']:
-        return jsonify({
-            'error': 'upgrade_required',
-            'message': 'Portfolio Health Score is a Pro feature. Upgrade to get your AI-powered portfolio grade.',
-            'tier': access['tier'],
-        }), 403
+        msg = ("You've used your free Health Score for today. Upgrade to Pro for unlimited access."
+               if access.get('is_free_use') else
+               "Upgrade to Pro to unlock unlimited Health Score reports.")
+        return jsonify({'error': 'upgrade_required', 'message': msg, 'tier': access['tier']}), 403
 
     force_refresh = request.args.get('refresh') == '1'
     cache_key = f'health_score_{user.id}'
@@ -490,13 +487,12 @@ def sector_rotation():
         return jsonify({'error': 'Authentication required'}), 401
 
     from app.services.subscription_service import check_ai_suite_access
-    access = check_ai_suite_access(user.id)
+    access = check_ai_suite_access(user.id, 'sector_rotation')
     if not access['allowed']:
-        return jsonify({
-            'error': 'upgrade_required',
-            'message': 'Sector Rotation is a Pro feature. Upgrade to track institutional money flow.',
-            'tier': access['tier'],
-        }), 403
+        msg = ("You've used your free Sector Rotation for today. Upgrade to Pro for unlimited access."
+               if access.get('is_free_use') else
+               "Upgrade to Pro to unlock unlimited Sector Rotation analysis.")
+        return jsonify({'error': 'upgrade_required', 'message': msg, 'tier': access['tier']}), 403
 
     force_refresh = request.args.get('refresh') == '1'
     cache_key = 'sector_rotation'
@@ -624,13 +620,12 @@ def earnings_breakdown():
         return jsonify({'error': 'Authentication required'}), 401
 
     from app.services.subscription_service import check_ai_suite_access
-    access = check_ai_suite_access(user.id)
+    access = check_ai_suite_access(user.id, 'earnings_breakdown')
     if not access['allowed']:
-        return jsonify({
-            'error': 'upgrade_required',
-            'message': 'Earnings Breakdown is a Pro feature. Upgrade to get AI-powered earnings analysis.',
-            'tier': access['tier'],
-        }), 403
+        msg = ("You've used your free Earnings Breakdown for today. Upgrade to Pro for unlimited access."
+               if access.get('is_free_use') else
+               "Upgrade to Pro to unlock unlimited Earnings Breakdowns.")
+        return jsonify({'error': 'upgrade_required', 'message': msg, 'tier': access['tier']}), 403
 
     symbol = (request.args.get('symbol') or '').upper().strip()
     if not symbol:
@@ -652,7 +647,6 @@ def earnings_breakdown():
         sector = info.get('sector', 'Unknown')
         current_price = info.get('currentPrice') or info.get('regularMarketPrice') or 0
 
-        # EPS & growth metrics from info
         trailing_eps = info.get('trailingEps')
         forward_eps = info.get('forwardEps')
         earnings_growth = info.get('earningsGrowth')
@@ -662,7 +656,6 @@ def earnings_breakdown():
         forward_pe = info.get('forwardPE')
         trailing_pe = info.get('trailingPE')
 
-        # Quarterly revenue from financials
         revenue_text = 'Not available'
         try:
             qf = ticker.quarterly_financials
@@ -679,12 +672,10 @@ def earnings_breakdown():
         except Exception:
             pass
 
-        # 5 recent headlines
         news = ticker.news or []
         headlines = [n.get('title', '') for n in news[:5] if n.get('title')]
         headlines_text = '\n'.join(f'- {h}' for h in headlines) if headlines else '- No recent headlines'
 
-        # Build metrics block for prompt
         lines = [f'Symbol: {symbol} ({company_name})', f'Sector: {sector}', f'Current Price: ${current_price:.2f}']
         if trailing_eps is not None:
             lines.append(f'Trailing EPS: ${trailing_eps:.2f}')
@@ -775,13 +766,12 @@ def portfolio_guidance():
         return jsonify({'error': 'Authentication required'}), 401
 
     from app.services.subscription_service import check_ai_suite_access
-    access = check_ai_suite_access(user.id)
+    access = check_ai_suite_access(user.id, 'portfolio_guidance')
     if not access['allowed']:
-        return jsonify({
-            'error': 'upgrade_required',
-            'message': 'Portfolio Guidance is a Pro feature. Upgrade to get AI-powered exposure and risk analysis.',
-            'tier': access['tier'],
-        }), 403
+        msg = ("You've used your free Portfolio Guidance for today. Upgrade to Pro for unlimited access."
+               if access.get('is_free_use') else
+               "Upgrade to Pro to unlock unlimited Portfolio Guidance.")
+        return jsonify({'error': 'upgrade_required', 'message': msg, 'tier': access['tier']}), 403
 
     force_refresh = request.args.get('refresh') == '1'
     cache_key = f'portfolio_guidance_{user.id}'
@@ -799,7 +789,6 @@ def portfolio_guidance():
         if not symbols:
             return jsonify({'error': 'Your watchlist is empty. Add some stocks first.'}), 422
 
-        # Pull info for each symbol (cap at 20 for speed)
         holdings = []
         for sym in symbols[:20]:
             try:
@@ -817,7 +806,6 @@ def portfolio_guidance():
             except Exception:
                 holdings.append({'symbol': sym, 'name': sym, 'sector': 'Unknown'})
 
-        # Market context (SPY 5-day)
         market_context = ''
         try:
             spy = yf.Ticker('SPY')
@@ -828,7 +816,6 @@ def portfolio_guidance():
         except Exception:
             pass
 
-        # Sector concentration
         sector_counts: dict = {}
         for h in holdings:
             s = h.get('sector') or 'Unknown'
@@ -836,7 +823,6 @@ def portfolio_guidance():
         total = len(holdings) or 1
         sector_summary = ', '.join(f"{s} {round(c/total*100)}%" for s, c in sorted(sector_counts.items(), key=lambda x: -x[1]))
 
-        # Build holdings text for AI
         holding_lines = []
         for h in holdings:
             line = f"  {h['symbol']} ({h['name']}) — {h.get('sector', 'Unknown')}"
