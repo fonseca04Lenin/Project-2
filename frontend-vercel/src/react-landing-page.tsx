@@ -520,14 +520,14 @@ function HeroSection() {
           </h1>
 
           <p className="stock-watchlist-subtitle">
-            THE FUTURE OF MARKET INTELLIGENCE
+            AI-POWERED STOCK RESEARCH & GUIDANCE
           </p>
 
           <p className="stock-watchlist-description">
-            A precision-built platform for high-performing traders and investors. Experience{" "}
-            <span className="stock-watchlist-highlight">40% faster</span> information retrieval
-            with real-time data visualization and a streamlined interface. This is not just another trading app—it's a
-            digital command center for the ambitious.
+            Stop guessing. Start researching. AI Stock Sage gives you{" "}
+            <span className="stock-watchlist-highlight">institutional-grade analysis</span> on any
+            stock — earnings breakdowns, risk factors, investment theses, and plain-language
+            guidance — all powered by AI and delivered in seconds.
           </p>
 
           <div className="stock-watchlist-actions">
@@ -572,23 +572,23 @@ function AIUsageSection() {
   const features = [
     {
       number: "01",
-      title: "Real-Time Data",
-      desc: "Every price, every tick. Zero lag between the market and your screen."
+      title: "AI Research Reports",
+      desc: "Get a full breakdown of any stock — fundamentals, catalysts, risks — written by AI in plain language."
     },
     {
       number: "02",
-      title: "AI Analysis",
-      desc: "Pattern recognition trained on decades of market behavior — delivered in seconds."
+      title: "Investment Thesis Guidance",
+      desc: "Tell the AI your thesis. It stress-tests it, finds the gaps, and tells you what the data actually supports."
     },
     {
       number: "03",
-      title: "Direct AI Advisor",
-      desc: "Ask anything. Get a straight answer. No fluff, no filler, no delay."
+      title: "Earnings Intelligence",
+      desc: "AI reads every earnings report so you don't have to — surfacing what moved the stock and what to watch next."
     },
     {
       number: "04",
-      title: "Risk Intelligence",
-      desc: "Know your exposure before the market moves against you."
+      title: "Ask the AI Anything",
+      desc: "A research assistant that knows the market. Ask about any stock, sector, or macro trend and get a sourced answer."
     }
   ];
 
@@ -596,12 +596,12 @@ function AIUsageSection() {
     <section className="ai-section">
       <div className="ai-section-inner">
         <div className="ai-section-left">
-          <span className="ai-section-eyebrow">Intelligence Layer</span>
+          <span className="ai-section-eyebrow">Research Suite</span>
           <h2 className="ai-section-headline">
-            Built for those<br />who move first.
+            Research smarter.<br />Decide with confidence.
           </h2>
           <p className="ai-section-aside">
-            Every feature is designed around one principle: speed of insight.
+            Every feature is built around one goal: giving you a clear, well-researched answer before you commit.
           </p>
         </div>
         <div className="ai-section-right">

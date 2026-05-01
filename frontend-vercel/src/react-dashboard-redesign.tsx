@@ -76,6 +76,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
     const [selectedCEO, setSelectedCEO] = useState({ name: '', company: '', symbol: '' });
     const [toolsOpen, setToolsOpen] = useState<boolean>(false);
     const [marketsOpen, setMarketsOpen] = useState<boolean>(false);
+    const [aiSuiteTab, setAiSuiteTab] = useState<string>('brief');
     const searchDebounceRef = useRef<any>(null);
     const searchInputRef = useRef<HTMLElement | null>(null);
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -121,6 +122,12 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
         if (onRouteChange) {
             onRouteChange(view);
         }
+    }, [onRouteChange]);
+
+    const navigateToAiTool = useCallback((tab: string) => {
+        setAiSuiteTab(tab);
+        setActiveView('aisuite');
+        if (onRouteChange) onRouteChange('aisuite');
     }, [onRouteChange]);
 
     // Load preferences from localStorage (merge with defaults so new keys are always present)
@@ -1828,12 +1835,16 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                         onClick={() => handleNavigate('watchlist')}
                     >Watchlist</button>
                     <button
+                        className={`hn-item ${activeView === 'aisuite' ? 'active' : ''}`}
+                        onClick={() => handleNavigate('aisuite')}
+                    >AI Research</button>
+                    <button
                         className={`hn-item ${activeView === 'intelligence' ? 'active' : ''}`}
                         onClick={() => handleNavigate('intelligence')}
                     >Intelligence</button>
                     <div className="hn-dropdown-wrapper">
                         <button
-                            className={`hn-item hn-dropdown-btn ${['news', 'whatswhat', 'map'].includes(activeView) ? 'active' : ''}`}
+                            className={`hn-item hn-dropdown-btn ${['news', 'whatswhat', 'map', 'paper'].includes(activeView) ? 'active' : ''}`}
                             onClick={() => { setMarketsOpen(v => !v); setToolsOpen(false); }}
                         >
                             Markets <i className={`fas fa-chevron-down hn-chevron ${marketsOpen ? 'hn-chevron-open' : ''}`}></i>
@@ -1849,22 +1860,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                                 <button className="hn-dropdown-item" onClick={() => { handleNavigate('map'); setMarketsOpen(false); }}>
                                     <i className="fas fa-map"></i> Map
                                 </button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="hn-dropdown-wrapper">
-                        <button
-                            className={`hn-item hn-dropdown-btn ${['aisuite', 'paper'].includes(activeView) ? 'active' : ''}`}
-                            onClick={() => { setToolsOpen(v => !v); setMarketsOpen(false); }}
-                        >
-                            Tools <i className={`fas fa-chevron-down hn-chevron ${toolsOpen ? 'hn-chevron-open' : ''}`}></i>
-                        </button>
-                        {toolsOpen && (
-                            <div className="hn-dropdown">
-                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('aisuite'); setToolsOpen(false); }}>
-                                    <i className="fas fa-brain"></i> AI Suite
-                                </button>
-                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('paper'); setToolsOpen(false); }}>
+                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('paper'); setMarketsOpen(false); }}>
                                     <i className="fas fa-flask"></i> Paper Trading
                                 </button>
                             </div>
@@ -2071,7 +2067,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
 
             {/* Main Content Area */}
             <div className="dashboard-content">
-                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={handleNavigate} onStockHover={handleStockHover} preferences={preferences} />}
+                {activeView === 'overview' && <OverviewView watchlistData={watchlistData} marketStatus={marketStatus} onNavigate={handleNavigate} onNavigateToAiTool={navigateToAiTool} onStockHover={handleStockHover} preferences={preferences} />}
                 {activeView === 'screener' && <ScreenerView screenerType={activeScreener} onNavigate={handleNavigate} onChangeScreener={(t: any) => setActiveScreener(t)} />}
                 {activeView === 'watchlist' && isGuest && (
                     <div className="guest-locked-view">
@@ -2106,7 +2102,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                 {activeView === 'map' && <MapView />}
                 {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
                 {activeView === 'assistant' && <AIAssistantView />}
-                {activeView === 'aisuite' && !isGuest && <AISuiteView watchlistData={watchlistData} />}
+                {activeView === 'aisuite' && !isGuest && <AISuiteView watchlistData={watchlistData} defaultTab={aiSuiteTab} onTabChange={setAiSuiteTab} />}
                 {activeView === 'aisuite' && isGuest && (
                     <div className="guest-locked-view">
                         <i className="fas fa-lock"></i>

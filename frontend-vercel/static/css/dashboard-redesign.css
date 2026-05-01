@@ -525,7 +525,10 @@ body[data-theme="light"] .hn-dropdown-item:hover {
     height: 38px;
     min-width: 38px;
     min-height: 38px;
+    max-width: 38px;
+    max-height: 38px;
     flex-shrink: 0;
+    flex-grow: 0;
     background: #1a1a1a;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;

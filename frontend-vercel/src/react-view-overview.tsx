@@ -20,8 +20,17 @@ const MarketOverview = window.MarketOverview;
 const MarketIntelligenceWidget = window.MarketIntelligenceWidget;
 const TopMoversWidget = window.TopMoversWidget;
 
+const AI_TOOLS = [
+    { tab: 'brief',    icon: 'fa-newspaper',     label: 'Morning Brief',      desc: 'Watchlist summary, daily',        color: '#00D924' },
+    { tab: 'thesis',   icon: 'fa-balance-scale',  label: 'Thesis Builder',     desc: 'Bull & bear case for any ticker', color: '#00D4AA' },
+    { tab: 'health',   icon: 'fa-heartbeat',      label: 'Health Score',       desc: 'Portfolio diversification grade', color: '#7FE832' },
+    { tab: 'rotation', icon: 'fa-arrows-rotate',  label: 'Sector Rotation',    desc: 'Track institutional money flow',  color: '#FFB800' },
+    { tab: 'earnings', icon: 'fa-chart-bar',      label: 'Earnings Breakdown', desc: 'AI reads the earnings report',    color: '#FF9500' },
+    { tab: 'portfolio',icon: 'fa-shield-halved',  label: 'Portfolio Guidance', desc: 'Exposure & risk assessment',      color: '#A78BFA' },
+];
+
 // Overview Tab Component
-const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover, preferences = {} }: OverviewViewProps) => {
+const OverviewView = ({ watchlistData, marketStatus, onNavigate, onNavigateToAiTool, onStockHover, preferences = {} }: OverviewViewProps) => {
     const [sparklineData, setSparklineData] = useState<Record<string, unknown>>({});
     const showSparklines = preferences.showSparklines !== false;
     const showPercentChange = preferences.showPercentChange !== false;
@@ -42,6 +51,45 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onStockHover, p
         <div className="overview-view">
             {/* Market Overview */}
             <MarketOverview marketStatus={marketStatus} />
+
+            {/* AI Research Quick Access */}
+            {onNavigateToAiTool && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>AI Research</span>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.6rem' }}>
+                        {AI_TOOLS.map(tool => (
+                            <button
+                                key={tool.tab}
+                                onClick={() => onNavigateToAiTool(tool.tab)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: '8px',
+                                    padding: '0.85rem 0.9rem',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'border-color 0.15s, background 0.15s',
+                                }}
+                                onMouseEnter={e => {
+                                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.16)';
+                                }}
+                                onMouseLeave={e => {
+                                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
+                                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                                }}
+                            >
+                                <i className={`fas ${tool.icon}`} style={{ color: tool.color, fontSize: '0.95rem' }} />
+                                <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.8rem', marginTop: '0.5rem', lineHeight: 1.2 }}>{tool.label}</div>
+                                <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.72rem', marginTop: '0.3rem', lineHeight: 1.3 }}>{tool.desc}</div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Three Column Layout */}
             <div className="main-grid-enhanced">

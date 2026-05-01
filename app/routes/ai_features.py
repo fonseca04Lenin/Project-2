@@ -611,3 +611,294 @@ Write a 140-word strategist note identifying which sectors are gaining instituti
     except Exception as e:
         logger.error("Error computing sector rotation: %s", e)
         return jsonify({'error': 'Failed to compute sector rotation. Try again shortly.'}), 500
+
+
+# ---------------------------------------------------------------------------
+# Endpoint 5: Earnings Breakdown
+# ---------------------------------------------------------------------------
+
+@ai_features_bp.route('/earnings-breakdown', methods=['GET'])
+def earnings_breakdown():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    from app.services.subscription_service import check_ai_suite_access
+    access = check_ai_suite_access(user.id)
+    if not access['allowed']:
+        return jsonify({
+            'error': 'upgrade_required',
+            'message': 'Earnings Breakdown is a Pro feature. Upgrade to get AI-powered earnings analysis.',
+            'tier': access['tier'],
+        }), 403
+
+    symbol = (request.args.get('symbol') or '').upper().strip()
+    if not symbol:
+        return jsonify({'error': 'symbol is required'}), 400
+
+    cache_key = f'earnings_breakdown_{symbol}'
+    ttl = 6 * 3600
+
+    cached = cache_get(cache_key, ttl)
+    if cached is not None:
+        return jsonify(cached)
+
+    try:
+        import yfinance as yf
+
+        ticker = yf.Ticker(symbol)
+        info = ticker.info or {}
+        company_name = info.get('longName') or info.get('shortName') or symbol
+        sector = info.get('sector', 'Unknown')
+        current_price = info.get('currentPrice') or info.get('regularMarketPrice') or 0
+
+        # EPS & growth metrics from info
+        trailing_eps = info.get('trailingEps')
+        forward_eps = info.get('forwardEps')
+        earnings_growth = info.get('earningsGrowth')
+        earnings_quarterly_growth = info.get('earningsQuarterlyGrowth')
+        revenue_growth = info.get('revenueGrowth')
+        profit_margins = info.get('profitMargins')
+        forward_pe = info.get('forwardPE')
+        trailing_pe = info.get('trailingPE')
+
+        # Quarterly revenue from financials
+        revenue_text = 'Not available'
+        try:
+            qf = ticker.quarterly_financials
+            if qf is not None and not qf.empty and 'Total Revenue' in qf.index:
+                rev_row = qf.loc['Total Revenue']
+                if len(rev_row) >= 2:
+                    r1, r0 = float(rev_row.iloc[0]), float(rev_row.iloc[1])
+                    chg = ((r1 - r0) / abs(r0)) * 100 if r0 else 0
+                    def fmt_rev(v):
+                        if v >= 1e9: return f'${v/1e9:.2f}B'
+                        if v >= 1e6: return f'${v/1e6:.0f}M'
+                        return f'${v:.0f}'
+                    revenue_text = f'{fmt_rev(r1)} ({("+" if chg >= 0 else "")}{chg:.1f}% vs prior quarter)'
+        except Exception:
+            pass
+
+        # 5 recent headlines
+        news = ticker.news or []
+        headlines = [n.get('title', '') for n in news[:5] if n.get('title')]
+        headlines_text = '\n'.join(f'- {h}' for h in headlines) if headlines else '- No recent headlines'
+
+        # Build metrics block for prompt
+        lines = [f'Symbol: {symbol} ({company_name})', f'Sector: {sector}', f'Current Price: ${current_price:.2f}']
+        if trailing_eps is not None:
+            lines.append(f'Trailing EPS: ${trailing_eps:.2f}')
+        if forward_eps is not None:
+            lines.append(f'Forward EPS estimate: ${forward_eps:.2f}')
+        if trailing_pe is not None:
+            lines.append(f'Trailing P/E: {trailing_pe:.1f}x')
+        if forward_pe is not None:
+            lines.append(f'Forward P/E: {forward_pe:.1f}x')
+        if earnings_growth is not None:
+            lines.append(f'Earnings growth (YoY): {earnings_growth*100:.1f}%')
+        if earnings_quarterly_growth is not None:
+            lines.append(f'Quarterly earnings growth (YoY): {earnings_quarterly_growth*100:.1f}%')
+        if revenue_growth is not None:
+            lines.append(f'Revenue growth (YoY): {revenue_growth*100:.1f}%')
+        if profit_margins is not None:
+            lines.append(f'Profit margin: {profit_margins*100:.1f}%')
+        if revenue_text != 'Not available':
+            lines.append(f'Most recent quarter revenue: {revenue_text}')
+        metrics_text = '\n'.join(lines)
+
+        prompt = f"""You are an equity analyst writing a post-earnings brief for {symbol} ({company_name}).
+
+FINANCIAL DATA:
+{metrics_text}
+
+RECENT HEADLINES:
+{headlines_text}
+
+Write a tight earnings analysis. Return ONLY valid JSON with this structure:
+{{
+  "result": "1 sentence on what the recent earnings picture shows — growth, decline, beat, miss",
+  "key_takeaway": "2 sentences on what investors should actually care about from the numbers",
+  "what_to_watch": "1 sentence on the single most important metric or catalyst going forward"
+}}
+{_RULES_BLOCK}"""
+
+        raw = ai_generate(
+            prompt, max_tokens=400, temperature=0.65,
+            providers=['groq', 'grok', 'gemini'],
+            user_id=user.id, endpoint='earnings_breakdown',
+        )
+
+        import json
+        import re
+        analysis = {'result': '', 'key_takeaway': '', 'what_to_watch': ''}
+        json_match = re.search(r'\{[\s\S]*\}', raw)
+        if json_match:
+            try:
+                analysis = json.loads(json_match.group())
+            except Exception:
+                analysis['result'] = raw[:300]
+
+        result = {
+            'symbol': symbol,
+            'company_name': company_name,
+            'sector': sector,
+            'current_price': current_price,
+            'metrics': {
+                'trailing_eps': trailing_eps,
+                'forward_eps': forward_eps,
+                'earnings_growth': round(earnings_growth * 100, 1) if earnings_growth is not None else None,
+                'quarterly_earnings_growth': round(earnings_quarterly_growth * 100, 1) if earnings_quarterly_growth is not None else None,
+                'revenue_growth': round(revenue_growth * 100, 1) if revenue_growth is not None else None,
+                'profit_margin': round(profit_margins * 100, 1) if profit_margins is not None else None,
+                'trailing_pe': round(trailing_pe, 1) if trailing_pe is not None else None,
+                'forward_pe': round(forward_pe, 1) if forward_pe is not None else None,
+                'revenue_summary': revenue_text,
+            },
+            'analysis': analysis,
+        }
+        cache_set(cache_key, result, ttl)
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error("Error in earnings breakdown for %s: %s", symbol, e)
+        return jsonify({'error': f'Failed to load earnings data for {symbol}. Try again.'}), 500
+
+
+# ---------------------------------------------------------------------------
+# Endpoint 6: Portfolio Guidance
+# ---------------------------------------------------------------------------
+
+@ai_features_bp.route('/portfolio-guidance', methods=['GET'])
+def portfolio_guidance():
+    user = authenticate_request()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+
+    from app.services.subscription_service import check_ai_suite_access
+    access = check_ai_suite_access(user.id)
+    if not access['allowed']:
+        return jsonify({
+            'error': 'upgrade_required',
+            'message': 'Portfolio Guidance is a Pro feature. Upgrade to get AI-powered exposure and risk analysis.',
+            'tier': access['tier'],
+        }), 403
+
+    force_refresh = request.args.get('refresh') == '1'
+    cache_key = f'portfolio_guidance_{user.id}'
+    ttl = 4 * 3600
+
+    if not force_refresh:
+        cached = cache_get(cache_key, ttl)
+        if cached is not None:
+            return jsonify(cached)
+
+    try:
+        import yfinance as yf
+
+        symbols = _get_user_watchlist_symbols(user.id)
+        if not symbols:
+            return jsonify({'error': 'Your watchlist is empty. Add some stocks first.'}), 422
+
+        # Pull info for each symbol (cap at 20 for speed)
+        holdings = []
+        for sym in symbols[:20]:
+            try:
+                info = yahoo_finance_api.get_info(sym)
+                holdings.append({
+                    'symbol': sym,
+                    'name': info.get('longName') or info.get('shortName') or sym,
+                    'sector': info.get('sector') or 'Other',
+                    'beta': info.get('beta'),
+                    'pe': info.get('trailingPE'),
+                    'revenue_growth': info.get('revenueGrowth'),
+                    'profit_margins': info.get('profitMargins'),
+                    'market_cap': info.get('marketCap', 0),
+                })
+            except Exception:
+                holdings.append({'symbol': sym, 'name': sym, 'sector': 'Unknown'})
+
+        # Market context (SPY 5-day)
+        market_context = ''
+        try:
+            spy = yf.Ticker('SPY')
+            h = spy.history(period='5d')
+            if len(h) >= 2:
+                chg = ((h['Close'].iloc[-1] - h['Close'].iloc[0]) / h['Close'].iloc[0]) * 100
+                market_context = f"S&P 500 5-day return: {'+' if chg >= 0 else ''}{chg:.1f}%"
+        except Exception:
+            pass
+
+        # Sector concentration
+        sector_counts: dict = {}
+        for h in holdings:
+            s = h.get('sector') or 'Unknown'
+            sector_counts[s] = sector_counts.get(s, 0) + 1
+        total = len(holdings) or 1
+        sector_summary = ', '.join(f"{s} {round(c/total*100)}%" for s, c in sorted(sector_counts.items(), key=lambda x: -x[1]))
+
+        # Build holdings text for AI
+        holding_lines = []
+        for h in holdings:
+            line = f"  {h['symbol']} ({h['name']}) — {h.get('sector', 'Unknown')}"
+            if h.get('beta') is not None:
+                line += f", beta {h['beta']:.1f}"
+            if h.get('pe') is not None:
+                line += f", P/E {h['pe']:.1f}x"
+            if h.get('revenue_growth') is not None:
+                line += f", rev growth {h['revenue_growth']*100:.0f}%"
+            holding_lines.append(line)
+        holdings_text = '\n'.join(holding_lines)
+
+        prompt = f"""You are a portfolio advisor giving a client a frank assessment of their holdings.
+
+HOLDINGS ({len(holdings)} positions):
+{holdings_text}
+
+SECTOR CONCENTRATION: {sector_summary}
+MARKET CONTEXT: {market_context or 'Unavailable'}
+
+Give a portfolio guidance assessment focused on: sector exposure, valuation risk, market sensitivity (beta), and what the current market environment means for these specific holdings. Be direct and specific — name the stocks.
+
+Return ONLY valid JSON:
+{{
+  "narrative": "3-4 sentence advisor-voice assessment. No generic statements — reference actual holdings and numbers.",
+  "guidance": [
+    "Specific actionable point 1 — start with a verb, name a stock or sector",
+    "Specific actionable point 2",
+    "Specific actionable point 3"
+  ]
+}}
+{_RULES_BLOCK}"""
+
+        raw = ai_generate(
+            prompt, max_tokens=600, temperature=0.7,
+            providers=['grok', 'groq', 'gemini'],
+            user_id=user.id, endpoint='portfolio_guidance',
+        )
+
+        import json
+        import re
+        narrative = ''
+        guidance_points = []
+        json_match = re.search(r'\{[\s\S]*\}', raw)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group())
+                narrative = parsed.get('narrative', '')
+                guidance_points = parsed.get('guidance', [])
+            except Exception:
+                narrative = raw[:400]
+
+        result = {
+            'holdings_count': len(holdings),
+            'sector_summary': sector_summary,
+            'market_context': market_context,
+            'narrative': narrative,
+            'guidance': guidance_points,
+        }
+        cache_set(cache_key, result, ttl)
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error("Error in portfolio guidance: %s", e)
+        return jsonify({'error': 'Failed to generate portfolio guidance. Try again shortly.'}), 500

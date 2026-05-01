@@ -99,6 +99,7 @@ export interface OverviewViewProps {
   watchlistData: StockItem[];
   marketStatus: MarketStatus;
   onNavigate: (view: string) => void;
+  onNavigateToAiTool?: (tab: string) => void;
   onStockHover?: (symbol: string) => void;
   preferences?: Partial<Preferences>;
 }
