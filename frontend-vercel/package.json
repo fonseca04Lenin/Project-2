@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node build.js",
     "typecheck": "tsc --noEmit",
-    "dev": "vercel dev",
+    "dev": "node dev.js",
     "deploy": "vercel --prod"
   },
   "keywords": [

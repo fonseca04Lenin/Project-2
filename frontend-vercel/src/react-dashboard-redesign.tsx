@@ -48,10 +48,10 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
     const [privacyOpen, setPrivacyOpen] = useState<boolean>(false);
     const [helpOpen, setHelpOpen] = useState<boolean>(false);
     const [profilePicture, setProfilePicture] = useState<string | null>(null);
-    const [theme, setTheme] = useState('dark');
+    const [theme, setTheme] = useState('light');
     // Preferences state
     const [preferences, setPreferences] = useState<Record<string, any>>({
-        theme: 'dark', // dark, light
+        theme: 'light', // dark, light
         defaultTimeRange: '1D',
         autoRefresh: true,
         refreshInterval: 30, // seconds
@@ -135,7 +135,8 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
         try {
             const saved = localStorage.getItem('userPreferences');
             if (saved) {
-                setPreferences(prev => ({ ...prev, ...JSON.parse(saved) }));
+                const parsed = JSON.parse(saved);
+                setPreferences(prev => ({ ...prev, ...parsed }));
             }
         } catch (e: any) {
             // Use defaults if loading fails
@@ -160,7 +161,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
     // Apply preferences when they change
     useEffect(() => {
         // Theme
-        document.body.setAttribute('data-theme', preferences.theme || 'dark');
+        document.body.setAttribute('data-theme', preferences.theme || 'light');
 
         // Store defaultTimeRange globally so chart components (react-chart.js) can read it
         (window as any).__defaultTimeRange = preferences.defaultTimeRange || '1D';
@@ -1814,7 +1815,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                                             setSearchQuery('');
                                         }
                                     },
-                                        React.createElement('span', { className: 'ssd-item-icon', style: { background: sc.color + '22', color: sc.color } },
+                                        React.createElement('span', { className: 'ssd-item-icon', style: { color: sc.color } },
                                             React.createElement('i', { className: sc.fa })
                                         ),
                                         React.createElement('span', { className: 'ssd-item-label' }, sc.label)

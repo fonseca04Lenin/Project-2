@@ -97,6 +97,7 @@ class FinnhubPriceFeed:
         logger.info("[Finnhub] WebSocket thread started")
 
     def _run_forever(self):
+        backoff = 10
         while True:
             try:
                 import websocket
@@ -110,11 +111,13 @@ class FinnhubPriceFeed:
                 )
                 self.ws = ws
                 ws.run_forever(ping_interval=30, ping_timeout=10)
+                backoff = 10  # reset on clean disconnect
             except Exception as e:
                 logger.error("[Finnhub] WS connection error: %s", e)
             self.connected = False
-            logger.info("[Finnhub] Reconnecting in 10s...")
-            time.sleep(10)
+            logger.info("[Finnhub] Reconnecting in %ss...", backoff)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 300)  # cap at 5 minutes
 
     def _on_open(self, ws):
         self.connected = True
@@ -139,6 +142,8 @@ class FinnhubPriceFeed:
 
     def _on_error(self, ws, error):
         logger.warning("[Finnhub] WS error: %s", error)
+        if "429" in str(error):
+            logger.warning("[Finnhub] Rate limited — will back off on next reconnect")
 
     def _on_close(self, ws, code, msg):
         self.connected = False

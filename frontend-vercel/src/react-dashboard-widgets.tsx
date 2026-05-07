@@ -157,14 +157,7 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }: 
         return (
             <div
                 className="sparkline-loading"
-                style={{
-                    width: `${width}px`,
-                    height: `${height}px`,
-                    background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%)',
-                    backgroundSize: '200% 100%',
-                    animation: 'shimmer 1.5s infinite',
-                    borderRadius: '4px'
-                }}
+                style={{ width: `${width}px`, height: `${height}px` }}
             />
         );
     }
@@ -173,15 +166,7 @@ const SparklineChart = ({ symbol, data, isPositive, width = 100, height = 40 }: 
         return (
             <div
                 className="sparkline-error"
-                style={{
-                    width: `${width}px`,
-                    height: `${height}px`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'rgba(255,255,255,0.2)',
-                    fontSize: '10px'
-                }}
+                style={{ width: `${width}px`, height: `${height}px` }}
             >
                 <i className="fas fa-chart-line" style={{ opacity: 0.3 }}></i>
             </div>
@@ -482,9 +467,7 @@ const MarketIntelligenceWidget = ({ onNavigate }: { onNavigate: (view: string) =
                     tabIndex={0}
                     onClick={() => item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence'); }}}
-                    style={{ cursor: 'pointer', transition: 'background 0.2s, transform 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                    style={{ cursor: 'pointer' }}
                 >
                     <div className="insight-icon">
                         <i className={`fas ${item.icon}`}></i>
@@ -493,7 +476,7 @@ const MarketIntelligenceWidget = ({ onNavigate }: { onNavigate: (view: string) =
                         <h4>{item.title}</h4>
                         <p>{item.subtitle}</p>
                     </div>
-                    <i className="fas fa-chevron-right" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', marginLeft: 'auto' }}></i>
+                    <i className="fas fa-chevron-right insight-chevron"></i>
                 </div>
             ))}
         </div>

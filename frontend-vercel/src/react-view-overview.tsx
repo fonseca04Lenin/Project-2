@@ -54,38 +54,18 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onNavigateToAiT
 
             {/* AI Research Quick Access */}
             {onNavigateToAiTool && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 0.75rem 0' }}>
-                        AI Research
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.6rem' }}>
+                <div className="ai-tools-section">
+                    <p className="ai-tools-label">AI Research</p>
+                    <div className="ai-tools-grid">
                         {AI_TOOLS.map(tool => (
                             <button
                                 key={tool.tab}
+                                className="ai-tool-card"
                                 onClick={() => onNavigateToAiTool(tool.tab)}
-                                style={{
-                                    background: '#171717',
-                                    border: 'none',
-                                    borderRadius: '10px',
-                                    padding: '1rem',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    transition: 'background 0.15s',
-                                }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#262626'; }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#171717'; }}
                             >
-                                <div style={{
-                                    width: '32px', height: '32px',
-                                    borderRadius: '6px',
-                                    background: `${tool.color}18`,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    marginBottom: '0.75rem',
-                                }}>
-                                    <i className={`fas ${tool.icon}`} style={{ color: tool.color, fontSize: '0.82rem' }} />
-                                </div>
-                                <div style={{ color: '#fff', fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.25rem', lineHeight: 1.2 }}>{tool.label}</div>
-                                <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.75rem', lineHeight: 1.4 }}>{tool.desc}</div>
+                                <i className={`fas ${tool.icon}`} style={{ color: tool.color, fontSize: '0.9rem', marginBottom: '0.5rem' }} />
+                                <div className="ai-tool-title">{tool.label}</div>
+                                <div className="ai-tool-desc">{tool.desc}</div>
                             </button>
                         ))}
                     </div>

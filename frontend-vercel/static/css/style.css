@@ -12,7 +12,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #000000 0%, #0D0D0D 50%, #1A1A1A 100%);
+    background: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -151,20 +151,31 @@
 
 /* Light theme variable overrides (activated when body has data-theme="light") */
 body[data-theme="light"] {
-    --bg-primary: #f9fafb;
-    --bg-secondary: #e5e7eb;
-    --bg-tertiary: #d1d5db;
-    --bg-surface: #ffffff;
-    --bg-elevated: #f3f4f6;
+    --primary-color: #00C805;
+    --primary-dark: #00a804;
+    --accent-color: #00C805;
 
-    --text-primary: #0f172a;
-    --text-secondary: #4b5563;
-    --text-muted: #6b7280;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f7f7f7;
+    --bg-tertiary: #efefef;
+    --bg-surface: #ffffff;
+    --bg-elevated: #fafafa;
+
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
     --text-inverse: #ffffff;
 
-    --card-bg: rgba(255, 255, 255, 0.9);
-    --card-border: rgba(148, 163, 184, 0.35);
-    --card-elevated: rgba(241, 245, 249, 0.95);
+    --card-bg: #ffffff;
+    --card-border: rgba(0, 0, 0, 0.18);
+    --card-elevated: #ffffff;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.10);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
+
+    --rh__neutral-bg1: #ffffff;
 }
 
 html, body {
