@@ -31,6 +31,7 @@ const componentEntries = [
     'src/react-watchlist-notes.tsx',
     'src/react-stock-details-modal.tsx',
     'src/react-stock-details-page.tsx',
+    'src/react-company-network-page.tsx',
 ];
 
 const sharedConfig = {

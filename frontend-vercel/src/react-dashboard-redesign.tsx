@@ -26,9 +26,6 @@ const OverviewView       = window.OverviewView;
 const WatchlistView      = window.WatchlistView;
 const ScreenerView       = window.ScreenerView;
 const NewsView           = window.NewsView;
-const WhatsWhatView      = window.WhatsWhatView;
-const MapView            = window.MapView;
-const IntelligenceView   = window.IntelligenceView;
 const AIAssistantView    = window.AIAssistantView;
 const AISuiteView        = window.AISuiteView;
 
@@ -126,8 +123,8 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
 
     const navigateToAiTool = useCallback((tab: string) => {
         setAiSuiteTab(tab);
-        setActiveView('aisuite');
-        if (onRouteChange) onRouteChange('aisuite');
+        setActiveView('research');
+        if (onRouteChange) onRouteChange('research');
     }, [onRouteChange]);
 
     // Load preferences from localStorage (merge with defaults so new keys are always present)
@@ -1836,37 +1833,17 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                         onClick={() => handleNavigate('watchlist')}
                     >Watchlist</button>
                     <button
-                        className={`hn-item ${activeView === 'aisuite' ? 'active' : ''}`}
-                        onClick={() => handleNavigate('aisuite')}
-                    >AI Research</button>
+                        className={`hn-item ${activeView === 'research' ? 'active' : ''}`}
+                        onClick={() => handleNavigate('research')}
+                    >Research</button>
                     <button
-                        className={`hn-item ${activeView === 'intelligence' ? 'active' : ''}`}
-                        onClick={() => handleNavigate('intelligence')}
-                    >Intelligence</button>
-                    <div className="hn-dropdown-wrapper">
-                        <button
-                            className={`hn-item hn-dropdown-btn ${['news', 'whatswhat', 'map', 'paper'].includes(activeView) ? 'active' : ''}`}
-                            onClick={() => { setMarketsOpen(v => !v); setToolsOpen(false); }}
-                        >
-                            Markets <i className={`fas fa-chevron-down hn-chevron ${marketsOpen ? 'hn-chevron-open' : ''}`}></i>
-                        </button>
-                        {marketsOpen && (
-                            <div className="hn-dropdown">
-                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('news'); setMarketsOpen(false); }}>
-                                    <i className="fas fa-newspaper"></i> News
-                                </button>
-                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('whatswhat'); setMarketsOpen(false); }}>
-                                    <i className="fas fa-fire"></i> What's Hot
-                                </button>
-                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('map'); setMarketsOpen(false); }}>
-                                    <i className="fas fa-map"></i> Map
-                                </button>
-                                <button className="hn-dropdown-item" onClick={() => { handleNavigate('paper'); setMarketsOpen(false); }}>
-                                    <i className="fas fa-flask"></i> Paper Trading
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                        className={`hn-item ${activeView === 'news' ? 'active' : ''}`}
+                        onClick={() => handleNavigate('news')}
+                    >News</button>
+                    <button
+                        className={`hn-item ${activeView === 'paper' ? 'active' : ''}`}
+                        onClick={() => handleNavigate('paper')}
+                    >Paper Trading</button>
                 </nav>
                 {/* Right Actions */}
                 <div className="header-actions">
@@ -2099,15 +2076,12 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                     />
                 )}
                 {activeView === 'news' && <NewsView />}
-                {activeView === 'whatswhat' && <WhatsWhatView />}
-                {activeView === 'map' && <MapView />}
-                {activeView === 'intelligence' && <IntelligenceView watchlistData={watchlistData} />}
                 {activeView === 'assistant' && <AIAssistantView />}
-                {activeView === 'aisuite' && !isGuest && <AISuiteView watchlistData={watchlistData} defaultTab={aiSuiteTab} onTabChange={setAiSuiteTab} />}
-                {activeView === 'aisuite' && isGuest && (
+                {activeView === 'research' && !isGuest && <AISuiteView watchlistData={watchlistData} defaultTab={aiSuiteTab} onTabChange={setAiSuiteTab} />}
+                {activeView === 'research' && isGuest && (
                     <div className="guest-locked-view">
                         <i className="fas fa-lock"></i>
-                        <h3>Sign in to access AI Suite</h3>
+                        <h3>Sign in to access Research</h3>
                         <p>Get AI-powered portfolio analysis, stock comparisons, and personalized insights.</p>
                         <button className="guest-signin-btn" onClick={() => { (window as any).__guestMode = false; routeTo('/'); }}>
                             <i className="fas fa-user"></i> Sign In / Create Account

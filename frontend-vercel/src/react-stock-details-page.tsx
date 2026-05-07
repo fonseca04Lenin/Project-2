@@ -4,6 +4,12 @@ const { useState, useEffect, useCallback, useRef } = React;
 
 const API_BASE_PAGE = window.API_BASE_URL || (window.CONFIG ? window.CONFIG.API_BASE_URL : 'https://web-production-2e2e.up.railway.app');
 
+function routeTo(path: string, state?: Record<string, unknown>, replace?: boolean): void {
+    window.dispatchEvent(new CustomEvent('app:navigate', {
+        detail: { path, state: state || {}, replace: !!replace }
+    }));
+}
+
 interface StockData {
     symbol?: string;
     name?: string;
@@ -585,6 +591,15 @@ const StockDetailsPage = ({ symbol, isFromWatchlist = false, onNavigateBack }: {
                 </div>
 
                 <div className="nav-actions">
+                    {!isIndex && (
+                        <button
+                            className="network-nav-btn"
+                            onClick={() => routeTo(`/stock/${symbol}/network`, { isFromWatchlist })}
+                        >
+                            <i className="fas fa-diagram-project"></i>
+                            <span>Company Network</span>
+                        </button>
+                    )}
                     <button
                         className={`watchlist-btn ${isInWatchlist ? 'in-watchlist' : ''}`}
                         onClick={handleAddToWatchlist}

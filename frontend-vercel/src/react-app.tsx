@@ -46,18 +46,23 @@ window.AppAuth.signOut = async function signOut() {
 const DASHBOARD_VIEWS = new Set([
     'overview',
     'watchlist',
-    'intelligence',
+    'research',
     'news',
-    'whatswhat',
-    'map',
     'assistant',
-    'aisuite',
     'paper',
     'screener',
 ]);
 
+const LEGACY_VIEW_ALIASES: Record<string, string> = {
+    aisuite: 'research',
+    intelligence: 'research',
+    whatswhat: 'news',
+    map: 'news',
+};
+
 function normalizeDashboardView(view: string) {
-    return DASHBOARD_VIEWS.has(view) ? view : 'overview';
+    const normalized = LEGACY_VIEW_ALIASES[view] || view;
+    return DASHBOARD_VIEWS.has(normalized) ? normalized : 'overview';
 }
 
 interface ErrorBoundaryState {
@@ -138,6 +143,20 @@ function StockRoute() {
         symbol,
         isFromWatchlist,
         onNavigateBack: () => navigate('/app/overview'),
+    });
+}
+
+function CompanyNetworkRoute() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const params = useParams();
+    const symbol = (params.symbol || '').toUpperCase();
+    const isFromWatchlist = Boolean(location.state && (location.state as Record<string, unknown>).isFromWatchlist);
+
+    return React.createElement(window.CompanyNetworkPage, {
+        symbol,
+        isFromWatchlist,
+        onNavigateBack: () => navigate(`/stock/${symbol}`, { state: location.state || undefined }),
     });
 }
 
@@ -241,6 +260,10 @@ function AppRouter() {
             element: React.createElement(StockRoute),
         }),
         React.createElement(Route, {
+            path: '/stock/:symbol/network',
+            element: React.createElement(CompanyNetworkRoute),
+        }),
+        React.createElement(Route, {
             path: '/app',
             element: React.createElement(Navigate, { to: '/app/overview', replace: true }),
         }),
@@ -256,7 +279,7 @@ function AppRouter() {
 }
 
 function RouterApp() {
-    if (!window.StockWatchlistLandingPage || !window.DashboardRedesign || !window.StockDetailsPage || !window.PricingPage) {
+    if (!window.StockWatchlistLandingPage || !window.DashboardRedesign || !window.StockDetailsPage || !window.CompanyNetworkPage || !window.PricingPage) {
         return React.createElement('div', {
             style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#fff', textAlign: 'center', gap: '1rem' }
         },

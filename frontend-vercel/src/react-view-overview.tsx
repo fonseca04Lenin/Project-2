@@ -145,9 +145,9 @@ const OverviewView = ({ watchlistData, marketStatus, onNavigate, onNavigateToAiT
                 {/* Right Column - Market Intelligence Quick Look */}
                 <div className="main-card enhanced">
                     <div className="card-header">
-                        <h3><i className="fas fa-database"></i> Market Intelligence</h3>
-                        <button className="view-all-btn" onClick={() => onNavigate('intelligence')}>
-                            Explore <i className="fas fa-arrow-right"></i>
+                        <h3><i className="fas fa-database"></i> Research Snapshot</h3>
+                        <button className="view-all-btn" onClick={() => onNavigate('research')}>
+                            Open Research <i className="fas fa-arrow-right"></i>
                         </button>
                     </div>
                     <MarketIntelligenceWidget onNavigate={onNavigate} />

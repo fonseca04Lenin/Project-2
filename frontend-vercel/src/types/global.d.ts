@@ -113,6 +113,11 @@ declare global {
       isFromWatchlist?: boolean;
       onNavigateBack: () => void;
     }>;
+    CompanyNetworkPage: ReactNS.ComponentType<{
+      symbol: string;
+      isFromWatchlist?: boolean;
+      onNavigateBack: () => void;
+    }>;
     PricingPage: ReactNS.ComponentType;
     PaperTradingView?: ReactNS.ComponentType;
 
@@ -122,7 +127,11 @@ declare global {
     ScreenerView: ReactNS.ComponentType<ScreenerViewProps>;
     NewsView: ReactNS.ComponentType;
     WhatsWhatView: ReactNS.ComponentType;
-    AISuiteView: ReactNS.ComponentType<{ watchlistData: StockItem[] }>;
+    AISuiteView: ReactNS.ComponentType<{
+      watchlistData: StockItem[];
+      defaultTab?: string;
+      onTabChange?: (tab: string) => void;
+    }>;
     IntelligenceView: ReactNS.ComponentType<{ watchlistData: StockItem[] }>;
     MapView: ReactNS.ComponentType;
     AIAssistantView: ReactNS.ComponentType;

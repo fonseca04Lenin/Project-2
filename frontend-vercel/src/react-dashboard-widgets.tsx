@@ -430,10 +430,11 @@ const MarketIntelligenceWidget = ({ onNavigate }: { onNavigate: (view: string) =
     }, []);
 
     const handleClick = (tab: string) => {
-        onNavigate('intelligence');
-        setTimeout(() => {
-            if (window.__setIntelTab) window.__setIntelTab(tab);
-        }, 100);
+        if (tab === 'earnings') {
+            onNavigate('research');
+            return;
+        }
+        onNavigate('news');
     };
 
     const items = [
@@ -465,8 +466,8 @@ const MarketIntelligenceWidget = ({ onNavigate }: { onNavigate: (view: string) =
                     className="insight-item"
                     role="button"
                     tabIndex={0}
-                    onClick={() => item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence')}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'intelligence'); }}}
+                    onClick={() => item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'research')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.tab ? handleClick(item.tab) : onNavigate(item.title === 'Market News' ? 'news' : 'research'); }}}
                     style={{ cursor: 'pointer' }}
                 >
                     <div className="insight-icon">

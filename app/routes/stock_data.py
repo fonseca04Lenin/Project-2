@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timedelta
 
 from flask import Blueprint, request, jsonify
@@ -14,6 +15,172 @@ from app.services.services import (
 logger = logging.getLogger(__name__)
 
 stock_data_bp = Blueprint('stock_data', __name__, url_prefix='/api')
+
+
+_COMPANY_NETWORK_LIBRARY = {
+    'F': {
+        'brands': ['Ford', 'Lincoln', 'Ford Pro', 'Ford Credit'],
+        'business_lines': ['Cars', 'Trucks', 'Commercial Vehicles', 'EVs', 'Parts & Service'],
+    },
+    'AAPL': {
+        'brands': ['iPhone', 'Mac', 'iPad', 'Apple Watch', 'AirPods'],
+        'business_lines': ['Devices', 'Services', 'Wearables', 'Software'],
+    },
+    'MSFT': {
+        'brands': ['Windows', 'Microsoft 365', 'Azure', 'LinkedIn', 'Xbox', 'GitHub'],
+        'business_lines': ['Cloud', 'Productivity Software', 'Gaming', 'Enterprise Platforms'],
+    },
+    'GOOGL': {
+        'brands': ['Google', 'YouTube', 'Android', 'Google Cloud', 'Waymo'],
+        'business_lines': ['Search', 'Advertising', 'Cloud', 'Consumer Platforms'],
+    },
+    'GOOG': {
+        'brands': ['Google', 'YouTube', 'Android', 'Google Cloud', 'Waymo'],
+        'business_lines': ['Search', 'Advertising', 'Cloud', 'Consumer Platforms'],
+    },
+    'AMZN': {
+        'brands': ['Amazon', 'AWS', 'Prime Video', 'Whole Foods', 'Audible'],
+        'business_lines': ['E-commerce', 'Cloud', 'Streaming', 'Logistics'],
+    },
+    'META': {
+        'brands': ['Facebook', 'Instagram', 'WhatsApp', 'Messenger', 'Reality Labs'],
+        'business_lines': ['Social Platforms', 'Advertising', 'Messaging', 'XR Hardware'],
+    },
+    'DIS': {
+        'brands': ['Disney', 'Pixar', 'Marvel', 'ESPN', 'Hulu'],
+        'business_lines': ['Studios', 'Streaming', 'Sports Media', 'Parks & Experiences'],
+    },
+    'NKE': {
+        'brands': ['Nike', 'Jordan', 'Converse'],
+        'business_lines': ['Footwear', 'Apparel', 'Equipment', 'Direct-to-Consumer'],
+    },
+    'TSLA': {
+        'brands': ['Tesla', 'Supercharger', 'Powerwall', 'Megapack'],
+        'business_lines': ['EVs', 'Energy Storage', 'Solar', 'Charging Network'],
+    },
+    'NVDA': {
+        'brands': ['GeForce', 'CUDA', 'DGX', 'Mellanox'],
+        'business_lines': ['Data Center', 'Gaming', 'Automotive', 'Networking'],
+    },
+}
+
+_DESCRIPTION_KEYWORDS = {
+    'cloud': 'Cloud',
+    'advertis': 'Advertising',
+    'stream': 'Streaming',
+    'truck': 'Trucks',
+    'car': 'Cars',
+    'commercial vehicle': 'Commercial Vehicles',
+    'electric vehicle': 'EVs',
+    'semiconductor': 'Semiconductors',
+    'chip': 'Chips',
+    'footwear': 'Footwear',
+    'apparel': 'Apparel',
+    'software': 'Software',
+    'gaming': 'Gaming',
+    'search': 'Search',
+    'social': 'Social Platforms',
+    'payments': 'Payments',
+    'logistics': 'Logistics',
+    'energy storage': 'Energy Storage',
+    'solar': 'Solar',
+    'theme park': 'Parks & Experiences',
+}
+
+
+def _slugify_network_id(prefix: str, label: str) -> str:
+    base = re.sub(r'[^a-z0-9]+', '-', label.lower()).strip('-')
+    return f'{prefix}-{base or "node"}'
+
+
+def _append_network_node(nodes, seen, label: str, node_type: str, source: str):
+    cleaned = (label or '').strip()
+    if not cleaned or cleaned == '-':
+        return
+    key = cleaned.lower()
+    if key in seen:
+        return
+    seen.add(key)
+    nodes.append({
+        'id': _slugify_network_id(node_type, cleaned),
+        'label': cleaned,
+        'type': node_type,
+        'source': source,
+    })
+
+
+def _derive_business_lines(symbol: str, description: str):
+    curated = _COMPANY_NETWORK_LIBRARY.get(symbol, {})
+    if curated.get('business_lines'):
+        return curated['business_lines'], 'curated'
+
+    found = []
+    lowered = (description or '').lower()
+    for needle, label in _DESCRIPTION_KEYWORDS.items():
+        if needle in lowered and label not in found:
+            found.append(label)
+        if len(found) >= 4:
+            break
+    return found, 'derived'
+
+
+def _derive_brand_nodes(symbol: str):
+    curated = _COMPANY_NETWORK_LIBRARY.get(symbol, {})
+    return curated.get('brands', []), 'curated' if curated.get('brands') else 'none'
+
+
+def _build_company_network_payload(symbol: str, stock_name: str, info: dict, company_info: dict):
+    description = (company_info.get('description') or info.get('longBusinessSummary') or '').strip()
+    sector = info.get('sector') if info else None
+    industry = info.get('industry') if info else None
+    headquarters = company_info.get('headquarters')
+
+    nodes = []
+    seen = set()
+
+    _append_network_node(nodes, seen, sector, 'sector', 'yahoo')
+    _append_network_node(nodes, seen, industry, 'industry', 'yahoo')
+
+    if headquarters and headquarters != '-':
+        city_label = headquarters.split(',')[0].strip()
+        _append_network_node(nodes, seen, city_label, 'location', 'yahoo')
+
+    business_lines, business_source = _derive_business_lines(symbol, description)
+    for line in business_lines[:5]:
+        _append_network_node(nodes, seen, line, 'business_line', business_source)
+
+    brands, brand_source = _derive_brand_nodes(symbol)
+    for brand in brands[:6]:
+        _append_network_node(nodes, seen, brand, 'brand', brand_source)
+
+    if len(nodes) < 4 and description:
+        fragments = re.split(r'[.;]', description)
+        for fragment in fragments:
+            phrase = fragment.strip()
+            if len(phrase) < 12:
+                continue
+            phrase = re.sub(r'^(the company|it|we)\s+', '', phrase, flags=re.IGNORECASE)
+            phrase = phrase[:42].rsplit(' ', 1)[0] if len(phrase) > 42 else phrase
+            _append_network_node(nodes, seen, phrase, 'business_line', 'description')
+            if len(nodes) >= 6:
+                break
+
+    return {
+        'symbol': symbol,
+        'name': stock_name,
+        'description': description or '-',
+        'sector': sector or '-',
+        'industry': industry or '-',
+        'headquarters': headquarters or '-',
+        'website': company_info.get('website', '-'),
+        'network': {
+            'center': {
+                'symbol': symbol,
+                'label': stock_name,
+            },
+            'nodes': nodes[:10],
+        }
+    }
 
 
 @stock_data_bp.route('/search', methods=['POST'])
@@ -500,3 +667,21 @@ def get_company_info(symbol):
         })
     else:
         return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+
+
+@stock_data_bp.route('/company/<symbol>/network')
+def get_company_network(symbol):
+    symbol = symbol.upper()
+    stock, api_used = get_stock_with_fallback(symbol)
+    if not stock:
+        return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+
+    info = yahoo_finance_api.get_info(symbol) or {}
+    company_info = company_info_service.get_comprehensive_info(symbol, yahoo_info=info)
+
+    if not stock.name or 'not found' in stock.name.lower():
+        return jsonify({'error': f'Stock "{symbol}" not found'}), 404
+
+    payload = _build_company_network_payload(symbol, stock.name, info, company_info)
+    payload['apiSource'] = api_used if api_used else 'yahoo'
+    return jsonify(payload)
