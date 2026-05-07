@@ -156,36 +156,16 @@ const CompanyNetworkPage = ({ symbol, onNavigateBack, isFromWatchlist = false }:
                 <div className="company-network-topbar">
                     <button className="back-button" onClick={handleBack}>
                         <i className="fas fa-arrow-left"></i>
-                        <span>Back to Stock</span>
+                        <span>Back</span>
                     </button>
                     <div className="company-network-kicker">
                         <span className="network-symbol">{data.symbol}</span>
                         <span className="network-dot"></span>
-                        <span>{graphNodes.length} linked nodes</span>
+                        <span>{data.name}</span>
+                        <span className="network-dot"></span>
+                        <span>{graphNodes.length} nodes</span>
                     </div>
                 </div>
-
-                <section className="company-network-hero">
-                    <div className="company-network-heading">
-                        <p className="company-network-eyebrow">Company Network</p>
-                        <h1>{data.name}</h1>
-                        <p className="company-network-description">{data.description}</p>
-                    </div>
-                    <div className="company-network-facts">
-                        <div className="network-fact-card">
-                            <span className="network-fact-label">Sector</span>
-                            <strong>{data.sector || '-'}</strong>
-                        </div>
-                        <div className="network-fact-card">
-                            <span className="network-fact-label">Industry</span>
-                            <strong>{data.industry || '-'}</strong>
-                        </div>
-                        <div className="network-fact-card">
-                            <span className="network-fact-label">Headquarters</span>
-                            <strong>{data.headquarters || '-'}</strong>
-                        </div>
-                    </div>
-                </section>
 
                 <section className="company-network-board">
                     <div className="company-network-grid"></div>
