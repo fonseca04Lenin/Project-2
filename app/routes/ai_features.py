@@ -18,11 +18,16 @@ ai_features_bp = Blueprint('ai_features', __name__, url_prefix='/api/ai')
 
 _RULES_BLOCK = """
 RULES:
-- Write as a senior financial professional, not an AI system
-- No phrases: "As an AI", "Based on available data", "It's worth noting", "It's important to note"
-- State conclusions, not hedges. Use declarative present-tense sentences.
-- Reference the actual numbers provided — no generic observations
-- No markdown, no bullet characters in prose sections
+- You are a world-class financial expert. Write at that standard — precise, incisive, specific.
+- Write as a senior financial professional, never as an AI system.
+- Banned phrases: "As an AI", "Based on available data", "It's worth noting", "It's important to consider", "It's important to note", "It's crucial to", "investors should be aware", "it's worth mentioning".
+- State conclusions declaratively in present tense. No hedging, no qualifiers, no "may", "might", "could suggest".
+- Every claim must be anchored to specific numbers from the data provided. No generic observations.
+- No markdown, no bullet characters in prose sections.
+- No disclaimers of any kind — not about market risk, investment advice, or data limitations.
+- Negative conclusions are required when the data supports them. Do not soften bad news or add false balance.
+- For forward-looking statements, label confidence explicitly: (high confidence), (moderate confidence), or (low confidence).
+- Never invent, extrapolate, or hallucinate figures not present in the provided data.
 """
 
 
@@ -73,7 +78,7 @@ def morning_brief():
         if not symbols:
             return jsonify({'error': 'Your watchlist is empty. Add some stocks first.'}), 422
 
-        # Batch download 5 days of data
+        # ── 1. Watchlist movers ──────────────────────────────────────────────
         data = yf.download(symbols, period='5d', progress=False, threads=True)
         closes = data['Close'] if 'Close' in data.columns else data
 
@@ -95,7 +100,6 @@ def morning_brief():
         movers.sort(key=lambda x: abs(x['change']), reverse=True)
         top_movers = movers[:3]
 
-        # Fetch headlines for top movers
         for m in top_movers:
             try:
                 ticker = yf.Ticker(m['symbol'])
@@ -104,35 +108,86 @@ def morning_brief():
             except Exception:
                 m['headline'] = ''
 
-        # Earnings calendar - next 7 days filtered to user symbols
+        # ── 2. Broad market indices (1-day change) ───────────────────────────
+        INDEX_SYMBOLS = {'^GSPC': 'S&P 500', '^IXIC': 'Nasdaq', '^DJI': 'Dow Jones', '^VIX': 'VIX'}
+        market_indices = []
+        try:
+            idx_data = yf.download(list(INDEX_SYMBOLS.keys()), period='2d', progress=False, threads=True)
+            idx_closes = idx_data['Close'] if 'Close' in idx_data.columns else idx_data
+            for sym, label in INDEX_SYMBOLS.items():
+                try:
+                    col = idx_closes[sym].dropna()
+                    if len(col) < 2:
+                        continue
+                    pct = ((col.iloc[-1] - col.iloc[-2]) / col.iloc[-2]) * 100
+                    market_indices.append({
+                        'symbol': sym, 'label': label,
+                        'change': round(float(pct), 2),
+                        'level': round(float(col.iloc[-1]), 2)
+                    })
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # ── 3. Broad market news headlines ──────────────────────────────────
+        market_headlines = []
+        try:
+            for market_sym in ['SPY', 'QQQ']:
+                t = yf.Ticker(market_sym)
+                for item in (t.news or [])[:3]:
+                    title = item.get('title', '')
+                    if title and title not in market_headlines:
+                        market_headlines.append(title)
+                if len(market_headlines) >= 4:
+                    break
+        except Exception:
+            pass
+
+        # ── 4. Earnings calendar ─────────────────────────────────────────────
         earnings_this_week = []
         try:
             from app.services.services import finnhub_api
             raw_earnings = finnhub_api.get_earnings_calendar() or []
-            today = datetime.now().date()
-            cutoff = today + timedelta(days=7)
+            today_date = datetime.now().date()
+            cutoff = today_date + timedelta(days=7)
             user_set = set(symbols)
             for e in raw_earnings:
                 if e.get('symbol') in user_set:
                     try:
                         ed = datetime.strptime(e['date'], '%Y-%m-%d').date()
-                        if today <= ed <= cutoff:
+                        if today_date <= ed <= cutoff:
                             earnings_this_week.append({'symbol': e['symbol'], 'date': e['date']})
                     except Exception:
                         pass
         except Exception:
             pass
 
+        # ── 5. Build prompt ──────────────────────────────────────────────────
         today_str = datetime.now().strftime('%B %d, %Y')
+
         movers_text = '\n'.join(
             f"  {m['symbol']}: {'+' if m['change'] >= 0 else ''}{m['change']}% at ${m['price']}"
             + (f" — \"{m['headline']}\"" if m.get('headline') else '')
             for m in top_movers
         ) or '  No significant movers'
 
+        indices_text = '\n'.join(
+            f"  {r['label']}: {'+' if r['change'] >= 0 else ''}{r['change']}% at {r['level']}"
+            for r in market_indices
+        ) or '  Unavailable'
+
+        headlines_text = '\n'.join(f"  - {h}" for h in market_headlines[:4]) or '  None available'
+
         earnings_text = ', '.join(f"{e['symbol']} ({e['date']})" for e in earnings_this_week) or 'none this week'
 
-        prompt = f"""You are writing the daily portfolio morning brief for {today_str}.
+        prompt = f"""You are a world-class market strategist producing the morning brief for {today_str}. Your job is to deliver the sharpest, most actionable read on the market — not a summary, a verdict.
+
+BROAD MARKET (1-day):
+{indices_text}
+
+MAJOR MARKET HEADLINES:
+{headlines_text}
 
 WATCHLIST TOP MOVERS (5-day):
 {movers_text}
@@ -140,11 +195,11 @@ WATCHLIST TOP MOVERS (5-day):
 UPCOMING EARNINGS FROM WATCHLIST (next 7 days):
 {earnings_text}
 
-Write a 120-word morning brief in newsletter style. Open with today's date. Reference the actual stocks and moves. Flag any earnings coming up. Close with one specific thing to watch today.
+Write a 200-word morning brief in newsletter style. Open with today's date and a direct, one-sentence market verdict using the index data — take a clear stance on whether this is risk-on or risk-off, and why. Then cut to the most important market-wide story from the headlines — state what it means, not just what it is. Transition to the watchlist movers with exact numbers; if a move is extreme, call it out. Flag upcoming earnings and what's at stake. Close with one specific, directional thing to watch today — a call, not a vague suggestion. If the market picture is bad, say so plainly.
 {_RULES_BLOCK}"""
 
         narrative = ai_generate(
-            prompt, max_tokens=700, temperature=0.75,
+            prompt, max_tokens=900, temperature=0.75,
             user_id=user.id, endpoint='morning_brief',
         )
 
@@ -153,6 +208,8 @@ Write a 120-word morning brief in newsletter style. Open with today's date. Refe
             if m.get('headline'):
                 top_headline = m['headline']
                 break
+        if not top_headline and market_headlines:
+            top_headline = market_headlines[0]
 
         result = {
             'brief': {
@@ -160,7 +217,8 @@ Write a 120-word morning brief in newsletter style. Open with today's date. Refe
                 'narrative': narrative,
                 'movers': top_movers,
                 'earnings_this_week': earnings_this_week,
-                'top_headline': top_headline
+                'top_headline': top_headline,
+                'market_indices': market_indices,
             }
         }
         cache_set(cache_key, result, ttl)
@@ -240,7 +298,7 @@ Revenue Growth (YoY): {f'{revenue_growth*100:.1f}%' if revenue_growth is not Non
 
         headlines_text = '\n'.join(f"- {h}" for h in headlines) if headlines else '- No recent headlines'
 
-        prompt = f"""You are a senior equity analyst writing an investment thesis for {symbol}.
+        prompt = f"""You are a world-class equity analyst writing a rigorous investment thesis for {symbol}. Your bull case must be genuinely compelling — real catalysts, specific numbers. Your bear case must be genuinely alarming — real structural or valuation risks that a serious investor would lose sleep over. No strawman arguments on either side.
 
 COMPANY DATA:
 {metrics_text}
@@ -262,7 +320,7 @@ Return a JSON object ONLY (no prose before or after) with this exact structure:
   ]
 }}
 
-Each title: 3-5 words. Each body: 1-2 sentences anchored to the actual data provided. Bull case highlights growth catalysts. Bear case highlights real risks.
+Each title: 3-5 words. Each body: 2-3 sentences anchored to the actual data provided. Bull case: name real growth catalysts with specific numbers and label your confidence. Bear case: name real risks — valuation, competition, macro, execution — and do not soften them. If the data points to a weak bull case, reflect that honestly.
 {_RULES_BLOCK}"""
 
         raw_text = ai_generate(
@@ -415,12 +473,12 @@ Average annualized volatility: {avg_volatility}%
 Max pairwise correlation: {max_correlation}
 Sector breakdown: {', '.join(f"{s['sector']} {s['pct']}%" for s in sector_breakdown[:5])}"""
 
-        prompt = f"""You are a portfolio analyst reviewing a client's stock portfolio.
+        prompt = f"""You are a world-class portfolio analyst delivering a frank assessment of a client's portfolio. Good advisors do not sugarcoat structural problems — if this portfolio is poorly built, say so directly. A grade without honest context is useless.
 
 PORTFOLIO METRICS:
 {metrics_text}
 
-Write 2-3 sentences of advisor-voice narrative explaining what this grade means for the client. Then provide exactly 2-3 specific, actionable suggestions as a JSON array called "suggestions" — each suggestion is a single concise sentence starting with a verb.
+Write 3-4 sentences of advisor-voice narrative that tells the real story behind this grade: what the concentration, volatility, and correlation numbers actually mean in practice, and whether the client should be concerned. Then provide exactly 3 specific, actionable suggestions as a JSON array called "suggestions" — each is a single sentence starting with a verb, naming a concrete action. If the portfolio deserves harsh feedback, deliver it.
 
 Return ONLY valid JSON with this structure:
 {{"narrative": "...", "suggestions": ["...", "...", "..."]}}
@@ -583,12 +641,12 @@ def sector_rotation():
             )
         table_text = '\n'.join(table_lines)
 
-        prompt = f"""You are a market strategist writing a weekly sector rotation note.
+        prompt = f"""You are a world-class market strategist writing a weekly sector rotation note. You make actual directional calls — not observations. Tell the reader where money is moving, where it's leaving, and what that means for positioning. Vague is useless.
 
 SECTOR PERFORMANCE DATA:
 {table_text}
 
-Write a 140-word strategist note identifying which sectors are gaining institutional interest, which are losing momentum, and where the rotation is heading. Name specific sectors and reference their actual numbers.
+Write a 180-word strategist note. Lead with the single clearest trend visible in the data — which sector is dominating and why it matters. Then identify the biggest loser and what the decline signals about the macro environment. Make explicit calls: name which sectors you would overweight and underweight right now, with the performance numbers as justification. Close with what the current rotation pattern says about where the market thinks the economy is heading. Reference specific ETF tickers and percentage moves throughout.
 {_RULES_BLOCK}"""
 
         narrative = ai_generate(
@@ -697,7 +755,7 @@ def earnings_breakdown():
             lines.append(f'Most recent quarter revenue: {revenue_text}')
         metrics_text = '\n'.join(lines)
 
-        prompt = f"""You are an equity analyst writing a post-earnings brief for {symbol} ({company_name}).
+        prompt = f"""You are a world-class equity analyst delivering a post-earnings verdict on {symbol} ({company_name}). Be direct: did this company perform or not? State it plainly — growth investors, value investors, and short sellers all need to hear the same honest read from the same data.
 
 FINANCIAL DATA:
 {metrics_text}
@@ -707,9 +765,9 @@ RECENT HEADLINES:
 
 Write a tight earnings analysis. Return ONLY valid JSON with this structure:
 {{
-  "result": "1 sentence on what the recent earnings picture shows — growth, decline, beat, miss",
-  "key_takeaway": "2 sentences on what investors should actually care about from the numbers",
-  "what_to_watch": "1 sentence on the single most important metric or catalyst going forward"
+  "result": "1 blunt sentence on what the recent earnings picture shows — growth, stagnation, acceleration, or deterioration. State it as a verdict, not a summary.",
+  "key_takeaway": "2-3 sentences on what these numbers actually mean for the stock. Reference the specific metrics. If valuation is stretched relative to growth, say so. If margins are compressing despite revenue growth, call it out. Do not soften structural problems.",
+  "what_to_watch": "1 sentence naming the single metric or catalyst that will determine whether this story improves or breaks down — and state the direction you expect (with confidence level)."
 }}
 {_RULES_BLOCK}"""
 
@@ -835,7 +893,7 @@ def portfolio_guidance():
             holding_lines.append(line)
         holdings_text = '\n'.join(holding_lines)
 
-        prompt = f"""You are a portfolio advisor giving a client a frank assessment of their holdings.
+        prompt = f"""You are a world-class portfolio advisor delivering an unvarnished assessment of a client's holdings. Name the problems. Name the strengths. Don't cushion the message — a client paying for real advice deserves a real read, not reassurance.
 
 HOLDINGS ({len(holdings)} positions):
 {holdings_text}
@@ -843,15 +901,15 @@ HOLDINGS ({len(holdings)} positions):
 SECTOR CONCENTRATION: {sector_summary}
 MARKET CONTEXT: {market_context or 'Unavailable'}
 
-Give a portfolio guidance assessment focused on: sector exposure, valuation risk, market sensitivity (beta), and what the current market environment means for these specific holdings. Be direct and specific — name the stocks.
+Assess this portfolio on: sector concentration risk, valuation exposure (P/E levels vs. the market), beta and drawdown sensitivity in the current market environment, and revenue/growth quality. Be specific — call out individual stocks that represent outsized risk or opportunity. If the portfolio is overconcentrated, say exactly which sector and exactly why that's a problem given today's market context.
 
 Return ONLY valid JSON:
 {{
-  "narrative": "3-4 sentence advisor-voice assessment. No generic statements — reference actual holdings and numbers.",
+  "narrative": "4-5 sentence advisor-voice assessment. Reference specific stocks and their actual metrics. If the portfolio has a structural problem, lead with it. Confidence levels on any directional claim.",
   "guidance": [
-    "Specific actionable point 1 — start with a verb, name a stock or sector",
-    "Specific actionable point 2",
-    "Specific actionable point 3"
+    "Specific actionable point 1 — start with a verb, name a stock or sector and the reason",
+    "Specific actionable point 2 — same standard",
+    "Specific actionable point 3 — same standard"
   ]
 }}
 {_RULES_BLOCK}"""
