@@ -31,6 +31,25 @@ RULES:
 """
 
 
+def _parse_json(text: str, default):
+    import json, re
+    text = text.strip()
+    text = re.sub(r'^```(?:json)?\s*', '', text)
+    text = re.sub(r'\s*```$', '', text)
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    m = re.search(r'\{[\s\S]*\}', text)
+    if m:
+        try:
+            return json.loads(m.group())
+        except Exception:
+            pass
+    logger.warning("Failed to parse JSON from AI response: %.200s", text)
+    return default
+
+
 
 def _get_user_watchlist_symbols(user_id):
     service = ensure_watchlist_service()
@@ -329,16 +348,7 @@ Each title: 3-5 words. Each body: 2-3 sentences anchored to the actual data prov
             user_id=user.id, endpoint='thesis',
         )
 
-        # Parse JSON from response
-        import json
-        import re
-        json_match = re.search(r'\{[\s\S]*\}', raw_text)
-        thesis = {'bull_case': [], 'bear_case': []}
-        if json_match:
-            try:
-                thesis = json.loads(json_match.group())
-            except Exception:
-                pass
+        thesis = _parse_json(raw_text, {'bull_case': [], 'bear_case': []})
 
         result = {
             'symbol': symbol,
@@ -490,18 +500,9 @@ Return ONLY valid JSON with this structure:
             user_id=user.id, endpoint='health_score',
         )
 
-        import json
-        import re
-        narrative = ''
-        suggestions = []
-        json_match = re.search(r'\{[\s\S]*\}', raw)
-        if json_match:
-            try:
-                parsed = json.loads(json_match.group())
-                narrative = parsed.get('narrative', '')
-                suggestions = parsed.get('suggestions', [])
-            except Exception:
-                narrative = raw
+        parsed = _parse_json(raw, {})
+        narrative = parsed.get('narrative', raw[:400] if not parsed else '')
+        suggestions = parsed.get('suggestions', [])
 
         result = {
             'grade': grade,
@@ -777,15 +778,7 @@ Write a tight earnings analysis. Return ONLY valid JSON with this structure:
             user_id=user.id, endpoint='earnings_breakdown',
         )
 
-        import json
-        import re
-        analysis = {'result': '', 'key_takeaway': '', 'what_to_watch': ''}
-        json_match = re.search(r'\{[\s\S]*\}', raw)
-        if json_match:
-            try:
-                analysis = json.loads(json_match.group())
-            except Exception:
-                analysis['result'] = raw[:300]
+        analysis = _parse_json(raw, {'result': '', 'key_takeaway': '', 'what_to_watch': ''})
 
         result = {
             'symbol': symbol,
@@ -920,18 +913,9 @@ Return ONLY valid JSON:
             user_id=user.id, endpoint='portfolio_guidance',
         )
 
-        import json
-        import re
-        narrative = ''
-        guidance_points = []
-        json_match = re.search(r'\{[\s\S]*\}', raw)
-        if json_match:
-            try:
-                parsed = json.loads(json_match.group())
-                narrative = parsed.get('narrative', '')
-                guidance_points = parsed.get('guidance', [])
-            except Exception:
-                narrative = raw[:400]
+        parsed = _parse_json(raw, {})
+        narrative = parsed.get('narrative', raw[:400] if not parsed else '')
+        guidance_points = parsed.get('guidance', [])
 
         result = {
             'holdings_count': len(holdings),

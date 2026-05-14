@@ -132,8 +132,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
         try {
             const saved = localStorage.getItem('userPreferences');
             if (saved) {
-                const parsed = JSON.parse(saved);
-                setPreferences(prev => ({ ...prev, ...parsed }));
+                setPreferences(prev => ({ ...prev, ...JSON.parse(saved), theme: 'dark' }));
             }
         } catch (e: any) {
             // Use defaults if loading fails
@@ -158,7 +157,7 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
     // Apply preferences when they change
     useEffect(() => {
         // Theme
-        document.body.setAttribute('data-theme', preferences.theme || 'light');
+        document.body.setAttribute('data-theme', 'dark');
 
         // Store defaultTimeRange globally so chart components (react-chart.js) can read it
         (window as any).__defaultTimeRange = preferences.defaultTimeRange || '1D';
@@ -2255,26 +2254,6 @@ const DashboardRedesign = ({ routeView = 'overview', onRouteChange = null }: { r
                         <div className="modal-body">
                             <div className="settings-section">
                                 <h3>Appearance</h3>
-                                <div className="settings-item toggle-item">
-                                    <div>
-                                        <label>Theme</label>
-                                        <span className="setting-description">Choose your preferred color scheme</span>
-                                    </div>
-                                    <div className="theme-toggle">
-                                        <button
-                                            className={`theme-btn ${preferences.theme === 'dark' ? 'active' : ''}`}
-                                            onClick={() => savePreferences({ ...preferences, theme: 'dark' })}
-                                        >
-                                            <i className="fas fa-moon"></i> Dark
-                                        </button>
-                                        <button
-                                            className={`theme-btn ${preferences.theme === 'light' ? 'active' : ''}`}
-                                            onClick={() => savePreferences({ ...preferences, theme: 'light' })}
-                                        >
-                                            <i className="fas fa-sun"></i> Light
-                                        </button>
-                                    </div>
-                                </div>
                                 <div className="settings-item toggle-item">
                                     <div>
                                         <label>Compact Numbers</label>
