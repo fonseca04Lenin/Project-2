@@ -2,7 +2,6 @@
 Utility functions for input validation and sanitization
 """
 import re
-from typing import Optional
 
 def sanitize_input(input_string: str, max_length: int = 100) -> str:
     """

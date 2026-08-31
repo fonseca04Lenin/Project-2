@@ -1,12 +1,11 @@
 import yfinance as yf
 from datetime import datetime, timedelta
-import json
 import requests
 import os
 import time
 import threading
 from collections import deque, defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -384,9 +383,6 @@ class StocktwitsAPI:
             if response.status_code == 200:
                 data = response.json()
                 messages = []
-
-                # Get symbol info
-                symbol_info = data.get('symbol', {})
 
                 for msg in data.get('messages', [])[:30]:  # Get up to 30 for caching
                     # Parse sentiment

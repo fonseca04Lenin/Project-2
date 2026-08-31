@@ -102,9 +102,7 @@ _cache_lock = threading.Lock()
 
 @map_companies_bp.route('/locations')
 def get_company_locations():
-    """Get locations of major publicly traded companies for the map feature"""
-    global _company_locations_cache
-
+    """Get locations of major publicly traded companies for the map feature."""
     with _cache_lock:
         cache_valid = (
             _company_locations_cache['data'] is not None and
@@ -166,7 +164,7 @@ def get_company_locations():
                     result = future.result()
                     if result:
                         companies.append(result)
-                except Exception as e:
+                except Exception:
                     failed.append(symbol)
 
         us_city_coords = {

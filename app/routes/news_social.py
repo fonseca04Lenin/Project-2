@@ -1,5 +1,4 @@
 import logging
-import os
 
 from flask import Blueprint, request, jsonify
 
@@ -27,7 +26,8 @@ def get_market_news():
         query = request.args.get('q', '').strip()
         news = news_api.get_market_news(limit=limit, query=query if query else None, page=page)
         return jsonify({'articles': news, 'page': page, 'limit': limit})
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to fetch market news")
         return jsonify({'error': 'Could not fetch market news'}), 500
 
 
@@ -62,7 +62,8 @@ def get_company_news(symbol):
             'limit': limit,
             'hasMore': len(news) == limit
         })
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to fetch company news for %s", symbol)
         return jsonify({'error': f'Could not fetch news for {symbol}'}), 500
 
 
@@ -96,7 +97,8 @@ def get_stock_stocktwits(symbol):
             'cursor': result.get('cursor'),
             'has_more': result.get('has_more', False)
         })
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to fetch Stocktwits messages for %s", symbol)
         return jsonify({
             'symbol': symbol,
             'messages': [],

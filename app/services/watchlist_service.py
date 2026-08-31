@@ -3,11 +3,9 @@ Comprehensive Watchlist Service for Stock Watchlist Application
 Replaces the old watchlist.py and FirebaseService watchlist methods with a modern, feature-rich implementation.
 """
 
-import firebase_admin
 from firebase_admin import firestore
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
-import uuid
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import threading

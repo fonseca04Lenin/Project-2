@@ -91,7 +91,6 @@ def morning_brief():
 
     try:
         import yfinance as yf
-        import pandas as pd
 
         symbols = _get_user_watchlist_symbols(user.id)
         if not symbols:
@@ -396,7 +395,6 @@ def health_score():
 
     try:
         import yfinance as yf
-        import pandas as pd
         import numpy as np
 
         symbols = _get_user_watchlist_symbols(user.id)
@@ -564,7 +562,6 @@ def sector_rotation():
 
     try:
         import yfinance as yf
-        import pandas as pd
 
         etfs = list(SECTOR_ETFS.keys())
         data = yf.download(etfs, period='3mo', progress=False, threads=True)

@@ -1,21 +1,18 @@
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 from flask_login import UserMixin
-from datetime import datetime, timedelta
+from datetime import datetime
 import uuid
 from app.config import Config
 import os
 import base64
 import json
-import warnings
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Initialize Firebase with connection pooling
 firebase_initialized = False
 db = None
-_db_instances = {}  # Connection pool for database instances
 
 def initialize_firebase():
     global firebase_initialized, db
@@ -82,26 +79,23 @@ else:
     logger.info("Firebase initialized successfully on module load")
 
 def get_firestore_client():
-    """Get the Firestore client instance with connection pooling"""
-    global db, _db_instances
-    
-    # Return cached instance if available
+    """Get the Firestore client instance."""
+    global db
+
     if db is not None:
         return db
-    
-    # Initialize if not already done
+
     if not firebase_initialized:
         initialize_firebase()
-    
-    # Create new instance if needed
+
     if db is None and firebase_initialized:
         try:
             db = firestore.client()
-            print("New Firestore client created")
+            logger.info("Firestore client created")
         except Exception as e:
-            print(f"Failed to create Firestore client: {e}")
+            logger.error("Failed to create Firestore client: %s", e)
             return None
-    
+
     return db
 
 class FirebaseUser(UserMixin):
@@ -119,95 +113,60 @@ class FirebaseUser(UserMixin):
 class FirebaseService:
     @staticmethod
     def create_user(name, email, password):
-        """Create a new user using Firebase Authentication ONLY"""
+        """Create a new user using Firebase Authentication."""
         try:
             if not firebase_initialized:
                 raise Exception("Firebase not initialized. Please check your Firebase credentials.")
-            
-            # Create user in Firebase Authentication
+
             user_record = auth.create_user(
                 email=email,
                 password=password,
-                display_name=name
+                display_name=name,
             )
-            
-            print(f"Firebase Auth user created: {user_record.uid}")
-            print(f"Using Firebase Authentication only (no Firestore storage)")
-            
+            logger.info("Firebase Auth user created: %s", user_record.uid)
+
             return {
                 'uid': user_record.uid,
                 'name': name,
                 'email': email,
-                'created_at': datetime.utcnow()
+                'created_at': datetime.utcnow(),
             }
-            
         except Exception as e:
-            print(f"Error creating user: {e}")
+            logger.error("Error creating user: %s", e)
             raise Exception(f"Failed to create user: {str(e)}")
-    
+
     @staticmethod
     def get_user_by_id(user_id):
-        """Get user data from Firestore"""
+        """Get user data from Firestore."""
         try:
             if not firebase_initialized or not db:
-                print("Firebase or Firestore not initialized")
+                logger.warning("Firebase not initialized; cannot look up user %s", user_id)
                 return None
-                
+
             doc = db.collection('users').document(user_id).get()
             if doc.exists:
                 return FirebaseUser(doc.to_dict())
-            else:
-                print(f"User not found in Firestore: {user_id}")
-                return None
-                
-        except Exception as e:
-            print(f"Error getting user by ID: {e}")
-            return None
-    
-    @staticmethod
-    def get_user_by_email(email):
-        """Get user by email from Firestore - Note: Use token-based auth instead for better performance"""
-        try:
-            if not firebase_initialized or not db:
-                print("Firebase or Firestore not initialized")
-                return None
-            
-            # Note: Firestore email queries can be slow. Token-based authentication is preferred.
-            # This method is mainly kept for compatibility but should not be the primary auth method.
-            users_ref = db.collection('users')
-            query = users_ref.where(filter=firestore.FieldFilter('email', '==', email)).limit(1).stream()
-            for doc in query:
-                user_data = doc.to_dict()
-                print(f"Found user in Firestore: {user_data.get('name')}")
-                return FirebaseUser(user_data)
-            
-            print(f"User not found with email: {email}")
+            logger.info("User not found in Firestore: %s", user_id)
             return None
         except Exception as e:
-            print(f"Error getting user by email: {e}")
+            logger.error("Error getting user by ID %s: %s", user_id, e)
             return None
-    
+
     @staticmethod
     def authenticate_with_token(id_token):
-        """Authenticate user using Firebase Auth ID token"""
+        """Verify a Firebase ID token and upsert the user profile in Firestore."""
         try:
             if not firebase_initialized:
-                print("Firebase not initialized, cannot verify token")
+                logger.warning("Firebase not initialized, cannot verify token")
                 return None
-
             if not id_token:
-                print("No ID token provided")
                 return None
 
-            # Verify the ID token
             decoded_token = auth.verify_id_token(id_token)
             uid = decoded_token['uid']
             email = decoded_token.get('email', '')
             name = decoded_token.get('name', '') or decoded_token.get('display_name', '')
 
-            print(f"Token verified for user: {uid} ({email})")
-
-            # Get additional user details from Firebase Auth
             try:
                 user_record = auth.get_user(uid)
                 user_profile = {
@@ -215,244 +174,191 @@ class FirebaseService:
                     'name': user_record.display_name or name or 'User',
                     'email': user_record.email or email,
                     'created_at': datetime.utcnow(),
-                    'last_login': datetime.utcnow()
+                    'last_login': datetime.utcnow(),
                 }
-                print(f"Firebase Auth user profile: {user_profile['name']} ({user_profile['email']})")
             except Exception as auth_e:
-                print(f"Could not get Firebase Auth details, using token data: {auth_e}")
-                # Fallback to token data
+                logger.warning("Could not fetch Firebase Auth details for %s, using token data: %s", uid, auth_e)
                 user_profile = {
                     'uid': uid,
                     'name': name or 'User',
                     'email': email,
                     'created_at': datetime.utcnow(),
-                    'last_login': datetime.utcnow()
+                    'last_login': datetime.utcnow(),
                 }
 
-            # Store user in Firestore for session persistence
             try:
                 if db:
-                    # First check if user already exists in Firestore
                     user_doc_ref = db.collection('users').document(uid)
-                    existing_user = user_doc_ref.get()
-                    
-                    # If user exists, get their existing data (especially username)
-                    existing_data = {}
-                    if existing_user.exists:
-                        existing_data = existing_user.to_dict()
-                        print(f"Found existing user in Firestore with data: {existing_data}")
-                    
-                    # Merge existing data with new profile data
-                    user_doc = {
+                    existing = user_doc_ref.get()
+                    existing_data = existing.to_dict() if existing.exists else {}
+
+                    user_doc_ref.set({
                         'uid': uid,
                         'name': user_profile['name'],
                         'email': user_profile['email'],
                         'created_at': existing_data.get('created_at', user_profile['created_at']),
                         'last_login': user_profile['last_login'],
-                        'username': existing_data.get('username', None)  # Keep existing username or None
-                    }
-                    user_doc_ref.set(user_doc, merge=True)
-                    print(f"User stored in Firestore: {uid}")
-                    
-                    # Add username to user_profile for FirebaseUser
-                    user_profile['username'] = existing_data.get('username', None)
-                else:
-                    print("Firestore not available, user not stored")
+                        'username': existing_data.get('username'),
+                    }, merge=True)
+
+                    user_profile['username'] = existing_data.get('username')
             except Exception as store_e:
-                print(f"Could not store user in Firestore: {store_e}")
+                logger.warning("Could not upsert user %s in Firestore: %s", uid, store_e)
 
-            print(f"Returning Firebase Auth user profile for {uid}")
             return FirebaseUser(user_profile)
-
         except Exception as e:
-            print(f"Token verification failed: {e}")
+            logger.error("Token verification failed: %s", e)
             return None
-    
+
     @staticmethod
     def verify_token(id_token):
-        """Verify Firebase ID token"""
+        """Verify a Firebase ID token; returns the decoded token dict or None."""
         try:
-            # Ensure Firebase is initialized before verifying token
-            # This is critical - token verification requires Firebase Admin SDK to be initialized
             if not firebase_initialized:
-                print("Firebase not initialized, attempting to initialize...")
                 initialize_firebase()
-                
             if not firebase_initialized:
-                print("Firebase not initialized - cannot verify token")
+                logger.warning("Firebase not initialized — cannot verify token")
                 return None
-
-            print(f"Verifying Firebase token, Firebase initialized: {firebase_initialized}")
-            decoded_token = auth.verify_id_token(id_token)
-            print(f"Token verified successfully for user: {decoded_token.get('uid')}")
-            return decoded_token
+            return auth.verify_id_token(id_token)
         except Exception as e:
-            print(f"Error verifying token: {e}")
-            print(f"Firebase initialized status: {firebase_initialized}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            logger.error("Error verifying token: %s", e)
             return None
-    
+
     @staticmethod
     def update_last_login(user_id):
-        """Update user's last login time"""
+        """Update user's last login timestamp."""
         try:
             if not firebase_initialized or not db:
-                print("Firebase or Firestore not initialized")
                 return False
-                
-            db.collection('users').document(user_id).update({
-                'last_login': datetime.utcnow()
-            })
-            print(f"Updated last login for user: {user_id}")
+            db.collection('users').document(user_id).update({'last_login': datetime.utcnow()})
             return True
         except Exception as e:
-            print(f"Error updating last login: {e}")
+            logger.error("Error updating last login for %s: %s", user_id, e)
             return False
-    
+
     @staticmethod
     def is_username_taken(username):
-        """Check if username is already taken"""
+        """Return True if the username is already claimed, or if we can't check safely."""
         try:
             if not firebase_initialized or not db:
-                print("Firebase or Firestore not initialized")
-                return True  # Assume taken if we can't check
-                
-            # Query users collection for existing username
-            users_ref = db.collection('users')
-            query = users_ref.where('username', '==', username).limit(1)
-            docs = query.get()
-            
-            is_taken = len(docs) > 0
-            print(f"🔍 Username '{username}' {'is taken' if is_taken else 'is available'}")
-            return is_taken
-            
+                return True
+            query = db.collection('users').where(
+                filter=firestore.FieldFilter('username', '==', username)
+            ).limit(1)
+            return len(query.get()) > 0
         except Exception as e:
-            print(f"Error checking username availability: {e}")
-            return True  # Assume taken if we can't check
-    
+            logger.error("Error checking username availability: %s", e)
+            return True
+
     @staticmethod
     def set_user_username(user_id, username):
-        """Set username for a user and return updated user data"""
+        """Set the username field on a user document."""
         try:
             if not firebase_initialized or not db:
-                print("Firebase or Firestore not initialized")
                 return False
-                
-            # Update user document with username
-            update_data = {
+            db.collection('users').document(user_id).update({
                 'username': username,
-                'updated_at': datetime.utcnow()
-            }
-            db.collection('users').document(user_id).update(update_data)
-            print(f"Set username '{username}' for user: {user_id}")
+                'updated_at': datetime.utcnow(),
+            })
             return True
-            
         except Exception as e:
-            print(f"Error setting username: {e}")
+            logger.error("Error setting username for %s: %s", user_id, e)
             return False
 
     @staticmethod
     def create_alert(user_id, symbol, target_price, alert_type):
-        """Create a price alert"""
+        """Create a price alert in the user's alerts subcollection."""
         try:
             if not firebase_initialized or not db:
                 raise Exception("Firebase not initialized. Cannot create alert.")
-                
-            alert_data = {
+
+            alert_id = str(uuid.uuid4())
+            db.collection('users').document(user_id).collection('alerts').document(alert_id).set({
                 'symbol': symbol.upper(),
                 'target_price': target_price,
                 'alert_type': alert_type,
                 'is_active': True,
                 'triggered': False,
                 'created_at': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
-            }
-            
-            alert_id = str(uuid.uuid4())
-            db.collection('users').document(user_id).collection('alerts').document(alert_id).set(alert_data)
-            print(f"Created alert {alert_id} for user {user_id}")
+                'updated_at': datetime.utcnow(),
+            })
+            logger.info("Created alert %s for user %s", alert_id, user_id)
             return alert_id
         except Exception as e:
-            print(f"Error creating alert: {e}")
+            logger.error("Error creating alert for %s: %s", user_id, e)
             return None
-    
+
     @staticmethod
     def get_alerts(user_id, symbol=None):
-        """Get user's alerts"""
+        """Get user's alerts, optionally filtered by symbol."""
         try:
             if not firebase_initialized or not db:
-                print("Firebase not initialized. Cannot get alerts.")
                 return []
-                
-            alerts = []
+
             query = db.collection('users').document(user_id).collection('alerts')
-            
             if symbol:
                 query = query.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper()))
-            
-            docs = query.stream()
-            for doc in docs:
-                alert_data = doc.to_dict()
-                alert_data['id'] = doc.id
-                alerts.append(alert_data)
-            
-            print(f"Retrieved {len(alerts)} alerts for user {user_id}")
+
+            alerts = []
+            for doc in query.stream():
+                data = doc.to_dict()
+                data['id'] = doc.id
+                alerts.append(data)
             return alerts
         except Exception as e:
-            print(f"Error getting alerts: {e}")
+            logger.error("Error getting alerts for %s: %s", user_id, e)
             return []
     
     @staticmethod
     def delete_alert(user_id, alert_id):
-        """Delete an alert"""
+        """Delete an alert from the user's alerts subcollection."""
         try:
-            # Verify the alert belongs to the user
-            doc = db.collection('alerts').document(alert_id).get()
-            if doc.exists and doc.to_dict()['user_id'] == user_id:
-                db.collection('alerts').document(alert_id).delete()
-                return True
-            return False
+            if not firebase_initialized or not db:
+                logger.warning("Firebase not initialized. Cannot delete alert.")
+                return False
+            # Ownership is enforced by the collection path: users/{uid}/alerts/{alertId}
+            doc_ref = db.collection('users').document(user_id).collection('alerts').document(alert_id)
+            if not doc_ref.get().exists:
+                return False
+            doc_ref.delete()
+            logger.info("Deleted alert %s for user %s", alert_id, user_id)
+            return True
         except Exception as e:
-            print(f"Error deleting alert: {e}")
+            logger.error("Error deleting alert %s for user %s: %s", alert_id, user_id, e)
             return False
     
     @staticmethod
     def check_triggered_alerts(user_id, symbol, current_price):
-        """Check if any alerts should be triggered"""
+        """Check active alerts for a symbol and mark any that should trigger."""
         try:
             if not firebase_initialized or not db:
-                print("Firebase not initialized. Cannot check triggered alerts.")
                 return []
-                
-            triggered_alerts = []
+
+            triggered = []
             alerts_ref = db.collection('users').document(user_id).collection('alerts')
-            alerts = alerts_ref.where(filter=firestore.FieldFilter('symbol', '==', symbol.upper())).limit(10).stream()
-            
+            alerts = alerts_ref.where(
+                filter=firestore.FieldFilter('symbol', '==', symbol.upper())
+            ).limit(10).stream()
+
             for doc in alerts:
-                alert_data = doc.to_dict()
-                
-                # Filter in Python for better performance
-                if not alert_data.get('is_active', False) or alert_data.get('triggered', False):
+                data = doc.to_dict()
+                if not data.get('is_active', False) or data.get('triggered', False):
                     continue
-                    
-                should_trigger = False
-                
-                if alert_data['alert_type'] == 'above' and current_price >= alert_data['target_price']:
-                    should_trigger = True
-                elif alert_data['alert_type'] == 'below' and current_price <= alert_data['target_price']:
-                    should_trigger = True
-                
-                if should_trigger:
-                    # Mark alert as triggered
-                    db.collection('users').document(user_id).collection('alerts').document(doc.id).update({
+
+                target = data['target_price']
+                fired = (
+                    (data['alert_type'] == 'above' and current_price >= target)
+                    or (data['alert_type'] == 'below' and current_price <= target)
+                )
+                if fired:
+                    alerts_ref.document(doc.id).update({
                         'triggered': True,
-                        'triggered_at': datetime.utcnow()
+                        'triggered_at': datetime.utcnow(),
                     })
-                    triggered_alerts.append(alert_data)
-                    print(f"Alert triggered for {symbol} at ${current_price}")
-            
-            return triggered_alerts
+                    triggered.append(data)
+                    logger.info("Alert triggered for %s at $%s", symbol, current_price)
+
+            return triggered
         except Exception as e:
-            print(f"Error checking triggered alerts: {e}")
-            return [] 
+            logger.error("Error checking triggered alerts for %s/%s: %s", user_id, symbol, e)
+            return []

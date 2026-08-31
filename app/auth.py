@@ -1,10 +1,9 @@
 import logging
 
 from flask import Blueprint, request, jsonify, session
-from flask_login import login_user, logout_user, login_required, current_user
-from app.services.firebase_service import FirebaseService, FirebaseUser
+from flask_login import login_user, logout_user, current_user
+from app.services.firebase_service import FirebaseService
 from app.extensions import login_manager
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,6 @@ def register():
     data = request.get_json()
     name = data.get('name')
     email = data.get('email')
-    password = data.get('password')
     id_token = data.get('idToken')
 
     if not name or not email:
@@ -104,16 +102,12 @@ def login():
 
 @auth.route('/api/auth/logout')
 def logout():
-    # Always try to logout, even if user is not authenticated
     try:
         logout_user()
-        # Clear any session data
-        session.clear()
-        return jsonify({'message': 'Logout successful'})
-    except Exception as e:
-        # If logout fails, still return success to clear frontend state
-        session.clear()
-        return jsonify({'message': 'Logout successful'})
+    except Exception:
+        logger.exception("logout_user() failed; clearing session anyway")
+    session.clear()
+    return jsonify({'message': 'Logout successful'})
 
 @auth.route('/api/auth/set-username', methods=['POST'])
 def set_username():

@@ -2,8 +2,6 @@ import logging
 import os
 import threading
 import time
-import signal
-from functools import wraps
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta, timezone
 
@@ -15,14 +13,13 @@ except ImportError:
     except ImportError:
         zoneinfo = None
 
-from flask import request, jsonify
+from flask import request
 from flask_login import current_user
 
 from app.services.stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI, AlpacaAPI, CompanyInfoService, StocktwitsAPI
 from app.services.stock_symbol_index import StockSymbolIndexService
 from app.services.firebase_service import FirebaseService, get_firestore_client, FirebaseUser
 from app.services.watchlist_service import get_watchlist_service
-from app.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -290,40 +287,11 @@ class RateLimiter:
 rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
 
 # ---------------------------------------------------------------------------
-# Timeout decorator
-# ---------------------------------------------------------------------------
-
-def timeout_handler(signum, frame):
-    raise TimeoutError("Request timed out")
-
-
-def with_timeout(seconds=25):
-    """Decorator to add timeout to functions"""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(seconds)
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except TimeoutError:
-                logger.warning("Function %s timed out after %s seconds", func.__name__, seconds)
-                return jsonify({'error': 'Request timed out'}), 408
-            finally:
-                signal.alarm(0)
-                signal.signal(signal.SIGALRM, old_handler)
-        return wrapper
-    return decorator
-
-# ---------------------------------------------------------------------------
 # Authentication helper
 # ---------------------------------------------------------------------------
 
 def authenticate_request():
-    """Lightweight authentication that avoids Firestore calls to prevent memory leaks"""
-    request_id = id(request)
-
+    """Authenticate the current request via Flask-Login session or Bearer token."""
     cleanup_old_requests()
 
     try:
@@ -331,28 +299,21 @@ def authenticate_request():
             return current_user
 
         auth_header = request.headers.get('Authorization')
-
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.replace('Bearer ', '')
-
             try:
                 decoded_token = FirebaseService.verify_token(token)
-
                 if not decoded_token:
                     return None
-
                 uid = decoded_token.get('uid')
                 if not uid:
                     return None
-
-                user_profile = {
+                return FirebaseUser({
                     'uid': uid,
                     'name': decoded_token.get('name', 'User'),
                     'email': decoded_token.get('email', ''),
-                    'id': uid
-                }
-                firebase_user = FirebaseUser(user_profile)
-                return firebase_user
+                    'id': uid,
+                })
             except Exception as e:
                 logger.error("Token authentication failed: %s", e)
                 return None

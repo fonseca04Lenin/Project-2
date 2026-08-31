@@ -6,7 +6,7 @@ Data stored in Firestore under users/{user_id}/ following the same pattern as wa
 
 import logging
 import uuid
-from datetime import datetime, date
+from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from firebase_admin import firestore

@@ -7,15 +7,14 @@ import os
 import json
 import time
 import uuid
-import requests as http_requests
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from app.services.firebase_service import FirebaseService, get_firestore_client
-from app.services.stock import Stock, YahooFinanceAPI, NewsAPI, FinnhubAPI
 import logging
+import requests as http_requests
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+from app.services.firebase_service import FirebaseService, get_firestore_client
+from app.services.stock import YahooFinanceAPI, NewsAPI, FinnhubAPI
+
 logger = logging.getLogger(__name__)
 
 GROK_API_URL = 'https://api.x.ai/v1/responses'
@@ -1676,7 +1675,6 @@ The analysis should be based on the most recent data you have when the user requ
 
             # Extract price information
             price = price_data.get('price', 0)
-            price_change = price_data.get('priceChange', price_data.get('change', 0))
             percent_change = price_data.get('priceChangePercent', price_data.get('changePercent', price_data.get('percentageChange', 0)))
             company_name = price_data.get('name', symbol)
 

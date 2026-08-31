@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, Response
 
 from app.services.services import (
     authenticate_request, ensure_watchlist_service, rate_limiter,
-    get_stock_alpaca_only, get_watchlist_service_lazy,
+    get_stock_alpaca_only,
     yahoo_finance_api, company_info_service,
 )
 
@@ -28,13 +28,8 @@ def get_watchlist_route():
             response.headers['Access-Control-Max-Age'] = '86400'
         return response
 
-    origin = request.headers.get('Origin', '')
-    logger.info("GET /api/watchlist request from origin: %s", origin)
-    logger.debug("Request headers - Authorization: %s, X-User-ID: %s", bool(request.headers.get('Authorization')), request.headers.get('X-User-ID'))
-
     user = authenticate_request()
     if not user:
-        logger.warning("Authentication failed for /api/watchlist")
         return jsonify({'error': 'Authentication required'}), 401
 
     if not rate_limiter.is_allowed(user.id):
@@ -42,93 +37,44 @@ def get_watchlist_route():
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     try:
-        logger.info("=" * 80)
-        logger.info("GET WATCHLIST REQUEST for user: %s", user.id)
-        logger.info("=" * 80)
-
         try:
             service = ensure_watchlist_service()
-        except Exception as service_error:
-            logger.error("Failed to initialize watchlist service: %s", service_error)
-            import traceback
-            logger.error("Traceback: %s", traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to initialize watchlist service")
             return jsonify({'error': 'Service unavailable'}), 503
-
-        logger.info("Fetching watchlist from Firestore...")
-        watchlist = []
 
         try:
             watchlist = service.get_watchlist(user.id, limit=100)
-            logger.info("Retrieved %s items from Firebase", len(watchlist))
-        except Exception as firestore_error:
-            logger.error("Firestore query error: %s", firestore_error)
-            import traceback
-            logger.error("Traceback: %s", traceback.format_exc())
+        except Exception:
+            logger.exception("Firestore query error fetching watchlist for %s", user.id)
             watchlist = []
-            logger.warning("Returning empty watchlist due to Firestore error")
 
-        if watchlist:
+        cleaned = []
+        for item in watchlist:
             try:
-                firebase_symbols = [item.get('symbol') or item.get('id') or 'NO_SYMBOL' for item in watchlist]
-                logger.info("STOCKS FROM FIREBASE:")
-                for i, symbol in enumerate(firebase_symbols[:10], 1):
-                    logger.info("   %s. %s", i, symbol)
-                if len(firebase_symbols) > 10:
-                    logger.info("   ... and %s more", len(firebase_symbols) - 10)
-            except Exception as log_error:
-                logger.error("Error logging symbols: %s", log_error)
-        else:
-            logger.info("NO STOCKS IN FIREBASE WATCHLIST")
-
-        watchlist_with_prices = watchlist
-
-        try:
-            cleaned_watchlist = []
-            for item in watchlist_with_prices:
-                try:
-                    cleaned_item = {}
-                    for key, value in item.items():
-                        try:
-                            if isinstance(value, datetime):
-                                cleaned_item[key] = value.isoformat()
-                            elif hasattr(value, 'timestamp'):
-                                cleaned_item[key] = value.timestamp()
-                            elif hasattr(value, '__dict__'):
-                                continue
-                            else:
-                                cleaned_item[key] = value
-                        except Exception:
-                            continue
-                    cleaned_watchlist.append(cleaned_item)
-                except Exception as item_error:
-                    logger.error("Error cleaning item: %s", item_error)
-                    continue
-
-            watchlist_with_prices = cleaned_watchlist
-        except Exception as clean_error:
-            logger.error("Error cleaning watchlist: %s", clean_error)
-            pass
-
-        logger.info("RETURNING %s items", len(watchlist_with_prices))
-        logger.info("=" * 80)
+                cleaned_item = {}
+                for key, value in item.items():
+                    if isinstance(value, datetime):
+                        cleaned_item[key] = value.isoformat()
+                    elif hasattr(value, 'timestamp'):
+                        cleaned_item[key] = value.timestamp()
+                    elif hasattr(value, '__dict__'):
+                        continue
+                    else:
+                        cleaned_item[key] = value
+                cleaned.append(cleaned_item)
+            except Exception:
+                logger.exception("Skipping malformed watchlist item")
 
         try:
-            response = jsonify(watchlist_with_prices)
-            return response
-        except Exception as json_error:
-            logger.error("Error serializing watchlist to JSON: %s", json_error)
-            import traceback
-            logger.error("Traceback: %s", traceback.format_exc())
-            return jsonify([]), 500
-
-    except Exception as e:
-        logger.error("Error in get_watchlist_route: %s", e)
-        import traceback
-        logger.error("Traceback: %s", traceback.format_exc())
-        try:
-            return jsonify({'error': 'Internal server error', 'items': []}), 500
-        except:
+            return jsonify(cleaned)
+        except Exception:
+            logger.exception("Error serializing watchlist to JSON")
             return Response('[]', mimetype='application/json', status=500)
+
+    except Exception:
+        logger.exception("Unhandled error in get_watchlist_route")
+        return jsonify({'error': 'Internal server error', 'items': []}), 500
 
 
 @watchlist_bp.route('', methods=['POST'])

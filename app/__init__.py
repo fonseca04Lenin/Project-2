@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
@@ -8,6 +9,42 @@ from app.extensions import socketio, login_manager
 from app.config import Config
 
 logger = logging.getLogger(__name__)
+
+_workers_started = False
+
+
+def _should_start_background_workers() -> bool:
+    """Decide whether this process should own the background worker threads.
+
+    Skips in pytest, when explicitly disabled, and in the Werkzeug reloader
+    parent (the child re-imports the app and will start them there).
+    """
+    if os.environ.get('DISABLE_BACKGROUND_WORKERS', '').lower() in ('1', 'true', 'yes'):
+        return False
+    if 'pytest' in sys.modules:
+        return False
+    # Werkzeug reloader: parent has no WERKZEUG_RUN_MAIN, child sets it to 'true'.
+    # Gunicorn doesn't set it, and Config.DEBUG is False in prod, so gunicorn passes through.
+    if Config.DEBUG and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        return False
+    return True
+
+
+def _maybe_start_background_workers() -> None:
+    """Start Finnhub WS + price-update + memory-cleanup threads, once per process."""
+    global _workers_started
+    if _workers_started:
+        return
+    if not _should_start_background_workers():
+        logger.info("Background workers not started in this process")
+        return
+    try:
+        from app.socketio_events import start_price_updates
+        start_price_updates()
+        _workers_started = True
+        logger.info("Background workers started")
+    except Exception as e:
+        logger.error("Failed to start background workers: %s", e, exc_info=True)
 
 
 def create_app():
@@ -132,12 +169,13 @@ def create_app():
     app.register_blueprint(stock_notes_bp)
 
     # -------------------------------------------------------------------
-    # Register SocketIO events
+    # Register SocketIO events + start background workers
     # -------------------------------------------------------------------
-    from app.socketio_events import register_socketio_events, start_price_updates
+    from app.socketio_events import register_socketio_events
 
     register_socketio_events()
     register_chat_socketio_events()
+    _maybe_start_background_workers()
 
     # -------------------------------------------------------------------
     # Startup logging + security validation
@@ -168,9 +206,5 @@ def create_app():
 
     logger.info("App module loaded successfully - services will initialize on demand")
     logger.info("=" * 80)
-
-    @app.route('/health')
-    def health_check():
-        return jsonify({'status': 'ok'}), 200
 
     return app

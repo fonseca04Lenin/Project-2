@@ -2,14 +2,12 @@ import logging
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
-from flask_login import current_user
 
 from app.config import Config
 from app.services.services import (
-    authenticate_request, get_watchlist_service_lazy, ensure_watchlist_service,
-    connected_users, USE_ALPACA_API, alpaca_api, watchlist_service,
+    authenticate_request, get_watchlist_service_lazy,
+    connected_users, USE_ALPACA_API, alpaca_api,
 )
-from app.services.firebase_service import FirebaseService, FirebaseUser
 
 logger = logging.getLogger(__name__)
 
