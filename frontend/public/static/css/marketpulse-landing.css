@@ -1,0 +1,1014 @@
+/* Stock Watchlist Pro Landing Page Styles */
+/* Dark theme with sophisticated design using app's signature green */
+
+:root {
+  --green-accent: #00D924;
+  --green-accent-foreground: #000000;
+  --background: #000000;
+  --foreground: #ffffff;
+  --foreground-muted: #a0a0a0;
+  --border: #333333;
+  --border-light: #1a1a1a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  line-height: 1.6;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Exclude Font Awesome and other icon fonts */
+i[class*="fa-"],
+i[class*="fas"],
+i[class*="far"],
+i[class*="fab"],
+i[class*="fal"],
+[class*="fa-"]:before,
+[class*="fa-"]:after,
+[data-icon]:before,
+[data-icon]:after,
+.fa,
+.fas,
+.far,
+.fab,
+.fal {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "Font Awesome 5 Pro", "FontAwesome" !important;
+}
+
+/* Landing Header */
+.landing-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.landing-header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-header-left {
+  display: flex;
+  align-items: center;
+}
+
+.landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.landing-brand-icon {
+  font-size: 1.5rem;
+  color: var(--green-accent);
+}
+
+.landing-brand-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground);
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+.landing-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.landing-nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.landing-nav-link {
+  color: var(--foreground-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.2s ease;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+.landing-nav-link:hover {
+  color: var(--green-accent);
+}
+
+.stock-watchlist-landing {
+  min-height: 100vh;
+  background-color: var(--background);
+  position: relative;
+}
+
+.stock-watchlist-hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  padding-top: 6rem;
+  background-image: url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2070&q=80');
+  background-size: cover;
+  background-position: center 40%;
+  background-repeat: no-repeat;
+}
+
+.stock-watchlist-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  z-index: 0;
+}
+
+.stock-watchlist-container {
+  max-width: 1200px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+/* Dynamic animations and effects */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.stock-watchlist-title {
+  font-size: clamp(4rem, 12vw, 9rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+  color: var(--foreground);
+  text-transform: uppercase;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  animation: fadeInUp 1s ease-out;
+}
+
+.stock-watchlist-subtitle {
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  margin-bottom: 2rem;
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  animation: fadeInUp 1s ease-out 0.2s both;
+}
+
+.stock-watchlist-description {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 0 auto 3rem auto;
+  max-width: 800px;
+  color: var(--foreground-muted);
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  animation: fadeInUp 1s ease-out 0.4s both;
+}
+
+.stock-watchlist-highlight {
+  color: var(--green-accent);
+  font-weight: 600;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.stock-watchlist-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 4rem;
+  animation: fadeInUp 1s ease-out 0.6s both;
+}
+
+.stock-watchlist-btn {
+  padding: 0.75rem 2.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  height: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stock-watchlist-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.stock-watchlist-btn:hover::before {
+  left: 100%;
+}
+
+.stock-watchlist-btn-primary {
+  background-color: var(--green-accent);
+  color: var(--green-accent-foreground);
+  box-shadow: 0 4px 15px rgba(0, 217, 36, 0.3);
+}
+
+.stock-watchlist-btn-primary:hover {
+  background-color: rgba(0, 217, 36, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 217, 36, 0.4);
+}
+
+.stock-watchlist-btn-secondary {
+  background-color: transparent;
+  color: var(--foreground);
+  border: 2px solid var(--foreground);
+}
+
+.stock-watchlist-btn-secondary:hover {
+  background-color: var(--foreground);
+  color: var(--background);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.1);
+}
+
+.stock-watchlist-footer {
+  margin-top: 6rem;
+  animation: fadeInUp 1s ease-out 0.8s both;
+}
+
+.stock-watchlist-tagline {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Auth Dialog Styles */
+.auth-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.auth-dialog {
+  background-color: #0a0a0a !important;
+  background: #0a0a0a !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  z-index: 1001;
+  animation: slideUp 0.3s ease-out;
+}
+
+.auth-dialog .auth-form {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 0;
+  background-color: #0a0a0a;
+}
+
+.auth-dialog-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  letter-spacing: -0.02em;
+}
+
+.auth-dialog-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  line-height: 1;
+}
+
+.auth-dialog-close:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.auth-dialog-tabs {
+  display: flex;
+  margin: 1.5rem 1.5rem 0 1.5rem;
+  gap: 0.5rem;
+  background: transparent;
+  padding: 0.3rem;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 0.625rem 1rem;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  position: relative;
+}
+
+.auth-tab.active {
+  color: #000000;
+  background-color: #00D924;
+  box-shadow: 0 2px 8px rgba(0, 217, 36, 0.25);
+}
+
+.auth-tab:hover:not(.active) {
+  color: rgba(255, 255, 255, 0.75);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.auth-form {
+  padding: 1.5rem;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background-color: transparent !important;
+  background: transparent !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin-top: 0.5rem;
+}
+
+.auth-field {
+  margin-bottom: 1rem;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.auth-field label {
+  display: block !important;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+  visibility: visible !important;
+  opacity: 1 !important;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+.auth-field input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 0.9375rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  box-sizing: border-box;
+}
+
+.auth-field input:focus {
+  outline: none;
+  border-color: #00D924;
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(0, 217, 36, 0.12);
+}
+
+.auth-field input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  opacity: 1;
+}
+
+.auth-field-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.375rem;
+}
+
+.forgot-password-link {
+  color: #00D924;
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+.forgot-password-link:hover {
+  color: #00ff2e;
+  text-decoration: none;
+}
+
+.auth-error {
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1.5px solid rgba(239, 68, 68, 0.35);
+  color: #ff6b6b;
+  padding: 0.75rem 0.875rem;
+  border-radius: 5px;
+  font-size: 0.8125rem;
+  margin-bottom: 0.75rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  line-height: 1.4;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background-color: #00D924;
+  color: #000000;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  box-shadow: 0 4px 12px rgba(0, 217, 36, 0.3);
+  margin-top: 0.25rem;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background-color: #00ff2e;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 217, 36, 0.4);
+}
+
+.auth-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 12px rgba(0, 217, 36, 0.2);
+}
+
+.auth-spinner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Google Sign-In Button */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 1.25rem 0 1rem 0;
+  position: relative;
+}
+
+.auth-divider::before {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.auth-divider-text {
+  padding: 0 0.875rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #0a0a0a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+.auth-google-btn {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.auth-google-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.09);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.auth-google-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.auth-google-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.auth-google-icon {
+  flex-shrink: 0;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top: 2px solid #000000;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+
+.auth-switch-text {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.875rem;
+  margin: 0;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+}
+
+.auth-switch-link {
+  background: none;
+  border: none;
+  color: #00D924;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  padding: 0;
+  margin-left: 0.25rem;
+}
+
+.auth-switch-link:hover {
+  color: #00ff2e;
+  text-decoration: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (min-width: 640px) {
+  .stock-watchlist-actions {
+    flex-direction: row;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-header-container {
+    padding: 1rem;
+  }
+  
+  .landing-nav {
+    gap: 1rem;
+  }
+  
+  .landing-nav-link {
+    font-size: 0.75rem;
+  }
+  
+  .stock-watchlist-hero {
+    padding: 1rem;
+    padding-top: 5rem;
+  }
+  
+  .stock-watchlist-title {
+    margin-bottom: 1.5rem;
+  }
+  
+  .stock-watchlist-subtitle {
+    margin-bottom: 1.5rem;
+  }
+  
+  .stock-watchlist-description {
+    margin-bottom: 2rem;
+  }
+  
+  .stock-watchlist-actions {
+    margin-bottom: 3rem;
+  }
+  
+  .stock-watchlist-footer {
+    margin-top: 4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-header-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .landing-nav {
+    gap: 0.5rem;
+  }
+
+  .landing-nav-link {
+    font-size: 0.7rem;
+  }
+
+  .stock-watchlist-hero {
+    padding-top: 7rem;
+  }
+
+  .auth-dialog {
+    max-width: 95%;
+    border-radius: 8px;
+  }
+
+  .auth-dialog-header {
+    padding: 1.25rem 1.25rem 0.875rem 1.25rem;
+  }
+
+  .auth-dialog-header h2 {
+    font-size: 1.375rem;
+  }
+
+  .auth-dialog-tabs {
+    margin: 1.25rem 1.25rem 0 1.25rem;
+  }
+
+  .auth-form {
+    padding: 1.25rem;
+  }
+
+}
+
+/* Hide the old landing page when React landing page is active */
+.stock-watchlist-landing ~ .landing-page {
+  display: none !important;
+}
+
+.stock-watchlist-landing ~ #main-content {
+  display: none !important;
+}
+
+/* Ensure Stock Watchlist Pro landing page takes precedence */
+.stock-watchlist-landing {
+  position: relative;
+  z-index: 1;
+}
+
+/* Override any conflicting styles from main CSS */
+.stock-watchlist-landing * {
+  box-sizing: border-box;
+}
+
+/* Loading screen styles */
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-container {
+  text-align: center;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.loading-text h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--green-accent) 0%, #00ff88 50%, #ffaa00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Goudy Old Style', 'Palatino', 'Palatino Linotype', 'Book Antiqua', serif;
+  letter-spacing: 0.05em;
+}
+
+.loading-text p {
+  color: var(--foreground-muted);
+  font-size: 1rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* AI Section — Editorial Split Layout */
+.ai-section {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background-image: url('https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=2070&q=80');
+  background-size: cover;
+  background-position: center 40%;
+  background-repeat: no-repeat;
+}
+
+.ai-section::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.72) 50%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  z-index: 0;
+}
+
+.ai-section-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  width: 100%;
+  padding: 5rem 3rem 7rem 4rem;
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 5rem;
+  align-items: center;
+}
+
+/* Left column — the statement */
+.ai-section-left {
+  position: relative;
+}
+
+.ai-section-eyebrow {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--green-accent);
+  margin-bottom: 2rem;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.ai-section-headline {
+  font-size: clamp(2.75rem, 5vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  color: var(--foreground);
+  margin-bottom: 2.5rem;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Palatino Linotype', serif;
+}
+
+.ai-section-aside {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: #909090;
+  max-width: 320px;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
+}
+
+/* Right column — feature rows */
+.ai-section-right {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-feature-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 2.25rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.25s ease;
+  cursor: default;
+}
+
+.ai-feature-row:last-child {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-feature-row:hover {
+  border-top-color: var(--green-accent);
+}
+
+.ai-feature-row:hover .ai-feature-num {
+  color: var(--green-accent);
+}
+
+.ai-feature-row:hover .ai-feature-title {
+  color: #fff;
+}
+
+.ai-feature-num {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #555;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  padding-top: 0.2rem;
+  min-width: 24px;
+  transition: color 0.25s ease;
+}
+
+.ai-feature-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ai-feature-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ececec;
+  letter-spacing: -0.01em;
+  font-family: 'Baskerville', 'Baskerville Old Face', 'Palatino Linotype', serif;
+  transition: color 0.25s ease;
+}
+
+.ai-feature-desc {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #888;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .ai-section-inner {
+    grid-template-columns: 1fr;
+    gap: 3.5rem;
+    padding: 5rem 2rem 5rem 2.5rem;
+  }
+
+  .ai-section-aside {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-section-inner {
+    padding: 4rem 1.25rem 4rem 1.75rem;
+  }
+
+  .ai-section-headline {
+    font-size: clamp(2.25rem, 8vw, 3rem);
+  }
+
+  .ai-feature-row {
+    padding: 1.75rem 0;
+    gap: 1.25rem;
+  }
+}
+
+/* Notification container */
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  pointer-events: none;
+}

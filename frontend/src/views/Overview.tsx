@@ -1,0 +1,132 @@
+import type { OverviewViewProps } from '../types/models';
+import { SparklineChart, MarketOverview, MarketIntelligenceWidget, TopMoversWidget } from '../components/widgets';
+import { events, EVT } from '../lib/events';
+
+const AI_TOOLS = [
+    { tab: 'brief', icon: 'fa-chart-line', label: 'Morning Brief', desc: 'Watchlist summary, daily', color: '#00C805' },
+    { tab: 'thesis', icon: 'fa-chart-bar', label: 'Thesis Builder', desc: 'Bull & bear case for any ticker', color: '#00C805' },
+    { tab: 'health', icon: 'fa-wave-square', label: 'Health Score', desc: 'Portfolio diversification grade', color: '#FFD700' },
+    { tab: 'rotation', icon: 'fa-clock', label: 'Sector Rotation', desc: 'Track institutional money flow', color: '#00C805' },
+    { tab: 'earnings', icon: 'fa-file-lines', label: 'Earnings Breakdown', desc: 'AI reads the earnings report', color: '#FF6B35' },
+    { tab: 'portfolio', icon: 'fa-circle-dot', label: 'Portfolio Guidance', desc: 'Exposure & risk assessment', color: '#00C805' },
+];
+
+export default function Overview({ watchlistData, marketStatus, onNavigate, onNavigateToAiTool, onStockHover, preferences = {} }: OverviewViewProps) {
+    const showSparklines = preferences.showSparklines !== false;
+    const showPercentChange = preferences.showPercentChange !== false;
+    const compactNumbers = preferences.compactNumbers || false;
+    const currencySymbol = ({ USD: '$', EUR: '€', GBP: '£', JPY: '¥' } as Record<string, string>)[preferences.currency || 'USD'] || '$';
+
+    const formatStockPrice = (price: number): string => {
+        if (!price) return `${currencySymbol}0.00`;
+        if (compactNumbers && price >= 1000) {
+            if (price >= 1e9) return `${currencySymbol}${(price / 1e9).toFixed(2)}B`;
+            if (price >= 1e6) return `${currencySymbol}${(price / 1e6).toFixed(2)}M`;
+            if (price >= 1e3) return `${currencySymbol}${(price / 1e3).toFixed(2)}K`;
+        }
+        return `${currencySymbol}${price.toFixed(2)}`;
+    };
+
+    const openDetails = (symbol: string) => {
+        events.emit(EVT.STOCK_DETAILS_OPEN, { symbol });
+    };
+
+    return (
+        <div className="overview-view">
+            <MarketOverview marketStatus={marketStatus} />
+
+            {onNavigateToAiTool && (
+                <div className="ai-tools-section">
+                    <p className="ai-tools-label">AI Research</p>
+                    <div className="ai-tools-grid">
+                        {AI_TOOLS.map((tool) => (
+                            <button key={tool.tab} className="ai-tool-card" onClick={() => onNavigateToAiTool(tool.tab)}>
+                                <i className={`fas ${tool.icon}`} style={{ color: tool.color, fontSize: '0.9rem', marginBottom: '0.5rem' }} />
+                                <div className="ai-tool-title">{tool.label}</div>
+                                <div className="ai-tool-desc">{tool.desc}</div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="main-grid-enhanced">
+                <div className="main-card enhanced">
+                    <div className="card-header">
+                        <h3><i className="fas fa-table"></i> Watchlist</h3>
+                        <button className="view-all-btn" onClick={() => onNavigate('watchlist')}>
+                            See All <i className="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div className="watchlist-quick-enhanced">
+                        {watchlistData.slice(0, 6).map((stock, index) => (
+                            <div
+                                key={index}
+                                className="stock-row-enhanced"
+                                data-stock-symbol={stock.symbol}
+                                role="button"
+                                tabIndex={0}
+                                onMouseEnter={() => onStockHover && onStockHover(stock.symbol)}
+                                onClick={() => openDetails(stock.symbol)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        openDetails(stock.symbol);
+                                    }
+                                }}
+                            >
+                                <div className="stock-info-enhanced">
+                                    <div className="stock-symbol-enhanced">{stock.symbol}</div>
+                                    <div className="stock-name-enhanced">{stock.company_name || stock.name || stock.symbol}</div>
+                                </div>
+                                {showSparklines && (
+                                    <div className="stock-sparkline">
+                                        <SparklineChart
+                                            symbol={stock.symbol}
+                                            isPositive={(stock.change_percent || 0) >= 0}
+                                            width={120}
+                                            height={45}
+                                        />
+                                    </div>
+                                )}
+                                <div className="stock-price-group">
+                                    <div className={`stock-price-enhanced ${(stock.change_percent || 0) >= 0 ? 'positive' : 'negative'}`}>
+                                        {formatStockPrice(stock.current_price || stock.price || 0)}
+                                    </div>
+                                    {showPercentChange && (
+                                        <div className={`stock-change-enhanced ${(stock.change_percent || 0) >= 0 ? 'positive' : 'negative'}`}>
+                                            {(stock.change_percent || 0) >= 0 ? '+' : ''}{stock.change_percent?.toFixed(2) || '0.00'}%
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        {watchlistData.length === 0 && (
+                            <div className="empty-state">
+                                <i className="fas fa-database"></i>
+                                <p>No stocks in your watchlist yet</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="main-card enhanced">
+                    <div className="card-header">
+                        <h3><i className="fas fa-fire"></i> Top Movers</h3>
+                    </div>
+                    <TopMoversWidget />
+                </div>
+
+                <div className="main-card enhanced">
+                    <div className="card-header">
+                        <h3><i className="fas fa-database"></i> Research Snapshot</h3>
+                        <button className="view-all-btn" onClick={() => onNavigate('research')}>
+                            Open Research <i className="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                    <MarketIntelligenceWidget onNavigate={onNavigate} />
+                </div>
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,39 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a1a1a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00D924;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background with rounded corners -->
+  <rect width="48" height="48" rx="8" fill="url(#bgGradient)"/>
+
+  <!-- Larger, bolder chart for better visibility -->
+  <g transform="translate(3, 6)">
+    <!-- Main upward trending chart line -->
+    <path d="M 3 30 L 10.5 22.5 L 18 25.5 L 27 12 L 36 9 L 42 15"
+          stroke="url(#greenGradient)"
+          stroke-width="4"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Chart area fill with gradient -->
+    <path d="M 3 30 L 10.5 22.5 L 18 25.5 L 27 12 L 36 9 L 42 15 L 42 36 L 3 36 Z"
+          fill="url(#greenGradient)"
+          opacity="0.3"/>
+
+    <!-- Bold data points on chart -->
+    <circle cx="10.5" cy="22.5" r="3" fill="#00ff88"/>
+    <circle cx="27" cy="12" r="3" fill="#00ff88"/>
+    <circle cx="42" cy="15" r="3" fill="#00ff88"/>
+  </g>
+
+  <!-- Subtle border glow -->
+  <rect width="48" height="48" rx="8" fill="none" stroke="rgba(0,255,136,0.2)" stroke-width="1"/>
+</svg>
